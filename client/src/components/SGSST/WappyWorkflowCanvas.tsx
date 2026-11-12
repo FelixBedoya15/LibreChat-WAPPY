@@ -967,6 +967,10 @@ export default function WappyWorkflowCanvas({
     sourceCollection: string;
     totalRecords: number;
     criticalCount: number;
+    connected?: boolean;
+    connectedEmail?: string;
+    resolvedFolder?: { id: string; name: string; webViewLink?: string } | null;
+    availableFolders?: Array<{ id: string; name: string; parentId?: string; webViewLink?: string }>;
     kpis: Array<{
       label: string;
       value: string | number;
@@ -1001,6 +1005,10 @@ export default function WappyWorkflowCanvas({
     sourceCollection: '',
     totalRecords: 0,
     criticalCount: 0,
+    connected: undefined,
+    connectedEmail: undefined,
+    resolvedFolder: null,
+    availableFolders: [],
     kpis: [],
     records: [],
     latestReports: [],
@@ -3233,11 +3241,24 @@ export default function WappyWorkflowCanvas({
     ? workflowNodes?.canvasLayout?.nodeConfigs?.[activeConfigNodeKey]
     : undefined;
   const activeInspectorQueryParamsSig = JSON.stringify({
+    driveFolderId: activeNodeLiveCfg?.driveFolderId || '',
+    driveFolderUrl: activeNodeLiveCfg?.driveFolderUrl || '',
     driveFolderName: activeNodeLiveCfg?.driveFolderName || '',
+    fileNameFilter: activeNodeLiveCfg?.fileNameFilter || '',
     fileTypeFilter: activeNodeLiveCfg?.fileTypeFilter || '',
     maxItems: activeNodeLiveCfg?.maxItems ?? '',
+    watchFolderPath: activeNodeLiveCfg?.watchFolderPath || '',
+    includeSubfolders: Boolean(activeNodeLiveCfg?.includeSubfolders),
+    recordFilterMode: activeNodeLiveCfg?.recordFilterMode || '',
+    expiryAuditScope: Array.isArray(activeNodeLiveCfg?.expiryAuditScope)
+      ? activeNodeLiveCfg.expiryAuditScope.join(',')
+      : '',
+    dedupWindow: activeNodeLiveCfg?.dedupWindow || '',
     sstAppSourceId: activeNodeLiveCfg?.sstAppSourceId || '',
     emailSubjectFilter: activeNodeLiveCfg?.emailSubjectFilter || '',
+    emailSenderFilter: activeNodeLiveCfg?.emailSenderFilter || '',
+    timeWindow: activeNodeLiveCfg?.timeWindow || '',
+    onlyWithAttachments: Boolean(activeNodeLiveCfg?.onlyWithAttachments),
     endpointUrl: activeNodeLiveCfg?.endpointUrl || activeNodeLiveCfg?.targetUrl || '',
   });
   const [debouncedInspectorParamsSig, setDebouncedInspectorParamsSig] = useState<string>(
@@ -3258,14 +3279,35 @@ export default function WappyWorkflowCanvas({
     (inspectNodeId: string, cfg?: CanvasNodeConfig) => {
       const qs = new URLSearchParams();
       qs.set('nodeId', inspectNodeId);
+      if (cfg?.driveFolderId?.trim()) qs.set('driveFolderId', cfg.driveFolderId.trim());
+      if (cfg?.driveFolderUrl?.trim()) qs.set('driveFolderUrl', cfg.driveFolderUrl.trim());
       if (cfg?.driveFolderName?.trim()) qs.set('driveFolderName', cfg.driveFolderName.trim());
+      if (cfg?.fileNameFilter?.trim()) qs.set('fileNameFilter', cfg.fileNameFilter.trim());
       if (cfg?.fileTypeFilter?.trim()) qs.set('fileTypeFilter', cfg.fileTypeFilter.trim());
       if (typeof cfg?.maxItems === 'number' && Number.isFinite(cfg.maxItems) && cfg.maxItems > 0) {
         qs.set('maxItems', String(cfg.maxItems));
       }
+      if (cfg?.watchFolderPath?.trim()) qs.set('watchFolderPath', cfg.watchFolderPath.trim());
+      if (typeof cfg?.includeSubfolders === 'boolean') {
+        qs.set('includeSubfolders', String(cfg.includeSubfolders));
+      }
+      if (cfg?.recordFilterMode?.trim()) qs.set('recordFilterMode', cfg.recordFilterMode.trim());
+      if (Array.isArray(cfg?.expiryAuditScope) && cfg.expiryAuditScope.length > 0) {
+        qs.set('expiryAuditScope', cfg.expiryAuditScope.join(','));
+      }
+      if (cfg?.dedupWindow?.trim()) qs.set('dedupWindow', cfg.dedupWindow.trim());
       if (cfg?.sstAppSourceId?.trim()) qs.set('sstAppSourceId', cfg.sstAppSourceId.trim());
       if (cfg?.emailSubjectFilter?.trim()) {
         qs.set('emailSubjectFilter', cfg.emailSubjectFilter.trim());
+      }
+      if (cfg?.emailSenderFilter?.trim()) {
+        qs.set('emailSenderFilter', cfg.emailSenderFilter.trim());
+      }
+      if (cfg?.timeWindow?.trim()) {
+        qs.set('timeWindow', cfg.timeWindow.trim());
+      }
+      if (typeof cfg?.onlyWithAttachments === 'boolean') {
+        qs.set('onlyWithAttachments', String(cfg.onlyWithAttachments));
       }
       const ep = cfg?.endpointUrl?.trim() || cfg?.targetUrl?.trim();
       if (ep) qs.set('endpointUrl', ep);
@@ -3285,6 +3327,10 @@ export default function WappyWorkflowCanvas({
         sourceCollection: '',
         totalRecords: 0,
         criticalCount: 0,
+        connected: undefined,
+        connectedEmail: undefined,
+        resolvedFolder: null,
+        availableFolders: [],
         kpis: [],
         records: [],
         latestReports: [],
@@ -3323,6 +3369,10 @@ export default function WappyWorkflowCanvas({
         sourceCollection: '',
         totalRecords: 0,
         criticalCount: 0,
+        connected: undefined,
+        connectedEmail: undefined,
+        resolvedFolder: null,
+        availableFolders: [],
         kpis: [],
         records: [],
         latestReports: [],
@@ -3333,6 +3383,10 @@ export default function WappyWorkflowCanvas({
         loading: true,
         supported: true,
         nodeId: cleanId,
+        connected: prev.nodeId === cleanId ? prev.connected : undefined,
+        connectedEmail: prev.nodeId === cleanId ? prev.connectedEmail : undefined,
+        resolvedFolder: prev.nodeId === cleanId ? prev.resolvedFolder : null,
+        availableFolders: prev.nodeId === cleanId ? prev.availableFolders : [],
       }));
     }
 
@@ -3363,6 +3417,9 @@ export default function WappyWorkflowCanvas({
           const recordsList = Array.isArray(data.records) ? data.records : [];
           const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
           const latestReportsList = Array.isArray(data.latestReports) ? data.latestReports : [];
+          const availableFoldersList = Array.isArray(data.availableFolders)
+            ? data.availableFolders
+            : [];
           const computedCrit =
             typeof data.criticalCount === 'number'
               ? data.criticalCount
@@ -3377,6 +3434,11 @@ export default function WappyWorkflowCanvas({
             sourceCollection: data.sourceCollection || '',
             totalRecords: totalRec,
             criticalCount: computedCrit,
+            connected: typeof data.connected === 'boolean' ? data.connected : undefined,
+            connectedEmail:
+              typeof data.connectedEmail === 'string' ? data.connectedEmail : undefined,
+            resolvedFolder: data.resolvedFolder || null,
+            availableFolders: availableFoldersList,
             kpis: kpisList,
             records: recordsList,
             latestReports: latestReportsList,
@@ -3403,6 +3465,10 @@ export default function WappyWorkflowCanvas({
             sourceCollection: '',
             totalRecords: 0,
             criticalCount: 0,
+            connected: undefined,
+            connectedEmail: undefined,
+            resolvedFolder: null,
+            availableFolders: [],
             kpis: [],
             records: [],
             latestReports: [],

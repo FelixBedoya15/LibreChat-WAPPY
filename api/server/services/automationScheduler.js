@@ -26,6 +26,33 @@ const {
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
 
 /**
+ * Extrae el ID real de una carpeta o archivo de Google Drive desde URLs (`folders/<ID>`, `/d/<ID>`, `?id=<ID>`),
+ * `'root'` o un ID puro de Google Drive (`^[a-zA-Z0-9_-]{20,}$`).
+ */
+function extractGoogleDriveId(input) {
+  if (!input || typeof input !== 'string') return '';
+  const cleaned = input.trim().replace(/^['"`]+|['"`]+$/g, '').trim();
+  if (!cleaned) return '';
+  if (cleaned.toLowerCase() === 'root') return 'root';
+
+  const folderMatch = cleaned.match(/\/folders\/([a-zA-Z0-9_-]{10,})/i);
+  if (folderMatch && folderMatch[1]) return folderMatch[1];
+
+  const docMatch =
+    cleaned.match(/\/(?:file|document|spreadsheets|presentation|forms)\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/i) ||
+    cleaned.match(/\/d\/([a-zA-Z0-9_-]{15,})/i);
+  if (docMatch && docMatch[1]) return docMatch[1];
+
+  const queryIdMatch = cleaned.match(/[?&]id=([a-zA-Z0-9_-]{10,})/i);
+  if (queryIdMatch && queryIdMatch[1]) return queryIdMatch[1];
+
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(cleaned)) {
+    return cleaned;
+  }
+  return '';
+}
+
+/**
  * Carga defensiva del pipeline universal de Informes Oficiales HTML de Aplicativos Hito (Worker B).
  */
 let _cachedHitoReportPipeline = null;
@@ -1610,7 +1637,7 @@ async function buildLivePreExtractionAndLogicBlocks({
   const userIdStr = String(automation?.user || reqUser?.id || '');
   const companyName = automationCompany?.companyName || 'Empresa Activa';
 
-  // 1. Pre-extracción real de Google Drive (`extract_drive` / `driveFolderName`)
+  // 1. Pre-extracción real de Google Drive (`extract_drive` / `driveFolderId` / `driveFolderUrl` / `driveFolderName`)
   const driveCfg = getNodeCfg(
     'extractor_extract_drive',
     'ext_extract_drive',
@@ -1618,22 +1645,34 @@ async function buildLivePreExtractionAndLogicBlocks({
     'tool_inputs_google_drive',
     'google_drive',
   );
+  const hasExplicitDriveSelector = Boolean(
+    driveCfg?.driveFolderId ||
+      driveCfg?.driveFolderUrl ||
+      driveCfg?.driveFolderName ||
+      driveCfg?.fileNameFilter,
+  );
   if (
     extractors.includes('extract_drive') ||
-    (inputs.includes('google_drive') && driveCfg?.driveFolderName)
+    (inputs.includes('google_drive') && hasExplicitDriveSelector)
   ) {
     try {
       const oauthCtx = await getCompanyGoogleOAuthClient(userIdStr, targetCompanyIdStr);
+      const rawFolderId = String(driveCfg?.driveFolderId || '').trim();
+      const rawFolderUrl = String(driveCfg?.driveFolderUrl || '').trim();
       const folderName = String(driveCfg?.driveFolderName || '').trim();
+      const fileNameFilter = String(driveCfg?.fileNameFilter || '').trim();
       const fileTypeFilter = String(driveCfg?.fileTypeFilter || 'all').toLowerCase().trim();
       const maxItems = Math.min(40, Math.max(1, parseInt(driveCfg?.maxItems, 10) || 15));
+      const folderLabel = folderName || rawFolderUrl || rawFolderId || '';
 
       if (!oauthCtx) {
         blocks.push(
-          `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE (extract_drive${folderName ? ` — Carpeta: "${folderName}"` : ''})]: Google Drive NO está vinculado por OAuth para "${companyName}". Informa con transparencia que requiere conectar Google Drive en Integraciones.`,
+          `📂 [PRE-EXTRACCIÓN GOOGLE DRIVE (extract_drive${folderLabel ? ` — Ubicación: "${folderLabel}"` : ''})]: Google Drive NO está vinculado por OAuth para "${companyName}". Informa con transparencia que requiere conectar Google Drive en Integraciones.`,
         );
       } else {
         const drive = oauthCtx.google.drive({ version: 'v3', auth: oauthCtx.oauth2Client });
+        const escapeDriveStr = (v) => String(v || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
         const buildMimeClause = () => {
           if (!fileTypeFilter || fileTypeFilter === 'all') return '';
           if (fileTypeFilter.includes('pdf')) return ` and mimeType = 'application/pdf'`;
@@ -1649,24 +1688,130 @@ async function buildLivePreExtractionAndLogicBlocks({
           return '';
         };
 
+        const buildNameFilterClause = () =>
+          fileNameFilter ? ` and name contains '${escapeDriveStr(fileNameFilter)}'` : '';
+
+        const findDriveFolderSegment = async (segName, parentId = null) => {
+          const escSeg = escapeDriveStr(segName);
+          const parentCond = parentId ? ` and '${escapeDriveStr(parentId)}' in parents` : '';
+          const exactRes = await drive.files
+            .list({
+              q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '${escSeg}'${parentCond}`,
+              pageSize: 5,
+              fields: 'files(id, name, modifiedTime)',
+            })
+            .catch(() => null);
+          const exactArr = Array.isArray(exactRes?.data?.files) ? exactRes.data.files : [];
+          if (exactArr.length > 0) return exactArr[0];
+
+          const partialRes = await drive.files
+            .list({
+              q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains '${escSeg}'${parentCond}`,
+              pageSize: 5,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, modifiedTime)',
+            })
+            .catch(() => null);
+          const partialArr = Array.isArray(partialRes?.data?.files) ? partialRes.data.files : [];
+          return (
+            partialArr.find((f) => String(f.name || '').toLowerCase() === segName.toLowerCase()) ||
+            partialArr[0] ||
+            null
+          );
+        };
+
         let targetFiles = [];
         let matchedFolderInfo = '';
-        if (folderName) {
-          const escapedFolder = folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          const folderRes = await drive.files.list({
-            q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains '${escapedFolder}'`,
-            pageSize: 5,
-            orderBy: 'modifiedTime desc',
-            fields: 'files(id, name, modifiedTime)',
-          });
-          const folders = Array.isArray(folderRes?.data?.files) ? folderRes.data.files : [];
-          if (folders.length > 0) {
-            const exactFolder =
-              folders.find((f) => String(f.name || '').toLowerCase() === folderName.toLowerCase()) ||
-              folders[0];
+        const exactDriveId =
+          extractGoogleDriveId(rawFolderId) ||
+          extractGoogleDriveId(rawFolderUrl) ||
+          extractGoogleDriveId(folderName);
+
+        if (exactDriveId) {
+          if (exactDriveId === 'root') {
+            matchedFolderInfo = 'Carpeta raíz: "Mi unidad" (folderId: root)';
+            const rootRes = await drive.files.list({
+              q: `'root' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}${buildNameFilterClause()}`,
+              pageSize: maxItems,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+            });
+            targetFiles = Array.isArray(rootRes?.data?.files) ? rootRes.data.files : [];
+          } else {
+            const itemMetaRes = await drive.files
+              .get({
+                fileId: exactDriveId,
+                fields: 'id, name, mimeType, modifiedTime, webViewLink',
+              })
+              .catch(() => null);
+            const itemMeta = itemMetaRes?.data;
+
+            if (itemMeta?.id && itemMeta.mimeType !== 'application/vnd.google-apps.folder') {
+              matchedFolderInfo = `Archivo directo por ID/URL: "${itemMeta.name}" (fileId: ${itemMeta.id})`;
+              targetFiles = [itemMeta];
+            } else {
+              const resolvedName = itemMeta?.name || folderName || exactDriveId;
+              matchedFolderInfo = `Carpeta exacta por ID/URL: "${resolvedName}" (folderId: ${exactDriveId})`;
+              const filesRes = await drive.files.list({
+                q: `'${escapeDriveStr(exactDriveId)}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}${buildNameFilterClause()}`,
+                pageSize: maxItems,
+                orderBy: 'modifiedTime desc',
+                fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+              });
+              targetFiles = Array.isArray(filesRes?.data?.files) ? filesRes.data.files : [];
+            }
+          }
+        } else if (folderName && folderName.includes('/') && !/^https?:\/\//i.test(folderName)) {
+          const rawSegments = folderName
+            .split('/')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .filter(
+              (seg, idx) =>
+                !(idx === 0 && ['mi unidad', 'my drive', 'root'].includes(seg.toLowerCase())),
+            );
+          let currentFolder = null;
+          for (let i = 0; i < rawSegments.length; i++) {
+            const nextFolder = await findDriveFolderSegment(
+              rawSegments[i],
+              i === 0 ? null : currentFolder?.id,
+            );
+            if (!nextFolder) {
+              currentFolder = null;
+              break;
+            }
+            currentFolder = nextFolder;
+          }
+          if (!currentFolder && rawSegments.length > 0) {
+            currentFolder = await findDriveFolderSegment(rawSegments[rawSegments.length - 1], null);
+          }
+
+          if (currentFolder?.id) {
+            matchedFolderInfo = `Ruta de carpeta encontrada: "${currentFolder.name}" (folderId: ${currentFolder.id})`;
+            const filesRes = await drive.files.list({
+              q: `'${escapeDriveStr(currentFolder.id)}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}${buildNameFilterClause()}`,
+              pageSize: maxItems,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+            });
+            targetFiles = Array.isArray(filesRes?.data?.files) ? filesRes.data.files : [];
+          } else {
+            const lastSeg = rawSegments[rawSegments.length - 1] || folderName;
+            matchedFolderInfo = `No se halló ruta "${folderName}"; listando coincidencias por "${lastSeg}"`;
+            const fallbackRes = await drive.files.list({
+              q: `trashed = false and mimeType != 'application/vnd.google-apps.folder' and name contains '${escapeDriveStr(lastSeg)}'${buildMimeClause()}${buildNameFilterClause()}`,
+              pageSize: maxItems,
+              orderBy: 'modifiedTime desc',
+              fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
+            });
+            targetFiles = Array.isArray(fallbackRes?.data?.files) ? fallbackRes.data.files : [];
+          }
+        } else if (folderName) {
+          const exactFolder = await findDriveFolderSegment(folderName, null);
+          if (exactFolder?.id) {
             matchedFolderInfo = `Carpeta encontrada: "${exactFolder.name}" (folderId: ${exactFolder.id})`;
             const filesRes = await drive.files.list({
-              q: `'${exactFolder.id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}`,
+              q: `'${escapeDriveStr(exactFolder.id)}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}${buildNameFilterClause()}`,
               pageSize: maxItems,
               orderBy: 'modifiedTime desc',
               fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
@@ -1675,7 +1820,7 @@ async function buildLivePreExtractionAndLogicBlocks({
           } else {
             matchedFolderInfo = `No se halló carpeta llamada "${folderName}"; listando coincidencias directas por nombre`;
             const fallbackRes = await drive.files.list({
-              q: `trashed = false and mimeType != 'application/vnd.google-apps.folder' and name contains '${escapedFolder}'${buildMimeClause()}`,
+              q: `trashed = false and mimeType != 'application/vnd.google-apps.folder' and name contains '${escapeDriveStr(folderName)}'${buildMimeClause()}${buildNameFilterClause()}`,
               pageSize: maxItems,
               orderBy: 'modifiedTime desc',
               fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
@@ -1684,7 +1829,7 @@ async function buildLivePreExtractionAndLogicBlocks({
           }
         } else {
           const recentRes = await drive.files.list({
-            q: `trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}`,
+            q: `trashed = false and mimeType != 'application/vnd.google-apps.folder'${buildMimeClause()}${buildNameFilterClause()}`,
             pageSize: maxItems,
             orderBy: 'modifiedTime desc',
             fields: 'files(id, name, mimeType, modifiedTime, webViewLink)',
@@ -2378,35 +2523,27 @@ async function executeDownstreamOutputs({
 
   // 1. Notificación en WAPPY + Chat de Tenshi (`wappy_notification` / `tenshi_alert`)
   if (outputsToExecute.includes('wappy_notification') || outputsToExecute.includes('tenshi_alert')) {
-    const notifCfg =
-      postNodeConfigs.out_wappy_notification ||
-      postNodeConfigs.wappy_notification ||
-      postNodeConfigs.out_tenshi_alert ||
-      postNodeConfigs.tenshi_alert ||
-      {};
-    if (!notifCfg.onlyOnCriticalAlerts || hasCriticalSignal) {
-      try {
-        const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
-        await Notification.create({
-          user: automation.user || userId,
-          companyId: automation.companyId || targetCompanyIdStr || null,
-          title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
-          body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
-          type: 'system_update',
-          read: false,
-        });
-        await TenshiMessage.create({
-          user: automation.user || userId,
-          companyId: targetCompanyIdStr || null,
-          role: 'assistant',
-          content:
-            `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
-            `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
-        });
-        executedOutputs.push('wappy_notification');
-      } catch (notifErr) {
-        errors.push(`wappy_notification: ${notifErr.message}`);
-      }
+    try {
+      const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
+      await Notification.create({
+        user: automation.user || userId,
+        companyId: automation.companyId || targetCompanyIdStr || null,
+        title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
+        body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
+        type: 'system_update',
+        read: false,
+      });
+      await TenshiMessage.create({
+        user: automation.user || userId,
+        companyId: targetCompanyIdStr || null,
+        role: 'assistant',
+        content:
+          `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
+          `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
+      });
+      executedOutputs.push('wappy_notification');
+    } catch (notifErr) {
+      errors.push(`wappy_notification: ${notifErr.message}`);
     }
   }
 
@@ -2977,9 +3114,7 @@ async function executeDownstreamOutputs({
 
   // 9. Correo Electrónico (`email_report`) — honrando `emailRecipientsOverride` + Informes Oficiales Universales HTML
   const emailCfg = postNodeConfigs.out_email_report || postNodeConfigs.email_report || {};
-  const shouldSendEmailReport =
-    outputsToExecute.includes('email_report') &&
-    (!emailCfg.onlyOnCriticalAlerts || hasCriticalSignal);
+  const shouldSendEmailReport = outputsToExecute.includes('email_report');
 
   if (shouldSendEmailReport) {
     try {
@@ -7322,9 +7457,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           userId: userIdStr,
           companyId: targetCompanyIdStr,
           nodeId: effectiveInspectNodeId,
+          driveFolderId: cfg.driveFolderId,
+          driveFolderUrl: cfg.driveFolderUrl,
           driveFolderName: cfg.driveFolderName,
+          fileNameFilter: cfg.fileNameFilter,
           fileTypeFilter: cfg.fileTypeFilter,
           maxItems: cfg.maxItems,
+          watchFolderPath: cfg.watchFolderPath,
+          includeSubfolders: cfg.includeSubfolders,
           sstAppSourceId: cfg.sstAppSourceId,
           emailSubjectFilter: cfg.emailSubjectFilter,
           endpointUrl: cfg.endpointUrl,

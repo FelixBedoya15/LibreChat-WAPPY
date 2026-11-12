@@ -174,8 +174,12 @@ export interface CanvasNodeConfig {
   webhookSecret?: string;
   watchFolderPath?: string;
   /** Parámetros propios de Extractores (Equipo 2) */
+  driveFolderId?: string;
+  driveFolderUrl?: string;
   driveFolderName?: string;
+  fileNameFilter?: string;
   fileTypeFilter?: string;
+  includeSubfolders?: boolean;
   onlyNewFiles?: boolean;
   maxItems?: number;
   timeWindow?: string;
@@ -196,6 +200,8 @@ export interface CanvasNodeConfig {
   forceRegenerateReport?: boolean;
   /** Parámetros propios de Bitácora y Salidas (Equipo 7) */
   emailSubject?: string;
+  emailCc?: string;
+  attachOfficialAppReport?: boolean;
   onlyOnCriticalAlerts?: boolean;
   alertPriority?: 'info' | 'warn' | 'critical';
   tenshiSpeakSummary?: boolean;
@@ -14709,6 +14715,11 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig): string {
   }
   if (cfg.driveFolderName?.trim()) {
     badges.push(`📁 ${cfg.driveFolderName.trim()}`);
+  } else if (cfg.driveFolderId?.trim()) {
+    badges.push(`📁 ID: ${cfg.driveFolderId.trim().slice(0, 12)}…`);
+  }
+  if (cfg.fileNameFilter?.trim()) {
+    badges.push(`🔎 "${cfg.fileNameFilter.trim()}"`);
   }
   if (cfg.watchFolderPath?.trim()) {
     badges.push(`💻 ${cfg.watchFolderPath.trim()}`);
@@ -14880,11 +14891,20 @@ export function buildPromptFromWorkflowNodes(
     if (cfg.qrPortalTarget?.trim()) {
       parts.push(`Portal QR Vigilado: ${cfg.qrPortalTarget.trim()} (${cfg.qrSeverityFilter === 'critical_only' ? 'Solo críticos' : 'Todos'})`);
     }
-    if (cfg.driveFolderName?.trim()) {
-      parts.push(`Carpeta/Archivo Drive: "${cfg.driveFolderName.trim()}" (${cfg.fileTypeFilter || 'Todos los formatos'}${cfg.onlyNewFiles ? ', solo nuevos/modificados' : ''})`);
+    if (cfg.driveFolderId?.trim() || cfg.driveFolderName?.trim() || cfg.driveFolderUrl?.trim()) {
+      const folderRef =
+        cfg.driveFolderName?.trim() ||
+        cfg.driveFolderId?.trim() ||
+        cfg.driveFolderUrl?.trim() ||
+        'Raíz';
+      parts.push(
+        `Carpeta Google Drive: "${folderRef}"${cfg.driveFolderId?.trim() ? ` [ID: ${cfg.driveFolderId.trim()}]` : ''} (${cfg.fileTypeFilter || 'all'}${cfg.fileNameFilter?.trim() ? `, nombre contiene: "${cfg.fileNameFilter.trim()}"` : ''}${cfg.maxItems ? `, máx: ${cfg.maxItems}` : ''}${cfg.onlyNewFiles !== false ? ', solo nuevos' : ''})`,
+      );
     }
     if (cfg.watchFolderPath?.trim()) {
-      parts.push(`Ruta Local Mac/PC (Antigravity): "${cfg.watchFolderPath.trim()}"`);
+      parts.push(
+        `Ruta Local Mac/PC (Antigravity): "${cfg.watchFolderPath.trim()}"${cfg.fileNameFilter?.trim() ? ` (nombre contiene: "${cfg.fileNameFilter.trim()}")` : ''}${cfg.includeSubfolders ? ' [incluye subcarpetas]' : ''}`,
+      );
     }
     if (cfg.workerStatusFilter) {
       parts.push(`Filtro Trabajadores: ${cfg.workerStatusFilter}`);
@@ -14898,8 +14918,11 @@ export function buildPromptFromWorkflowNodes(
     if (cfg.emailSubject?.trim()) {
       parts.push(`Asunto del Correo: "${cfg.emailSubject.trim()}"`);
     }
-    if (cfg.onlyOnCriticalAlerts) {
-      parts.push(`Enviar notificación SOLO si existen alertas críticas o vencimientos`);
+    if (cfg.emailCc?.trim()) {
+      parts.push(`CC del Correo: "${cfg.emailCc.trim()}"`);
+    }
+    if (cfg.attachOfficialAppReport !== false) {
+      parts.push(`Adjuntar Informe Oficial HTML corporativo cuando aplique`);
     }
     if (cfg.whatsappNumbers?.trim()) {
       parts.push(`Destinatarios WhatsApp: ${cfg.whatsappNumbers.trim()}`);

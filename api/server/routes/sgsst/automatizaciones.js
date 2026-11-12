@@ -667,31 +667,66 @@ router.get('/node-live-inspector', async (req, res) => {
     const explicitCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
     const companyId = await getActiveCompanyId(req.user.id, explicitCompanyId, req.user?.role);
 
-    const driveFolderName = req.query.driveFolderName ? String(req.query.driveFolderName).trim() : '';
-    const fileTypeFilter = req.query.fileTypeFilter ? String(req.query.fileTypeFilter).trim() : '';
+    const optStr = (val) =>
+      val !== undefined && val !== null && String(val).trim() !== ''
+        ? String(val).trim()
+        : undefined;
+    const optBool = (val) =>
+      val === undefined || val === null || val === ''
+        ? undefined
+        : val === true || val === 'true' || val === '1';
+
+    const driveFolderId = optStr(req.query.driveFolderId);
+    const driveFolderUrl = optStr(req.query.driveFolderUrl);
+    const driveFolderName = optStr(req.query.driveFolderName) || '';
+    const fileNameFilter = optStr(req.query.fileNameFilter);
+    const fileTypeFilter = optStr(req.query.fileTypeFilter) || '';
     const maxItems = req.query.maxItems !== undefined ? Number(req.query.maxItems) || undefined : undefined;
-    const sstAppSourceId = req.query.sstAppSourceId ? String(req.query.sstAppSourceId).trim() : '';
-    const emailSubjectFilter = req.query.emailSubjectFilter ? String(req.query.emailSubjectFilter).trim() : '';
-    const endpointUrl = req.query.endpointUrl ? String(req.query.endpointUrl).trim() : '';
+    const watchFolderPath = optStr(req.query.watchFolderPath);
+    const includeSubfolders = optBool(req.query.includeSubfolders);
+    const recordFilterMode = optStr(req.query.recordFilterMode);
+    const expiryAuditScope = optStr(req.query.expiryAuditScope);
+    const dedupWindow = optStr(req.query.dedupWindow);
+    const sstAppSourceId = optStr(req.query.sstAppSourceId) || '';
+    const emailSubjectFilter = optStr(req.query.emailSubjectFilter) || '';
+    const endpointUrl = optStr(req.query.endpointUrl) || '';
+
+    const nodeConfig = {
+      ...(driveFolderId !== undefined ? { driveFolderId } : {}),
+      ...(driveFolderUrl !== undefined ? { driveFolderUrl } : {}),
+      driveFolderName,
+      ...(fileNameFilter !== undefined ? { fileNameFilter } : {}),
+      fileTypeFilter,
+      ...(maxItems !== undefined ? { maxItems } : {}),
+      ...(watchFolderPath !== undefined ? { watchFolderPath } : {}),
+      ...(includeSubfolders !== undefined ? { includeSubfolders } : {}),
+      ...(recordFilterMode !== undefined ? { recordFilterMode } : {}),
+      ...(expiryAuditScope !== undefined ? { expiryAuditScope } : {}),
+      ...(dedupWindow !== undefined ? { dedupWindow } : {}),
+      sstAppSourceId,
+      emailSubjectFilter,
+      endpointUrl,
+    };
 
     const data = await inspectNodeLiveData({
       userId: req.user.id,
       companyId,
       nodeId,
+      driveFolderId,
+      driveFolderUrl,
       driveFolderName,
+      fileNameFilter,
       fileTypeFilter,
       maxItems,
+      watchFolderPath,
+      includeSubfolders,
+      recordFilterMode,
+      expiryAuditScope,
+      dedupWindow,
       sstAppSourceId,
       emailSubjectFilter,
       endpointUrl,
-      nodeConfig: {
-        driveFolderName,
-        fileTypeFilter,
-        maxItems,
-        sstAppSourceId,
-        emailSubjectFilter,
-        endpointUrl,
-      },
+      nodeConfig,
     });
     return res.json({ success: true, ...data });
   } catch (error) {

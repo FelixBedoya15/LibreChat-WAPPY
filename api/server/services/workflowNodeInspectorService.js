@@ -1,7 +1,230 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
+
+/**
+ * Extrae el ID limpio de una carpeta o archivo de Google Drive a partir de:
+ * - URL de carpeta: `https://drive.google.com/drive/folders/<ID>...`
+ * - URL de archivo/doc: `https://drive.google.com/file/d/<ID>...` o `https://docs.google.com/.../d/<ID>...` o `?id=<ID>`
+ * - Palabra clave `'root'`
+ * - ID puro de Google Drive (`^[a-zA-Z0-9_-]{20,}$` sin espacios ni `/`)
+ */
+function extractGoogleDriveId(input) {
+  if (!input || typeof input !== 'string') return '';
+  const cleaned = input.trim().replace(/^['"`]+|['"`]+$/g, '').trim();
+  if (!cleaned) return '';
+  if (cleaned.toLowerCase() === 'root') return 'root';
+
+  const folderMatch = cleaned.match(/\/folders\/([a-zA-Z0-9_-]{10,})/i);
+  if (folderMatch && folderMatch[1]) return folderMatch[1];
+
+  const docMatch =
+    cleaned.match(/\/(?:file|document|spreadsheets|presentation|forms)\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/i) ||
+    cleaned.match(/\/d\/([a-zA-Z0-9_-]{15,})/i);
+  if (docMatch && docMatch[1]) return docMatch[1];
+
+  const queryIdMatch = cleaned.match(/[?&]id=([a-zA-Z0-9_-]{10,})/i);
+  if (queryIdMatch && queryIdMatch[1]) return queryIdMatch[1];
+
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(cleaned)) {
+    return cleaned;
+  }
+  return '';
+}
+
+function escapeDriveQueryLiteral(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+function formatDriveMimeTypeLabel(mimeType = '') {
+  const mime = String(mimeType || '').toLowerCase();
+  if (mime === 'application/vnd.google-apps.folder') return 'Carpeta';
+  if (mime === 'application/pdf') return 'PDF';
+  if (mime === 'text/csv') return 'CSV';
+  if (
+    mime === 'application/vnd.google-apps.spreadsheet' ||
+    mime.includes('spreadsheet') ||
+    mime.includes('excel')
+  ) {
+    return 'Hoja de Cálculo';
+  }
+  if (
+    mime === 'application/vnd.google-apps.document' ||
+    mime.includes('document') ||
+    mime.includes('msword') ||
+    mime.includes('wordprocessingml')
+  ) {
+    return 'Documento';
+  }
+  if (mime === 'application/vnd.google-apps.presentation' || mime.includes('presentation') || mime.includes('powerpoint')) {
+    return 'Presentación';
+  }
+  if (mime.startsWith('image/')) return 'Imagen';
+  if (mime.startsWith('video/')) return 'Video';
+  if (mime.startsWith('audio/')) return 'Audio';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('compressed')) return 'Comprimido';
+  if (mime.startsWith('text/')) return 'Texto';
+  return 'Archivo';
+}
+
+async function resolveDriveTargetFolder(
+  drive,
+  { driveFolderId = '', driveFolderUrl = '', driveFolderName = '' } = {},
+) {
+  const cleanIdInput = String(driveFolderId || '').trim();
+  const cleanUrlInput = String(driveFolderUrl || '').trim();
+  const cleanNameInput = String(driveFolderName || '').trim();
+
+  const exactId =
+    extractGoogleDriveId(cleanIdInput) ||
+    extractGoogleDriveId(cleanUrlInput) ||
+    extractGoogleDriveId(cleanNameInput);
+
+  if (exactId === 'root') {
+    return {
+      resolvedFolder: {
+        id: 'root',
+        name: 'Mi unidad (Raíz)',
+        webViewLink: 'https://drive.google.com/drive/my-drive',
+      },
+      singleFile: null,
+    };
+  }
+
+  if (exactId) {
+    const metaRes = await drive.files
+      .get({
+        fileId: exactId,
+        fields: 'id, name, mimeType, webViewLink, modifiedTime',
+      })
+      .catch(() => null);
+    const meta = metaRes?.data;
+    if (meta?.id) {
+      if (meta.mimeType === 'application/vnd.google-apps.folder') {
+        return {
+          resolvedFolder: {
+            id: String(meta.id),
+            name: String(meta.name || exactId),
+            webViewLink: String(meta.webViewLink || `https://drive.google.com/drive/folders/${meta.id}`),
+          },
+          singleFile: null,
+        };
+      }
+      return {
+        resolvedFolder: null,
+        singleFile: meta,
+      };
+    }
+    return {
+      resolvedFolder: {
+        id: exactId,
+        name: cleanNameInput && !extractGoogleDriveId(cleanNameInput) ? cleanNameInput : exactId,
+        webViewLink: `https://drive.google.com/drive/folders/${exactId}`,
+      },
+      singleFile: null,
+    };
+  }
+
+  if (!cleanNameInput) {
+    return { resolvedFolder: null, singleFile: null };
+  }
+
+  const findFolderByName = async (segmentName, parentId = null) => {
+    const safeSeg = escapeDriveQueryLiteral(segmentName);
+    const parentClause = parentId ? ` and '${escapeDriveQueryLiteral(parentId)}' in parents` : '';
+    const exactRes = await drive.files
+      .list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '${safeSeg}'${parentClause}`,
+        fields: 'files(id, name, webViewLink)',
+        pageSize: 5,
+      })
+      .catch(() => null);
+    const exactFiles = Array.isArray(exactRes?.data?.files) ? exactRes.data.files : [];
+    if (exactFiles.length > 0) return exactFiles[0];
+
+    const partialRes = await drive.files
+      .list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains '${safeSeg}'${parentClause}`,
+        fields: 'files(id, name, webViewLink)',
+        pageSize: 5,
+      })
+      .catch(() => null);
+    const partialFiles = Array.isArray(partialRes?.data?.files) ? partialRes.data.files : [];
+    return (
+      partialFiles.find((f) => String(f.name || '').toLowerCase() === segmentName.toLowerCase()) ||
+      partialFiles[0] ||
+      null
+    );
+  };
+
+  if (cleanNameInput.includes('/') && !/^https?:\/\//i.test(cleanNameInput)) {
+    const rawSegments = cleanNameInput
+      .split('/')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const segments = rawSegments.filter(
+      (seg, idx) =>
+        !(idx === 0 && ['mi unidad', 'my drive', 'root'].includes(seg.toLowerCase())),
+    );
+    if (segments.length === 0) {
+      return {
+        resolvedFolder: {
+          id: 'root',
+          name: 'Mi unidad (Raíz)',
+          webViewLink: 'https://drive.google.com/drive/my-drive',
+        },
+        singleFile: null,
+      };
+    }
+
+    let currentFolder = null;
+    for (let i = 0; i < segments.length; i++) {
+      const nextFolder = await findFolderByName(segments[i], i === 0 ? null : currentFolder?.id);
+      if (!nextFolder) {
+        currentFolder = null;
+        break;
+      }
+      currentFolder = nextFolder;
+    }
+
+    if (!currentFolder && segments.length > 0) {
+      currentFolder = await findFolderByName(segments[segments.length - 1], null);
+    }
+
+    if (currentFolder?.id) {
+      return {
+        resolvedFolder: {
+          id: String(currentFolder.id),
+          name: String(currentFolder.name || cleanNameInput),
+          webViewLink: String(
+            currentFolder.webViewLink || `https://drive.google.com/drive/folders/${currentFolder.id}`,
+          ),
+        },
+        singleFile: null,
+      };
+    }
+    return { resolvedFolder: null, singleFile: null };
+  }
+
+  const matchedFolder = await findFolderByName(cleanNameInput, null);
+  if (matchedFolder?.id) {
+    return {
+      resolvedFolder: {
+        id: String(matchedFolder.id),
+        name: String(matchedFolder.name || cleanNameInput),
+        webViewLink: String(
+          matchedFolder.webViewLink || `https://drive.google.com/drive/folders/${matchedFolder.id}`,
+        ),
+      },
+      singleFile: null,
+    };
+  }
+  return { resolvedFolder: null, singleFile: null };
+}
 
 /**
  * Catálogo explícito de nodos bloqueados / En Construcción que NO deben ejecutar llamadas externas
@@ -5406,9 +5629,9 @@ async function inspectOtherNodeTeams(ctx) {
   const trigOrMem = await inspectTriggersAndMemoryTeams(ctx);
   if (trigOrMem) return trigOrMem;
 
-  // 2. Equipo 2 y 5: Google Workspace (Drive, Sheets, Docs, Calendar, Gmail)
+  // 2. Equipo 2 y 5: Google Workspace (Drive, Sheets, Calendar, Gmail)
   if (
-    ['extract_drive', 'google_drive', 'google_sheets', 'google_docs', 'google_calendar', 'extract_gmail', 'google_gmail'].includes(
+    ['extract_drive', 'google_drive', 'google_sheets', 'google_calendar', 'extract_gmail', 'google_gmail'].includes(
       canonicalId
     )
   ) {
@@ -5417,8 +5640,18 @@ async function inspectOtherNodeTeams(ctx) {
     let resolvedAccessToken = null;
     let resolvedRefreshToken = null;
     let resolvedExpiry = null;
+
+    const requestedFolderId = String(
+      ctx?.nodeConfig?.driveFolderId || ctx?.options?.driveFolderId || ''
+    ).trim();
+    const requestedFolderUrl = String(
+      ctx?.nodeConfig?.driveFolderUrl || ctx?.options?.driveFolderUrl || ''
+    ).trim();
     const requestedFolderName = String(
       ctx?.nodeConfig?.driveFolderName || ctx?.options?.driveFolderName || ''
+    ).trim();
+    const fileNameFilter = String(
+      ctx?.nodeConfig?.fileNameFilter || ctx?.options?.fileNameFilter || ''
     ).trim();
     const fileTypeFilter = String(
       ctx?.nodeConfig?.fileTypeFilter || ctx?.options?.fileTypeFilter || 'all'
@@ -5433,7 +5666,8 @@ async function inspectOtherNodeTeams(ctx) {
     const folderName =
       requestedFolderName ||
       company?.googleDrive?.folderName ||
-      `SG-SST ${company?.companyName || ''}`.trim();
+      'Mi unidad';
+
     try {
       const { getScopedAuthValue } = require('~/server/services/googleAuthHelper');
       const [em, rt, at, exp] = await Promise.all([
@@ -5451,6 +5685,9 @@ async function inspectOtherNodeTeams(ctx) {
 
     let liveDriveRecords = [];
     let liveGmailRecords = [];
+    let availableFolders = [];
+    let resolvedFolder = null;
+
     if (
       (canonicalId === 'extract_drive' || canonicalId === 'google_drive' || canonicalId === 'extract_gmail' || canonicalId === 'google_gmail') &&
       hasToken &&
@@ -5498,24 +5735,58 @@ async function inspectOtherNodeTeams(ctx) {
         };
 
         if (canonicalId === 'extract_drive' || canonicalId === 'google_drive') {
-          const fetchLiveDriveFiles = async () => {
+          const fetchLiveDriveInspection = async () => {
             await ensureFreshGoogleCredentials();
             const drive = google.drive({ version: 'v3', auth: oauth2Client });
-            const qParts = ['trashed = false'];
-            if (requestedFolderName) {
-              const safeFolder = requestedFolderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-              const folderLookup = await drive.files.list({
-                q: `mimeType = 'application/vnd.google-apps.folder' and name contains '${safeFolder}' and trashed = false`,
-                fields: 'files(id, name)',
-                pageSize: 5,
-              });
-              const targetFolder = folderLookup?.data?.files?.[0];
-              if (targetFolder?.id) {
-                qParts.push(`'${targetFolder.id}' in parents`);
-              } else {
-                qParts.push(`name contains '${safeFolder}'`);
-              }
+
+            const foldersListPromise = drive.files
+              .list({
+                q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                fields: 'files(id, name, parents, webViewLink)',
+                orderBy: 'name',
+                pageSize: 50,
+              })
+              .then((res) =>
+                (Array.isArray(res?.data?.files) ? res.data.files : []).map((f) => ({
+                  id: String(f.id || ''),
+                  name: String(f.name || 'Carpeta sin nombre'),
+                  parentId: Array.isArray(f.parents) && f.parents[0] ? String(f.parents[0]) : null,
+                  webViewLink: String(f.webViewLink || `https://drive.google.com/drive/folders/${f.id}`),
+                })),
+              )
+              .catch(() => []);
+
+            const targetLookupPromise = resolveDriveTargetFolder(drive, {
+              driveFolderId: requestedFolderId,
+              driveFolderUrl: requestedFolderUrl,
+              driveFolderName: requestedFolderName,
+            });
+
+            const [foldersCatalog, targetInfo] = await Promise.all([
+              foldersListPromise,
+              targetLookupPromise,
+            ]);
+
+            if (targetInfo?.singleFile) {
+              return {
+                availableFolders: foldersCatalog,
+                resolvedFolder: null,
+                files: [targetInfo.singleFile],
+              };
             }
+
+            const targetFolder = targetInfo?.resolvedFolder || null;
+            const qParts = ['trashed = false'];
+            if (targetFolder?.id) {
+              qParts.push(`'${escapeDriveQueryLiteral(targetFolder.id)}' in parents`);
+            } else if (requestedFolderName && !extractGoogleDriveId(requestedFolderName)) {
+              qParts.push(`name contains '${escapeDriveQueryLiteral(requestedFolderName)}'`);
+            }
+
+            if (fileNameFilter) {
+              qParts.push(`name contains '${escapeDriveQueryLiteral(fileNameFilter)}'`);
+            }
+
             if (fileTypeFilter === 'pdf') {
               qParts.push(`mimeType = 'application/pdf'`);
             } else if (fileTypeFilter === 'excel' || fileTypeFilter === 'xlsx' || fileTypeFilter === 'spreadsheet') {
@@ -5525,42 +5796,63 @@ async function inspectOtherNodeTeams(ctx) {
             } else if (fileTypeFilter === 'image' || fileTypeFilter === 'images') {
               qParts.push(`mimeType contains 'image/'`);
             }
+
             const driveRes = await drive.files.list({
               q: qParts.join(' and '),
               fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
               pageSize: maxItemsLimit,
               orderBy: 'folder,modifiedTime desc',
             });
-            return Array.isArray(driveRes?.data?.files) ? driveRes.data.files : [];
+            return {
+              availableFolders: foldersCatalog,
+              resolvedFolder: targetFolder,
+              files: Array.isArray(driveRes?.data?.files) ? driveRes.data.files : [],
+            };
           };
 
           let driveTimer = null;
-          const driveFiles = await Promise.race([
-            fetchLiveDriveFiles(),
+          const driveOutcome = await Promise.race([
+            fetchLiveDriveInspection(),
             new Promise((resolve) => {
-              driveTimer = setTimeout(() => resolve([]), 4000);
+              driveTimer = setTimeout(
+                () => resolve({ availableFolders: [], resolvedFolder: null, files: [] }),
+                5500,
+              );
             }),
           ]);
           if (driveTimer) clearTimeout(driveTimer);
 
+          availableFolders = Array.isArray(driveOutcome?.availableFolders)
+            ? driveOutcome.availableFolders
+            : [];
+          resolvedFolder = driveOutcome?.resolvedFolder || null;
+          const driveFiles = Array.isArray(driveOutcome?.files) ? driveOutcome.files : [];
+          const folderDisplay =
+            resolvedFolder?.name ||
+            (requestedFolderName && !extractGoogleDriveId(requestedFolderName)
+              ? requestedFolderName
+              : 'Mi unidad');
+
           liveDriveRecords = driveFiles.map((file) => {
             const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+            const formatLabel = formatDriveMimeTypeLabel(file.mimeType);
             const modFormatted = file.modifiedTime
               ? new Date(file.modifiedTime).toLocaleString('es-CO')
               : 'Sin fecha';
             return {
               id: String(file.id),
               label: `${isFolder ? '📁' : '📄'} ${file.name || 'Sin nombre'}`,
-              sublabel: `${isFolder ? 'Carpeta' : file.mimeType || 'Archivo'} • Modificado: ${modFormatted} • ID: ${file.id}`,
-              badge: isFolder ? 'CARPETA' : 'ARCHIVO',
+              sublabel: `${formatLabel} • Carpeta: ${folderDisplay} • Modificado: ${modFormatted}`,
+              badge: formatLabel.toUpperCase(),
               badgeTone: isFolder ? 'amber' : 'teal',
               isCritical: false,
               fields: {
-                'Nombre del Archivo / Carpeta': file.name || '',
-                'Tipo': isFolder ? 'Carpeta' : `Archivo (${file.mimeType || 'desconocido'})`,
-                'Fecha de Modificación': file.modifiedTime || '',
-                'ID de Google Drive': file.id || '',
-                'Enlace Google Drive (webViewLink)': file.webViewLink || '',
+                'Nombre del Archivo': file.name || 'Sin nombre',
+                'Formato': formatLabel,
+                'Carpeta': folderDisplay,
+                'Modificado': modFormatted,
+                'ID Drive': String(file.id || ''),
+                'Enlace': file.webViewLink || '',
               },
             };
           });
@@ -5594,7 +5886,7 @@ async function inspectOtherNodeTeams(ctx) {
           const gmailMsgs = await Promise.race([
             fetchLiveGmailMessages(),
             new Promise((resolve) => {
-              gmailTimer = setTimeout(() => resolve([]), 4000);
+              gmailTimer = setTimeout(() => resolve([]), 4500);
             }),
           ]);
           if (gmailTimer) clearTimeout(gmailTimer);
@@ -5604,7 +5896,7 @@ async function inspectOtherNodeTeams(ctx) {
             const getHdr = (name) => hdrs.find((h) => String(h.name || '').toLowerCase() === name.toLowerCase())?.value || '';
             const subj = getHdr('Subject') || '(Sin asunto)';
             const from = getHdr('From') || 'Remitente';
-            const dt = getHdr('Date') || '';
+            const dt = getHdr('Date') || 'Reciente';
             return {
               id: String(msg.id),
               label: `✉️ ${subj}`,
@@ -5613,11 +5905,11 @@ async function inspectOtherNodeTeams(ctx) {
               badgeTone: 'teal',
               isCritical: false,
               fields: {
-                'Asunto del Correo': subj,
+                'Asunto': subj,
                 'Remitente': from,
-                'Fecha de Recepción': dt,
-                'Extracto del Mensaje': msg.snippet || '',
-                'ID Mensaje Gmail': String(msg.id || ''),
+                'Fecha': dt,
+                'Extracto': msg.snippet || 'Sin vista previa',
+                'ID Mensaje': String(msg.id || ''),
               },
             };
           });
@@ -5628,73 +5920,80 @@ async function inspectOtherNodeTeams(ctx) {
       }
     }
 
+    if (canonicalId === 'extract_drive' || canonicalId === 'google_drive') {
+      return {
+        connected: hasToken,
+        connectedEmail: scopedEmail || '',
+        resolvedFolder: resolvedFolder || null,
+        availableFolders,
+        moduleTitle: `Equipo 2/5 · Conector Google Drive (${resolvedFolder?.name || requestedFolderName || 'Mi unidad'})`,
+        sourceCollection: 'Google Drive API v3 (En Vivo)',
+        kpis: [
+          { label: 'Estado Google Drive', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
+          { label: 'Cuenta Vinculada', value: scopedEmail || 'Sin vincular', tone: hasToken ? 'teal' : 'amber' },
+          { label: 'Carpeta Activa', value: resolvedFolder?.name || requestedFolderName || 'Mi unidad', tone: 'indigo' },
+          { label: 'Archivos Listados', value: liveDriveRecords.length, tone: 'emerald' },
+        ],
+        records: liveDriveRecords,
+      };
+    }
+
+    if (canonicalId === 'extract_gmail' || canonicalId === 'google_gmail') {
+      return {
+        connected: hasToken,
+        connectedEmail: scopedEmail || '',
+        moduleTitle: 'Equipo 2/5 · Conector Gmail (Bandeja en Vivo)',
+        sourceCollection: 'Gmail API v1 (En Vivo)',
+        kpis: [
+          { label: 'Estado Gmail OAuth', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
+          { label: 'Cuenta Vinculada', value: scopedEmail || 'Sin vincular', tone: hasToken ? 'teal' : 'amber' },
+          { label: 'Correos Listados', value: liveGmailRecords.length, tone: 'indigo' },
+        ],
+        records: liveGmailRecords,
+      };
+    }
+
     const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
     const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
-    const logs = AutomationLog ? await AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(15).lean().catch(() => []) : [];
-    const liveWorkspaceItems = [...liveDriveRecords, ...liveGmailRecords];
+    const logs = AutomationLog
+      ? await AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(15).lean().catch(() => [])
+      : [];
 
-    const records = [
-      {
-        id: `gws_conn_${companyIdStr || 'active'}`,
-        label: hasToken
-          ? `✅ Google Workspace Conectado (${scopedEmail || company?.email || 'Cuenta vinculada'})`
-          : `⚠️ Google Workspace No Vinculado en ${company?.companyName || 'esta empresa'}`,
-        sublabel: `Carpeta/Scope: ${folderName} • Servicio: ${canonicalId.toUpperCase()}${liveWorkspaceItems.length > 0 ? ` • ${liveWorkspaceItems.length} elemento(s) en vivo` : ''}`,
-        badge: hasToken ? 'CONECTADO' : 'SIN VINCULAR',
-        badgeTone: hasToken ? 'emerald' : 'rose',
-        isCritical: !hasToken,
-        fields: {
-          'Estado de Conexión OAuth2 Google Workspace': hasToken ? 'Conectado y Activo' : 'Desconectado',
-          'Cuenta de Google Vinculada': scopedEmail || 'Sin vincular',
-          'Carpeta / Repositorio de la Empresa': folderName,
-          'Elementos Recientes en Vivo': liveWorkspaceItems.length,
-          'Empresa Activa': company?.companyName || '',
-        },
-      },
-      ...liveWorkspaceItems,
-      ...logs.map((l, idx) => ({
+    const serviceLogsRecords = logs.map((l, idx) => {
+      const summary = String(l.result || l.error || 'Sincronización registrada')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 320);
+      const runDateStr = l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente';
+      return {
         id: String(l._id || `gws_log_${idx}`),
-        label: `[Sincronización ${l.status}] ${l.agentName || 'Agente'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : ''}`,
-        sublabel: String(l.result || l.error || '').replace(/\s+/g, ' ').slice(0, 180),
+        label: `[${canonicalId.replace(/^google_/, '').toUpperCase()}] ${l.agentName || 'Agente SG-SST'} — ${runDateStr}`,
+        sublabel: summary.slice(0, 180),
         badge: String(l.status || 'success').toUpperCase(),
-        badgeTone: l.status === 'failed' ? 'rose' : 'indigo',
+        badgeTone: l.status === 'failed' ? 'rose' : 'teal',
         isCritical: l.status === 'failed',
         fields: {
-          'Detalle de Sincronización / Archivos Procesados': String(l.result || l.error || '').slice(0, 500),
+          'Flujo / Agente': l.agentName || 'Agente SG-SST',
+          'Servicio Google': canonicalId.replace(/^google_/, 'Google ').toUpperCase(),
+          'Fecha de Sincronización': runDateStr,
+          'Estado': String(l.status || 'success').toUpperCase(),
+          'Resumen': summary,
         },
-      })),
-    ];
+      };
+    });
 
     return {
       connected: hasToken,
+      connectedEmail: scopedEmail || '',
       moduleTitle: `Equipo 2/5 · Conector Google Workspace (${canonicalId.replace(/^(extract_|google_)/, '').toUpperCase()})`,
-      sourceCollection:
-        canonicalId === 'extract_drive' || canonicalId === 'google_drive'
-          ? 'Google Drive API v3 (En Vivo) + CompanyInfo + AutomationLog'
-          : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
-            ? 'Gmail API v1 (En Vivo) + CompanyInfo + AutomationLog'
-            : 'CompanyInfo + GoogleOAuth + AutomationLog',
+      sourceCollection: 'Google Workspace OAuth + AutomationLog',
       kpis: [
         { label: 'Estado Google OAuth', value: hasToken ? 'CONECTADO' : 'NO CONECTADO', tone: hasToken ? 'emerald' : 'rose' },
-        { label: 'Cuenta Vinculada', value: scopedEmail || 'Pendiente', tone: hasToken ? 'teal' : 'amber' },
-        {
-          label:
-            canonicalId === 'extract_drive' || canonicalId === 'google_drive'
-              ? 'Archivos en Carpeta'
-              : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
-                ? 'Correos Recientes'
-                : 'Carpeta SG-SST',
-          value:
-            canonicalId === 'extract_drive' || canonicalId === 'google_drive'
-              ? liveDriveRecords.length
-              : canonicalId === 'extract_gmail' || canonicalId === 'google_gmail'
-                ? liveGmailRecords.length
-                : folderName,
-          tone: 'indigo',
-        },
-        { label: 'Sincronizaciones', value: logs.length, tone: 'purple' },
+        { label: 'Cuenta Vinculada', value: scopedEmail || 'Sin vincular', tone: hasToken ? 'teal' : 'amber' },
+        { label: 'Carpeta / Scope', value: folderName, tone: 'indigo' },
+        { label: 'Sincronizaciones', value: serviceLogsRecords.length, tone: 'purple' },
       ],
-      records,
+      records: serviceLogsRecords,
     };
   }
 
@@ -5868,12 +6167,14 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 6. Equipo 7: Bitácora & Salida (email_report, wappy_notification, canvas_doc, somos_sst_update, antigravity_local_report, antigravity_cloud_report, google_slides, tenshi_voice_briefing, drive_backup)
+  // 6. Equipo 7: Bitácora & Salida (email_report, wappy_notification, canvas_doc, google_docs, somos_sst_update, antigravity_local_report, antigravity_cloud_report, google_slides, tenshi_voice_briefing, tenshi_alert, drive_backup)
   if (
     [
       'email_report',
       'wappy_notification',
+      'tenshi_alert',
       'canvas_doc',
+      'google_docs',
       'somos_sst_update',
       'antigravity_local_report',
       'antigravity_cloud_report',
@@ -5882,23 +6183,12 @@ async function inspectOtherNodeTeams(ctx) {
       'drive_backup',
     ].includes(canonicalId)
   ) {
-    const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
-    const Notification = getSafeModel('Notification', null, '~/models/Notification');
-    const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
-    const LiveEditorSession = getSafeModel('LiveEditorSession', null, '~/models/LiveEditorSession');
-    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
-
-    const [logs, notifs, docs, editorDocs] = await Promise.all([
-      AutomationLog ? AutomationLog.find(logFilter).sort({ runAt: -1 }).limit(20).lean().catch(() => []) : [],
-      findManyCompanyDocs(Notification, userId, company, { createdAt: -1 }, 20),
-      findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 15),
-      findManyCompanyDocs(LiveEditorSession, userId, company, { updatedAt: -1 }, 15),
-    ]);
-
     const outputTitleMap = {
       email_report: 'Equipo 7 · Despacho de Informe Ejecutivo por Correo Electrónico (Gmail / SMTP)',
       wappy_notification: 'Equipo 7 · Alerta Push & Notificación In-App WAPPY',
+      tenshi_alert: 'Equipo 7 · Alerta Push & Notificación In-App WAPPY',
       canvas_doc: 'Equipo 7 · Generador de Documento Vivo Editable (LiveEditor HTML / Word / PDF)',
+      google_docs: 'Equipo 7 · Generador de Documento Oficial en Google Docs',
       somos_sst_update: 'Equipo 7 · Escritura y Sincronización Automática en Aplicativos Somos SST',
       antigravity_local_report: 'Equipo 7 · Envío de Reporte Estructurado a Google Antigravity Local (Mac/PC)',
       antigravity_cloud_report: 'Equipo 7 · Envío de Reporte 24/7 a Google Antigravity Cloud',
@@ -5907,69 +6197,269 @@ async function inspectOtherNodeTeams(ctx) {
       drive_backup: 'Equipo 7 · Respaldo Documental Automático en Google Drive',
     };
 
-    const records = [
-      ...logs.map((l, i) => ({
+    const logFilter = companyIdStr ? { companyId: companyIdStr } : userId ? { user: userId } : {};
+
+    if (canonicalId === 'email_report') {
+      const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
+      const logs = AutomationLog
+        ? await AutomationLog.find(logFilter)
+            .populate('automation', 'name emails emailRecipients')
+            .sort({ runAt: -1 })
+            .limit(20)
+            .lean()
+            .catch(() => [])
+        : [];
+      const configuredRecipients = String(
+        ctx?.nodeConfig?.emailRecipientsOverride || ctx?.options?.emailRecipientsOverride || '',
+      ).trim();
+
+      const emailRecords = logs.map((l, i) => {
+        const autoDoc = l.automation && typeof l.automation === 'object' ? l.automation : null;
+        const autoEmails = [
+          ...(Array.isArray(autoDoc?.emails) ? autoDoc.emails : []),
+          ...(Array.isArray(autoDoc?.emailRecipients) ? autoDoc.emailRecipients : []),
+        ].filter(Boolean);
+        const recipientsDisplay =
+          configuredRecipients ||
+          (autoEmails.length > 0 ? Array.from(new Set(autoEmails)).join(', ') : '') ||
+          company?.email ||
+          'Correo corporativo configurado';
+        const flowOrSubject =
+          autoDoc?.name || l.agentName || 'Informe Ejecutivo SG-SST';
+        const sentDateStr = l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente';
+        const statusLabel =
+          l.status === 'failed'
+            ? 'FALLIDO'
+            : l.status === 'running'
+              ? 'EN PROCESO'
+              : 'ENVIADO';
+        const summaryText =
+          String(l.result || l.error || 'Ejecución registrada')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 320) || 'Ejecución completada';
+
+        return {
+          id: String(l._id || `out_email_${i}`),
+          label: `📧 ${flowOrSubject} → ${recipientsDisplay}`,
+          sublabel: `${sentDateStr} • ${summaryText.slice(0, 160)}`,
+          badge: statusLabel,
+          badgeTone: l.status === 'failed' ? 'rose' : 'emerald',
+          isCritical: l.status === 'failed',
+          fields: {
+            'Destinatarios': recipientsDisplay,
+            'Flujo / Asunto': flowOrSubject,
+            'Fecha de Envío': sentDateStr,
+            'Estado': statusLabel,
+            'Resumen': summaryText,
+          },
+        };
+      });
+
+      return {
+        moduleTitle: outputTitleMap.email_report,
+        sourceCollection: 'AutomationLog (Bitácora de Envíos)',
+        kpis: [
+          { label: 'Despachos Registrados', value: emailRecords.length, tone: 'emerald' },
+          {
+            label: 'Destinatario Activo',
+            value: configuredRecipients || company?.email || 'Configurado en flujo',
+            tone: 'teal',
+          },
+          {
+            label: 'Fallos de Envío',
+            value: emailRecords.filter((r) => r.isCritical).length,
+            tone: emailRecords.some((r) => r.isCritical) ? 'rose' : 'emerald',
+          },
+        ],
+        records: emailRecords,
+      };
+    }
+
+    if (
+      canonicalId === 'wappy_notification' ||
+      canonicalId === 'tenshi_alert' ||
+      canonicalId === 'tenshi_voice_briefing'
+    ) {
+      const Notification = getSafeModel('Notification', null, '~/models/Notification');
+      const notifs = await findManyCompanyDocs(Notification, userId, company, { createdAt: -1 }, 20);
+      const notifRecords = notifs.map((n, i) => {
+        const titleStr = n.title || 'Notificación SG-SST';
+        const msgStr =
+          String(n.body || n.message || 'Notificación operativa')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 320) || 'Notificación registrada';
+        const dateStr = n.createdAt ? new Date(n.createdAt).toLocaleString('es-CO') : 'Reciente';
+        const stateStr = n.read ? 'Leída' : 'No leída';
+
+        return {
+          id: String(n._id || `out_notif_${i}`),
+          label: `🔔 ${titleStr}`,
+          sublabel: `${dateStr} • ${msgStr.slice(0, 160)}`,
+          badge: stateStr.toUpperCase(),
+          badgeTone: n.read ? 'slate' : 'teal',
+          isCritical: false,
+          fields: {
+            'Título': titleStr,
+            'Mensaje': msgStr,
+            'Fecha': dateStr,
+            'Estado': stateStr,
+          },
+        };
+      });
+
+      return {
+        moduleTitle: outputTitleMap[canonicalId] || outputTitleMap.wappy_notification,
+        sourceCollection: 'Notification (Bandeja In-App WAPPY)',
+        kpis: [
+          { label: 'Notificaciones Emitidas', value: notifRecords.length, tone: 'teal' },
+          {
+            label: 'Sin Leer',
+            value: notifs.filter((n) => !n.read).length,
+            tone: 'indigo',
+          },
+        ],
+        records: notifRecords,
+      };
+    }
+
+    if (canonicalId === 'canvas_doc' || canonicalId === 'google_docs') {
+      const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
+      const LiveEditorSession = getSafeModel('LiveEditorSession', null, '~/models/LiveEditorSession');
+      const [docs, editorDocs] = await Promise.all([
+        findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 15),
+        findManyCompanyDocs(LiveEditorSession, userId, company, { updatedAt: -1 }, 15),
+      ]);
+
+      let docsConnected = true;
+      let docsConnectedEmail = '';
+      if (canonicalId === 'google_docs') {
+        docsConnected = Boolean(company?.googleDrive?.isConnected);
+        docsConnectedEmail = company?.googleDrive?.email || '';
+        try {
+          const { getScopedAuthValue } = require('~/server/services/googleAuthHelper');
+          const [em, rt, at] = await Promise.all([
+            getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_EMAIL', false).catch(() => null),
+            getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_REFRESH_TOKEN', false).catch(() => null),
+            getScopedAuthValue(userId, companyIdStr, 'GOOGLE_DRIVE_ACCESS_TOKEN', false).catch(() => null),
+          ]);
+          if (em) docsConnectedEmail = em;
+          if (rt || at || em) docsConnected = true;
+        } catch (_) {}
+      }
+
+      const cleanDocSnippet = (htmlOrText, fallback) =>
+        String(htmlOrText || '')
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 320) || fallback;
+
+      const docRecords = [
+        ...docs.map((d, i) => {
+          const title = d.title || 'Informe Oficial SG-SST';
+          const updated = d.updatedAt ? new Date(d.updatedAt).toLocaleString('es-CO') : 'Reciente';
+          const summary = cleanDocSnippet(d.content, 'Documento vivo estructurado');
+          return {
+            id: String(d._id || `out_doc_${i}`),
+            label: `📄 ${title}`,
+            sublabel: `Actualizado: ${updated} • ${summary.slice(0, 140)}`,
+            badge: 'DOCUMENTO VIVO',
+            badgeTone: 'indigo',
+            isCritical: false,
+            fields: {
+              'Título del Documento': title,
+              'Actualizado': updated,
+              'Resumen': summary,
+            },
+          };
+        }),
+        ...editorDocs.map((ed, i) => {
+          const title = ed.fileName || 'Informe Oficial LiveEditor';
+          const updated = ed.updatedAt ? new Date(ed.updatedAt).toLocaleString('es-CO') : 'Reciente';
+          const summary = cleanDocSnippet(ed.content, 'Informe exportable HTML / Word / PDF');
+          return {
+            id: String(ed._id || ed.conversationId || `out_ed_${i}`),
+            label: `📝 ${title}`,
+            sublabel: `Actualizado: ${updated} • ${summary.slice(0, 140)}`,
+            badge: 'LIVE EDITOR',
+            badgeTone: 'indigo',
+            isCritical: false,
+            fields: {
+              'Título del Documento': title,
+              'Actualizado': updated,
+              'Resumen': summary,
+            },
+          };
+        }),
+      ];
+
+      return {
+        connected: docsConnected,
+        connectedEmail: docsConnectedEmail,
+        moduleTitle: outputTitleMap[canonicalId] || outputTitleMap.canvas_doc,
+        sourceCollection: 'LiveDocument + LiveEditorSession',
+        kpis: [
+          { label: 'Documentos Generados', value: docRecords.length, tone: 'indigo' },
+          { label: 'Documentos Vivos', value: docs.length, tone: 'teal' },
+          { label: 'Sesiones LiveEditor', value: editorDocs.length, tone: 'emerald' },
+        ],
+        records: docRecords,
+      };
+    }
+
+    const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
+    const logs = AutomationLog
+      ? await AutomationLog.find(logFilter)
+          .populate('automation', 'name')
+          .sort({ runAt: -1 })
+          .limit(20)
+          .lean()
+          .catch(() => [])
+      : [];
+
+    const genericOutputRecords = logs.map((l, i) => {
+      const autoDoc = l.automation && typeof l.automation === 'object' ? l.automation : null;
+      const flowTitle = autoDoc?.name || l.agentName || 'Automatización SG-SST';
+      const runDateStr = l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente';
+      const statusLabel = String(l.status || 'success').toUpperCase();
+      const summaryText =
+        String(l.result || l.error || 'Ejecución registrada')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 320) || 'Completado';
+
+      return {
         id: String(l._id || `out_log_${i}`),
-        label: `📤 [Bitácora Ejecutada] ${l.agentName || 'Agente IA'} — ${l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente'}`,
-        sublabel: String(l.result || l.error || 'Ejecución registrada').replace(/\s+/g, ' ').slice(0, 180),
-        badge: String(l.status || 'success').toUpperCase(),
+        label: `📤 ${flowTitle} — ${runDateStr}`,
+        sublabel: summaryText.slice(0, 180),
+        badge: statusLabel,
         badgeTone: l.status === 'failed' ? 'rose' : 'emerald',
         isCritical: l.status === 'failed',
         fields: {
-          'Canal de Salida Configurado': outputTitleMap[canonicalId] || canonicalId,
-          'Destinatario / Empresa': `${company?.companyName || 'Empresa Activa'} (${company?.email || 'Correo corporativo'})`,
-          'Fecha de Envío / Ejecución': l.runAt ? new Date(l.runAt).toLocaleString('es-CO') : 'Reciente',
-          'Agente Responsable': l.agentName || 'Consultor SG-SST',
-          'Contenido Despachado': String(l.result || l.error || 'Completado').slice(0, 500),
+          'Flujo / Agente': flowTitle,
+          'Canal de Salida': outputTitleMap[canonicalId] || canonicalId,
+          'Fecha de Ejecución': runDateStr,
+          'Estado': statusLabel,
+          'Resumen': summaryText,
         },
-      })),
-      ...notifs.map((n, i) => ({
-        id: String(n._id || `out_notif_${i}`),
-        label: `🔔 [Notificación WAPPY] ${n.title || 'Alerta SST'}`,
-        sublabel: String(n.body || n.message || 'Notificación operativa').slice(0, 180),
-        badge: n.read ? 'Leída' : 'NUEVA',
-        badgeTone: n.read ? 'slate' : 'teal',
-        isCritical: !n.read,
-        fields: {
-          'Título de la Notificación': n.title || 'Alerta SST',
-          'Mensaje Enviado': n.body || n.message || 'Notificación registrada',
-        },
-      })),
-      ...docs.map((d, i) => ({
-        id: String(d._id || `out_doc_${i}`),
-        label: `📄 [Documento Vivo] ${d.title || 'Informe Oficial'}`,
-        sublabel: `Actualizado: ${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('es-CO') : 'Reciente'}`,
-        badge: 'LIVE DOC',
-        badgeTone: 'indigo',
-        isCritical: false,
-        fields: {
-          'Título del Documento': d.title || 'Informe Oficial',
-          'Contenido': String(d.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) || 'Documento estructurado',
-        },
-      })),
-      ...editorDocs.map((ed, i) => ({
-        id: String(ed._id || ed.conversationId || `out_ed_${i}`),
-        label: `📝 [Documento LiveEditor] ${ed.fileName || 'Informe Oficial SG-SST'}`,
-        sublabel: `Actualizado: ${ed.updatedAt ? new Date(ed.updatedAt).toLocaleDateString('es-CO') : 'Reciente'}`,
-        badge: 'LIVE EDITOR',
-        badgeTone: 'indigo',
-        isCritical: false,
-        fields: {
-          'Título del Documento': ed.fileName || 'Informe Oficial SG-SST',
-          'Contenido': String(ed.content || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) || 'Informe exportable HTML/DOCX',
-        },
-      })),
-    ];
+      };
+    });
 
     return {
       moduleTitle: outputTitleMap[canonicalId] || `Equipo 7 · Bitácora y Canal de Salida (${canonicalId.toUpperCase()})`,
-      sourceCollection: 'AutomationLog + Notification + LiveDocument + LiveEditorSession',
+      sourceCollection: 'AutomationLog',
       kpis: [
-        { label: 'Bitácoras Emitidas', value: logs.length, tone: 'emerald' },
-        { label: 'Notificaciones WAPPY', value: notifs.length, tone: 'teal' },
-        { label: 'Documentos LiveEditor', value: docs.length + editorDocs.length, tone: 'indigo' },
+        { label: 'Bitácoras Emitidas', value: genericOutputRecords.length, tone: 'emerald' },
+        {
+          label: 'Fallos Registrados',
+          value: genericOutputRecords.filter((r) => r.isCritical).length,
+          tone: genericOutputRecords.some((r) => r.isCritical) ? 'rose' : 'teal',
+        },
       ],
-      records,
+      records: genericOutputRecords,
     };
   }
 
@@ -6153,33 +6643,168 @@ async function inspectOtherNodeTeams(ctx) {
 
   // 8. Equipo 2: Carpeta en tu Computador vía Antigravity (extract_pc_folder)
   if (canonicalId === 'extract_pc_folder') {
-    const socioRes = await inspectHito1And2('hito2_perfil_socio', userId, company);
-    const workersCount = socioRes?.records?.length || 0;
-    return {
-      moduleTitle: 'Equipo 2 · Extractor de Carpeta Local en tu Computador (vía Google Antigravity)',
-      sourceCollection: 'AntigravityLocalFS + CompanyInfo',
-      kpis: [
-        { label: 'Empresa Vinculada', value: company?.companyName || 'Activa', tone: 'teal' },
-        { label: 'Expedientes Trabajadores', value: workersCount, tone: 'indigo' },
-        { label: 'Formatos Soportados', value: 'PDF, XLSX, DOCX, CSV', tone: 'emerald' },
-      ],
-      records: [
-        {
-          id: `pc_folder_${companyIdStr || 'active'}`,
-          label: `💻 Carpeta Local SG-SST: ~/Documents/SG-SST/${(company?.companyName || 'Empresa').replace(/\s+/g, '_')}`,
-          sublabel: `Sincronización local vía daemon de Google Antigravity • ${workersCount} expedientes de trabajadores vinculados por cédula`,
-          badge: 'CARPETA LOCAL AGY',
-          badgeTone: 'teal',
-          isCritical: false,
-          fields: {
-            'Ruta de Carpeta Local Monitoreada': `~/Documents/SG-SST/${(company?.companyName || 'Empresa').replace(/\s+/g, '_')}`,
-            'Extensiones de Archivo Permitidas': '.pdf, .xlsx, .csv, .docx',
-            'Total Trabajadores para Cruce por Cédula': String(workersCount),
-            'Empresa Activa': company?.companyName || 'Empresa Activa',
+    const rawWatchPath = String(
+      ctx?.nodeConfig?.watchFolderPath || ctx?.options?.watchFolderPath || '',
+    ).trim();
+    const cleanWatchPath = rawWatchPath.replace(/^['"`]+|['"`]+$/g, '').trim();
+    const includeSubfolders =
+      ctx?.nodeConfig?.includeSubfolders === true ||
+      ctx?.nodeConfig?.includeSubfolders === 'true' ||
+      ctx?.options?.includeSubfolders === true ||
+      ctx?.options?.includeSubfolders === 'true';
+    const fileTypeFilter = String(
+      ctx?.nodeConfig?.fileTypeFilter || ctx?.options?.fileTypeFilter || 'all',
+    )
+      .trim()
+      .toLowerCase();
+    const fileNameFilter = String(
+      ctx?.nodeConfig?.fileNameFilter || ctx?.options?.fileNameFilter || '',
+    )
+      .trim()
+      .toLowerCase();
+    const maxLocalFiles = Math.min(
+      25,
+      Math.max(1, Number(ctx?.nodeConfig?.maxItems || ctx?.options?.maxItems) || 25),
+    );
+
+    const matchesFileType = (extLower) => {
+      if (!fileTypeFilter || fileTypeFilter === 'all') return true;
+      if (fileTypeFilter === 'pdf') return extLower === '.pdf';
+      if (['excel', 'xlsx', 'spreadsheet', 'csv'].includes(fileTypeFilter)) {
+        return ['.xlsx', '.xls', '.csv'].includes(extLower);
+      }
+      if (['word', 'docx', 'document'].includes(fileTypeFilter)) {
+        return ['.docx', '.doc'].includes(extLower);
+      }
+      if (['image', 'images'].includes(fileTypeFilter)) {
+        return ['.png', '.jpg', '.jpeg', '.webp'].includes(extLower);
+      }
+      const normalizedCustomExt = fileTypeFilter.startsWith('.')
+        ? fileTypeFilter
+        : `.${fileTypeFilter}`;
+      return extLower === normalizedCustomExt;
+    };
+
+    const formatFileSize = (bytes) => {
+      const n = Number(bytes) || 0;
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+    };
+
+    if (!cleanWatchPath) {
+      return {
+        moduleTitle: 'Equipo 2 · Extractor de Carpeta Local en tu Computador (vía Google Antigravity)',
+        sourceCollection: 'AntigravityLocalFS',
+        kpis: [
+          { label: 'Ruta Configurada', value: 'Pendiente', tone: 'amber' },
+          { label: 'Archivos Listados', value: 0, tone: 'slate' },
+          { label: 'Filtro Formato', value: fileTypeFilter.toUpperCase(), tone: 'teal' },
+        ],
+        records: [],
+      };
+    }
+
+    const fsTargetPath = cleanWatchPath.startsWith('~/')
+      ? path.join(os.homedir(), cleanWatchPath.slice(2))
+      : cleanWatchPath;
+
+    let accessibleLocalDir = false;
+    const localFileRecords = [];
+
+    try {
+      if (fs.existsSync(fsTargetPath) && fs.statSync(fsTargetPath).isDirectory()) {
+        accessibleLocalDir = true;
+        const collectFromDir = (dirPath, depth = 0) => {
+          if (localFileRecords.length >= maxLocalFiles || depth > 1) return;
+          let dirEntries = [];
+          try {
+            dirEntries = fs.readdirSync(dirPath, { withFileTypes: true });
+          } catch (_) {
+            return;
+          }
+          for (const entry of dirEntries) {
+            if (localFileRecords.length >= maxLocalFiles) break;
+            if (!entry || !entry.name || entry.name.startsWith('.')) continue;
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+              if (includeSubfolders && depth === 0) {
+                collectFromDir(fullPath, depth + 1);
+              }
+              continue;
+            }
+            if (!entry.isFile()) continue;
+            const ext = path.extname(entry.name);
+            const extLower = ext.toLowerCase();
+            if (!matchesFileType(extLower)) continue;
+            if (fileNameFilter && !entry.name.toLowerCase().includes(fileNameFilter)) continue;
+
+            let stat = null;
+            try {
+              stat = fs.statSync(fullPath);
+            } catch (_) {
+              continue;
+            }
+            const sizeStr = formatFileSize(stat?.size || 0);
+            const modStr = stat?.mtime ? new Date(stat.mtime).toLocaleString('es-CO') : 'Reciente';
+            const extLabel = ext ? ext.replace(/^\./, '').toUpperCase() : 'ARCHIVO';
+
+            localFileRecords.push({
+              id: `pc_file_${localFileRecords.length + 1}_${entry.name}`,
+              label: `📄 ${entry.name}`,
+              sublabel: `${extLabel} • ${sizeStr} • Modificado: ${modStr}`,
+              badge: extLabel,
+              badgeTone: 'teal',
+              isCritical: false,
+              fields: {
+                'Nombre del Archivo': entry.name,
+                'Extensión': extLabel,
+                'Tamaño': sizeStr,
+                'Modificado': modStr,
+                'Ruta Completa': fullPath,
+              },
+            });
+          }
+        };
+        collectFromDir(fsTargetPath, 0);
+      }
+    } catch (_) {
+      accessibleLocalDir = false;
+    }
+
+    const records = accessibleLocalDir
+      ? localFileRecords
+      : [
+          {
+            id: `pc_folder_cfg_${companyIdStr || 'active'}`,
+            label: `💻 Ruta Local Configurada: ${cleanWatchPath}`,
+            sublabel: `Lectura delegada al daemon local de Google Antigravity en tu Mac/PC${includeSubfolders ? ' (incluye subcarpetas)' : ''}`,
+            badge: 'PUENTE LOCAL AGY',
+            badgeTone: 'teal',
+            isCritical: false,
+            fields: {
+              'Nombre del Archivo': '(Carpeta local monitoreada vía Google Antigravity)',
+              'Extensión': fileTypeFilter === 'all' ? 'TODOS' : fileTypeFilter.toUpperCase(),
+              'Tamaño': includeSubfolders ? 'Incluye subcarpetas' : 'Nivel raíz',
+              'Modificado': 'Lectura en tiempo de ejecución local',
+              'Ruta Completa': cleanWatchPath,
+            },
           },
+        ];
+
+    return {
+      moduleTitle: `Equipo 2 · Carpeta Local (${cleanWatchPath})`,
+      sourceCollection: accessibleLocalDir ? 'Sistema de Archivos Local (En Vivo)' : 'AntigravityLocalFS (Puente Remoto)',
+      kpis: [
+        { label: 'Ruta Monitoreada', value: path.basename(cleanWatchPath) || cleanWatchPath, tone: 'teal' },
+        {
+          label: accessibleLocalDir ? 'Archivos Encontrados' : 'Modo de Lectura',
+          value: accessibleLocalDir ? localFileRecords.length : 'Puente Local AGY',
+          tone: 'emerald',
         },
-        ...(socioRes?.records?.slice(0, 10) || []),
+        { label: 'Filtro Formato', value: fileTypeFilter.toUpperCase(), tone: 'indigo' },
       ],
+      records,
     };
   }
 
@@ -6341,109 +6966,98 @@ async function inspectOtherNodeTeams(ctx) {
 
   // 10.5. Equipo 3/8: Nodos Lógicos de Control de Flujo (`if_router`, `loop`, `merge`, `human_approval`, `filter`)
   if (['if_router', 'loop', 'merge', 'human_approval', 'filter'].includes(canonicalId)) {
-    const [socioRes, diagRes] = await Promise.all([
-      inspectHito1And2('hito2_perfil_socio', userId, company),
-      inspectHito1And2('hito1_diagnostico_0312', userId, company),
-    ]);
-    const workerRecs = Array.isArray(socioRes?.records) ? socioRes.records : [];
-    const diagRecs = Array.isArray(diagRes?.records) ? diagRes.records : [];
-    const critWorkers = workerRecs.filter((r) => r.isCritical);
-    const critStandards = diagRecs.filter((r) => r.isCritical);
-    const totalCrit = critWorkers.length + critStandards.length;
-
     if (canonicalId === 'if_router') {
+      const placementRaw = String(ctx?.nodeConfig?.ifPlacement || 'pre_agent').trim();
+      const placementLabel =
+        placementRaw === 'post_agent'
+          ? 'Post-Agente IA ([VEREDICTO_IF: SI | NO])'
+          : 'Pre-Agente IA (0 tokens LLM cuando no hay brechas nuevas)';
       const conditionStr =
         ctx?.nodeConfig?.ifCondition ||
         ctx?.nodeConfig?.condition ||
-        'criticalCount > 0 (Detectar brechas normativas o alertas críticas en la empresa)';
-      const evalTrue = totalCrit > 0;
+        'Evaluación automática de brechas nuevas sobre los registros conectados aguas arriba';
+
       return {
-        moduleTitle: 'Equipo 3 · Enrutador Condicional IF / Switch (Evaluación en Vivo)',
-        sourceCollection: 'LogicRouterEngine (DiagnosticoData + SgsstWorker)',
+        moduleTitle: 'Equipo 3 · Enrutador Condicional IF / Switch',
+        sourceCollection: 'LogicRouterEngine (Evaluación sobre Nodo Conectado Aguas Arriba)',
         kpis: [
-          { label: 'Resultado Evaluación', value: evalTrue ? 'TRUE (Rama Alerta)' : 'FALSE (Cumple)', tone: evalTrue ? 'amber' : 'emerald' },
-          { label: 'Brechas Críticas Detectadas', value: totalCrit, tone: totalCrit > 0 ? 'rose' : 'emerald' },
-          { label: 'Registros Evaluados', value: workerRecs.length + diagRecs.length, tone: 'teal' },
+          {
+            label: 'Posición en Grafo',
+            value: placementRaw === 'post_agent' ? 'POST-AGENTE' : 'PRE-AGENTE',
+            tone: 'indigo',
+          },
+          { label: 'Rama Verdadera', value: 'RAMA SÍ', tone: 'teal' },
+          { label: 'Rama Falsa', value: 'RAMA NO', tone: 'emerald' },
         ],
         records: [
           {
-            id: `if_eval_${companyIdStr || '1'}`,
-            label: `🔀 [Evaluación IF en Vivo: ${evalTrue ? 'VERDADERO' : 'FALSO'}] ${conditionStr}`,
-            sublabel: `Brechas 0312: ${critStandards.length} • Trabajadores con alerta: ${critWorkers.length} • Ruta activa: ${evalTrue ? 'Rama TRUE (Acción Correctiva)' : 'Rama FALSE (Seguimiento Rutinario)'}`,
-            badge: evalTrue ? 'RAMA TRUE ACTIVA' : 'RAMA FALSE ACTIVA',
-            badgeTone: evalTrue ? 'amber' : 'emerald',
-            isCritical: evalTrue,
+            id: `if_cfg_${companyIdStr || '1'}`,
+            label: `🔀 Condición Configurada: ${conditionStr}`,
+            sublabel: `Modo: ${placementLabel} • Evalúa dinámicamente los ítems recibidos en el panel INPUT`,
+            badge: 'ENRUTADOR IF',
+            badgeTone: 'indigo',
+            isCritical: false,
             fields: {
-              'Regla / Condición Evaluada': conditionStr,
-              'Resultado Booleano en Vivo': evalTrue ? 'TRUE (Verdadero)' : 'FALSE (Falso)',
-              'Estándares 0312 en Brecha': String(critStandards.length),
-              'Colaboradores con Alerta': String(critWorkers.length),
-              'Empresa Evaluada': company?.companyName || 'Empresa Activa',
+              'Modo de Evaluación': placementLabel,
+              'Regla / Condición': conditionStr,
+              'Rama SÍ (Verdadero)': 'Ejecuta acciones correctivas / salidas de alerta',
+              'Rama NO (Falso)': 'Cierre preventivo silencioso sin falsas alarmas',
             },
           },
-          ...critStandards.slice(0, 8),
-          ...critWorkers.slice(0, 8),
         ],
       };
     }
 
     if (canonicalId === 'loop') {
       const batchSize = Math.max(1, Number(ctx?.nodeConfig?.batchSize) || 10);
-      const totalBatches = Math.max(1, Math.ceil(workerRecs.length / batchSize));
       return {
-        moduleTitle: 'Equipo 3 · Iterador por Lotes (Loop / SplitInBatches sobre Registros)',
-        sourceCollection: 'LogicLoopEngine (SgsstWorker)',
+        moduleTitle: 'Equipo 3 · Iterador por Lotes (Loop / SplitInBatches)',
+        sourceCollection: 'LogicLoopEngine (Registros Conectados Aguas Arriba)',
         kpis: [
-          { label: 'Total Registros Entrada', value: workerRecs.length, tone: 'teal' },
           { label: 'Tamaño de Lote (Batch)', value: batchSize, tone: 'indigo' },
-          { label: 'Iteraciones Calculadas', value: totalBatches, tone: 'emerald' },
+          { label: 'Modo de Ejecución', value: 'Secuencial', tone: 'teal' },
         ],
         records: [
           {
-            id: `loop_summary_${companyIdStr || '1'}`,
-            label: `🔁 Procesamiento secuencial en ${totalBatches} lote(s) de hasta ${batchSize} registro(s)`,
-            sublabel: `Total colaboradores en cola de iteración para ${company?.companyName || 'la empresa'}: ${workerRecs.length}`,
-            badge: `${totalBatches} LOTES`,
+            id: `loop_cfg_${companyIdStr || '1'}`,
+            label: `🔁 Iteración por lotes de hasta ${batchSize} registro(s) por ciclo`,
+            sublabel: 'Divide automáticamente los registros provenientes del nodo anterior en bloques controlados',
+            badge: `BATCH ${batchSize}`,
             badgeTone: 'indigo',
             isCritical: false,
             fields: {
-              'Total Registros a Iterar': String(workerRecs.length),
+              'Estrategia de Iteración': 'SplitInBatches secuencial sin pérdida de ítems',
               'Tamaño de Lote Configurado': String(batchSize),
-              'Número Total de Iteraciones': String(totalBatches),
-              'Empresa Activa': company?.companyName || 'Empresa Activa',
+              'Origen de Datos': 'Registros recibidos del nodo conectado aguas arriba (INPUT)',
             },
           },
-          ...workerRecs.slice(0, 12),
         ],
       };
     }
 
     if (canonicalId === 'merge') {
+      const mergeMode = String(ctx?.nodeConfig?.mergeMode || 'append_and_enrich').trim();
       return {
-        moduleTitle: 'Equipo 3 · Nodo Merge (Unificación Multi-Rama de Datos SG-SST)',
-        sourceCollection: 'LogicMergeEngine (SgsstWorker + DiagnosticoData)',
+        moduleTitle: 'Equipo 3 · Nodo Merge (Unificación Multi-Rama)',
+        sourceCollection: 'LogicMergeEngine (Ramas Conectadas Aguas Arriba)',
         kpis: [
-          { label: 'Rama A (Colaboradores)', value: workerRecs.length, tone: 'teal' },
-          { label: 'Rama B (Estándares 0312)', value: diagRecs.length, tone: 'indigo' },
-          { label: 'Total Consolidado', value: workerRecs.length + diagRecs.length, tone: 'emerald' },
+          { label: 'Estrategia Merge', value: mergeMode.toUpperCase(), tone: 'teal' },
+          { label: 'Estado', value: 'LISTO', tone: 'emerald' },
         ],
         records: [
           {
-            id: `merge_summary_${companyIdStr || '1'}`,
-            label: `🔗 Fusión Multi-Rama: ${workerRecs.length} Colaboradores + ${diagRecs.length} Estándares Res. 0312`,
-            sublabel: `Modo de combinación: ${ctx?.nodeConfig?.mergeMode || 'append_and_enrich'} • Empresa: ${company?.companyName || 'Activa'}`,
-            badge: 'MERGE LISTO',
+            id: `merge_cfg_${companyIdStr || '1'}`,
+            label: `🔗 Estrategia de Unificación: ${mergeMode}`,
+            sublabel: 'Consolida los registros de todas las ramas conectadas aguas arriba en una sola salida estructurada',
+            badge: 'MERGE CONFIGURADO',
             badgeTone: 'teal',
             isCritical: false,
             fields: {
-              'Modo de Fusión': ctx?.nodeConfig?.mergeMode || 'Consolidación Estructurada (Append + Cruce por Cédula/Cargo)',
-              'Items Rama 1': String(workerRecs.length),
-              'Items Rama 2': String(diagRecs.length),
-              'Items Salida Unificada': String(workerRecs.length + diagRecs.length),
+              'Modo de Fusión': mergeMode,
+              'Comportamiento': 'Consolidación estructurada de las entradas conectadas al nodo',
+              'Origen de Datos': 'Ramas conectadas aguas arriba en el lienzo',
             },
           },
-          ...critStandards.slice(0, 6),
-          ...workerRecs.slice(0, 6),
         ],
       };
     }
@@ -6452,55 +7066,83 @@ async function inspectOtherNodeTeams(ctx) {
       const TenshiPendingAction = getSafeModel('TenshiPendingAction', null, '~/models/TenshiPendingAction');
       const pendingDocs = await findManyCompanyDocs(TenshiPendingAction, userId, company, { createdAt: -1 }, 15);
       const approver = ctx?.nodeConfig?.approverEmail || company?.email || 'Responsable SG-SST';
+      const records =
+        pendingDocs.length > 0
+          ? pendingDocs.map((p, idx) => {
+              const titleStr = p.title || p.actionType || 'Solicitud de aprobación operativa';
+              const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleString('es-CO') : 'Reciente';
+              const statusStr = String(p.status || 'pending').toUpperCase();
+              return {
+                id: String(p._id || `hitl_p_${idx}`),
+                label: `🛡️ ${titleStr}`,
+                sublabel: `Aprobador: ${approver} • Estado: ${statusStr}`,
+                badge: statusStr,
+                badgeTone: p.status === 'pending' ? 'amber' : 'emerald',
+                isCritical: false,
+                fields: {
+                  'Acción Solicitada': titleStr,
+                  'Aprobador Designado': approver,
+                  'Fecha': dateStr,
+                  'Estado': statusStr,
+                },
+              };
+            })
+          : [
+              {
+                id: `hitl_cfg_${companyIdStr || '1'}`,
+                label: `🛡️ Compuerta de Visto Bueno Humano — Aprobador: ${approver}`,
+                sublabel: `Responsable SG-SST: ${company?.responsibleSST || 'Designado'} • Sin aprobaciones pendientes en cola`,
+                badge: 'HITL ACTIVO',
+                badgeTone: 'teal',
+                isCritical: false,
+                fields: {
+                  'Acción Solicitada': 'Pausa preventiva para revisión y firma del responsable',
+                  'Aprobador Designado': approver,
+                  'Fecha': 'Configuración activa',
+                  'Estado': 'SIN PENDIENTES',
+                },
+              },
+            ];
+
       return {
         moduleTitle: 'Equipo 3 · Compuerta de Aprobación Humana (Human-in-the-Loop SST)',
-        sourceCollection: 'TenshiPendingAction + CompanyInfo',
+        sourceCollection: 'TenshiPendingAction',
         kpis: [
           { label: 'Aprobador Designado', value: approver, tone: 'teal' },
-          { label: 'Responsable SST', value: company?.responsibleSST || 'Asignado', tone: 'indigo' },
           { label: 'Solicitudes en Cola', value: pendingDocs.length, tone: pendingDocs.length > 0 ? 'amber' : 'emerald' },
         ],
-        records: [
-          {
-            id: `hitl_gate_${companyIdStr || '1'}`,
-            label: `🛡️ Compuerta de Visto Bueno Humano — Aprobador: ${approver}`,
-            sublabel: `Responsable SG-SST: ${company?.responsibleSST || 'Designado'} (Lic. ${company?.licenseNumber || 'Vigente'}) • Brechas críticas sujetas a firma: ${totalCrit}`,
-            badge: 'HITL ACTIVO',
-            badgeTone: 'amber',
-            isCritical: false,
-            fields: {
-              'Correo / Usuario Aprobador': approver,
-              'Responsable Técnico SG-SST': `${company?.responsibleSST || 'Designado'} (Lic. ${company?.licenseNumber || 'Vigente'})`,
-              'Hallazgos Críticos Pendientes de Firma': String(totalCrit),
-              'Acciones en Cola HITL': String(pendingDocs.length),
-            },
-          },
-          ...pendingDocs.map((p, idx) => ({
-            id: String(p._id || `hitl_p_${idx}`),
-            label: `⏳ [Solicitud HITL] ${p.title || p.actionType || 'Aprobación Pendiente'}`,
-            sublabel: `Estado: ${p.status || 'pending'}`,
-            badge: String(p.status || 'PENDING').toUpperCase(),
-            badgeTone: 'amber',
-            isCritical: p.status === 'pending',
-            fields: {
-              'Acción Solicitada': p.title || p.actionType || 'Aprobación operativa',
-              'Estado': p.status || 'pending',
-            },
-          })),
-        ],
+        records,
       };
     }
 
     // `filter`
+    const filterRule =
+      ctx?.nodeConfig?.filterCondition ||
+      ctx?.nodeConfig?.condition ||
+      ctx?.nodeConfig?.recordFilterMode ||
+      'Filtrado dinámico sobre los registros conectados aguas arriba';
     return {
       moduleTitle: 'Equipo 3 · Filtro Quirúrgico de Registros (Filter Node)',
-      sourceCollection: 'LogicFilterEngine (Somos SST)',
+      sourceCollection: 'LogicFilterEngine (Registros Conectados Aguas Arriba)',
       kpis: [
-        { label: 'Registros Entrada', value: workerRecs.length, tone: 'indigo' },
-        { label: 'Pasan Filtro (Críticos)', value: critWorkers.length, tone: critWorkers.length > 0 ? 'rose' : 'emerald' },
-        { label: 'Descartados', value: Math.max(0, workerRecs.length - critWorkers.length), tone: 'teal' },
+        { label: 'Regla Activa', value: String(filterRule).slice(0, 28), tone: 'indigo' },
+        { label: 'Estado', value: 'CONFIGURADO', tone: 'emerald' },
       ],
-      records: critWorkers.length > 0 ? critWorkers : workerRecs.slice(0, 15),
+      records: [
+        {
+          id: `filter_cfg_${companyIdStr || '1'}`,
+          label: `🔍 Criterio de Filtrado: ${filterRule}`,
+          sublabel: 'Filtra únicamente los ítems recibidos del nodo conectado aguas arriba sin mezclar otras colecciones',
+          badge: 'FILTRO ACTIVO',
+          badgeTone: 'indigo',
+          isCritical: false,
+          fields: {
+            'Criterio de Filtrado': String(filterRule),
+            'Comportamiento': 'Descarta registros que no cumplan la condición sobre la entrada conectada',
+            'Origen de Datos': 'Registros recibidos en el panel INPUT del nodo',
+          },
+        },
+      ],
     };
   }
 
@@ -7073,18 +7715,34 @@ async function inspectNodeLiveData(params = {}) {
     options = {},
     disabledApps = [],
     executeLive = false,
+    driveFolderId,
+    driveFolderUrl,
     driveFolderName,
+    fileNameFilter,
     fileTypeFilter,
     maxItems,
+    watchFolderPath,
+    includeSubfolders,
+    recordFilterMode,
+    expiryAuditScope,
+    dedupWindow,
     sstAppSourceId,
     emailSubjectFilter,
     endpointUrl,
   } = params || {};
 
   const topLevelQueryOverrides = {};
+  if (driveFolderId !== undefined) topLevelQueryOverrides.driveFolderId = driveFolderId;
+  if (driveFolderUrl !== undefined) topLevelQueryOverrides.driveFolderUrl = driveFolderUrl;
   if (driveFolderName !== undefined) topLevelQueryOverrides.driveFolderName = driveFolderName;
+  if (fileNameFilter !== undefined) topLevelQueryOverrides.fileNameFilter = fileNameFilter;
   if (fileTypeFilter !== undefined) topLevelQueryOverrides.fileTypeFilter = fileTypeFilter;
   if (maxItems !== undefined) topLevelQueryOverrides.maxItems = maxItems;
+  if (watchFolderPath !== undefined) topLevelQueryOverrides.watchFolderPath = watchFolderPath;
+  if (includeSubfolders !== undefined) topLevelQueryOverrides.includeSubfolders = includeSubfolders;
+  if (recordFilterMode !== undefined) topLevelQueryOverrides.recordFilterMode = recordFilterMode;
+  if (expiryAuditScope !== undefined) topLevelQueryOverrides.expiryAuditScope = expiryAuditScope;
+  if (dedupWindow !== undefined) topLevelQueryOverrides.dedupWindow = dedupWindow;
   if (sstAppSourceId !== undefined) topLevelQueryOverrides.sstAppSourceId = sstAppSourceId;
   if (emailSubjectFilter !== undefined) topLevelQueryOverrides.emailSubjectFilter = emailSubjectFilter;
   if (endpointUrl !== undefined) topLevelQueryOverrides.endpointUrl = endpointUrl;
@@ -7213,6 +7871,11 @@ async function inspectNodeLiveData(params = {}) {
     underConstruction: false,
     blocked: false,
     connected: result.connected !== undefined ? Boolean(result.connected) : true,
+    connectedEmail: result.connectedEmail ? String(result.connectedEmail) : '',
+    resolvedFolder: result.resolvedFolder || null,
+    ...(Array.isArray(result.availableFolders)
+      ? { availableFolders: result.availableFolders }
+      : {}),
     defaultConstruction: DEFAULT_CONSTRUCTION_HITO_APPS.has(canonicalId),
     isGenericFallback: Boolean(result.isGenericFallback),
     warning: null,
@@ -8060,6 +8723,7 @@ async function buildSurgicalLiveContextForWorkflow(task, companyOverride = null,
 }
 
 module.exports = {
+  extractGoogleDriveId,
   inspectWorkflowNodeLive,
   inspectNodeLiveData,
   inspectOtherNodeTeams,

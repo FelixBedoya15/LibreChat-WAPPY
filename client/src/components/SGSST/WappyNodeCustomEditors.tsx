@@ -69,6 +69,19 @@ export interface LiveInspectorPayload {
   sourceCollection: string;
   totalRecords: number;
   criticalCount: number;
+  connected?: boolean;
+  connectedEmail?: string;
+  resolvedFolder?: {
+    id: string;
+    name: string;
+    webViewLink?: string;
+  } | null;
+  availableFolders?: Array<{
+    id: string;
+    name: string;
+    parentId?: string;
+    webViewLink?: string;
+  }>;
   kpis: Array<{
     label: string;
     value: string | number;
@@ -95,6 +108,20 @@ export interface LiveInspectorPayload {
     preview?: string;
     html?: string;
   }>;
+}
+
+function extractGoogleDriveIdClient(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (s === 'root') return 'root';
+  const folderMatch = s.match(/\/folders\/([a-zA-Z0-9_-]{10,})/);
+  if (folderMatch) return folderMatch[1];
+  const fileMatch = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (fileMatch) return fileMatch[1];
+  const queryMatch = s.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+  if (queryMatch) return queryMatch[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(s) && !s.includes('/')) return s;
+  return '';
 }
 
 function resolveDefaultOutputIfBranch(
@@ -659,33 +686,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         </div>
 
-        {moduleMeta.quickCombos && moduleMeta.quickCombos.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            <span className="text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              Atajos Rápidos:
-            </span>
-            {moduleMeta.quickCombos.map((combo, cIdx) => {
-              const isComboActive =
-                combo.fields.length === selectedFields.length &&
-                combo.fields.every((cf) => selectedFields.includes(cf));
-              const comboVariants = ['purple', 'teal', 'amber', 'cyan', 'emerald'] as const;
-              return (
-                <ExpandableButton
-                  key={combo.label}
-                  size="sm"
-                  variant={comboVariants[cIdx % comboVariants.length]}
-                  isActive={isComboActive}
-                  icon={<Sparkles className="w-3.5 h-3.5" />}
-                  label={combo.label}
-                  title={combo.description}
-                  onClick={() => applyQuickCombo(combo.fields)}
-                />
-              );
-            })}
-          </div>
-        )}
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
           {filteredChecklistFields.map((fieldLabel) => {
             const active = selectedFields.includes(fieldLabel);
@@ -724,30 +724,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           })}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[220px] max-w-md w-full">
-            <input
-              type="text"
-              value={customFieldInput}
-              onChange={(e) => setCustomFieldInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddCustomField();
-                }
-              }}
-              placeholder="Agregar casilla personalizada..."
-              className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
-            />
-            <ExpandableButton
-              size="sm"
-              variant="emerald"
-              icon={<Plus className="w-3.5 h-3.5" />}
-              label="Añadir Casilla"
-              onClick={handleAddCustomField}
-            />
-          </div>
-          {selectedFields.length > 0 && (
+        {selectedFields.length > 0 && (
+          <div className="flex items-center justify-end pt-1">
             <label className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300 cursor-pointer">
               <input
                 type="checkbox"
@@ -760,16 +738,147 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 className="rounded border-teal-500 text-teal-600"
               />
               <span>
-                🔒 Extraer <strong>SOLO</strong> estas {selectedFields.length} casilla(s)
+                🔒 Extraer <strong>SOLO</strong> estas {selectedFields.length} columna(s)
               </span>
             </label>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  // Sub-componente reutilizable para la Tabla Real en Vivo de Registros (usado en Aplicativos SST, Trabajadores y Memorias)
+  // Vista previa limpia de solo lectura para Extractores de Nube / Carpeta PC / Correo / Bitácora (sin checkboxes de trabajadores ni vencimientos)
+  const renderSimpleReadOnlyPreviewTable = (title: string) => {
+    if (!nodeLiveInspectorData.supported) return null;
+    const rows = Array.isArray(nodeLiveInspectorData.records) ? nodeLiveInspectorData.records : [];
+    const firstRowData =
+      rows.length > 0
+        ? rows[0]?.fields || rows[0]?.values || rows[0]?.data || null
+        : null;
+    const dynamicColumns =
+      firstRowData && typeof firstRowData === 'object'
+        ? Object.keys(firstRowData).slice(0, 6)
+        : [];
+
+    return (
+      <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-teal-600 dark:text-[#C7F303] shrink-0" />
+            <span className="text-xs font-black uppercase tracking-wide text-slate-900 dark:text-white">
+              {title}
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-slate-700">
+              {nodeLiveInspectorData.loading
+                ? 'Consultando en vivo...'
+                : `${rows.length} elemento(s)`}
+            </span>
+          </div>
+          {nodeLiveInspectorData.resolvedFolder?.name && (
+            <span className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+              📁 {nodeLiveInspectorData.resolvedFolder.name}
+            </span>
+          )}
+        </div>
+
+        {nodeLiveInspectorData.loading ? (
+          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+            Consultando elementos reales en vivo...
+          </div>
+        ) : rows.length > 0 ? (
+          <div className="overflow-x-auto max-h-52 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-2 w-8 text-center font-bold text-slate-500">#</th>
+                  {dynamicColumns.length > 0 ? (
+                    dynamicColumns.map((col) => (
+                      <th
+                        key={col}
+                        className="px-3 py-2 font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
+                    ))
+                  ) : (
+                    <>
+                      <th className="px-3 py-2 font-extrabold text-slate-700 dark:text-slate-200">
+                        Elemento
+                      </th>
+                      <th className="px-3 py-2 font-extrabold text-slate-700 dark:text-slate-200">
+                        Detalle
+                      </th>
+                      <th className="px-3 py-2 font-extrabold text-slate-700 dark:text-slate-200">
+                        Estado
+                      </th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {rows.slice(0, 25).map((rec, idx) => {
+                  const rowObj = rec.fields || rec.values || rec.data || {};
+                  return (
+                    <tr
+                      key={rec.id || `row_${idx}`}
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                    >
+                      <td className="px-3 py-2 text-center text-[11px] font-bold text-slate-400">
+                        {idx + 1}
+                      </td>
+                      {dynamicColumns.length > 0 ? (
+                        dynamicColumns.map((col) => {
+                          const val = rowObj?.[col];
+                          const strVal =
+                            val === null || val === undefined || val === ''
+                              ? '—'
+                              : String(val);
+                          return (
+                            <td
+                              key={col}
+                              className="px-3 py-2 text-slate-700 dark:text-slate-200 max-w-[220px] truncate"
+                              title={strVal}
+                            >
+                              {strVal}
+                            </td>
+                          );
+                        })
+                      ) : (
+                        <>
+                          <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-100">
+                            {rec.label}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                            {rec.sublabel || '—'}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                            {rec.badge || 'OK'}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+            No se encontraron archivos o registros con el filtro actual.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Sub-componente reutilizable para la Tabla Real en Vivo de Registros (usado únicamente en Fuentes de Base de Datos Somos SST)
+  const supportsExpiryFilter = [
+    'hito2_perfil_socio',
+    'hito3_epp',
+    'hito3_vehiculos',
+    'hito3_matriz_pesv',
+    'extract_sst_workers',
+  ].includes(cleanId);
   const renderLiveRecordsTableSection = (customTitle?: string) => {
     if (!nodeLiveInspectorData.supported) return null;
     const defaultLiveTitle = isCompanyNode
@@ -845,15 +954,17 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               label="Solo Críticos / En Brecha"
               onClick={() => handleSetRecordFilterMode('critical_only')}
             />
-            <ExpandableButton
-              size="sm"
-              variant="amber"
-              isActive={recordFilterMode === 'expiry_only'}
-              icon={<Clock className="w-3.5 h-3.5" />}
-              badge={nodeLiveInspectorData.criticalCount}
-              label="Solo vencimientos próximos o vencidos (<= 30 días)"
-              onClick={() => handleSetRecordFilterMode('expiry_only')}
-            />
+            {supportsExpiryFilter && (
+              <ExpandableButton
+                size="sm"
+                variant="amber"
+                isActive={recordFilterMode === 'expiry_only'}
+                icon={<Clock className="w-3.5 h-3.5" />}
+                badge={nodeLiveInspectorData.criticalCount}
+                label="Solo vencimientos próximos o vencidos (<= 30 días)"
+                onClick={() => handleSetRecordFilterMode('expiry_only')}
+              />
+            )}
             <ExpandableButton
               size="sm"
               variant="purple"
@@ -1587,7 +1698,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               )}
             </div>
           </div>
-          {renderLiveRecordsTableSection(`⏰ Tareas Programadas y Corridas de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1610,36 +1720,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 placeholder='Ej: "Tenshi, revisa los certificados de afiliación hoy"'
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
-              <div className="flex flex-wrap gap-1.5 mt-2 py-0.5 px-0.5">
-                {[
-                  {
-                    sample:
-                      'Tenshi, realiza la investigación de accidente del trabajador con el FURAT de Drive',
-                    variant: 'purple' as const,
-                  },
-                  {
-                    sample: 'Tenshi, ejecuta la auditoría de hoy',
-                    variant: 'teal' as const,
-                  },
-                  {
-                    sample: 'Tenshi, revisa vencimientos de trabajadores',
-                    variant: 'amber' as const,
-                  },
-                  {
-                    sample: 'Tenshi, procesa los archivos nuevos de Drive',
-                    variant: 'cyan' as const,
-                  },
-                ].map(({ sample, variant }) => (
-                  <ExpandableButton
-                    key={sample}
-                    size="sm"
-                    variant={variant}
-                    icon={<MessageSquare className="w-3.5 h-3.5" />}
-                    label={sample}
-                    onClick={() => onUpdateNodeConfig(activeNode.key, { voiceCommand: sample })}
-                  />
-                ))}
-              </div>
             </div>
 
             <div>
@@ -1683,7 +1763,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </div>
             </div>
           </div>
-          {renderLiveRecordsTableSection(`🎙️ Estado del Disparador Tenshi IA en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1722,14 +1801,14 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 type="text"
                 value={currentCfg.watchFolderPath || ''}
                 onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { watchFolderPath: e.target.value })
+                  onUpdateNodeConfig(activeNode.key, { watchFolderPath: e.target.value.replace(/^["']+|["']+$/g, '') })
                 }
                 placeholder={
                   isCloud
                     ? 'Ej: Cola remota Cloud 24/7 o tarea delegada...'
                     : 'Ej: /Users/venta/Documents/SST_Reportes'
                 }
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
               />
             </div>
             <div>
@@ -1747,7 +1826,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          {renderLiveRecordsTableSection(`💻 Estado del Disparador Antigravity en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1785,58 +1863,18 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={Boolean(currentCfg.onlyWithAttachments)}
-                  onChange={(e) =>
-                    onUpdateNodeConfig(activeNode.key, { onlyWithAttachments: e.target.checked })
-                  }
-                  className="rounded border-teal-500 text-teal-600"
-                />
-                <span>📎 Disparar solo si trae PDF / Excel adjunto</span>
-              </label>
-            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            {[
-              {
-                label: '🚑 Disparar al recibir FURAT o dictamen de ARL',
-                sender: '@positiva.gov.co, @sura.com.co, @colmena.com',
-                subj: 'FURAT, Accidente de Trabajo, Calificación',
-                variant: 'danger' as const,
-              },
-              {
-                label: '🩺 Disparar al recibir Concepto de Aptitud Médica',
-                sender: '',
-                subj: 'Concepto de Aptitud, Examen Médico Ocupacional, Restricciones',
-                variant: 'teal' as const,
-              },
-              {
-                label: '📄 Disparar al recibir Incapacidad Médica',
-                sender: '',
-                subj: 'Incapacidad Médica, Licencia, Hospitalización',
-                variant: 'cyan' as const,
-              },
-            ].map((p) => (
-              <ExpandableButton
-                key={p.label}
-                size="sm"
-                variant={p.variant}
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                label={p.label}
-                onClick={() =>
-                  onUpdateNodeConfig(activeNode.key, {
-                    emailSenderFilter: p.sender || currentCfg.emailSenderFilter,
-                    emailSubjectFilter: p.subj,
-                    onlyWithAttachments: true,
-                  })
-                }
-              />
-            ))}
-          </div>
-          {renderLiveRecordsTableSection(`📧 Estado del Disparador por Correo Entrante en «${resolvedCompanyFull}»`)}
+          <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={Boolean(currentCfg.onlyWithAttachments)}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { onlyWithAttachments: e.target.checked })
+              }
+              className="rounded border-teal-500 text-teal-600"
+            />
+            <span>📎 Disparar solo si el correo incluye archivos PDF o Excel adjuntos</span>
+          </label>
         </div>
       );
     }
@@ -1898,7 +1936,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               );
             })}
           </div>
-          {renderLiveRecordsTableSection(`📱 Estado del Disparador QR en Campo de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1942,7 +1979,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          {renderLiveRecordsTableSection(`🤖 Estado del Disparador por Delegación de Agente en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -1993,7 +2029,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          {renderLiveRecordsTableSection(`💬 Pre-configuración de Disparador WhatsApp en «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -2037,7 +2072,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
           />
         </div>
-        {renderLiveRecordsTableSection(`🔗 Estado del Disparador Webhook en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -2488,7 +2522,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               );
             })}
           </div>
-          {renderLiveRecordsTableSection(`🏢 Ficha Real en Vivo de «${resolvedCompanyFull}»`)}
           {renderReportHistorySection()}
         </div>
       );
@@ -2607,8 +2640,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </div>
             </div>
           </div>
-          {renderFieldChecklistSection('pink')}
-          {renderLiveRecordsTableSection('📜 Últimas Ejecuciones Reales Guardadas en Bitácora')}
+          {renderSimpleReadOnlyPreviewTable('📜 Últimas llaves registradas en Bitácora Anti-Duplicados')}
         </div>
       );
     }
@@ -2838,10 +2870,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               );
             })}
           </div>
-
-          {renderLiveRecordsTableSection(
-            '📄 Vista en Vivo de los Archivos Normativos Markdown (.md) Indexados en Tenshi',
-          )}
         </div>
       );
     }
@@ -2926,65 +2954,103 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
         </div>
-        {renderFieldChecklistSection('pink')}
-        {renderLiveRecordsTableSection(
-          '📚 Documentos Vivos y Cuadernos NotebookLM de tu Empresa (Marca cuáles consultar)',
-        )}
+        {renderSimpleReadOnlyPreviewTable('📚 Documentos Vivos y Cuadernos NotebookLM Indexados')}
       </div>
     );
   }
 
   /* ═════════════════════════════════════════════════════════════════════════
-     EQUIPO 7: BITÁCORA Y SALIDA (OUTPUT_ACTION_NODES — 11 Nodos con Formulario Propio)
+     EQUIPO 7: BITÁCORA Y SALIDA (OUTPUT_ACTION_NODES — 11 Nodos Limpios Estilo n8n)
      ═════════════════════════════════════════════════════════════════════════ */
   if (activeNode.shape === 'square_output') {
-    // 7.1 BITÁCORA A GMAIL (Reemplaza el bloque suelto de Correos de Destinatarios de la Imagen 3)
+    // 7.1 BITÁCORA A GMAIL (Envío Limpio y Directo del Mensaje / Informe Listo)
     if (cleanId.includes('email')) {
+      const companyDefaultEmail = String(activeCompanyInfo?.email || '').trim();
+      const canAddCompanyEmail =
+        Boolean(companyDefaultEmail) &&
+        !String(emailsStr || '')
+          .toLowerCase()
+          .includes(companyDefaultEmail.toLowerCase());
       return (
         <div className="space-y-3">
+          <div className="p-3 rounded-xl border border-teal-200 dark:border-teal-800/70 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+            ✉️ <strong>Salida directa:</strong> Cuando el flujo llegue a este nodo (por conexión directa o por la rama activa de <em>Condición Sí/No</em>), enviará automáticamente el mensaje o informe ejecutivo listo del paso anterior.
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📧 Correos de Destinatarios (Separados por coma) *
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
+                <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                  📧 Para (Correos de destinatarios separados por coma) *
+                </label>
+                {canAddCompanyEmail && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextVal = emailsStr?.trim()
+                        ? `${emailsStr.trim()}, ${companyDefaultEmail}`
+                        : companyDefaultEmail;
+                      onChangeEmailsStr && onChangeEmailsStr(nextVal);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-teal-600/10 hover:bg-teal-600/20 border border-teal-500/30 text-[10px] font-extrabold text-teal-800 dark:text-[#C7F303] transition"
+                  >
+                    + Usar correo empresa ({companyDefaultEmail})
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={emailsStr}
                 onChange={(e) => onChangeEmailsStr && onChangeEmailsStr(e.target.value)}
-                placeholder="Ej: wappyinteractivo@gmail.com, gerencia@empresa.com"
+                placeholder="Ej: sst@empresa.com, gerencia@empresa.com"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
+
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                ✉️ Asunto Personalizado del Correo
+                👥 CC / Copia Opcional (Separados por coma)
               </label>
               <input
                 type="text"
-                value={currentCfg.emailSubject || ''}
+                value={currentCfg.emailCc || ''}
                 onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { emailSubject: e.target.value })
+                  onUpdateNodeConfig(activeNode.key, { emailCc: e.target.value })
                 }
-                placeholder="Ej: [Alerta SG-SST] Reporte de Afiliaciones y Vencimientos"
+                placeholder="Ej: copasst@empresa.com, talento.humano@empresa.com"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
           </div>
-          <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              ✉️ Asunto del Correo (Opcional — automático según el flujo si se deja vacío)
+            </label>
+            <input
+              type="text"
+              value={currentCfg.emailSubject || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { emailSubject: e.target.value })
+              }
+              placeholder="Ej: [SG-SST] Informe Ejecutivo y Hallazgos Detectados"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+
+          <label className="inline-flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
             <input
               type="checkbox"
-              checked={Boolean(currentCfg.onlyOnCriticalAlerts)}
+              checked={currentCfg.attachOfficialAppReport !== false}
               onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { onlyOnCriticalAlerts: e.target.checked })
+                onUpdateNodeConfig(activeNode.key, { attachOfficialAppReport: e.target.checked })
               }
               className="rounded border-teal-500 text-teal-600"
             />
             <span>
-              🚨 Enviar correo únicamente cuando el flujo encuentre hallazgos críticos, brechas o vencimientos
+              📄 Incluir Informe Oficial HTML corporativo si el flujo genera uno en un aplicativo
             </span>
           </label>
-          {renderFieldChecklistSection('teal')}
-          {renderLiveRecordsTableSection(`📧 Historial de Envíos y Bitácoras de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3032,12 +3098,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   }
                   className="rounded border-teal-500 text-teal-600"
                 />
-                <span>🐱 Hacer que Tenshi Avatar 3D te anuncie el resumen al entrar</span>
+                <span>🐱 Hacer que Tenshi Avatar 3D anuncie el resumen en voz al entrar</span>
               </label>
             </div>
           </div>
-          {renderFieldChecklistSection('teal')}
-          {renderLiveRecordsTableSection(`🔔 Notificaciones Reales de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3062,7 +3126,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              💬 Mensaje o Resumen Ejecutivo a Enviar
+              💬 Instrucción de Formato Corto (Opcional)
             </label>
             <input
               type="text"
@@ -3116,9 +3180,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <option value={120}>2 horas</option>
               </select>
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                👥 Correos de Invitados (Opcional)
+                👥 Correos de Invitados (Opcional, separados por coma)
               </label>
               <input
                 type="text"
@@ -3131,8 +3195,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          {renderFieldChecklistSection('blue')}
-          {renderLiveRecordsTableSection(`📅 Eventos y Agenda SST de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3186,7 +3248,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
       return (
         <div className="space-y-3">
-          {/* Selector de Etapa del Centro de Control con Botones Oficiales WAPPY (ExpandableButton) */}
           <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60">
             <label className="block text-xs font-extrabold uppercase text-amber-900 dark:text-amber-300 mb-1.5">
               📋 1. Elige en qué Etapa del Centro de Control se creará la Actividad
@@ -3278,7 +3339,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ✏️ 6. Título Personalizado de la Actividad en el Centro de Control (Opcional)
+              ✏️ 6. Prefijo o Título de la Actividad (Opcional)
             </label>
             <input
               type="text"
@@ -3290,9 +3351,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
-          {renderFieldChecklistSection('amber')}
-          {renderLiveRecordsTableSection(`📋 Actividades Actuales en el Centro de Control de «${resolvedCompanyFull}»`)}
-          {renderReportHistorySection()}
         </div>
       );
     }
@@ -3301,47 +3359,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('somos_sst_update')) {
       return (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/80 dark:border-teal-800/60">
-            <label className="block text-xs font-extrabold uppercase text-teal-900 dark:text-teal-300 mb-1.5">
-              🛡️ Modo de Sincronización en Base de Datos de Somos SST
-            </label>
-            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
-              {[
-                {
-                  label: '🔄 Crear o Actualizar Expedientes por Cédula sin Duplicar',
-                  instruction: 'Crear o actualizar expedientes de trabajadores por número de cédula (sin duplicar registros existentes).',
-                  variant: 'teal' as const,
-                },
-                {
-                  label: '📊 Alimentar Matrices (GTC-45, PESV, Químicos SGA y 0312)',
-                  instruction: 'Guardar los peligros, controles y calificaciones directamente en las matrices del SG-SST de la empresa.',
-                  variant: 'purple' as const,
-                },
-                {
-                  label: '🚨 Registrar Investigación ATEL y Reportes de Condiciones',
-                  instruction: 'Registrar el informe de investigación ATEL (Res. 1401) o hallazgo de inspección con su plan de acción.',
-                  variant: 'danger' as const,
-                },
-              ].map((opt) => (
-                <ExpandableButton
-                  key={opt.label}
-                  type="button"
-                  size="sm"
-                  variant={(currentCfg.customInstruction || '').includes(opt.instruction) ? opt.variant : 'neutral'}
-                  isActive={(currentCfg.customInstruction || '').includes(opt.instruction)}
-                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
-                  label={opt.label}
-                  onClick={() =>
-                    onUpdateNodeConfig(activeNode.key, { customInstruction: opt.instruction })
-                  }
-                />
-              ))}
-            </div>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                🎯 Aplicativo o Hito Principal a Alimentar
+                🎯 Aplicativo o Hito Destino a Actualizar
               </label>
               <input
                 type="text"
@@ -3349,13 +3370,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
                 }
-                placeholder="Ej: Hito 7 · Investigación ATEL, Hito 2 · Condiciones de Salud, Matriz IPEVR"
+                placeholder="Ej: Hito 7 · Investigación ATEL, Hito 2 · Sociodemográfico"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                ⚙️ Regla de Validación Antes de Guardar
+                ⚙️ Clave de Conciliación / Regla al Guardar (Opcional)
               </label>
               <input
                 type="text"
@@ -3363,13 +3384,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
                 }
-                placeholder="Ej: Validar que el trabajador tenga cédula real antes de actualizar..."
+                placeholder="Ej: Conciliar por cédula del trabajador sin duplicar expedientes..."
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
           </div>
-          {renderFieldChecklistSection('teal')}
-          {renderLiveRecordsTableSection(`🛡️ Estado de los Aplicativos de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
@@ -3422,7 +3441,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                ✍️ 3. Estructura de Cabezote, Tablas y Bloque de Firmas
+                ✍️ 3. Nota de Formato / Bloques de Firma (Opcional)
               </label>
               <input
                 type="text"
@@ -3435,46 +3454,61 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               />
             </div>
           </div>
-          {renderFieldChecklistSection('teal')}
-          {renderLiveRecordsTableSection(`🎨 Documentos Vivos e Informes de «${resolvedCompanyFull}»`)}
         </div>
       );
     }
 
     // 7.8 RESTO DE SALIDAS (Google Docs, Google Sheets, Google Slides, Antigravity Local/Cloud Report)
+    const isLocalAntigravityOut = cleanId === 'antigravity_local_report';
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              📄 Título / Archivo / Destino de «{resolvedNodeDisplayTitle}»
+              {isLocalAntigravityOut
+                ? '💻 Ruta exacta de carpeta o archivo donde guardar en tu Mac/PC'
+                : `📄 Título / Destino en «${resolvedNodeDisplayTitle}»`}
             </label>
             <input
               type="text"
-              value={currentCfg.documentTitle || currentCfg.driveFolderName || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, {
-                  documentTitle: e.target.value,
-                  driveFolderName: e.target.value,
-                })
+              value={
+                isLocalAntigravityOut
+                  ? currentCfg.watchFolderPath || currentCfg.documentTitle || ''
+                  : currentCfg.documentTitle || currentCfg.driveFolderName || ''
               }
+              onChange={(e) => {
+                const cleaned = e.target.value.replace(/^["']+|["']+$/g, '');
+                if (isLocalAntigravityOut) {
+                  onUpdateNodeConfig(activeNode.key, {
+                    watchFolderPath: cleaned,
+                    documentTitle: cleaned,
+                  });
+                } else {
+                  onUpdateNodeConfig(activeNode.key, {
+                    documentTitle: e.target.value,
+                    driveFolderName: e.target.value,
+                  });
+                }
+              }}
               placeholder={
                 cleanId.includes('sheets')
                   ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Vencimientos)'
                   : cleanId.includes('slides')
                     ? 'Ej: Presentacion_Alta_Direccion_SG_SST_2026'
                     : cleanId.includes('docs')
-                      ? 'Ej: Informe_Auditoria_SG_SST_2026 en Carpeta Drive'
-                      : cleanId.includes('antigravity')
-                        ? 'Ej: ~/Documents/Reportes_WAPPY/bitacora_ejecucion.md'
-                        : 'Ej: Acta Oficial / Informe Ejecutivo de Auditoría'
+                      ? 'Ej: Informe_Auditoria_SG_SST_2026'
+                      : isLocalAntigravityOut
+                        ? 'Ej: /Users/venta/Documents/Reportes_WAPPY/informe_sst.md'
+                        : 'Ej: Reportes_Cloud_WAPPY/bitacora_ejecucion.md'
               }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              className={`w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white ${
+                isLocalAntigravityOut ? 'font-mono' : ''
+              }`}
             />
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ⚙️ Formato / Instrucción de Entrega
+              ⚙️ Nota de Entrega / Formato (Opcional)
             </label>
             <input
               type="text"
@@ -3482,13 +3516,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder="Ej: Incluir tabla por cédula, conclusiones normativas y plan de acción..."
+              placeholder="Ej: Guardar con fecha ISO en el nombre del archivo..."
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
         </div>
-        {renderFieldChecklistSection('teal')}
-        {renderLiveRecordsTableSection(`📤 Estado de Salida en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -4180,8 +4212,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-slate-100"
           />
         </div>
-        {renderFieldChecklistSection('amber')}
-        {renderLiveRecordsTableSection(`🕷️ Trabajadores / Vehículos / Entes a Consultar en «${resolvedCompanyFull}»`)}
       </div>
     );
   }
@@ -4201,25 +4231,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
           />
         </div>
-        <div className="flex flex-wrap gap-2 py-0.5 px-1">
-          {[
-            { q: 'site:mintrabajo.gov.co normatividad SST', variant: 'cyan' as const },
-            { q: 'site:minsalud.gov.co resoluciones salud laboral', variant: 'teal' as const },
-            { q: 'site:positiva.gov.co guías preventivas ARL', variant: 'amber' as const },
-            { q: 'site:arlsura.com matriz legal SST', variant: 'purple' as const },
-          ].map((qPreset) => (
-            <ExpandableButton
-              key={qPreset.q}
-              size="sm"
-              variant={qPreset.variant}
-              icon={<Globe className="w-3.5 h-3.5" />}
-              label={qPreset.q}
-              onClick={() => onUpdateNodeConfig(activeNode.key, { targetUrl: qPreset.q })}
-            />
-          ))}
-        </div>
-        {renderFieldChecklistSection('cyan')}
-        {renderLiveRecordsTableSection(`🌐 Contexto de «${resolvedCompanyFull}» para Búsqueda en Vivo`)}
       </div>
     );
   }
@@ -4490,8 +4501,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
         </div>
-        {renderFieldChecklistSection('purple')}
-        {renderLiveRecordsTableSection(`🤖 Datos Reales de «${resolvedCompanyFull}» Disponibles para «${activeTitle}»`)}
         {renderReportHistorySection()}
       </div>
     );
@@ -4524,12 +4533,6 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             className="w-full px-3 py-2 rounded-xl border border-purple-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
           />
         </div>
-        {renderFieldChecklistSection('purple')}
-        {renderLiveRecordsTableSection(
-          isSkillNode
-            ? `🧩 Contexto de «${resolvedCompanyFull}» para aplicar esta Skill`
-            : `📏 Verificación de Regla sobre «${resolvedCompanyFull}»`,
-        )}
       </div>
     );
   }
@@ -4541,10 +4544,10 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('gmail')) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📧 Filtrar por Remitente (De:)
+                📧 Remitente (De:)
               </label>
               <input
                 type="text"
@@ -4552,7 +4555,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { emailSenderFilter: e.target.value })
                 }
-                placeholder="Ej: arl@positiva.gov.co, laboratorio@..."
+                placeholder="Ej: arl@positiva.gov.co, @sura.com.co"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
@@ -4566,7 +4569,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { emailSubjectFilter: e.target.value })
                 }
-                placeholder="Ej: Certificado Afiliación, FURAT, Concepto Aptitud"
+                placeholder="Ej: FURAT, Concepto Aptitud, Certificado"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
@@ -4588,63 +4591,143 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               </select>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            {[
-              {
-                label: '🚑 Filtrar: Reportes FURAT y Notificaciones ARL',
-                subj: 'FURAT, Accidente de Trabajo, Dictamen ARL',
-                variant: 'danger' as const,
-              },
-              {
-                label: '🩺 Filtrar: Conceptos de Aptitud Médica IPS',
-                subj: 'Concepto de Aptitud, Examen Médico Ocupacional, Restricciones',
-                variant: 'teal' as const,
-              },
-              {
-                label: '🛡️ Filtrar: Certificados de Afiliación EPS/ARL/AFP',
-                subj: 'Certificado de Afiliación, Planilla PILA, Seguridad Social',
-                variant: 'cyan' as const,
-              },
-            ].map((preset) => (
-              <ExpandableButton
-                key={preset.label}
-                size="sm"
-                variant={preset.variant}
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                label={preset.label}
-                onClick={() =>
-                  onUpdateNodeConfig(activeNode.key, { emailSubjectFilter: preset.subj })
-                }
-              />
-            ))}
-          </div>
-          {renderFieldChecklistSection('cyan')}
-          {renderLiveRecordsTableSection(`📧 Correos y Adjuntos de «${resolvedCompanyFull}»`)}
+
+          <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={Boolean(currentCfg.onlyWithAttachments)}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { onlyWithAttachments: e.target.checked })
+              }
+              className="rounded border-teal-500 text-teal-600"
+            />
+            <span>📎 Leer únicamente correos que traigan archivos adjuntos (PDF / Excel / Word)</span>
+          </label>
+
+          {renderSimpleReadOnlyPreviewTable('📧 Correos recientes que coinciden con tu filtro')}
         </div>
       );
     }
 
     if (cleanId.includes('drive') || cleanId.includes('onedrive')) {
+      const isOneDrive = cleanId.includes('onedrive');
+      const liveFolders = Array.isArray(nodeLiveInspectorData.availableFolders)
+        ? nodeLiveInspectorData.availableFolders
+        : [];
+      const currentFolderId = currentCfg.driveFolderId || '';
+      const currentUrlOrPath = currentCfg.driveFolderUrl ?? currentCfg.driveFolderName ?? '';
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Estado real de conexión Google Drive / OneDrive */}
+          {isOneDrive ? (
+            <div className="p-3 rounded-xl border border-amber-300 dark:border-amber-800/70 bg-amber-50/40 dark:bg-amber-950/20 flex items-center justify-between gap-2 text-xs text-amber-900 dark:text-amber-200 font-bold">
+              <span>🚧 Conector Microsoft OneDrive / SharePoint en Construcción</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/80 dark:bg-amber-900/70">
+                Próximamente
+              </span>
+            </div>
+          ) : (
+            <div
+              className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs font-bold ${
+                nodeLiveInspectorData.connected !== false
+                  ? 'border-emerald-300 dark:border-emerald-800/70 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200'
+                  : 'border-amber-300 dark:border-amber-800/70 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
+              }`}
+            >
+              <span>
+                {nodeLiveInspectorData.connected !== false
+                  ? `🟢 Google Drive conectado${
+                      nodeLiveInspectorData.connectedEmail
+                        ? `: ${nodeLiveInspectorData.connectedEmail}`
+                        : ''
+                    }`
+                  : '⚠️ Conecta tu cuenta de Google Drive en Integraciones para listar tus carpetas reales'}
+              </span>
+              {nodeLiveInspectorData.resolvedFolder?.name && (
+                <span className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-[10.5px] font-extrabold text-emerald-800 dark:text-[#C7F303]">
+                  📂 Ubicación activa: {nodeLiveInspectorData.resolvedFolder.name}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 1. Selector de carpeta real + 2. Enlace URL / ID exacto */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📁 Nombre de la Carpeta o Archivo a Leer
+                📁 1. Seleccionar carpeta de tu Google Drive conectado
+              </label>
+              <select
+                value={currentFolderId || (currentUrlOrPath === 'root' ? 'root' : '')}
+                onChange={(e) => {
+                  const chosenId = e.target.value;
+                  if (!chosenId) {
+                    onUpdateNodeConfig(activeNode.key, {
+                      driveFolderId: '',
+                      driveFolderUrl: '',
+                      driveFolderName: '',
+                    });
+                    return;
+                  }
+                  if (chosenId === 'root') {
+                    onUpdateNodeConfig(activeNode.key, {
+                      driveFolderId: 'root',
+                      driveFolderUrl: '',
+                      driveFolderName: 'Mi unidad (Raíz)',
+                    });
+                    return;
+                  }
+                  const found = liveFolders.find((f) => f.id === chosenId);
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderId: chosenId,
+                    driveFolderUrl: found?.webViewLink || '',
+                    driveFolderName: found?.name || chosenId,
+                  });
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="">— Seleccionar carpeta de Drive ({liveFolders.length} detectadas) —</option>
+                <option value="root">📂 Mi unidad (Raíz principal de Google Drive)</option>
+                {liveFolders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    📁 {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔗 2. O pegar enlace (URL), ID o ruta exacta de la carpeta
               </label>
               <input
                 type="text"
-                value={currentCfg.driveFolderName || ''}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { driveFolderName: e.target.value })
-                }
-                placeholder="Ej: Accidentes_ATEL_FURAT o Certificados_EPS_ARL"
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                value={currentUrlOrPath}
+                onChange={(e) => {
+                  const rawVal = e.target.value;
+                  const detectedId = extractGoogleDriveIdClient(rawVal);
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderUrl: rawVal,
+                    driveFolderName: rawVal,
+                    ...(detectedId ? { driveFolderId: detectedId } : { driveFolderId: '' }),
+                  });
+                }}
+                placeholder="Ej: https://drive.google.com/drive/folders/1AbC... o SG-SST/FURAT"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
               />
+              {currentFolderId && currentFolderId !== 'root' && (
+                <p className="text-[10.5px] font-bold text-emerald-700 dark:text-emerald-300 mt-1">
+                  ✅ ID exacto de carpeta fijado: <code className="font-mono">{currentFolderId}</code>
+                </p>
+              )}
             </div>
+          </div>
+
+          {/* 3. Filtros exactos de archivo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📄 Tipo de Archivos a Extraer
+                📄 Tipo de archivo
               </label>
               <select
                 value={currentCfg.fileTypeFilter || 'all'}
@@ -4653,70 +4736,61 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 }
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               >
-                <option value="all">Todos los formatos (PDF, Excel, Word, Sheets)</option>
-                <option value="pdf">Solo Documentos PDF (Certificados / FURAT / EMO)</option>
-                <option value="excel">Solo Hojas de Cálculo Excel / Google Sheets</option>
-                <option value="word">Solo Documentos Word / Google Docs</option>
+                <option value="all">Todos los formatos</option>
+                <option value="pdf">Solo PDF (.pdf)</option>
+                <option value="excel">Solo Excel / Google Sheets</option>
+                <option value="word">Solo Word / Google Docs</option>
+                <option value="image">Solo Imágenes (.jpg, .png)</option>
               </select>
             </div>
-            <div className="flex items-end">
-              <label className="w-full flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={currentCfg.onlyNewFiles !== false}
-                  onChange={(e) =>
-                    onUpdateNodeConfig(activeNode.key, { onlyNewFiles: e.target.checked })
-                  }
-                  className="rounded border-teal-500 text-teal-600"
-                />
-                <span>⚡ Procesar solo archivos nuevos o modificados</span>
+
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔍 Nombre del archivo contiene (Opcional)
               </label>
+              <input
+                type="text"
+                value={currentCfg.fileNameFilter || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { fileNameFilter: e.target.value })
+                }
+                placeholder="Ej: FURAT, EMO, Certificado"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            {[
-              {
-                label: '📁 Carpeta: Accidentes_ATEL_FURAT (PDF)',
-                folder: 'Accidentes_ATEL_FURAT',
-                ft: 'pdf',
-                variant: 'danger' as const,
-              },
-              {
-                label: '📁 Carpeta: Certificados_EPS_ARL (PDF)',
-                folder: 'Certificados_EPS_ARL',
-                ft: 'pdf',
-                variant: 'teal' as const,
-              },
-              {
-                label: '📁 Carpeta: Examenes_Medicos_Ocupacionales (PDF)',
-                folder: 'Examenes_Medicos_Ocupacionales',
-                ft: 'pdf',
-                variant: 'cyan' as const,
-              },
-              {
-                label: '📁 Carpeta: Inspecciones_Seguridad_SST (Todos)',
-                folder: 'Inspecciones_Seguridad_SST',
-                ft: 'all',
-                variant: 'purple' as const,
-              },
-            ].map((p) => (
-              <ExpandableButton
-                key={p.folder}
-                size="sm"
-                variant={p.variant}
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                label={p.label}
-                onClick={() =>
+
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔢 Máx. archivos por corrida
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={currentCfg.maxItems || 20}
+                onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, {
-                    driveFolderName: p.folder,
-                    fileTypeFilter: p.ft,
+                    maxItems: Math.max(1, Math.min(50, Number(e.target.value) || 20)),
                   })
                 }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
-            ))}
+            </div>
           </div>
-          {renderFieldChecklistSection('cyan')}
-          {renderLiveRecordsTableSection('📂 Archivos y Carpetas Detectados en tu Cuenta')}
+
+          <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={currentCfg.onlyNewFiles !== false}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { onlyNewFiles: e.target.checked })
+              }
+              className="rounded border-teal-500 text-teal-600"
+            />
+            <span>⚡ Procesar únicamente archivos nuevos o modificados no registrados aún</span>
+          </label>
+
+          {renderSimpleReadOnlyPreviewTable('📂 Archivos encontrados en la carpeta seleccionada')}
         </div>
       );
     }
@@ -4728,74 +4802,103 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     ) {
       return (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-bold text-slate-700 dark:text-slate-200">
+              💡 <strong>Tip rápido:</strong> En Mac presiona <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 font-mono text-[10px]">⌥ Option + Clic derecho → Copiar como ruta</kbd> (o en Windows <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 font-mono text-[10px]">Shift + Clic derecho → Copiar como ruta</kbd>) y pégala abajo.
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                antigravityStatus.connected
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950/80 dark:text-amber-300'
+              }`}
+            >
+              {antigravityStatus.connected
+                ? '🟢 Antigravity Local Conectado'
+                : '⚠️ Requiere Antigravity Local activo'}
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              💻 Ruta exacta de la carpeta en tu Mac o Windows *
+            </label>
+            <input
+              type="text"
+              value={currentCfg.watchFolderPath || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, {
+                  watchFolderPath: e.target.value.replace(/^["']+|["']+$/g, ''),
+                })
+              }
+              placeholder="Ej: /Users/venta/Documents/SST_FURAT  o  C:\SST\Certificados"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                💻 Ruta de la Carpeta en tu Computador (vía Antigravity Local)
+                📄 Tipo de archivos a leer
               </label>
-              <input
-                type="text"
-                value={currentCfg.watchFolderPath || ''}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { watchFolderPath: e.target.value })
-                }
-                placeholder="Ej: /Users/venta/Documents/Certificados_Trabajadores"
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📄 Filtro de Archivos Locales
-              </label>
-              <input
-                type="text"
-                value={currentCfg.fileTypeFilter || ''}
+              <select
+                value={currentCfg.fileTypeFilter || 'all'}
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { fileTypeFilter: e.target.value })
                 }
-                placeholder="Ej: *.pdf, *.xlsx (Certificados EPS/ARL, Planillas, Exámenes)"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="all">Todos los archivos soportados</option>
+                <option value="pdf">Solo Documentos PDF (*.pdf)</option>
+                <option value="excel">Solo Excel / CSV (*.xlsx, *.xls, *.csv)</option>
+                <option value="word">Solo Word (*.docx, *.doc)</option>
+                <option value="image">Solo Imágenes (*.jpg, *.png)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🔍 Nombre del archivo contiene (Opcional)
+              </label>
+              <input
+                type="text"
+                value={currentCfg.fileNameFilter || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { fileNameFilter: e.target.value })
+                }
+                placeholder="Ej: FURAT, Planilla, EMO"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            {[
-              {
-                label: '📁 Carpeta Local: ~/Documents/SST_FURAT (*.pdf)',
-                path: '~/Documents/SST_FURAT',
-                ft: '*.pdf',
-                variant: 'amber' as const,
-              },
-              {
-                label: '📁 Carpeta Local: ~/Documents/Certificados_EPS_ARL (*.pdf)',
-                path: '~/Documents/Certificados_EPS_ARL',
-                ft: '*.pdf',
-                variant: 'teal' as const,
-              },
-              {
-                label: '📁 Carpeta Local: ~/Downloads/Planillas_PILA (*.pdf, *.xlsx)',
-                path: '~/Downloads/Planillas_PILA',
-                ft: '*.pdf, *.xlsx',
-                variant: 'purple' as const,
-              },
-            ].map((lp) => (
-              <ExpandableButton
-                key={lp.path}
-                size="sm"
-                variant={lp.variant}
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                label={lp.label}
-                onClick={() =>
-                  onUpdateNodeConfig(activeNode.key, {
-                    watchFolderPath: lp.path,
-                    fileTypeFilter: lp.ft,
-                  })
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={Boolean(currentCfg.includeSubfolders)}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { includeSubfolders: e.target.checked })
                 }
+                className="rounded border-teal-500 text-teal-600"
               />
-            ))}
+              <span>📂 Incluir subcarpetas</span>
+            </label>
+
+            <label className="inline-flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={currentCfg.onlyNewFiles !== false}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { onlyNewFiles: e.target.checked })
+                }
+                className="rounded border-teal-500 text-teal-600"
+              />
+              <span>⚡ Procesar solo archivos nuevos</span>
+            </label>
           </div>
-          {renderFieldChecklistSection('cyan')}
-          {renderLiveRecordsTableSection(`💻 Estado del Puente Local Antigravity para «${resolvedCompanyFull}»`)}
+
+          {renderSimpleReadOnlyPreviewTable('💻 Archivos detectados en la carpeta configurada')}
         </div>
       );
     }
@@ -4977,98 +5080,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
         </div>
-        {renderFieldChecklistSection('teal')}
-        {renderLiveRecordsTableSection(`🎨 Documentos Vivos e Informes de «${resolvedCompanyFull}»`)}
       </div>
     );
   }
 
   if (activeNode.shape === 'circle_tool' && !isWappySstInternalTool) {
-    const companyCityPreset =
-      activeCompanyInfo?.city && cleanId.includes('clima')
-        ? [
-            {
-              badge: `🏢 Sede ${resolvedCompanyName || 'Activa'}: ${activeCompanyInfo.city}`,
-              label: `Sede Activa de ${resolvedCompanyFull}: ${activeCompanyInfo.city}`,
-              val: `${activeCompanyInfo.city},CO`,
-            },
-          ]
-        : activeCompanyInfo?.city && cleanId.includes('emergencia')
-          ? [
-              {
-                badge: `🏢 Sede ${resolvedCompanyName || 'Activa'}: ${activeCompanyInfo.city}`,
-                label: `Centros de Emergencia alrededor de ${resolvedCompanyFull} (${activeCompanyInfo.address || activeCompanyInfo.city})`,
-                val: `${activeCompanyInfo.address || activeCompanyInfo.city} Urgencias ARL Bomberos`,
-              },
-            ]
-          : [];
-    const toolPresets = [
-      ...companyCityPreset,
-      ...(cleanId.includes('clima')
-        ? [
-            { badge: '🌦️ Bogotá', label: 'Ciudad: Bogotá D.C. (Lluvia / Trabajo en Alturas)', val: 'Bogota,CO' },
-            { badge: '☀️ Medellín', label: 'Ciudad: Medellín (Radiación UV / Calor)', val: 'Medellin,CO' },
-            { badge: '🌡️ Cali', label: 'Ciudad: Cali (Estrés Térmico / Hidratación)', val: 'Cali,CO' },
-            { badge: '🌬️ Barranquilla', label: 'Ciudad: Barranquilla (Vientos > 30 km/h / Alturas)', val: 'Barranquilla,CO' },
-          ]
-        : cleanId.includes('pubchem')
-          ? [
-              { badge: '🧪 Hipoclorito', label: 'Sustancia: Hipoclorito de Sodio (CAS 7681-52-9)', val: '7681-52-9 Hipoclorito de Sodio' },
-              { badge: '🧪 Ácido Clorhídrico', label: 'Sustancia: Ácido Clorhídrico (CAS 7647-01-0)', val: '7647-01-0 Acido Clorhidrico' },
-              { badge: '🧪 Tolueno / Thinner', label: 'Sustancia: Tolueno / Solventes (CAS 108-88-3)', val: '108-88-3 Tolueno' },
-              { badge: '🧪 Sílice Cristalina', label: 'Sustancia: Sílice Cristalina Respirable (CAS 14808-60-7)', val: '14808-60-7 Silice Cristalina' },
-            ]
-          : cleanId.includes('medline')
-            ? [
-                { badge: '🩺 M54.5 Lumbago', label: 'CIE-10: M54.5 Lumbago / Dolor Lumbar Ocupacional', val: 'M54.5 Lumbago no especificado' },
-                { badge: '🩺 G56.0 Túnel Carpiano', label: 'CIE-10: G56.0 Síndrome del Túnel Carpiano', val: 'G56.0 Sindrome del Tunel Carpiano' },
-                { badge: '🩺 M75.1 Manguito Rotador', label: 'CIE-10: M75.1 Síndrome de Manguito Rotador', val: 'M75.1 Sindrome de Manguito Rotador' },
-                { badge: '🩺 H83.3 Hipoacusia', label: 'CIE-10: H83.3 Hipoacusia Inducida por Ruido', val: 'H83.3 Efectos del ruido sobre el oido interno' },
-              ]
-            : cleanId.includes('emergencia')
-              ? [
-                  { badge: '🚑 Radio 5 km', label: 'MEDEVAC: Clínicas y Urgencias ARL a 5 km de la Sede', val: 'Radio 5km Urgencias Traumatologia ARL' },
-                  { badge: '🚒 Bomberos + Defensa Civil', label: 'MEDEVAC: Bomberos, Cruz Roja y Defensa Civil', val: 'Radio 10km Bomberos Cruz Roja Defensa Civil' },
-                ]
-              : cleanId === 'google_drive' || cleanId === 'one_drive'
-                ? [
-                    { badge: '📁 Carpeta Accidentes', label: 'Carpeta: Accidentes / FURAT', val: 'Accidentes' },
-                    { badge: '📁 Carpeta EMO / Salud', label: 'Carpeta: Perfil Sociodemográfico y EMO', val: 'Perfil Sociodemografico y EMO' },
-                    { badge: '📁 Carpeta Certificados', label: 'Carpeta: Certificados EPS, ARL y Alturas', val: 'Certificados_SST' },
-                  ]
-                : cleanId === 'google_sheets'
-                  ? [
-                      { badge: '📊 Control Vencimientos', label: 'Hoja: Matriz_Vencimientos_SST (Pestaña: Alertas)', val: 'Matriz_Vencimientos_SST' },
-                      { badge: '📊 Control Ausentismo', label: 'Hoja: Control_Ausentismo_ATEL_2026', val: 'Control_Ausentismo_ATEL_2026' },
-                    ]
-                  : cleanId === 'google_docs'
-                    ? [
-                        { badge: '📄 Informe Auditoría', label: 'Documento: Informe Ejecutivo SG-SST', val: `Informe_Ejecutivo_SGSST_${resolvedCompanyName || 'Empresa'}` },
-                        { badge: '📄 Acta COPASST', label: 'Documento: Acta Mensual COPASST', val: `Acta_COPASST_${resolvedCompanyName || 'Empresa'}` },
-                      ]
-                    : cleanId === 'google_slides'
-                      ? [
-                          { badge: '📽️ Alta Dirección', label: 'Presentación: Revisión por la Alta Dirección', val: `Presentacion_Alta_Direccion_${resolvedCompanyName || 'Empresa'}` },
-                          { badge: '📽️ Inducción SST', label: 'Presentación: Capacitación e Inducción SG-SST', val: `Capacitacion_SGSST_${resolvedCompanyName || 'Empresa'}` },
-                        ]
-                      : cleanId === 'google_calendar'
-                        ? [
-                            { badge: '📅 Reunión COPASST', label: 'Agendar: Reunión Mensual COPASST (60 min)', val: 'Reunión Mensual COPASST' },
-                            { badge: '📅 Seguimiento ATEL', label: 'Agendar: Verificación de Cierre Plan de Acción ATEL', val: 'Seguimiento Plan de Acción Investigación ATEL' },
-                          ]
-                        : cleanId === 'notebooklm'
-                          ? [
-                              { badge: '📚 Cuaderno Normativo', label: 'Cuaderno: Normograma Decreto 1072 + Res. 0312 + GTC-45', val: 'Cuaderno Normativo SG-SST Colombia' },
-                              { badge: '🎙️ Audio Resumen SST', label: 'Generar Podcast / Guía de Estudio para Trabajadores', val: 'Resumen Audio y Cuestionario de Capacitación SST' },
-                            ]
-                          : cleanId === 'google_flow'
-                            ? [
-                                { badge: '🎬 Reel Preventivo 9:16', label: 'Generar Video Corto Preventivo SST (Veo 3)', val: 'Video vertical 9:16 prevención de accidentes laborales' },
-                                { badge: '🖼️ Afiche Visual SST', label: 'Generar Infografía / Afiche de Seguridad (Imagen 3)', val: 'Afiche corporativo uso obligatorio de EPP en planta' },
-                              ]
-                            : []),
-    ];
-
     const paramLabel = cleanId.includes('clima')
       ? '🌦️ Ciudad / Sede para Pronóstico Climático SST (OpenWeather)'
       : cleanId.includes('pubchem')
@@ -5078,9 +5094,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           : cleanId.includes('emergencia')
             ? '🚑 Dirección de la Sede o Radio de Búsqueda MEDEVAC (OpenStreetMap)'
             : cleanId === 'google_drive' || cleanId === 'one_drive'
-              ? '📁 Carpeta o Archivo Objetivo en la Nube'
+              ? '📁 Enlace (URL), ID o Nombre de Carpeta Objetivo en la Nube'
               : cleanId === 'google_sheets'
-                ? '📊 Nombre de la Hoja de Cálculo y Pestaña (Google Sheets)'
+                ? '📊 Nombre o Enlace de la Hoja de Cálculo (Google Sheets)'
                 : cleanId === 'google_docs'
                   ? '📄 Título del Documento en Google Docs'
                   : cleanId === 'google_slides'
@@ -5106,13 +5122,20 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             ? 'Ej: 7681-52-9 Hipoclorito de Sodio, 108-88-3 Tolueno...'
             : cleanId.includes('medline')
               ? 'Ej: M54.5 Lumbago, G56.0 Síndrome del Túnel Carpiano...'
-              : cleanId === 'google_sheets'
-                ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Alertas)'
-                : cleanId === 'notebooklm'
-                  ? 'Ej: Cuaderno Normativo SG-SST / Guía de Inducción...'
-                  : cleanId === 'google_flow'
-                    ? 'Ej: Trabajador usando arnés certificado en trabajo en alturas...'
-                    : `Ej: Recurso o parámetro objetivo para ${resolvedNodeDisplayTitle}...`;
+              : cleanId === 'google_drive'
+                ? 'Ej: https://drive.google.com/drive/folders/1AbC... o nombre de carpeta'
+                : cleanId === 'google_sheets'
+                  ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Alertas)'
+                  : cleanId === 'notebooklm'
+                    ? 'Ej: Cuaderno Normativo SG-SST / Guía de Inducción...'
+                    : cleanId === 'google_flow'
+                      ? 'Ej: Trabajador usando arnés certificado en trabajo en alturas...'
+                      : `Ej: Recurso o parámetro objetivo para ${resolvedNodeDisplayTitle}...`;
+
+    const liveToolDriveFolders =
+      cleanId === 'google_drive' && Array.isArray(nodeLiveInspectorData.availableFolders)
+        ? nodeLiveInspectorData.availableFolders
+        : [];
 
     return (
       <div className="space-y-3">
@@ -5124,10 +5147,87 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </span>
           </div>
         )}
+
+        {cleanId === 'google_drive' && (
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📁 Seleccionar carpeta real de tu Google Drive conectado
+            </label>
+            <select
+              value={currentCfg.driveFolderId || ''}
+              onChange={(e) => {
+                const chosenId = e.target.value;
+                if (!chosenId) {
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderId: '',
+                    driveFolderUrl: '',
+                    driveFolderName: '',
+                  });
+                  return;
+                }
+                if (chosenId === 'root') {
+                  onUpdateNodeConfig(activeNode.key, {
+                    driveFolderId: 'root',
+                    driveFolderUrl: '',
+                    driveFolderName: 'Mi unidad (Raíz)',
+                  });
+                  return;
+                }
+                const found = liveToolDriveFolders.find((f) => f.id === chosenId);
+                onUpdateNodeConfig(activeNode.key, {
+                  driveFolderId: chosenId,
+                  driveFolderUrl: found?.webViewLink || '',
+                  driveFolderName: found?.name || chosenId,
+                });
+              }}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+            >
+              <option value="">
+                — Seleccionar carpeta de Drive ({liveToolDriveFolders.length} detectadas) —
+              </option>
+              <option value="root">📂 Mi unidad (Raíz principal de Google Drive)</option>
+              {liveToolDriveFolders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  📁 {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🔧 Acción Específica que el Agente ejecutará con «{resolvedNodeDisplayTitle}»
+              {paramLabel}
+            </label>
+            <input
+              type="text"
+              value={
+                currentCfg.driveFolderUrl ||
+                currentCfg.driveFolderName ||
+                currentCfg.targetUrl ||
+                ''
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                const detectedDriveId =
+                  cleanId === 'google_drive' ? extractGoogleDriveIdClient(val) : '';
+                onUpdateNodeConfig(activeNode.key, {
+                  driveFolderUrl: val,
+                  driveFolderName: val,
+                  targetUrl: val,
+                  ...(cleanId === 'google_drive'
+                    ? { driveFolderId: detectedDriveId || '' }
+                    : {}),
+                });
+              }}
+              placeholder={paramPlaceholder}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              🔧 Acción Específica para el Agente (Opcional)
             </label>
             <input
               type="text"
@@ -5135,52 +5235,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder={`Ej: Usar ${resolvedNodeDisplayTitle} en ${resolvedCompanyFull} para consultar o generar el recurso requerido...`}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              {paramLabel}
-            </label>
-            <input
-              type="text"
-              value={currentCfg.driveFolderName || currentCfg.targetUrl || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, {
-                  driveFolderName: e.target.value,
-                  targetUrl: e.target.value,
-                })
-              }
-              placeholder={paramPlaceholder}
+              placeholder={`Ej: Consultar o guardar en ${resolvedNodeDisplayTitle}...`}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
         </div>
-        {toolPresets.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 py-0.5 px-1">
-            {toolPresets.map((tp, tpIdx) => {
-              const tpVariants = ['purple', 'teal', 'cyan', 'amber', 'emerald', 'indigo'] as const;
-              return (
-                <ExpandableButton
-                  key={tp.val}
-                  size="sm"
-                  variant={tpVariants[tpIdx % tpVariants.length]}
-                  icon={<Sparkles className="w-3.5 h-3.5" />}
-                  label={tp.label}
-                  onClick={() =>
-                    onUpdateNodeConfig(activeNode.key, {
-                      driveFolderName: tp.val,
-                      targetUrl: tp.val,
-                    })
-                  }
-                />
-              );
-            })}
-          </div>
-        )}
-        {renderFieldChecklistSection('purple')}
-        {renderLiveRecordsTableSection()}
+        {cleanId === 'google_drive' &&
+          renderSimpleReadOnlyPreviewTable('📂 Archivos encontrados en la carpeta de Drive')}
       </div>
     );
   }
@@ -5463,182 +5524,138 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         </div>
       )}
 
-      {/* 2. CUADRÍCULA ORDENADA DE CHECKBOXES DE COLUMNAS / DATOS PROPIOS DEL APLICATIVO */}
-      <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-black uppercase text-slate-900 dark:text-white">
-                📋 Columnas y Datos de «{resolvedModuleTitle}»
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-[#C7F303] border border-teal-300 dark:border-teal-700">
-                {selectedFields.length > 0
-                  ? `${selectedFields.length} columna(s) seleccionada(s)`
-                  : `Todas las columnas (${presetFields.length})`}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Marca solo las columnas que necesitas para este paso en <strong>{resolvedCompanyFull}</strong>.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={fieldSearchQuery}
-                onChange={(e) => setFieldSearchQuery(e.target.value)}
-                placeholder="Buscar columna..."
-                className="pl-8 pr-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 w-44"
-              />
-            </div>
-            <ExpandableButton
-              size="sm"
-              variant="teal"
-              icon={<Check className="w-3.5 h-3.5" />}
-              badge={presetFields.length}
-              label="Marcar Todas"
-              onClick={() =>
-                onUpdateNodeConfig(activeNode.key, {
-                  fields: presetFields,
-                  strictFieldFilter: true,
-                  reportTags: moduleMeta.reportTags,
-                })
-              }
-            />
-            {selectedFields.length > 0 && (
-              <ExpandableButton
-                size="sm"
-                variant="danger"
-                icon={<Trash2 className="w-3.5 h-3.5" />}
-                badge={selectedFields.length}
-                label="Limpiar Selección"
-                onClick={() =>
-                  onUpdateNodeConfig(activeNode.key, {
-                    fields: [],
-                    reportTags: moduleMeta.reportTags,
-                  })
-                }
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Atajos Rápidos de 1 Clic con ExpandableButton */}
-        {moduleMeta.quickCombos && moduleMeta.quickCombos.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <span className="text-[10.5px] font-extrabold uppercase text-purple-700 dark:text-[#C7F303] flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              Selección Rápida:
-            </span>
-            {moduleMeta.quickCombos.map((combo, cIdx) => {
-              const isComboActive =
-                combo.fields.length === selectedFields.length &&
-                combo.fields.every((cf) => selectedFields.includes(cf));
-              const comboVariants = ['purple', 'teal', 'amber', 'cyan', 'emerald'] as const;
-              return (
-                <ExpandableButton
-                  key={combo.label}
-                  size="sm"
-                  variant={comboVariants[cIdx % comboVariants.length]}
-                  isActive={isComboActive}
-                  icon={<Sparkles className="w-3.5 h-3.5" />}
-                  label={combo.label}
-                  title={combo.description}
-                  onClick={() => applyQuickCombo(combo.fields)}
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {/* Cuadrícula Ordenada de Checkboxes en 2 Columnas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-          {filteredPresetFields.map((fieldLabel) => {
-            const active = selectedFields.includes(fieldLabel);
-            const isLiveDbDetected = liveDetectedFieldSet.has(fieldLabel);
-            return (
-              <label
-                key={fieldLabel}
-                onClick={() => toggleFieldChip(fieldLabel)}
-                className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition select-none text-xs ${
-                  active
-                    ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 dark:border-[#C7F303] font-extrabold text-purple-950 dark:text-white shadow-2xs'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400'
-                }`}
-              >
-                <span className="flex items-center gap-2.5 min-w-0">
-                  <span
-                    className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
-                      active
-                        ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
-                        : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
-                    }`}
-                  >
-                    {active && <Check className="w-3 h-3 stroke-[3]" />}
-                  </span>
-                  <span className="truncate" title={fieldLabel}>
-                    {fieldLabel}
-                  </span>
+      {/* 2. FILTRO OPCIONAL DE COLUMNAS Y TABLA EN VIVO (SOLO CUANDO EL NODO ES FUENTE DE LECTURA) */}
+      {(activeNode.shape !== 'square_hito' || resolvedHitoRole === 'source_read') && (
+        <>
+          <details
+            open={selectedFields.length > 0}
+            className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 group"
+          >
+            <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 select-none">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase text-slate-900 dark:text-white">
+                  📋 Filtrar columnas específicas de «{resolvedModuleTitle}» (Opcional)
                 </span>
-                {isLiveDbDetected && (
-                  <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 border border-emerald-500/35 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">
-                    BD en vivo
-                  </span>
-                )}
-              </label>
-            );
-          })}
-        </div>
-
-        {/* Añadir Columna Personalizada + Switch Modo Quirúrgico */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-2 flex-1 min-w-0 sm:min-w-[220px] max-w-md w-full">
-            <input
-              type="text"
-              value={customFieldInput}
-              onChange={(e) => setCustomFieldInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddCustomField();
-                }
-              }}
-              placeholder="Otra columna específica de este aplicativo..."
-              className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
-            />
-            <ExpandableButton
-              size="sm"
-              variant="emerald"
-              icon={<Plus className="w-3.5 h-3.5" />}
-              label="Añadir Columna"
-              onClick={handleAddCustomField}
-            />
-          </div>
-
-          {selectedFields.length > 0 && (
-            <label className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isStrictFilter}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, {
-                    strictFieldFilter: e.target.checked,
-                  })
-                }
-                className="rounded border-teal-500 text-teal-600"
-              />
-              <span>
-                🔒 Extraer <strong>SOLO</strong> estas {selectedFields.length} columna(s) (No saturar el flujo)
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-[#C7F303] border border-teal-300 dark:border-teal-700">
+                  {selectedFields.length > 0
+                    ? `${selectedFields.length} columna(s) elegida(s)`
+                    : `Envía todas las necesarias (${presetFields.length})`}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
+                Clic para desplegar / ocultar ▾
               </span>
-            </label>
-          )}
-        </div>
-      </div>
+            </summary>
 
-      {/* 3. TABLA REAL EN VIVO DE REGISTROS DE ESTE APLICATIVO EN MONGODB */}
-      {renderLiveRecordsTableSection()}
+            <div className="pt-3 mt-2.5 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={fieldSearchQuery}
+                    onChange={(e) => setFieldSearchQuery(e.target.value)}
+                    placeholder="Buscar columna..."
+                    className="pl-8 pr-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 w-48"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ExpandableButton
+                    size="sm"
+                    variant="teal"
+                    icon={<Check className="w-3.5 h-3.5" />}
+                    badge={presetFields.length}
+                    label="Marcar Todas"
+                    onClick={() =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        fields: presetFields,
+                        strictFieldFilter: true,
+                        reportTags: moduleMeta.reportTags,
+                      })
+                    }
+                  />
+                  {selectedFields.length > 0 && (
+                    <ExpandableButton
+                      size="sm"
+                      variant="danger"
+                      icon={<Trash2 className="w-3.5 h-3.5" />}
+                      badge={selectedFields.length}
+                      label="Usar Automático (Limpiar)"
+                      onClick={() =>
+                        onUpdateNodeConfig(activeNode.key, {
+                          fields: [],
+                          reportTags: moduleMeta.reportTags,
+                        })
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {filteredPresetFields.map((fieldLabel) => {
+                  const active = selectedFields.includes(fieldLabel);
+                  const isLiveDbDetected = liveDetectedFieldSet.has(fieldLabel);
+                  return (
+                    <label
+                      key={fieldLabel}
+                      onClick={() => toggleFieldChip(fieldLabel)}
+                      className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition select-none text-xs ${
+                        active
+                          ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 dark:border-[#C7F303] font-extrabold text-purple-950 dark:text-white shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-purple-400'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                            active
+                              ? 'bg-purple-600 dark:bg-[#C7F303] border-purple-600 dark:border-[#C7F303] text-white dark:text-[#0E1300]'
+                              : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                          }`}
+                        >
+                          {active && <Check className="w-3 h-3 stroke-[3]" />}
+                        </span>
+                        <span className="truncate" title={fieldLabel}>
+                          {fieldLabel}
+                        </span>
+                      </span>
+                      {isLiveDbDetected && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 border border-emerald-500/35 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300 shrink-0">
+                          BD en vivo
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+
+              {selectedFields.length > 0 && (
+                <div className="flex items-center justify-end pt-1">
+                  <label className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isStrictFilter}
+                      onChange={(e) =>
+                        onUpdateNodeConfig(activeNode.key, {
+                          strictFieldFilter: e.target.checked,
+                        })
+                      }
+                      className="rounded border-teal-500 text-teal-600"
+                    />
+                    <span>
+                      🔒 Extraer <strong>SOLO</strong> estas {selectedFields.length} columna(s)
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          </details>
+
+          {/* 3. TABLA REAL EN VIVO DE REGISTROS DE ESTE APLICATIVO EN MONGODB */}
+          {renderLiveRecordsTableSection()}
+        </>
+      )}
 
       {/* 4. HISTORIAL DE INFORMES GUARDADOS DE ESTE APLICATIVO */}
       {renderReportHistorySection()}
@@ -5677,32 +5694,37 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
     return (
       <div className="p-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/5 dark:bg-slate-900/80 space-y-2">
-        <div className="text-xs font-black uppercase text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
-          <GitBranch className="w-3.5 h-3.5 text-emerald-600 dark:text-[#C7F303]" />
-          Rama Condicional que activa esta Salida:
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <span className="text-xs font-black uppercase text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
+            <GitBranch className="w-3.5 h-3.5 text-emerald-600 dark:text-[#C7F303]" />
+            Conectado en el lienzo al cable de Condición Sí/No:
+          </span>
+          <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+            Define cuándo se activa esta salida
+          </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'yes' })}
-            className={`p-2.5 rounded-xl border-2 text-left text-xs font-extrabold transition ${
+            className={`p-2 rounded-xl border-2 text-left text-xs font-extrabold transition ${
               effectiveBranch === 'yes'
                 ? 'bg-emerald-500/15 border-emerald-500 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/30'
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-400'
             }`}
           >
-            ✅ Rama SÍ (Cuando se cumple la condición)
+            ✅ Cable SÍ (Con hallazgos / condición cumplida)
           </button>
           <button
             type="button"
             onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'no' })}
-            className={`p-2.5 rounded-xl border-2 text-left text-xs font-extrabold transition ${
+            className={`p-2 rounded-xl border-2 text-left text-xs font-extrabold transition ${
               effectiveBranch === 'no'
                 ? 'bg-slate-500/20 border-slate-500 text-slate-900 dark:text-slate-100 ring-1 ring-slate-500/30'
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
             }`}
           >
-            ⚪ Rama NO (Ruta alternativa / Sin hallazgos)
+            ⚪ Cable NO (Sin hallazgos / ruta alternativa)
           </button>
         </div>
       </div>
