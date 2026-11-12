@@ -653,6 +653,7 @@ interface WappyWorkflowCanvasProps {
   onChangeIntervalHours?: (hours: number) => void;
   emailsStr?: string;
   onChangeEmailsStr?: (emails: string) => void;
+  automationId?: string | null;
   readOnly?: boolean;
   compact?: boolean;
 }
@@ -812,6 +813,7 @@ export default function WappyWorkflowCanvas({
   onChangeIntervalHours,
   emailsStr = '',
   onChangeEmailsStr,
+  automationId = null,
   readOnly = false,
   compact = false,
 }: WappyWorkflowCanvasProps) {
@@ -8578,22 +8580,84 @@ export default function WappyWorkflowCanvas({
           }
 
           if (targetNode.shape === 'trigger') {
+            const cleanTrigId = String(targetNode.nodeId || '').replace(/^trigger_/, '');
+            const trigCfg = resolveEffectiveNodeCfg(
+              targetNode,
+              workflowNodes?.canvasLayout?.nodeConfigs,
+            );
+            const scheduleSummary =
+              scheduleType === 'hourly'
+                ? `Cada ${intervalHours} hora(s)`
+                : scheduleType === 'daily'
+                  ? `Diario a las ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                  : scheduleType === 'weekly'
+                    ? `Semanal (${(daysOfWeek || []).join(', ')})`
+                    : `Mensual (Día ${dayOfMonth})`;
+
+            const trigDetails: Record<string, any> = {
+              Disparador: targetNode.title,
+            };
+
+            if (cleanTrigId.includes('tenshi')) {
+              const ch = String(trigCfg.triggerChannel || 'both');
+              trigDetails.Modalidad =
+                ch === 'voice'
+                  ? 'Voz 3D (Suri / Tenshi Live)'
+                  : ch === 'chat'
+                    ? 'Chat de Texto Tenshi'
+                    : 'Voz 3D (Suri) y Chat Tenshi';
+              trigDetails.ComandoVoz =
+                trigCfg.voiceCommand?.trim() || 'Coincidencia por nombre del flujo';
+            } else if (cleanTrigId.includes('email')) {
+              trigDetails.Modalidad = 'Correo Entrante Gmail';
+              trigDetails.FiltroAsunto = trigCfg.emailSubjectFilter || 'Cualquier asunto';
+              trigDetails.FiltroRemitente = trigCfg.emailSenderFilter || 'Cualquier remitente';
+              trigDetails.SoloConAdjuntos = trigCfg.onlyWithAttachments
+                ? 'Sí (solo con adjuntos)'
+                : 'No';
+            } else if (cleanTrigId.includes('qr')) {
+              trigDetails.Modalidad = 'Portal QR Trabajadores en Tiempo Real';
+              trigDetails.PortalObjetivo =
+                trigCfg.qrPortalType || (trigCfg as Record<string, any>).qrPortalTarget || 'Todos los portales QR';
+              trigDetails.NivelSeveridad =
+                trigCfg.qrSeverityFilter === 'critical_only'
+                  ? 'Solo críticos / altos'
+                  : 'Todos los reportes';
+            } else if (cleanTrigId.includes('webhook')) {
+              trigDetails.Modalidad = 'Webhook HTTP POST Externo';
+              trigDetails.Endpoint = automationId
+                ? `/api/sgsst/automatizaciones/webhook/${automationId}`
+                : '/api/sgsst/automatizaciones/webhook (guardar para ID)';
+              trigDetails.Seguridad = trigCfg.webhookSecret
+                ? 'Con secreto x-wappy-secret'
+                : 'Sin secreto adicional';
+            } else if (cleanTrigId.includes('antigravity_cloud')) {
+              trigDetails.Modalidad = 'Google Antigravity Cloud 24/7';
+              trigDetails.EstadoPuente = antigravityStatus?.cloudConnected ? 'Conectado' : 'En espera';
+            } else if (cleanTrigId.includes('antigravity')) {
+              trigDetails.Modalidad = 'Google Antigravity Local (Daemon)';
+              trigDetails.EstadoDaemon = antigravityStatus?.localConnected ? 'Conectado' : 'En espera';
+            } else if (cleanTrigId.includes('agent')) {
+              trigDetails.Modalidad = 'Encadenado al finalizar otro Agente IA';
+              trigDetails.AgenteEmisor = trigCfg.sourceAgentId || 'Cualquier agente de la empresa';
+            } else if (cleanTrigId.includes('whatsapp')) {
+              trigDetails.Modalidad = 'WhatsApp Bot SST (En construcción)';
+              trigDetails.NumerosAutorizados =
+                trigCfg.whatsappNumbers || 'Pendiente de configurar';
+            } else {
+              trigDetails.Modalidad = scheduleSummary;
+            }
+
             return [
               {
-                Disparador: targetNode.title,
-                Modalidad:
-                  scheduleType === 'hourly'
-                    ? `Cada ${intervalHours} hora(s)`
-                    : scheduleType === 'daily'
-                      ? `Diario a las ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-                      : scheduleType === 'weekly'
-                        ? `Semanal (${(daysOfWeek || []).join(', ')})`
-                        : `Mensual (Día ${dayOfMonth})`,
+                ...trigDetails,
                 EmpresaActiva: activeCompanyInfo?.companyName || 'Empresa Activa',
                 NIT: activeCompanyInfo?.nit || '—',
                 ARL: activeCompanyInfo?.arl || '—',
                 NivelRiesgo: activeCompanyInfo?.riskLevel || '—',
-                PayloadPrueba: mockTriggerInput?.trim() || 'Disparo automático programado',
+                PayloadPrueba:
+                  mockTriggerInput?.trim() ||
+                  (trigDetails.ComandoVoz ? `Comando: ${trigDetails.ComandoVoz}` : 'Disparo configurado'),
               },
             ];
           }
@@ -9439,6 +9503,52 @@ export default function WappyWorkflowCanvas({
                       </div>
                     </div>
 
+                    {(sandboxRunning || sandboxError || sandboxResult) && (
+                      <div
+                        className={`mt-2 px-3.5 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${
+                          sandboxError
+                            ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                            : sandboxRunning
+                              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+                              : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {sandboxRunning ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                          ) : sandboxError ? (
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          )}
+                          <span className="font-bold truncate">
+                            {sandboxRunning
+                              ? `Ejecutando simulación paso a paso (${sandboxCompletedNodeKeys.length}/${connectedExecutionPlan.length} pasos)...`
+                              : sandboxError
+                                ? sandboxError
+                                : `Simulación completada en vivo (${sandboxResult?.steps?.length || 0} pasos). Revisa OUTPUT / Logs a la derecha o abre el reporte final.`}
+                          </span>
+                        </div>
+                        {!sandboxRunning && sandboxResult && (
+                          <ExpandableButton
+                            type="button"
+                            size="sm"
+                            variant="emerald"
+                            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                            label="Ver Reporte Completo"
+                            onClick={() => {
+                              setActiveConfigNodeKey(null);
+                              setTimeout(() => {
+                                document
+                                  .getElementById('wappy-workflow-sandbox-panel')
+                                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                              }, 80);
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {/* ─── CUERPO PRINCIPAL EN 3 COLUMNAS ESTILO n8n (`INPUT` | `CONFIGURACIÓN` | `OUTPUT / LOGS`) ─── */}
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,3.2fr)_minmax(430px,5.6fr)_minmax(260px,3.2fr)] gap-3 flex-1 min-h-0 overflow-hidden mt-2.5">
                       {/* ════════════════════════════════════════════════════════════════════════
@@ -9560,57 +9670,69 @@ export default function WappyWorkflowCanvas({
                         {/* Contenido con scroll de INPUT */}
                         <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
                           {isTriggerNode ? (
-                            <div className="rounded-2xl border border-dashed border-amber-400/70 dark:border-amber-600/60 bg-amber-500/5 p-4 text-center space-y-3 my-2">
-                              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-                                <Zap className="w-5 h-5 fill-current" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs font-black text-slate-800 dark:text-slate-100">
-                                  ⚡ Este nodo es un Disparador (inicio del flujo): no recibe datos de entrada previos.
-                                </p>
-                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  Al ejecutarse, este nodo inicia la cadena y entrega su contexto al{' '}
-                                  <strong>Paso #2</strong> en el panel derecho (<strong>OUTPUT</strong>).
-                                </p>
-                              </div>
-
-                              {/* Pestaña desplegable con el payload inicial del Disparador */}
-                              <div className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                                <button
-                                  type="button"
-                                  onClick={() => setNdvExpandedSchemaGroup((v) => !v)}
-                                  className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-extrabold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60"
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    {ndvExpandedSchemaGroup ? (
-                                      <ChevronDown className="w-3.5 h-3.5 text-amber-500" />
-                                    ) : (
-                                      <ChevronRight className="w-3.5 h-3.5 text-amber-500" />
-                                    )}
-                                    Contexto de Disparo Inicial
-                                  </span>
-                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">
-                                    Paso #1
-                                  </span>
-                                </button>
-                                {ndvExpandedSchemaGroup && (
-                                  <div className="p-2.5 text-[11px] space-y-1 text-slate-600 dark:text-slate-300">
-                                    <div>
-                                      <strong>Disparador:</strong> {activeNode.title} ({activeNode.subtitle})
-                                    </div>
-                                    <div>
-                                      <strong>Empresa Activa:</strong>{' '}
-                                      {activeCompanyInfo?.companyName || 'Empresa Activa'}{' '}
-                                      {activeCompanyInfo?.nit ? `(NIT ${activeCompanyInfo.nit})` : ''}
-                                    </div>
-                                    <div>
-                                      <strong>Entrada simulada:</strong>{' '}
-                                      {mockTriggerInput?.trim() || 'Ejecución automática por programación'}
-                                    </div>
+                            (() => {
+                              const currentTrigNum = activeStepNum || 1;
+                              const nextTrigNum = currentTrigNum + 1;
+                              const trigMeta = (resolvedOutputItems[0] || {}) as Record<string, any>;
+                              return (
+                                <div className="rounded-2xl border border-dashed border-amber-400/70 dark:border-amber-600/60 bg-amber-500/5 p-4 text-center space-y-3 my-2">
+                                  <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                                    <Zap className="w-5 h-5 fill-current" />
                                   </div>
-                                )}
-                              </div>
-                            </div>
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                      ⚡ Este nodo es un Disparador (inicio del flujo): no recibe datos de entrada previos.
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                      Al ejecutarse, inicia la cadena desde el{' '}
+                                      <strong>Paso #{currentTrigNum}</strong> y entrega su contexto al siguiente paso en el panel derecho (<strong>OUTPUT</strong>).
+                                    </p>
+                                  </div>
+
+                                  {/* Pestaña desplegable con el payload inicial del Disparador */}
+                                  <div className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => setNdvExpandedSchemaGroup((v) => !v)}
+                                      className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-extrabold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60"
+                                    >
+                                      <span className="flex items-center gap-1.5">
+                                        {ndvExpandedSchemaGroup ? (
+                                          <ChevronDown className="w-3.5 h-3.5 text-amber-500" />
+                                        ) : (
+                                          <ChevronRight className="w-3.5 h-3.5 text-amber-500" />
+                                        )}
+                                        Contexto de Disparo Inicial
+                                      </span>
+                                      <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">
+                                        Paso #{currentTrigNum} → #{nextTrigNum}
+                                      </span>
+                                    </button>
+                                    {ndvExpandedSchemaGroup && (
+                                      <div className="p-2.5 text-[11px] space-y-1 text-slate-600 dark:text-slate-300">
+                                        <div>
+                                          <strong>Disparador:</strong> {activeNode.title} ({trigMeta.Modalidad || activeNode.subtitle})
+                                        </div>
+                                        {trigMeta.ComandoVoz && (
+                                          <div>
+                                            <strong>Comando Tenshi:</strong> {String(trigMeta.ComandoVoz)}
+                                          </div>
+                                        )}
+                                        <div>
+                                          <strong>Empresa Activa:</strong>{' '}
+                                          {activeCompanyInfo?.companyName || 'Empresa Activa'}{' '}
+                                          {activeCompanyInfo?.nit ? `(NIT ${activeCompanyInfo.nit})` : ''}
+                                        </div>
+                                        <div>
+                                          <strong>Entrada simulada:</strong>{' '}
+                                          {mockTriggerInput?.trim() || trigMeta.Modalidad || activeNode.subtitle}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()
                           ) : filteredInputItems.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-5 text-center space-y-2.5 my-2">
                               <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
@@ -9944,6 +10066,7 @@ export default function WappyWorkflowCanvas({
                               resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
                               onRunLiveAiExtraction={handleRunLiveAiDocExtraction}
                               runningLiveAiExtraction={runningLiveAiExtraction}
+                              automationId={automationId}
                             />
                           ) : (
                             /* ─── PESTAÑA `AJUSTES` CON SECCIONES DESPLEGABLES (ACCORDIONS) ─── */

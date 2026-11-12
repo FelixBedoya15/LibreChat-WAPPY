@@ -113,9 +113,10 @@ class GestorAutomatizaciones extends Tool {
   }
 
   async _resolveTargetAutomations(companyId, userId, { automatizacion_id, nombre, forcedAll = false }) {
+    const { resolveAutomationByVoiceOrQuery } = require('~/server/services/automationScheduler');
     const allAutos = await this._findCompanyAutomations(companyId, userId);
     if (allAutos.length === 0) {
-      return { matches: [], isBulk: false, usedNameAsQuery: false };
+      return { matches: [], isBulk: false, usedNameAsQuery: false, matchSource: null, matchedVoiceCommand: null };
     }
 
     const rawId = String(automatizacion_id || '').trim();
@@ -128,65 +129,37 @@ class GestorAutomatizaciones extends Tool {
       /^(todas?|todos?|all|\*|todas\s+las\s+(tareas|automatizaciones|activas|inactivas)|las\s+que\s+est[aá]n\s+en\s+pantalla|ninguna\s+abierta)$/i.test(normQuery);
 
     if (isAllKeyword) {
-      return { matches: allAutos, isBulk: true, usedNameAsQuery: false };
+      return { matches: allAutos, isBulk: true, usedNameAsQuery: false, matchSource: 'bulk', matchedVoiceCommand: null };
     }
 
     // 1. Si automatizacion_id es un ObjectId válido de 24 caracteres hexadecimales
     if (this._isObjectId(rawId)) {
       const byId = allAutos.find((a) => String(a._id) === rawId);
       if (byId) {
-        return { matches: [byId], isBulk: false, usedNameAsQuery: false };
+        return { matches: [byId], isBulk: false, usedNameAsQuery: false, matchSource: 'id', matchedVoiceCommand: null };
       }
       const directById = await Automation.findOne({ _id: rawId, $or: [{ companyId }, { user: userId }] });
       if (directById) {
-        return { matches: [directById], isBulk: false, usedNameAsQuery: false };
+        return { matches: [directById], isBulk: false, usedNameAsQuery: false, matchSource: 'id', matchedVoiceCommand: null };
       }
     }
 
-    // 2. Búsqueda inteligente por nombre/título (cuando la IA pasa el título leído en pantalla en automatizacion_id o nombre)
+    // 2. Resolver unificado por FRASE/COMANDO TENSHI (`voiceCommand`) o Título real sin falsos positivos
     const searchCandidates = [rawId, rawName].filter(Boolean);
     for (const candidate of searchCandidates) {
-      const qNorm = this._normStr(candidate);
-      if (!qNorm) continue;
-
-      // 2a. Coincidencia exacta normalizada
-      const exact = allAutos.filter((a) => this._normStr(a.name) === qNorm);
-      if (exact.length > 0) {
-        return { matches: [exact[0]], isBulk: false, usedNameAsQuery: !rawId };
-      }
-
-      // 2b. Coincidencia por inclusión de subcadena
-      const sub = allAutos.filter((a) => {
-        const aNorm = this._normStr(a.name);
-        return aNorm && (aNorm.includes(qNorm) || qNorm.includes(aNorm));
-      });
-      if (sub.length > 0) {
-        return { matches: [sub[0]], isBulk: false, usedNameAsQuery: !rawId };
-      }
-
-      // 2c. Coincidencia por tokens clave (>= 3 letras)
-      const tokens = qNorm.split(' ').filter((w) => w.length >= 3 && !['para', 'con', 'del', 'las', 'los', 'una', 'por', 'que', 'tarea', 'automatizacion'].includes(w));
-      if (tokens.length > 0) {
-        let bestAuto = null;
-        let bestScore = 0;
-        for (const a of allAutos) {
-          const haystack = `${this._normStr(a.name)} ${this._normStr(a.agentName)} ${this._normStr(a.prompt)}`;
-          const hits = tokens.filter((t) => haystack.includes(t)).length;
-          const score = hits / tokens.length;
-          if (hits >= 2 || score >= 0.5) {
-            if (score > bestScore) {
-              bestScore = score;
-              bestAuto = a;
-            }
-          }
-        }
-        if (bestAuto) {
-          return { matches: [bestAuto], isBulk: false, usedNameAsQuery: !rawId };
-        }
+      const resolved = resolveAutomationByVoiceOrQuery(allAutos, candidate);
+      if (resolved.matches && resolved.matches.length > 0) {
+        return {
+          matches: [resolved.matches[0]],
+          isBulk: false,
+          usedNameAsQuery: !rawId,
+          matchSource: resolved.matchSource,
+          matchedVoiceCommand: resolved.matchedVoiceCommand,
+        };
       }
     }
 
-    return { matches: [], isBulk: false, usedNameAsQuery: false };
+    return { matches: [], isBulk: false, usedNameAsQuery: false, matchSource: null, matchedVoiceCommand: null };
   }
 
   async _getActiveCompanyId(userId) {
@@ -273,7 +246,13 @@ class GestorAutomatizaciones extends Tool {
 
   async _call(input) {
     try {
-      const { runAutomation, calculateNextRun, stopAutomation } = require('~/server/services/automationScheduler');
+      const {
+        runAutomation,
+        calculateNextRun,
+        stopAutomation,
+        hasCronTrigger,
+        extractAutomationTriggerConfigs,
+      } = require('~/server/services/automationScheduler');
       const userId = this.req?.user?.id;
       if (!userId) {
         return JSON.stringify({
@@ -315,18 +294,23 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
-        const formatted = automations.map(a => ({
-          id: a._id.toString(),
-          nombre: a.name,
-          agenteAsignado: a.agentName || a.agentId,
-          frecuencia: a.scheduleType,
-          horario: a.scheduleConfig,
-          estado: a.status,
-          destinatarios: a.emails || [],
-          proximaEjecucion: a.nextRunAt ? new Date(a.nextRunAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'No programada',
-          ultimoEstado: a.lastRunStatus || 'Sin ejecuciones',
-          ultimoResultado: a.lastRunResult ? a.lastRunResult.substring(0, 150) + '...' : 'Ninguno'
-        }));
+        const formatted = automations.map(a => {
+          const trigInfo = extractAutomationTriggerConfigs(a);
+          return {
+            id: a._id.toString(),
+            nombre: a.name,
+            agenteAsignado: a.agentName || a.agentId,
+            disparadores: trigInfo.triggers,
+            comandosVozTenshi: trigInfo.voiceCommands,
+            frecuencia: a.scheduleType,
+            horario: a.scheduleConfig,
+            estado: a.status,
+            destinatarios: a.emails || [],
+            proximaEjecucion: a.nextRunAt ? new Date(a.nextRunAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : (trigInfo.triggers.includes('schedule_cron') ? 'No programada' : 'Por evento / Comando Tenshi'),
+            ultimoEstado: a.lastRunStatus || 'Sin ejecuciones',
+            ultimoResultado: a.lastRunResult ? a.lastRunResult.substring(0, 150) + '...' : 'Ninguno'
+          };
+        });
 
         return JSON.stringify({
           mensaje: `Se encontraron ${automations.length} tareas/automatizaciones configuradas.`,
@@ -439,7 +423,7 @@ class GestorAutomatizaciones extends Tool {
       // ── ACCIÓN: ACTUALIZAR / ACTIVAR / DESACTIVAR / EDITAR ──────────
       if (accion === 'actualizar') {
         const implicitAll = !automatizacion_id && !nombre && Boolean(nuevo_estado);
-        const { matches, isBulk, usedNameAsQuery } = await this._resolveTargetAutomations(companyId, userId, {
+        const { matches, isBulk, usedNameAsQuery, matchSource, matchedVoiceCommand } = await this._resolveTargetAutomations(companyId, userId, {
           automatizacion_id,
           nombre,
           forcedAll: forcedAll || implicitAll
@@ -516,20 +500,54 @@ class GestorAutomatizaciones extends Tool {
             automation.status = nuevo_estado;
           }
 
-          if (automation.status === 'active') {
+          const hasCron = hasCronTrigger(automation);
+          if (automation.status === 'active' && hasCron) {
             automation.nextRunAt = calculateNextRun(automation.scheduleType, automation.scheduleConfig);
           } else {
             automation.nextRunAt = null;
           }
 
+          // Si se invocó mediante frase/comando de Tenshi (`matchSource === 'voiceCommand'`) y el usuario pidió activar,
+          // además de dejarla Activa, poner el flujo en marcha inmediatamente en segundo plano.
+          let triggeredNow = false;
+          const autoTriggers = extractAutomationTriggerConfigs(automation).triggers;
+          const shouldAutoDispatchTenshi =
+            !isBulk &&
+            nuevo_estado === 'active' &&
+            matchSource === 'voiceCommand' &&
+            autoTriggers.includes('trigger_tenshi') &&
+            automation.lastRunStatus !== 'running';
+
+          if (shouldAutoDispatchTenshi) {
+            automation.lastRunStatus = 'running';
+          }
+
           await automation.save();
+
+          if (shouldAutoDispatchTenshi) {
+            triggeredNow = true;
+            runAutomation(automation, {
+              triggerSource: 'tenshi_voice',
+              eventPayload: {
+                commandText: automatizacion_id || nombre || matchedVoiceCommand || '',
+                matchedVoiceCommand,
+                invokedVia: 'gestor_automatizaciones',
+                invokedAt: new Date().toISOString(),
+              },
+            }).catch(err => {
+              console.error('[GestorAutomatizaciones Tool] Error disparando flujo por voiceCommand:', err);
+            });
+          }
+
           updatedItems.push({
             id: automation._id.toString(),
             nombre: automation.name,
             estado: automation.status,
+            triggeredNow,
+            matchedVoiceCommand,
             proximaEjecucion: automation.nextRunAt
               ? new Date(automation.nextRunAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-              : 'Pausada / Inactiva'
+              : (hasCron ? 'Pausada / Inactiva' : 'Por evento / Comando Tenshi')
           });
         }
 
@@ -537,7 +555,11 @@ class GestorAutomatizaciones extends Tool {
           const item = updatedItems[0];
           return JSON.stringify({
             success: true,
-            mensaje: `Tarea "${item.nombre}" actualizada correctamente (Estado: ${item.estado === 'active' ? 'Activa' : 'Inactiva'}).`,
+            triggeredNow: Boolean(item.triggeredNow),
+            matchedVoiceCommand: item.matchedVoiceCommand || null,
+            mensaje: item.triggeredNow
+              ? `Flujo "${item.nombre}" activado y puesto en marcha inmediatamente por comando Tenshi ("${item.matchedVoiceCommand}").`
+              : `Tarea "${item.nombre}" actualizada correctamente (Estado: ${item.estado === 'active' ? 'Activa' : 'Inactiva'}).`,
             id: item.id,
             nombre: item.nombre,
             estado: item.estado,
@@ -553,9 +575,9 @@ class GestorAutomatizaciones extends Tool {
         });
       }
 
-      // ── ACCIÓN: EJECUTAR AHORA (TEST RUN) ───────────────────────────
+      // ── ACCIÓN: EJECUTAR AHORA (TEST RUN / TENSHI VOICE TRIGGER) ────
       if (accion === 'ejecutar_ahora') {
-        const { matches } = await this._resolveTargetAutomations(companyId, userId, {
+        const { matches, matchSource, matchedVoiceCommand } = await this._resolveTargetAutomations(companyId, userId, {
           automatizacion_id,
           nombre
         });
@@ -572,9 +594,34 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
-        await Automation.updateOne({ _id: automation._id }, { $set: { lastRunStatus: 'running' } });
+        // Si estaba inactiva y fue invocada por comando Tenshi, activarla también respetando límite de plan
+        const updateSet = { lastRunStatus: 'running' };
+        if (automation.status !== 'active' && matchSource === 'voiceCommand') {
+          const { limit: effectiveLimit } = await this._getEffectiveAutomationLimit(userId);
+          const currentActive = await Automation.countDocuments({ user: userId, status: 'active' });
+          if (currentActive < effectiveLimit) {
+            updateSet.status = 'active';
+            updateSet.nextRunAt = hasCronTrigger(automation)
+              ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
+              : null;
+          }
+        }
 
-        runAutomation(automation, true).catch(err => {
+        await Automation.updateOne({ _id: automation._id }, { $set: updateSet });
+
+        runAutomation(
+          automation,
+          matchSource === 'voiceCommand'
+            ? {
+                triggerSource: 'tenshi_voice',
+                eventPayload: {
+                  commandText: automatizacion_id || nombre || matchedVoiceCommand || '',
+                  matchedVoiceCommand,
+                  invokedVia: 'gestor_automatizaciones',
+                },
+              }
+            : true,
+        ).catch(err => {
           console.error('[GestorAutomatizaciones Tool] Error en ejecución manual background:', err);
         });
 
@@ -582,7 +629,10 @@ class GestorAutomatizaciones extends Tool {
           success: true,
           id: automation._id.toString(),
           nombre: automation.name,
-          mensaje: `Ejecución iniciada inmediatamente en segundo plano para la tarea "${automation.name}".`
+          matchedVoiceCommand: matchedVoiceCommand || null,
+          mensaje: matchedVoiceCommand
+            ? `Ejecución iniciada inmediatamente en segundo plano para el flujo "${automation.name}" (comando "${matchedVoiceCommand}").`
+            : `Ejecución iniciada inmediatamente en segundo plano para la tarea "${automation.name}".`
         });
       }
 

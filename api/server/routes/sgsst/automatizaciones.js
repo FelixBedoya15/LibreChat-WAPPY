@@ -18,6 +18,10 @@ const {
   stopAutomation,
   hasCronTrigger,
   executeDownstreamOutputs,
+  getAutomationTriggersList,
+  getTriggerNodeConfig,
+  extractAutomationTriggerConfigs,
+  resolveAutomationByVoiceOrQuery,
 } = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 
@@ -42,14 +46,51 @@ async function handlePublicAutomationWebhook(req, res) {
     const rawId =
       req.params?.automationId || req.body?.automationId || req.query?.automationId || '';
     const automationId = String(rawId).trim();
-    if (!automationId || !mongoose.Types.ObjectId.isValid(automationId)) {
-      return res.status(400).json({ error: 'El parámetro automationId es obligatorio y debe ser válido.' });
-    }
 
-    const automation = await Automation.findOne({
-      _id: automationId,
-      isSystemPreset: { $ne: true },
-    }).lean();
+    const authHeader = String(req.headers?.authorization || '');
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const candidateSecret = String(
+      req.headers?.['x-wappy-secret'] ||
+        (bearerToken !== authHeader ? bearerToken : '') ||
+        req.query?.secret ||
+        req.body?.secret ||
+        '',
+    ).trim();
+
+    let automation = null;
+    if (automationId) {
+      if (!mongoose.Types.ObjectId.isValid(automationId)) {
+        return res.status(400).json({ error: 'El parámetro automationId debe ser un ID válido.' });
+      }
+      automation = await Automation.findOne({
+        _id: automationId,
+        isSystemPreset: { $ne: true },
+      }).lean();
+    } else if (candidateSecret) {
+      const activeWebhooks = await Automation.find({
+        status: 'active',
+        isSystemPreset: { $ne: true },
+      }).lean();
+      for (const cand of activeWebhooks) {
+        const candTriggers = getAutomationTriggersList(cand);
+        if (!candTriggers.includes('trigger_webhook')) continue;
+        const candCfg = getTriggerNodeConfig(cand, 'trigger_webhook');
+        const configured = String(candCfg?.webhookSecret || '').trim();
+        if (configured && safeSecretEquals(configured, candidateSecret)) {
+          automation = cand;
+          break;
+        }
+      }
+      if (!automation) {
+        return res.status(401).json({
+          error: 'No se encontró un flujo Webhook activo que coincida con ese secreto.',
+        });
+      }
+    } else {
+      return res.status(400).json({
+        error: 'El parámetro automationId en la URL o el secreto en x-wappy-secret es obligatorio.',
+      });
+    }
 
     if (!automation) {
       return res.status(404).json({ error: 'Automatización no encontrada.' });
@@ -58,40 +99,18 @@ async function handlePublicAutomationWebhook(req, res) {
       return res.status(403).json({ error: 'La automatización está inactiva o pausada.' });
     }
 
-    const triggers = Array.isArray(automation.workflowNodes?.triggers)
-      ? automation.workflowNodes.triggers
-      : automation.workflowNodes?.trigger
-        ? [automation.workflowNodes.trigger]
-        : [];
+    const triggers = getAutomationTriggersList(automation);
     if (!triggers.includes('trigger_webhook')) {
       return res.status(400).json({
         error: 'Esta automatización no tiene habilitado el disparador Webhook (trigger_webhook).',
       });
     }
 
-    const nodeConfigs =
-      automation.workflowNodes?.canvasLayout?.nodeConfigs ||
-      automation.workflowNodes?.nodeConfigs ||
-      {};
-    const configuredSecret = String(
-      nodeConfigs?.trigger_root?.webhookSecret ||
-        nodeConfigs?.trigger_trigger_webhook?.webhookSecret ||
-        nodeConfigs?.trigger_webhook?.webhookSecret ||
-        '',
-    ).trim();
+    const webhookCfg = getTriggerNodeConfig(automation, 'trigger_webhook');
+    const configuredSecret = String(webhookCfg?.webhookSecret || '').trim();
 
-    if (configuredSecret) {
-      const authHeader = String(req.headers?.authorization || '');
-      const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-      const candidateSecret =
-        req.headers?.['x-wappy-secret'] ||
-        (bearerToken !== authHeader ? bearerToken : '') ||
-        req.query?.secret ||
-        req.body?.secret ||
-        '';
-      if (!safeSecretEquals(configuredSecret, candidateSecret)) {
-        return res.status(401).json({ error: 'Secreto de Webhook inválido o no autorizado.' });
-      }
+    if (configuredSecret && !safeSecretEquals(configuredSecret, candidateSecret)) {
+      return res.status(401).json({ error: 'Secreto de Webhook inválido o no autorizado.' });
     }
 
     const sanitizedPayload = { ...(req.body && typeof req.body === 'object' ? req.body : {}) };
@@ -965,6 +984,8 @@ router.post('/trigger-tenshi', async (req, res) => {
   try {
     const commandText = String(req.body?.commandText || req.body?.text || '').trim();
     const explicitAutomationId = req.body?.automationId ? String(req.body.automationId).trim() : '';
+    const requestedChannel = String(req.body?.channel || 'voice').trim().toLowerCase();
+    const activateIfInactive = req.body?.activateIfInactive !== false;
     if (!commandText && !explicitAutomationId) {
       return res.status(400).json({ error: 'El parámetro commandText es obligatorio.' });
     }
@@ -975,71 +996,99 @@ router.post('/trigger-tenshi', async (req, res) => {
       req.user?.role,
     );
 
-    const norm = (str) =>
-      String(str || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
     const queryFilter = {
       isSystemPreset: { $ne: true },
-      status: 'active',
       ...(companyId ? { companyId } : { user: req.user.id }),
     };
 
-    const candidates = await Automation.find(queryFilter).lean();
-    const cmdNorm = norm(commandText);
+    const candidates = await Automation.find(queryFilter).sort({ createdAt: -1 }).lean();
 
-    const matched = candidates.filter((auto) => {
-      if (explicitAutomationId && String(auto._id) === explicitAutomationId) {
-        return true;
-      }
-      const triggers = Array.isArray(auto?.workflowNodes?.triggers)
-        ? auto.workflowNodes.triggers
-        : auto?.workflowNodes?.trigger
-          ? [auto.workflowNodes.trigger]
-          : [];
-      if (!triggers.includes('trigger_tenshi')) {
-        return false;
-      }
+    let matched = [];
+    let matchSource = null;
 
-      const nodeConfigs =
-        auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
-        auto?.workflowNodes?.nodeConfigs ||
-        {};
-      const configuredCmd = norm(
-        nodeConfigs?.trigger_root?.voiceCommand ||
-          nodeConfigs?.trigger_trigger_tenshi?.voiceCommand ||
-          nodeConfigs?.trigger_tenshi?.voiceCommand ||
-          '',
-      );
-      const taskNameNorm = norm(auto.name || '');
+    if (explicitAutomationId && mongoose.Types.ObjectId.isValid(explicitAutomationId)) {
+      const exactDoc = candidates.find((a) => String(a._id) === explicitAutomationId);
+      if (exactDoc) {
+        matched = [exactDoc];
+        matchSource = 'id';
+      }
+    }
 
-      if (configuredCmd && (cmdNorm.includes(configuredCmd) || configuredCmd.includes(cmdNorm))) {
-        return true;
+    if (matched.length === 0 && commandText) {
+      const resolved = resolveAutomationByVoiceOrQuery(candidates, commandText, {
+        requireTenshiTrigger: true,
+      });
+      if (resolved.matches && resolved.matches.length > 0) {
+        matchSource = resolved.matchSource;
+        matched = resolved.matches.filter((auto) => {
+          const cfg = extractAutomationTriggerConfigs(auto);
+          if (cfg.triggerChannel === 'voice' && requestedChannel === 'chat') return false;
+          if (cfg.triggerChannel === 'chat' && requestedChannel === 'voice') return false;
+          return true;
+        });
       }
-      if (taskNameNorm && (cmdNorm.includes(taskNameNorm) || taskNameNorm.includes(cmdNorm))) {
-        return true;
-      }
-      return !configuredCmd && candidates.filter((c) => (c?.workflowNodes?.triggers || []).includes('trigger_tenshi')).length === 1;
-    });
+    }
 
     if (matched.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'No se encontró ninguna automatización activa con disparador de voz/texto Tenshi que coincida con ese comando.',
+        error:
+          'No se encontró ninguna automatización con disparador de voz/texto Tenshi cuyo comando o título coincida con esa orden.',
       });
     }
 
-    for (const auto of matched) {
+    const triggeredAutos = [];
+    for (const rawAuto of matched) {
+      let auto = rawAuto;
+      let activatedNow = false;
+
+      if (auto.status !== 'active') {
+        if (!activateIfInactive) {
+          continue;
+        }
+        const { limit: effectiveLimit, plan: userPlanName } = await getEffectiveAutomationLimit(
+          req.user.id,
+          req.user.role,
+        );
+        const activeCount = await Automation.countDocuments({
+          user: req.user.id,
+          isSystemPreset: { $ne: true },
+          status: 'active',
+        });
+        if (activeCount >= effectiveLimit) {
+          return res.status(400).json({
+            success: false,
+            error: `El flujo «${auto.name}» está inactivo y alcanzaste el límite de ${effectiveLimit} automatización(es) activa(s) en tu plan ${userPlanName}.`,
+          });
+        }
+        const nextRunAt = hasCronTrigger(auto)
+          ? calculateNextRun(auto.scheduleType || 'daily', auto.scheduleConfig || {})
+          : null;
+        const updatedDoc = await Automation.findByIdAndUpdate(
+          auto._id,
+          { $set: { status: 'active', nextRunAt } },
+          { new: true },
+        ).lean();
+        if (updatedDoc) {
+          auto = updatedDoc;
+          activatedNow = true;
+        }
+      }
+
+      triggeredAutos.push({
+        _id: auto._id,
+        name: auto.name,
+        matchedBy: matchSource,
+        activatedNow,
+      });
+
       setImmediate(() => {
         runAutomation(auto, {
           triggerSource: 'tenshi_voice',
           eventPayload: {
             commandText,
+            matchedBy: matchSource,
+            channel: requestedChannel,
             invokedBy: req.user?.email || req.user?.id,
             invokedAt: new Date().toISOString(),
           },
@@ -1049,11 +1098,18 @@ router.post('/trigger-tenshi', async (req, res) => {
       });
     }
 
+    if (triggeredAutos.length === 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'La automatización coincidente está inactiva.',
+      });
+    }
+
     return res.json({
       success: true,
-      triggeredCount: matched.length,
-      automations: matched.map((a) => ({ _id: a._id, name: a.name })),
-      message: `Disparado(s) ${matched.length} flujo(s) por comando Tenshi.`,
+      triggeredCount: triggeredAutos.length,
+      automations: triggeredAutos,
+      message: `Disparado(s) ${triggeredAutos.length} flujo(s) por comando Tenshi.`,
     });
   } catch (error) {
     console.error('[API Automatizaciones] Error en trigger-tenshi:', error);

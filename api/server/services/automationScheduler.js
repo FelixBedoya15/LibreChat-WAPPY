@@ -487,6 +487,259 @@ function hasCronTrigger(automation) {
   return triggers.includes('schedule_cron');
 }
 
+function normalizeTriggerMatchText(str = '') {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/(?<=\d)\s+(?=\d)/g, '')
+    .trim();
+}
+
+function stripTriggerCommandVerbs(normStr = '') {
+  let out = normalizeTriggerMatchText(normStr);
+  const leadRx =
+    /^(?:suri|siri|sur|tenshi|wappy|por favor|oye|ey|para|activar|activa|activame|encender|enciende|prender|prende|ejecutar|ejecuta|correr|corre|disparar|dispara|iniciar|inicia|arrancar|arranca|pon en marcha|lanzar|lanza|el|la|los|las|un|una|este|esta|ese|esa|flujo|tarea|automatizacion|robot)\b\s*/i;
+  for (let i = 0; i < 6; i++) {
+    const next = out.replace(leadRx, '').trim();
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+function getAutomationTriggersList(automation) {
+  const raw = Array.isArray(automation?.workflowNodes?.triggers)
+    ? automation.workflowNodes.triggers
+    : automation?.workflowNodes?.trigger
+      ? [automation.workflowNodes.trigger]
+      : ['schedule_cron'];
+  return raw.filter(Boolean);
+}
+
+function getTriggerNodeConfig(automation, triggerType) {
+  const nodeConfigs =
+    automation?.workflowNodes?.canvasLayout?.nodeConfigs ||
+    automation?.workflowNodes?.nodeConfigs ||
+    {};
+  const triggers = getAutomationTriggersList(automation);
+  const candidateKeys = [`trigger_${triggerType}`, triggerType];
+  if (triggerType === 'trigger_email') candidateKeys.push('trigger_email_in');
+  if (triggerType === 'trigger_webhook') candidateKeys.push('trigger_webhook_in');
+  if (triggers[0] === triggerType || (!triggers.length && triggerType === 'schedule_cron')) {
+    candidateKeys.push('trigger_root');
+  }
+
+  let merged = {};
+  for (const key of candidateKeys) {
+    if (nodeConfigs[key] && typeof nodeConfigs[key] === 'object') {
+      merged = { ...nodeConfigs[key], ...merged };
+    }
+  }
+  // Si solo hay trigger_root sin llave específica aún (configuración legada), aprovechar sus campos del tipo correspondiente
+  if (Object.keys(merged).length === 0 && nodeConfigs.trigger_root && typeof nodeConfigs.trigger_root === 'object') {
+    if (triggers.includes(triggerType)) {
+      merged = { ...nodeConfigs.trigger_root };
+    }
+  }
+  return merged;
+}
+
+function extractAutomationTriggerConfigs(automation) {
+  const triggers = getAutomationTriggersList(automation);
+  const nodeConfigs =
+    automation?.workflowNodes?.canvasLayout?.nodeConfigs ||
+    automation?.workflowNodes?.nodeConfigs ||
+    {};
+
+  const tenshiCfg = getTriggerNodeConfig(automation, 'trigger_tenshi');
+  const emailCfg = getTriggerNodeConfig(automation, 'trigger_email');
+  const qrCfg = getTriggerNodeConfig(automation, 'trigger_qr_worker');
+  const webhookCfg = getTriggerNodeConfig(automation, 'trigger_webhook');
+  const agentCfg = getTriggerNodeConfig(automation, 'trigger_agent');
+
+  const voiceCmdSet = new Set();
+  if (tenshiCfg?.voiceCommand && String(tenshiCfg.voiceCommand).trim()) {
+    voiceCmdSet.add(String(tenshiCfg.voiceCommand).trim());
+  }
+  for (const [k, v] of Object.entries(nodeConfigs)) {
+    if (!v || typeof v !== 'object') continue;
+    if (k.startsWith('trigger') && v.voiceCommand && String(v.voiceCommand).trim()) {
+      voiceCmdSet.add(String(v.voiceCommand).trim());
+    }
+  }
+
+  return {
+    triggers,
+    voiceCommands: Array.from(voiceCmdSet),
+    triggerChannel: String(tenshiCfg?.triggerChannel || 'both').toLowerCase(),
+    emailSubjectFilter: String(emailCfg?.emailSubjectFilter || '').trim(),
+    emailSenderFilter: String(emailCfg?.emailSenderFilter || '').trim(),
+    onlyWithAttachments: Boolean(emailCfg?.onlyWithAttachments),
+    qrPortalTarget: String(qrCfg?.qrPortalType || qrCfg?.qrPortalTarget || 'all').trim(),
+    qrSeverityFilter: String(qrCfg?.qrSeverityFilter || 'all').trim(),
+    webhookSecret: String(webhookCfg?.webhookSecret || '').trim(),
+    sourceAgentId: String(agentCfg?.sourceAgentId || '').trim(),
+    agentInstruction: String(agentCfg?.customInstruction || '').trim(),
+  };
+}
+
+const TRIGGER_QUERY_STOP_WORDS = new Set([
+  'para', 'con', 'del', 'las', 'los', 'una', 'por', 'que', 'tarea', 'flujo',
+  'automatizacion', 'activar', 'activa', 'activame', 'ejecutar', 'ejecuta',
+  'encender', 'enciende', 'iniciar', 'inicia', 'disparar', 'dispara',
+  'suri', 'siri', 'sur', 'tenshi', 'wappy', 'este', 'esta', 'ese', 'esa',
+]);
+
+function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requireTenshiTrigger = false } = {}) {
+  const qNorm = normalizeTriggerMatchText(rawQuery);
+  const qCore = stripTriggerCommandVerbs(qNorm);
+  if (!qNorm) {
+    return { matches: [], matchSource: null, matchedVoiceCommand: null, score: 0 };
+  }
+
+  const allTokens = Array.from(new Set([...qNorm.split(' '), ...qCore.split(' ')]))
+    .map((t) => t.trim())
+    .filter((t) => t && !TRIGGER_QUERY_STOP_WORDS.has(t));
+  const codeOrDigitTokens = allTokens.filter((t) => /\d/.test(t));
+  const meaningfulTokens = allTokens.filter((t) => /\d/.test(t) || t.length >= 3);
+
+  const scored = [];
+  for (const auto of automations) {
+    const cfg = extractAutomationTriggerConfigs(auto);
+    if (requireTenshiTrigger && !cfg.triggers.includes('trigger_tenshi')) {
+      continue;
+    }
+
+    const nameNorm = normalizeTriggerMatchText(auto?.name || '');
+    const nameCore = stripTriggerCommandVerbs(nameNorm);
+    const haystackNorm = normalizeTriggerMatchText(
+      `${cfg.voiceCommands.join(' ')} ${auto?.name || ''} ${auto?.agentName || ''}`,
+    );
+
+    // Si la petición menciona un código numérico específico (ej. "001", "1401"), ningún flujo que NO contenga ese código puede ganar por accidente
+    const hasMissingCodeToken =
+      codeOrDigitTokens.length > 0 &&
+      codeOrDigitTokens.some((tok) => {
+        const strippedZero = tok.replace(/^0+(?=\d)/, '');
+        return (
+          !haystackNorm.includes(tok) &&
+          !(strippedZero && new RegExp(`\\b0*${strippedZero}\\b`).test(haystackNorm))
+        );
+      });
+
+    let bestScore = 0;
+    let matchSource = null;
+    let matchedVoiceCommand = null;
+
+    // 1. Coincidencia prioritaria con FRASE O COMANDO DE TENSHI (`voiceCommand`)
+    for (const vc of cfg.voiceCommands) {
+      const vcNorm = normalizeTriggerMatchText(vc);
+      const vcCore = stripTriggerCommandVerbs(vcNorm);
+      if (!vcNorm) continue;
+
+      if (vcNorm === qNorm || (qCore && vcCore && vcCore === qCore)) {
+        if (100 > bestScore) {
+          bestScore = 100;
+          matchSource = 'voiceCommand';
+          matchedVoiceCommand = vc;
+        }
+      } else if (
+        (qNorm.length >= 2 && vcNorm.includes(qNorm)) ||
+        (vcNorm.length >= 2 && qNorm.includes(vcNorm)) ||
+        (qCore && vcCore && qCore.length >= 2 && (vcCore.includes(qCore) || qCore.includes(vcCore)))
+      ) {
+        if (!hasMissingCodeToken && 85 > bestScore) {
+          bestScore = 85;
+          matchSource = 'voiceCommand';
+          matchedVoiceCommand = vc;
+        }
+      }
+    }
+
+    // 2. Coincidencia exacta o de subcadena por Nombre de la Tarea (solo si no faltan códigos numéricos)
+    if (bestScore < 95 && nameNorm && !hasMissingCodeToken) {
+      if (nameNorm === qNorm || (qCore && nameCore && nameCore === qCore)) {
+        bestScore = 95;
+        matchSource = 'name';
+        matchedVoiceCommand = null;
+      } else if (
+        (qCore && qCore.length >= 4 && nameNorm.includes(qCore)) ||
+        (qNorm.length >= 4 && nameNorm.includes(qNorm)) ||
+        (nameNorm.length >= 5 && qNorm.includes(nameNorm))
+      ) {
+        if (75 > bestScore) {
+          bestScore = 75;
+          matchSource = 'name';
+          matchedVoiceCommand = null;
+        }
+      }
+    }
+
+    // 3. Coincidencia estricta por tokens discriminantes (excluyendo palabras vacías como "flujo")
+    if (bestScore === 0 && meaningfulTokens.length > 0 && !hasMissingCodeToken) {
+      const vcHaystack = normalizeTriggerMatchText(cfg.voiceCommands.join(' '));
+      const vcHits = vcHaystack
+        ? meaningfulTokens.filter((t) => vcHaystack.includes(t)).length
+        : 0;
+      if (vcHaystack && vcHits > 0 && (vcHits >= 2 || vcHits === meaningfulTokens.length)) {
+        bestScore = 65 + Math.round((vcHits / meaningfulTokens.length) * 15);
+        matchSource = 'voiceCommand';
+        matchedVoiceCommand = cfg.voiceCommands[0] || null;
+      } else {
+        const hits = meaningfulTokens.filter((t) => haystackNorm.includes(t)).length;
+        const ratio = hits / meaningfulTokens.length;
+        if (hits >= 2 || (meaningfulTokens.length === 1 && hits === 1 && ratio === 1)) {
+          bestScore = 50 + Math.round(ratio * 15);
+          matchSource = 'name';
+          matchedVoiceCommand = null;
+        }
+      }
+    }
+
+    if (bestScore > 0) {
+      scored.push({
+        automation: auto,
+        score: bestScore,
+        matchSource,
+        matchedVoiceCommand,
+        triggerConfigs: cfg,
+      });
+    }
+  }
+
+  if (scored.length === 0) {
+    return { matches: [], matchSource: null, matchedVoiceCommand: null, score: 0 };
+  }
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const aHasVc = a.matchSource === 'voiceCommand' ? 1 : 0;
+    const bHasVc = b.matchSource === 'voiceCommand' ? 1 : 0;
+    if (bHasVc !== aHasVc) return bHasVc - aHasVc;
+    const aActive = a.automation?.status === 'active' ? 1 : 0;
+    const bActive = b.automation?.status === 'active' ? 1 : 0;
+    if (bActive !== aActive) return bActive - aActive;
+    return new Date(b.automation?.updatedAt || b.automation?.createdAt || 0).getTime() -
+      new Date(a.automation?.updatedAt || a.automation?.createdAt || 0).getTime();
+  });
+
+  const top = scored[0];
+  const equivalentTop = scored
+    .filter((s) => s.score === top.score && s.matchSource === top.matchSource)
+    .map((s) => s.automation);
+
+  return {
+    matches: equivalentTop,
+    matchSource: top.matchSource,
+    matchedVoiceCommand: top.matchedVoiceCommand,
+    score: top.score,
+    triggerConfigs: top.triggerConfigs,
+  };
+}
+
 /**
  * Reconoce de forma equivalente tanto el nuevo rol canónico `'agent_tool'` (conectado en el puerto
  * `Herramienta +` del Agente IA estilo n8n) como el alias legado `'target_write_report'`.
@@ -5358,6 +5611,17 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           },
         ),
       ]);
+
+      if (activeBranch === 'yes' || !includeIfNodeFlag) {
+        dispatchAgentTriggeredAutomations({
+          companyId: targetCompanyIdStr,
+          sourceAgentId: automation.agentId,
+          sourceAgentName: automation.agentName,
+          sourceAutomationId: automation._id,
+          summaryText: resultText,
+          agentChainDepth: Number(runOptions?.agentChainDepth || 0),
+        });
+      }
       console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
     }
 
@@ -5515,8 +5779,37 @@ function matchesQrPortalFilter(configuredValue, incomingPortalType) {
 }
 
 /**
+ * Determina si una entrega QR cumple `qrSeverityFilter` (`'all'` vs `'critical_only'`).
+ */
+function matchesQrSeverityFilter(qrSeverityFilter, submissionData = {}) {
+  if (!qrSeverityFilter || qrSeverityFilter === 'all') return true;
+  if (qrSeverityFilter !== 'critical_only') return true;
+  const serialized = normalizeTriggerMatchText(JSON.stringify(submissionData || {}));
+  return /\b(alto|alta|critico|critica|criticos|criticas|grave|severo|severa|fatal|inmediato|inmediata|urgente|rojo|accidente|rechazado|bloqueado|no apto|suspender|peligro alto|criticity high)\b/.test(
+    serialized,
+  );
+}
+
+/**
+ * Construye término válido de búsqueda Gmail (`subject:(A OR B)` / `from:(x OR y)`) desde filtro separado por comas/punto y coma.
+ */
+function buildGmailQueryTerm(fieldName, rawFilter = '') {
+  const parts = String(rawFilter || '')
+    .split(/[,;|]+/)
+    .map((s) => s.trim().replace(/"/g, ''))
+    .filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) {
+    const term = parts[0];
+    return term.includes(' ') ? `${fieldName}:"${term}"` : `${fieldName}:${term}`;
+  }
+  const joined = parts.map((p) => (p.includes(' ') ? `"${p}"` : p)).join(' OR ');
+  return `${fieldName}:(${joined})`;
+}
+
+/**
  * Dispara en segundo plano (`setImmediate`) todas las automatizaciones activas de la empresa
- * que tengan `'trigger_qr_worker'` en `workflowNodes.triggers` y coincidan con `portalType`.
+ * que tengan `'trigger_qr_worker'` en `workflowNodes.triggers` y coincidan con `portalType` y severidad.
  * Nunca bloquea la petición pública del trabajador.
  */
 function dispatchQrWorkerAutomations({ companyId, portalType, submissionData = {} } = {}) {
@@ -5538,19 +5831,11 @@ function dispatchQrWorkerAutomations({ companyId, portalType, submissionData = {
       if (!Array.isArray(candidates) || candidates.length === 0) return;
 
       for (const auto of candidates) {
-        const nodeConfigs =
-          auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
-          auto?.workflowNodes?.nodeConfigs ||
-          {};
-        const configuredPortal =
-          nodeConfigs?.trigger_root?.qrPortalType ||
-          nodeConfigs?.trigger_trigger_qr_worker?.qrPortalType ||
-          nodeConfigs?.trigger_qr_worker?.qrPortalType ||
-          nodeConfigs?.trigger_root?.qrPortalTarget ||
-          nodeConfigs?.trigger_trigger_qr_worker?.qrPortalTarget ||
-          'all';
-
-        if (!matchesQrPortalFilter(configuredPortal, portalType)) {
+        const trigCfg = extractAutomationTriggerConfigs(auto);
+        if (!matchesQrPortalFilter(trigCfg.qrPortalTarget, portalType)) {
+          continue;
+        }
+        if (!matchesQrSeverityFilter(trigCfg.qrSeverityFilter, submissionData)) {
           continue;
         }
 
@@ -5579,8 +5864,24 @@ function dispatchQrWorkerAutomations({ companyId, portalType, submissionData = {
 
 let lastEmailTriggerSweepAt = 0;
 
+function extractGmailAttachmentNames(payload) {
+  const names = [];
+  const walk = (part) => {
+    if (!part || typeof part !== 'object') return;
+    if (part.filename && String(part.filename).trim()) {
+      names.push(String(part.filename).trim());
+    }
+    if (Array.isArray(part.parts)) {
+      for (const child of part.parts) walk(child);
+    }
+  };
+  walk(payload);
+  return names;
+}
+
 /**
- * Vigilante de Bandeja Gmail (`trigger_email`): consulta mensajes recientes no leídos (`is:unread newer_than:1d`)
+ * Vigilante de Bandeja Gmail (`trigger_email`): consulta mensajes recientes no leídos (`is:unread newer_than:2d`)
+ * filtrando por asunto, remitente (`emailSenderFilter`) y adjuntos (`onlyWithAttachments`),
  * deduplicando contra `AutomationLog.gmailMessageId` para no disparar dos veces el mismo correo.
  */
 async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
@@ -5618,20 +5919,14 @@ async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
         continue;
       }
 
-      const nodeConfigs =
-        auto?.workflowNodes?.canvasLayout?.nodeConfigs ||
-        auto?.workflowNodes?.nodeConfigs ||
-        {};
-      const emailSubjectFilter = String(
-        nodeConfigs?.trigger_root?.emailSubjectFilter ||
-          nodeConfigs?.trigger_trigger_email?.emailSubjectFilter ||
-          nodeConfigs?.trigger_email?.emailSubjectFilter ||
-          '',
-      ).trim();
-
-      const gmailQuery = emailSubjectFilter
-        ? `is:unread newer_than:1d subject:"${emailSubjectFilter.replace(/"/g, '')}"`
-        : 'is:unread newer_than:1d';
+      const trigCfg = extractAutomationTriggerConfigs(auto);
+      const queryTokens = ['is:unread', 'newer_than:2d'];
+      const subjectClause = buildGmailQueryTerm('subject', trigCfg.emailSubjectFilter);
+      const fromClause = buildGmailQueryTerm('from', trigCfg.emailSenderFilter);
+      if (subjectClause) queryTokens.push(subjectClause);
+      if (fromClause) queryTokens.push(fromClause);
+      if (trigCfg.onlyWithAttachments) queryTokens.push('has:attachment');
+      const gmailQuery = queryTokens.join(' ');
 
       try {
         const gmail = oauthCtx.google.gmail({ version: 'v1', auth: oauthCtx.oauth2Client });
@@ -5654,9 +5949,14 @@ async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
           const detail = await gmail.users.messages.get({
             userId: 'me',
             id: m.id,
-            format: 'metadata',
+            format: trigCfg.onlyWithAttachments ? 'full' : 'metadata',
             metadataHeaders: ['From', 'Subject', 'Date'],
           });
+          const attachmentNames = extractGmailAttachmentNames(detail?.data?.payload);
+          if (trigCfg.onlyWithAttachments && attachmentNames.length === 0) {
+            continue;
+          }
+
           const headers = Array.isArray(detail?.data?.payload?.headers)
             ? detail.data.payload.headers
             : [];
@@ -5670,7 +5970,8 @@ async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
             subject: getHdr('Subject'),
             date: getHdr('Date'),
             snippet: String(detail?.data?.snippet || '').trim(),
-            matchedFilter: emailSubjectFilter || null,
+            attachments: attachmentNames,
+            matchedFilter: trigCfg.emailSubjectFilter || trigCfg.emailSenderFilter || null,
           };
 
           console.log(
@@ -5696,6 +5997,71 @@ async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
   } catch (err) {
     console.warn('[AutomationScheduler] Aviso en checkEmailTriggeredAutomations:', err?.message || err);
   }
+}
+
+/**
+ * Encadenamiento reactivo por Delegación de Agente Especialista IA (`trigger_agent`).
+ * Evita bucles infinitos acotando `agentChainDepth < 2` y excluyendo la automatización origen.
+ */
+function dispatchAgentTriggeredAutomations({
+  companyId,
+  sourceAgentId,
+  sourceAgentName,
+  sourceAutomationId,
+  summaryText = '',
+  agentChainDepth = 0,
+} = {}) {
+  if (!companyId || agentChainDepth >= 2) return;
+  const companyIdStr = String(companyId).trim();
+  const srcAutoStr = sourceAutomationId ? String(sourceAutomationId).trim() : '';
+
+  setImmediate(async () => {
+    try {
+      const candidates = await Automation.find({
+        isSystemPreset: { $ne: true },
+        status: 'active',
+        lastRunStatus: { $ne: 'running' },
+        companyId: companyIdStr,
+        'workflowNodes.triggers': 'trigger_agent',
+      })
+        .select(AUTOMATION_RUN_FIELDS)
+        .limit(8)
+        .lean();
+
+      for (const target of candidates) {
+        if (srcAutoStr && String(target._id) === srcAutoStr) continue;
+        const trigCfg = extractAutomationTriggerConfigs(target);
+        const expectedSrc = normalizeTriggerMatchText(trigCfg.sourceAgentId);
+        if (expectedSrc) {
+          const idMatch = normalizeTriggerMatchText(sourceAgentId) === expectedSrc;
+          const nameMatch = normalizeTriggerMatchText(sourceAgentName) === expectedSrc;
+          if (!idMatch && !nameMatch) continue;
+        }
+
+        console.log(
+          `[AutomationScheduler] Encadenamiento trigger_agent (${sourceAgentName || sourceAgentId}) -> "${target.name}"`,
+        );
+        runAutomation(target, {
+          triggerSource: 'agent_delegation',
+          agentChainDepth: agentChainDepth + 1,
+          eventPayload: {
+            sourceAutomationId: srcAutoStr || null,
+            sourceAgentId: sourceAgentId || null,
+            sourceAgentName: sourceAgentName || null,
+            summaryPreview: String(summaryText || '').slice(0, 1500),
+            triggeredAt: new Date().toISOString(),
+          },
+        }).catch((chErr) => {
+          console.warn(
+            `[AutomationScheduler] Error en encadenamiento trigger_agent "${target.name}":`,
+            chErr?.message || chErr,
+          );
+        });
+      }
+    } catch (err) {
+      console.warn('[AutomationScheduler] Aviso en dispatchAgentTriggeredAutomations:', err?.message || err);
+    }
+  });
 }
 
 async function checkAndRunAutomations() {
@@ -10466,12 +10832,20 @@ module.exports = {
   calculateNextRun,
   stopAutomation,
   hasCronTrigger,
+  normalizeTriggerMatchText,
+  stripTriggerCommandVerbs,
+  getAutomationTriggersList,
+  getTriggerNodeConfig,
+  extractAutomationTriggerConfigs,
+  resolveAutomationByVoiceOrQuery,
   isAgentToolHitoRole,
   resolveRequiredToolsForWorkflow,
   sstAppSourceAliasMap,
   dispatchQrWorkerAutomations,
   matchesQrPortalFilter,
+  matchesQrSeverityFilter,
   checkEmailTriggeredAutomations,
+  dispatchAgentTriggeredAutomations,
   executeDownstreamOutputs,
   isSafePublicHttpsUrl,
   fetchSafeWebhookApiData,

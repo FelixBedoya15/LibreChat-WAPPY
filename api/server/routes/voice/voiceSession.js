@@ -1722,12 +1722,12 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS programadas (antes llamadas 'Automatizaciones IA'): tareas periódicas autónomas de agentes en segundo plano en la sección 'Tareas' (/tareas). Puedes identificar la tarea por su ID, por su título en pantalla o usar 'todas'.",
+                            description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS/FLUJOS (antes llamadas 'Automatizaciones IA') en la sección 'Tareas' (/tareas). Puedes identificar el flujo por su comando de voz Tenshi (ej: 'Activa el flujo 001' o '001'), su ID, su título exacto o 'todas'. NUNCA elijas otro flujo distinto si un código o comando no coincide.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: { type: "string", description: "'crear', 'listar', 'actualizar', 'activar', 'desactivar', 'activar_todas', 'desactivar_todas', 'eliminar', 'eliminar_todas', 'ejecutar_ahora', 'detener', 'ver_logs'" },
-                                    nombre: { type: "string", description: "Nombre de la tarea/automatización (para crearla o buscarla por título)" },
+                                    nombre: { type: "string", description: "Título del flujo o frase exacta/código de activación dicho por el usuario (ej: 'Activa el flujo 001')" },
                                     nuevo_nombre: { type: "string", description: "Nuevo nombre si se desea renombrar la tarea" },
                                     agente_objetivo: { type: "string", description: "Agente que ejecutará la tarea periódica" },
                                     prompt_a_ejecutar: { type: "string", description: "Instrucción detallada a ejecutar periódicamente" },
@@ -1743,7 +1743,7 @@ class VoiceSession {
                                         }
                                     },
                                     correos_notificacion: { type: "array", items: { type: "string" } },
-                                    automatizacion_id: { type: "string", description: "ID de 24 caracteres, título exacto/parcial de la tarea en pantalla, o 'todas'" },
+                                    automatizacion_id: { type: "string", description: "ID de 24 caracteres, comando de voz Tenshi configurado en el flujo (ej: 'Activa el flujo 001' o '001'), título exacto de la tarea, o 'todas'" },
                                     nuevo_estado: { type: "string", description: "'active' (activar/encender) o 'inactive' (desactivar/pausar/apagar)" }
                                 },
                                 required: ["accion"]
@@ -3000,9 +3000,10 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - 'matriz_pesv': Evalúa y gestiona riesgos viales del Plan Estratégico de Seguridad Vial (Res. 20223040040595).
    - 'matriz_compatibilidad': Gestiona el inventario químico, fichas FDS y reglas de almacenamiento seguro SGA.
 11. **gestor_automatizaciones**:
-   - Programa ('crear'), lista ('listar'), edita ('actualizar'), activa ('activar' / 'activar_todas'), pausa/desactiva ('desactivar' / 'desactivar_todas'), ejecuta ('ejecutar_ahora'), detiene ('detener') o elimina ('eliminar' / 'eliminar_todas') tareas periódicas autónomas en segundo plano.
+   - Programa ('crear'), lista ('listar'), edita ('actualizar'), activa ('activar' / 'activar_todas'), pausa/desactiva ('desactivar' / 'desactivar_todas'), ejecuta ('ejecutar_ahora'), detiene ('detener') o elimina ('eliminar' / 'eliminar_todas') tareas/flujos en segundo plano.
+   - 🎯 ACTIVACIÓN POR COMANDO DE VOZ O CÓDIGO TENSHI (CRÍTICO): Si el usuario te pide activar o ejecutar un flujo diciendo una frase clave o código configurado en su disparador Tenshi IA (ej: "Activa el flujo 001", "Corre el protocolo 002", "Activa el flujo de EPP"), pasa esa frase o código EXACTO en 'automatizacion_id' (y 'nombre'), usando accion: "activar" (si dice "activa/enciende") o accion: "ejecutar_ahora". Si primero consultaste 'listar', revisa 'comandosVozTenshi' de cada flujo antes de elegir uno. NUNCA elijas un flujo distinto al azar si el código numérico o comando no coincide.
    - ⛔ PROHIBICIÓN ESTRICTA DE CREACIÓN NO SOLICITADA: JAMÁS uses accion: "crear" a menos que el usuario te ordene EXPLÍCITAMENTE crear o programar una nueva tarea. Si el usuario solo abre /tareas, pregunta qué tareas tiene, o pide revisar un archivo de Drive ahora mismo, NUNCA crees una tarea nueva (usa accion: "listar" si desea consultarlas).
-   - Puedes pasar el título de la tarea que ves en pantalla o la palabra 'todas' en 'automatizacion_id' (no necesitas conocer el ID hexadecimal de MongoDB).
+   - Puedes pasar el comando de voz Tenshi, el título exacto de la tarea o la palabra 'todas' en 'automatizacion_id' (no necesitas conocer el ID hexadecimal de MongoDB).
    - ⚠️ REGLA CRÍTICA: Si el usuario dice "desactiva", "pausa", "apaga" o "no quiero ninguna abierta", usa accion: "desactivar" o accion: "desactivar_todas" (o accion: "actualizar" con nuevo_estado: "inactive"). JAMÁS uses accion: "eliminar" cuando el usuario solo pide desactivar o pausar. Solo usa accion: "eliminar" o "eliminar_todas" cuando el usuario diga explícitamente "elimina" o "borra".
    - NUEVO NOMBRE Y UBICACIÓN: lo que antes se llamaba 'Automatizaciones' / 'Automatizaciones IA' ahora se llama **'Tareas'** y ya NO está dentro del Centro de Control: tiene su propio botón en el menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas, historial en /tareas?tab=historial). Si el usuario dice 'automatizaciones', 'tareas programadas' o 'tareas', se refiere a lo mismo. Para abrirla usa wappy_navegar con modulo 'tareas'. ACCESO: exclusivo para Administradores y cuentas Wappy Pro (no Vital ni sub-usuarios); si el usuario no tiene ese plan, explícale con amabilidad que debe adquirir Wappy Pro (/planes).
 12. **OFIMÁTICA EN LA NUBE (Google Workspace & Microsoft 365)**:

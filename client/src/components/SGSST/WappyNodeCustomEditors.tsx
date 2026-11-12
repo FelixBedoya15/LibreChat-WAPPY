@@ -268,6 +268,7 @@ export interface WappyNodeCustomEditorProps {
   ) => Array<{ field: string; value: string }>;
   onRunLiveAiExtraction?: () => void;
   runningLiveAiExtraction?: boolean;
+  automationId?: string | null;
 }
 
 const WEEK_DAYS = [
@@ -397,6 +398,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     resolveRecordSurgicalPreview,
     onRunLiveAiExtraction,
     runningLiveAiExtraction = false,
+    automationId = null,
   } = props;
 
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
@@ -2043,7 +2045,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     }
 
     // 1.8 DISPARADOR WEBHOOK / API EXTERNA
-    const webhookUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club'}/api/sgsst/automatizaciones/webhook`;
+    const originUrl =
+      typeof window !== 'undefined' ? window.location.origin : 'https://wappy.club';
+    const hasSavedAutomationId = Boolean(automationId && String(automationId).trim());
+    const webhookUrl = hasSavedAutomationId
+      ? `${originUrl}/api/sgsst/automatizaciones/webhook/${automationId}`
+      : `${originUrl}/api/sgsst/automatizaciones/webhook`;
     return (
       <div className="space-y-3">
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 min-w-0">
@@ -2054,6 +2061,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             <div className="font-mono text-xs font-bold text-slate-900 dark:text-[#C7F303] mt-0.5 break-all">
               POST {webhookUrl}
             </div>
+            {!hasSavedAutomationId && (
+              <p className="text-[10.5px] font-semibold text-amber-600 dark:text-amber-400 mt-1">
+                💡 Guarda este flujo primero para generar su ID único en la URL, o configura un secreto abajo para autenticar peticiones a este endpoint.
+              </p>
+            )}
           </div>
           <ExpandableButton
             size="sm"
@@ -2067,19 +2079,49 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             }}
           />
         </div>
-        <div>
-          <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-            📦 Campos esperados en el JSON del Webhook (Opcional)
-          </label>
-          <input
-            type="text"
-            value={currentCfg.customInstruction || ''}
-            onChange={(e) =>
-              onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
-            }
-            placeholder='Ej: Recibe {"cedula": "...", "evento": "ingreso_nuevo", "cargo": "..."}'
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              🔐 Secreto Webhook (`x-wappy-secret` o `?secret=`)
+            </label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={currentCfg.webhookSecret || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { webhookSecret: e.target.value })
+                }
+                placeholder="Ej: wpy_wh_9f8a7b6c..."
+                className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
+              />
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="teal"
+                icon={<Wand2 className="w-3.5 h-3.5" />}
+                label="Generar"
+                title="Generar secreto criptográfico aleatorio para este Webhook"
+                onClick={() => {
+                  const token = `wpy_wh_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+                  onUpdateNodeConfig(activeNode.key, { webhookSecret: token });
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📦 Campos esperados en el JSON del Webhook (Opcional)
+            </label>
+            <input
+              type="text"
+              value={currentCfg.customInstruction || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+              }
+              placeholder='Ej: Recibe {"cedula": "...", "evento": "ingreso_nuevo", "cargo": "..."}'
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-white"
+            />
+          </div>
         </div>
       </div>
     );

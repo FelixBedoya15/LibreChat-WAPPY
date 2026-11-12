@@ -1202,7 +1202,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             variant="teal"
             isActive={activeTab === 'presets'}
             icon={<Workflow className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
-            label={`Flujos Preestablecidos (${presets.length})`}
+            label={`Flujos Preestablecidos (${presets.length || WORKFLOW_PRESETS.length})`}
           />
 
           {isAdmin && (
@@ -1456,7 +1456,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <Workflow className="w-3.5 h-3.5" />
           <span>Flujos Preestablecidos</span>
           <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
-            {presets.length || 12}
+            {presets.length || WORKFLOW_PRESETS.length}
           </span>
         </button>
 
@@ -1803,7 +1803,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   ] as const;
                   const countInCat =
                     cat.id === 'all'
-                      ? presets.length
+                      ? presets.length || WORKFLOW_PRESETS.length
                       : presets.filter((p) => p.presetCategory === cat.id).length;
                   return (
                     <ExpandableButton
@@ -2454,6 +2454,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <WappyWorkflowCanvas
                 workflowNodes={formWorkflowNodes}
                 onChange={setFormWorkflowNodes}
+                automationId={isPresetModalMode ? null : editingAutomation?._id || null}
                 agentId={formAgentId}
                 agentName={agents.find((a) => a.id === formAgentId)?.name || 'Consultor SG-SST'}
                 agents={agents}
