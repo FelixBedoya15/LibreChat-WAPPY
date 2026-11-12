@@ -450,6 +450,9 @@ export function renderOfficialNodeSvg(nodeId: string, sizeClass = 'w-7 h-7'): Re
   }
 
   // Herramientas WAPPY y Extractores Específicos (Evaluar ANTES de cualquier comodín general)
+  if (id.includes('extract_ai_doc_ocr')) {
+    return <Sparkles className={`${sizeClass} text-purple-600 dark:text-[#C7F303]`} />;
+  }
   if (id.includes('extract_sst_app')) {
     return <Database className={`${sizeClass} text-purple-600 dark:text-purple-400`} />;
   }
@@ -1310,9 +1313,12 @@ export default function WappyWorkflowCanvas({
       ...(nodeConfigsMap?.['if_router'] || {}),
     } as Record<string, any>;
     const rawIfPlacement = mergedIfCfg?.ifPlacement;
-    const stage2Total = activeExtractors.length + sourceHitosList.length;
+    const hasAiDocExtractor = activeExtractors.includes('extract_ai_doc_ocr');
+    const rawStage2Extractors = activeExtractors.filter((id) => id !== 'extract_ai_doc_ocr');
+    const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
     const hasStage2Sources =
       stage2Total > 0 ||
+      hasAiDocExtractor ||
       customNodesList.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
     const isPreAgentIf = includeIfNode && rawIfPlacement === 'pre_agent' && hasStage2Sources;
 
@@ -1325,6 +1331,7 @@ export default function WappyWorkflowCanvas({
     }
 
     let ifBaseX = 0;
+    let aiExtractorBaseX = 0;
     let agentDefaultX = 0;
     let targetHitoBaseX = 0;
     let postApprovalBaseX = 0;
@@ -1332,11 +1339,15 @@ export default function WappyWorkflowCanvas({
     let computedOutBaseX = 0;
 
     if (isPreAgentIf) {
-      // Topología A (pre_agent IF): Triggers -> Stage2 -> [Merge/Loop] -> IF -> Rama SÍ: Agente IA -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
+      // Topología A (pre_agent IF): Triggers -> Stage2 -> [Merge/Loop] -> IF --(sí)--> [✨ Extractor IA Docs] -> Agente IA -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
       ifBaseX = nextColX;
-      nextColX += 158;
-      agentDefaultX = nextColX;
-      nextColX += 284;
+      if (hasAiDocExtractor) {
+        aiExtractorBaseX = ifBaseX + 152;
+        agentDefaultX = aiExtractorBaseX + 148;
+      } else {
+        agentDefaultX = ifBaseX + 158;
+      }
+      nextColX = agentDefaultX + 284;
       if (targetHitosList.length > 0) {
         targetHitoBaseX = nextColX;
         nextColX += 148;
@@ -1351,8 +1362,13 @@ export default function WappyWorkflowCanvas({
       }
       computedOutBaseX = nextColX;
     } else {
-      // Topología B (post_agent IF o flujo directo): Triggers -> Stage2 -> [Merge/Loop] -> Agente IA -> [IF post_agent] -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
-      agentDefaultX = stage2Total > 0 && preIfLogicNodes.length === 0 ? 308 : nextColX;
+      // Topología B (post_agent IF o flujo directo): Triggers -> [Stage2] -> [Merge/Loop] -> [✨ Extractor IA Docs] -> Agente IA -> [IF post_agent] -> [targetHitos] -> [Approval] -> [ExtraAgents] -> Salidas
+      if (hasAiDocExtractor) {
+        aiExtractorBaseX = stage2Total > 0 && preIfLogicNodes.length === 0 ? 308 : nextColX;
+        agentDefaultX = aiExtractorBaseX + 148;
+      } else {
+        agentDefaultX = stage2Total > 0 && preIfLogicNodes.length === 0 ? 308 : nextColX;
+      }
       nextColX = agentDefaultX + 284;
       if (includeIfNode) {
         ifBaseX = nextColX;
@@ -1374,13 +1390,15 @@ export default function WappyWorkflowCanvas({
     }
 
     // Validar posición del Agente IA ignorando coordenadas obsoletas que inviertan el orden causal
-    const minValidAgentX = isPreAgentIf
-      ? ifBaseX + 110
-      : preIfLogicNodes.length > 0
-        ? preLogicBaseX + 100
-        : stage2Total > 0
-          ? stage2BaseX + 100
-          : 120;
+    const minValidAgentX = hasAiDocExtractor
+      ? aiExtractorBaseX + 104
+      : isPreAgentIf
+        ? ifBaseX + 110
+        : preIfLogicNodes.length > 0
+          ? preLogicBaseX + 100
+          : stage2Total > 0
+            ? stage2BaseX + 100
+            : 120;
     const savedAgentPos = customPositions['agent_root'];
     const isSavedAgentValid =
       Boolean(savedAgentPos) &&
@@ -1391,13 +1409,15 @@ export default function WappyWorkflowCanvas({
     // Precalcular fila horizontal de Sub-Nodos Circulares debajo del Agente IA
     const totalSubCount =
       1 + activeMemories.length + toolInputs.length + customNodesList.length;
-    const minSubLeftBound = isPreAgentIf
-      ? ifBaseX + 94
-      : preIfLogicNodes.length > 0
-        ? preLogicBaseX + 88
-        : stage2Total > 0
-          ? stage2BaseX + 88
-          : 28;
+    const minSubLeftBound = hasAiDocExtractor
+      ? aiExtractorBaseX + 92
+      : isPreAgentIf
+        ? ifBaseX + 94
+        : preIfLogicNodes.length > 0
+          ? preLogicBaseX + 88
+          : stage2Total > 0
+            ? stage2BaseX + 88
+            : 28;
     const subStartX = Math.max(minSubLeftBound, agentPos.x - 36);
     const subEndX = subStartX + Math.max(0, totalSubCount - 1) * 112 + 62;
 
@@ -1405,13 +1425,21 @@ export default function WappyWorkflowCanvas({
     const outBaseX = Math.max(computedOutBaseX, subEndX + 54);
 
     // ETAPA 1. NODOS DISPARADORES / ENTRADAS (Columna 1: x = 28)
+    const firstDownstreamX =
+      stage2Total > 0
+        ? stage2BaseX
+        : isPreAgentIf
+          ? ifBaseX
+          : hasAiDocExtractor
+            ? aiExtractorBaseX
+            : agentPos.x;
     activeTriggers.forEach((trigId, idx) => {
       const triggerDef = getNodeDefById(trigId) || TRIGGER_NODES[0];
       const key = idx === 0 ? 'trigger_root' : `trigger_${triggerDef.id}`;
       const defaultY = calcStackedY(activeTriggers.length, idx);
       const savedTrig = customPositions[key];
       const trigPos =
-        savedTrig && savedTrig.x < (stage2Total > 0 ? stage2BaseX - 30 : agentPos.x - 30)
+        savedTrig && savedTrig.x < firstDownstreamX - 30
           ? savedTrig
           : { x: 28, y: defaultY };
       list.push({
@@ -1429,15 +1457,17 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 2. FUENTES DE LECTURA: Extractores + Aplicativos Hito `source_read` (Columna 2: x = 168, apilados sin pisarse)
+    // ETAPA 2. FUENTES DE LECTURA: Extractores crudos + Aplicativos Hito `source_read` (Columna 2: x = 168, apilados sin pisarse)
     const stage2RightBound =
       preIfLogicNodes.length > 0
         ? preLogicBaseX - 40
         : isPreAgentIf
           ? ifBaseX - 40
-          : agentPos.x - 40;
+          : hasAiDocExtractor
+            ? aiExtractorBaseX - 40
+            : agentPos.x - 40;
 
-    activeExtractors.forEach((extId, idx) => {
+    rawStage2Extractors.forEach((extId, idx) => {
       const extDef = getNodeDefById(extId) || EXTRACTOR_NODES[0];
       const key = `extractor_${extDef.id}`;
       const defaultY = calcStackedY(stage2Total, idx);
@@ -1469,7 +1499,7 @@ export default function WappyWorkflowCanvas({
       const def = getNodeDefById(hitoId);
       if (!def) return;
       const key = `tool_hitos_${hitoId}`;
-      const combinedIdx = activeExtractors.length + hIdx;
+      const combinedIdx = rawStage2Extractors.length + hIdx;
       const defaultY = calcStackedY(stage2Total, combinedIdx);
       const savedHito = customPositions[key];
       const isSavedSourceValid =
@@ -1491,8 +1521,12 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 2B. NODOS LÓGICOS PRE-CONDICIONALES (Merge / Loop: inmediatamente después de Etapa 2 y antes de IF / Agente IA)
-    const preLogicRightBound = isPreAgentIf ? ifBaseX - 40 : agentPos.x - 40;
+    // ETAPA 2B. NODOS LÓGICOS PRE-CONDICIONALES (Merge / Loop: inmediatamente después de Etapa 2 y antes de IF / Extractor IA Docs / Agente IA)
+    const preLogicRightBound = isPreAgentIf
+      ? ifBaseX - 40
+      : hasAiDocExtractor
+        ? aiExtractorBaseX - 40
+        : agentPos.x - 40;
     const preLogicLeftBound = stage2Total > 0 ? stage2BaseX + 60 : 96;
     preIfLogicNodes.forEach((ln, idx) => {
       const defaultY = calcStackedY(preIfLogicNodes.length, idx);
@@ -1526,7 +1560,8 @@ export default function WappyWorkflowCanvas({
             : stage2Total > 0
               ? stage2BaseX + 60
               : 96;
-        if (savedIf.x >= minIfX && savedIf.x <= agentPos.x - 60) {
+        const maxPreIfX = hasAiDocExtractor ? aiExtractorBaseX - 56 : agentPos.x - 60;
+        if (savedIf.x >= minIfX && savedIf.x <= maxPreIfX) {
           return savedIf;
         }
         return { x: ifBaseX, y: defaultIfY };
@@ -1545,7 +1580,7 @@ export default function WappyWorkflowCanvas({
 
     const effectiveIfPos = includeIfNode ? resolveIfPosition() : null;
 
-    // Si es Topología A (`pre_agent` IF), insertar `if_router` antes de `agent_root`
+    // Si es Topología A (`pre_agent` IF), insertar `if_router` antes de `Extractor IA Docs` y `agent_root`
     if (includeIfNode && isPreAgentIf && effectiveIfPos) {
       const ifCustomSubtitle = mergedIfCfg?.ifConditionLabel || '¿Nuevas brechas >= 1?';
       list.push({
@@ -1560,6 +1595,39 @@ export default function WappyWorkflowCanvas({
         height: 72,
         removable: true,
         ifPlacement: 'pre_agent',
+      });
+    }
+
+    // ETAPA 2C. ✨ EXTRACTOR IA DE DOCUMENTOS (PDF / OCR -> Datos Exactos): columna secuencial propia antes de `agent_root`
+    let effectiveAiExtractorPos: { x: number; y: number } | null = null;
+    if (hasAiDocExtractor) {
+      const defaultAiExtY = calcStackedY(1, 0);
+      const savedAiExt = customPositions['extractor_extract_ai_doc_ocr'];
+      const minAiExtX =
+        isPreAgentIf && effectiveIfPos
+          ? effectiveIfPos.x + 84
+          : preIfLogicNodes.length > 0
+            ? preLogicBaseX + 60
+            : stage2Total > 0
+              ? stage2BaseX + 60
+              : 96;
+      const maxAiExtX = agentPos.x - 60;
+      effectiveAiExtractorPos =
+        savedAiExt && savedAiExt.x >= minAiExtX && savedAiExt.x <= maxAiExtX
+          ? savedAiExt
+          : { x: aiExtractorBaseX, y: defaultAiExtY };
+      list.push({
+        key: 'extractor_extract_ai_doc_ocr',
+        nodeId: 'extract_ai_doc_ocr',
+        shape: 'square_extractor',
+        title: 'Extractor IA Docs',
+        subtitle: '✨ Usa IA + OCR',
+        x: effectiveAiExtractorPos.x,
+        y: effectiveAiExtractorPos.y,
+        width: 72,
+        height: 72,
+        removable: true,
+        group: 'extractors',
       });
     }
 
@@ -1608,6 +1676,13 @@ export default function WappyWorkflowCanvas({
         x: effectiveIfPos.x,
         width: 72,
         bottom: effectiveIfPos.y + 72 + 38,
+      });
+    }
+    if (hasAiDocExtractor && effectiveAiExtractorPos) {
+      mainColumns.push({
+        x: effectiveAiExtractorPos.x,
+        width: 72,
+        bottom: effectiveAiExtractorPos.y + 72 + 38,
       });
     }
     if (targetHitosList.length > 0) {
@@ -1969,13 +2044,19 @@ export default function WappyWorkflowCanvas({
     const allAutoMainRemoved = removedSet.has('__ALL_AUTO_MAIN__');
     const triggerNodes = visualNodes.filter((n) => n.shape === 'trigger');
     const extractorNodes = visualNodes.filter((n) => n.shape === 'square_extractor');
+    const rawExtractorNodes = extractorNodes.filter(
+      (n) => n.key !== 'extractor_extract_ai_doc_ocr',
+    );
+    const aiDocExtractorNodes = extractorNodes.filter(
+      (n) => n.key === 'extractor_extract_ai_doc_ocr',
+    );
     const sourceHitoNodes = visualNodes.filter(
       (n) => n.shape === 'square_hito' && n.hitoRole !== 'target_write_report',
     );
     const targetHitoNodes = visualNodes.filter(
       (n) => n.shape === 'square_hito' && n.hitoRole === 'target_write_report',
     );
-    const stage2Nodes = [...extractorNodes, ...sourceHitoNodes];
+    const rawStage2Nodes = [...rawExtractorNodes, ...sourceHitoNodes];
     const agentNode = map.get('agent_root');
     const ifNode = map.get('if_router');
     const isPreAgentIfWire = Boolean(ifNode && ifNode.ifPlacement === 'pre_agent');
@@ -2087,11 +2168,11 @@ export default function WappyWorkflowCanvas({
       });
     };
 
-    // 1. Etapa 1 (Triggers) ──> Etapa 2 (Extractors + sourceHitoNodes, si hay) ──> Etapa 2B (Merge/Loop, si hay) ──> [IF pre_agent o Agente IA]
+    // 1. Etapa 1 (Triggers) ──> Etapa 2 (rawStage2Nodes, si hay) ──> Etapa 2B (Merge/Loop, si hay) ──> [IF pre_agent | Extractor IA Docs | Agente IA]
     let currUpstream: VisualNodeInstance[] = triggerNodes;
-    if (stage2Nodes.length > 0) {
-      connectStageGroups(currUpstream, stage2Nodes, 'wire_trig_ext', '#94a3b8');
-      currUpstream = stage2Nodes;
+    if (rawStage2Nodes.length > 0) {
+      connectStageGroups(currUpstream, rawStage2Nodes, 'wire_trig_ext', '#94a3b8');
+      currUpstream = rawStage2Nodes;
     }
     if (preLogicNodes.length > 0) {
       if (currUpstream.length > 0) {
@@ -2193,23 +2274,25 @@ export default function WappyWorkflowCanvas({
     };
 
     if (ifNode && isPreAgentIfWire) {
-      // Topología A (`pre_agent` IF): Stage2 / Merge ──> IF ──(sí)──> Agente IA ──> targetHitos ──> Approval ──> ExtraAgents ──> yesOuts
-      //                                                    └──(no, curveBelowY bajo sub-nodos)──────────────────────────────> noOuts
+      // Topología A (`pre_agent` IF): Stage2 / Merge ──> IF ──(sí)──> [Extractor IA Docs] ──> Agente IA ──> targetHitos ──> Approval ──> ExtraAgents ──> yesOuts
+      //                                                    └──(no, curveBelowY bajo obstáculos)──────────────────────────────────────────> noOuts
       if (currUpstream.length > 0) {
         connectStageGroups(
           currUpstream,
           [ifNode],
           'wire_to_preif',
-          currUpstream === stage2Nodes ? '#0ea5e9' : '#94a3b8',
+          currUpstream === rawStage2Nodes ? '#0ea5e9' : '#94a3b8',
         );
       }
       const yesIntermediates: VisualNodeInstance[][] = [];
+      if (aiDocExtractorNodes.length > 0) yesIntermediates.push(aiDocExtractorNodes);
       if (agentNode) yesIntermediates.push([agentNode]);
       if (targetHitoNodes.length > 0) yesIntermediates.push(targetHitoNodes);
       if (approvalNodes.length > 0) yesIntermediates.push(approvalNodes);
       extraAgentNodes.forEach((ea) => yesIntermediates.push([ea]));
 
       const bypassObstacles: VisualNodeInstance[] = [
+        ...aiDocExtractorNodes,
         ...(agentNode ? [agentNode] : []),
         ...allSubCircleNodes,
         ...targetHitoNodes,
@@ -2218,13 +2301,27 @@ export default function WappyWorkflowCanvas({
       ];
       connectIfRouterBranches(ifNode, yesIntermediates, bypassObstacles);
     } else {
-      // Topología B (`post_agent` IF o flujo directo sin IF): Stage2 / Merge ──> Agente IA
+      // Topología B (`post_agent` IF o flujo directo sin IF): Stage2 / Merge ──> [Extractor IA Docs] ──> Agente IA
+      if (aiDocExtractorNodes.length > 0) {
+        if (currUpstream.length > 0) {
+          connectStageGroups(currUpstream, aiDocExtractorNodes, 'wire_to_ai_doc_ext', '#a855f7');
+        }
+        currUpstream = aiDocExtractorNodes;
+      }
       if (agentNode && currUpstream.length > 0) {
         connectStageGroups(
           currUpstream,
           [agentNode],
-          currUpstream === stage2Nodes ? 'wire_ext_agent' : 'wire_trigger_agent',
-          currUpstream === stage2Nodes ? '#0ea5e9' : '#94a3b8',
+          currUpstream === aiDocExtractorNodes
+            ? 'wire_ai_doc_ext_agent'
+            : currUpstream === rawStage2Nodes
+              ? 'wire_ext_agent'
+              : 'wire_trigger_agent',
+          currUpstream === aiDocExtractorNodes
+            ? '#a855f7'
+            : currUpstream === rawStage2Nodes
+              ? '#0ea5e9'
+              : '#94a3b8',
         );
       }
       const afterAgentUpstream: VisualNodeInstance[] = agentNode
@@ -2513,7 +2610,7 @@ export default function WappyWorkflowCanvas({
         case 'trigger':
           return 10;
         case 'square_extractor':
-          return 20;
+          return node.key === 'extractor_extract_ai_doc_ocr' ? 45 : 20;
         case 'square_hito':
           return node.hitoRole === 'target_write_report' ? 60 : 22;
         case 'logic':
@@ -3236,9 +3333,94 @@ export default function WappyWorkflowCanvas({
     }
   }, []);
 
+  // Helper para heredar automáticamente los parámetros de la fuente documental anterior (Drive / Carpeta PC / Gmail) hacia `extractor_extract_ai_doc_ocr`
+  const resolveEffectiveInspectorCfg = useCallback(
+    (
+      nodeKey: string,
+      allNodeCfgs: Record<string, CanvasNodeConfig>,
+    ): CanvasNodeConfig | undefined => {
+      const baseCfg = allNodeCfgs[nodeKey];
+      if (nodeKey !== 'extractor_extract_ai_doc_ocr') {
+        return baseCfg;
+      }
+      const merged: CanvasNodeConfig = { ...(baseCfg || {}) };
+      const driveCfg = allNodeCfgs['extractor_extract_drive'];
+      const pcCfg = allNodeCfgs['extractor_extract_pc_folder'];
+      const gmailCfg =
+        allNodeCfgs['extractor_extract_gmail'] ||
+        allNodeCfgs['trigger_trigger_email'] ||
+        allNodeCfgs['trigger_email_in'] ||
+        (activeTriggers[0]?.includes('email') || activeTriggers[0]?.includes('gmail')
+          ? allNodeCfgs['trigger_root']
+          : undefined);
+
+      if (activeExtractors.includes('extract_drive') || driveCfg) {
+        merged.upstreamSourceType = merged.upstreamSourceType || 'drive';
+        if (!merged.driveFolderId && driveCfg?.driveFolderId) {
+          merged.driveFolderId = driveCfg.driveFolderId;
+        }
+        if (!merged.driveFolderUrl && driveCfg?.driveFolderUrl) {
+          merged.driveFolderUrl = driveCfg.driveFolderUrl;
+        }
+        if (!merged.driveFolderName && driveCfg?.driveFolderName) {
+          merged.driveFolderName = driveCfg.driveFolderName;
+        }
+        if (!merged.fileNameFilter && driveCfg?.fileNameFilter) {
+          merged.fileNameFilter = driveCfg.fileNameFilter;
+        }
+        if (!merged.fileTypeFilter && driveCfg?.fileTypeFilter) {
+          merged.fileTypeFilter = driveCfg.fileTypeFilter;
+        }
+        if (merged.maxItems === undefined && driveCfg?.maxItems !== undefined) {
+          merged.maxItems = driveCfg.maxItems;
+        }
+      } else if (activeExtractors.includes('extract_pc_folder') || pcCfg) {
+        merged.upstreamSourceType = merged.upstreamSourceType || 'pc';
+        if (!merged.watchFolderPath && pcCfg?.watchFolderPath) {
+          merged.watchFolderPath = pcCfg.watchFolderPath;
+        }
+        if (merged.includeSubfolders === undefined && pcCfg?.includeSubfolders !== undefined) {
+          merged.includeSubfolders = pcCfg.includeSubfolders;
+        }
+        if (!merged.fileNameFilter && pcCfg?.fileNameFilter) {
+          merged.fileNameFilter = pcCfg.fileNameFilter;
+        }
+        if (!merged.fileTypeFilter && pcCfg?.fileTypeFilter) {
+          merged.fileTypeFilter = pcCfg.fileTypeFilter;
+        }
+        if (merged.maxItems === undefined && pcCfg?.maxItems !== undefined) {
+          merged.maxItems = pcCfg.maxItems;
+        }
+      } else if (
+        activeExtractors.includes('extract_gmail') ||
+        activeTriggers.some((t) => t.includes('email') || t.includes('gmail')) ||
+        gmailCfg
+      ) {
+        merged.upstreamSourceType = merged.upstreamSourceType || 'gmail';
+        if (!merged.emailSubjectFilter && gmailCfg?.emailSubjectFilter) {
+          merged.emailSubjectFilter = gmailCfg.emailSubjectFilter;
+        }
+        if (!merged.emailSenderFilter && gmailCfg?.emailSenderFilter) {
+          merged.emailSenderFilter = gmailCfg.emailSenderFilter;
+        }
+        if (!merged.timeWindow && gmailCfg?.timeWindow) {
+          merged.timeWindow = gmailCfg.timeWindow;
+        }
+        if (merged.onlyWithAttachments === undefined && gmailCfg?.onlyWithAttachments !== undefined) {
+          merged.onlyWithAttachments = gmailCfg.onlyWithAttachments;
+        }
+      }
+      return merged;
+    },
+    [activeExtractors, activeTriggers],
+  );
+
   // Firma de parámetros en vivo del nodo seleccionado para refrescar el inspector con debounce (380ms)
   const activeNodeLiveCfg = activeConfigNodeKey
-    ? workflowNodes?.canvasLayout?.nodeConfigs?.[activeConfigNodeKey]
+    ? resolveEffectiveInspectorCfg(
+        activeConfigNodeKey,
+        workflowNodes?.canvasLayout?.nodeConfigs || {},
+      )
     : undefined;
   const activeInspectorQueryParamsSig = JSON.stringify({
     driveFolderId: activeNodeLiveCfg?.driveFolderId || '',
@@ -3260,6 +3442,13 @@ export default function WappyWorkflowCanvas({
     timeWindow: activeNodeLiveCfg?.timeWindow || '',
     onlyWithAttachments: Boolean(activeNodeLiveCfg?.onlyWithAttachments),
     endpointUrl: activeNodeLiveCfg?.endpointUrl || activeNodeLiveCfg?.targetUrl || '',
+    aiExtractionSchema: Array.isArray(activeNodeLiveCfg?.aiExtractionSchema)
+      ? JSON.stringify(activeNodeLiveCfg.aiExtractionSchema)
+      : '',
+    aiExtractionRowMode: activeNodeLiveCfg?.aiExtractionRowMode || '',
+    aiModel: activeNodeLiveCfg?.aiModel || '',
+    customInstruction: activeNodeLiveCfg?.customInstruction || '',
+    upstreamSourceType: activeNodeLiveCfg?.upstreamSourceType || '',
   });
   const [debouncedInspectorParamsSig, setDebouncedInspectorParamsSig] = useState<string>(
     activeInspectorQueryParamsSig,
@@ -3309,12 +3498,124 @@ export default function WappyWorkflowCanvas({
       if (typeof cfg?.onlyWithAttachments === 'boolean') {
         qs.set('onlyWithAttachments', String(cfg.onlyWithAttachments));
       }
+      if (Array.isArray(cfg?.aiExtractionSchema) && cfg.aiExtractionSchema.length > 0) {
+        qs.set('aiExtractionSchema', JSON.stringify(cfg.aiExtractionSchema));
+      }
+      if (cfg?.aiExtractionRowMode?.trim()) {
+        qs.set('aiExtractionRowMode', cfg.aiExtractionRowMode.trim());
+      }
+      if (cfg?.aiModel?.trim()) {
+        qs.set('aiModel', cfg.aiModel.trim());
+      }
+      if (cfg?.customInstruction?.trim()) {
+        qs.set('customInstruction', cfg.customInstruction.trim());
+      }
+      if (cfg?.upstreamSourceType?.trim()) {
+        qs.set('upstreamSourceType', cfg.upstreamSourceType.trim());
+      }
       const ep = cfg?.endpointUrl?.trim() || cfg?.targetUrl?.trim();
       if (ep) qs.set('endpointUrl', ep);
       return `/api/sgsst/automatizaciones/node-live-inspector?${qs.toString()}`;
     },
     [],
   );
+
+  // Estado y ejecución bajo demanda de Extracción Real IA + Visión OCR Multimodal (`runAiExtraction=1`)
+  const [runningLiveAiExtraction, setRunningLiveAiExtraction] = useState<boolean>(false);
+  const hasLiveAiExtractedRowsRef = useRef<boolean>(false);
+
+  const handleRunLiveAiDocExtraction = useCallback(async () => {
+    if (runningLiveAiExtraction) return;
+    setRunningLiveAiExtraction(true);
+    setNodeLiveInspectorData((prev) => ({
+      ...prev,
+      loading: true,
+      supported: true,
+      nodeId: 'extract_ai_doc_ocr',
+    }));
+    try {
+      const token =
+        (typeof window !== 'undefined' && (window as any).platformUserToken) ||
+        localStorage.getItem('token') ||
+        '';
+      const allNodeCfgs = workflowNodes?.canvasLayout?.nodeConfigs || {};
+      const mergedCfg =
+        resolveEffectiveInspectorCfg('extractor_extract_ai_doc_ocr', allNodeCfgs) || {};
+      const effectiveCfgForRun: CanvasNodeConfig = {
+        ...mergedCfg,
+        aiModel: mergedCfg.aiModel || 'gemini-3.6-flash',
+        aiExtractionRowMode: mergedCfg.aiExtractionRowMode || 'single_row',
+        aiExtractionSchema:
+          Array.isArray(mergedCfg.aiExtractionSchema) && mergedCfg.aiExtractionSchema.length > 0
+            ? mergedCfg.aiExtractionSchema
+            : [
+                { name: 'Cédula', type: 'string' },
+                { name: 'Diagnóstico', type: 'string' },
+                { name: 'Fecha', type: 'date' },
+              ],
+      };
+      const url = `${buildLiveInspectorUrl('extract_ai_doc_ocr', effectiveCfgForRun)}&runAiExtraction=1`;
+      const res = await axios.get(
+        url,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+      );
+      const data = res.data || {};
+      const recordsList = Array.isArray(data.records) ? data.records : [];
+      const kpisList = Array.isArray(data.kpis) ? data.kpis : [];
+      const latestReportsList = Array.isArray(data.latestReports) ? data.latestReports : [];
+      const availableFoldersList = Array.isArray(data.availableFolders)
+        ? data.availableFolders
+        : [];
+      const computedCrit =
+        typeof data.criticalCount === 'number'
+          ? data.criticalCount
+          : recordsList.filter((r: any) => Boolean(r?.isCritical)).length;
+      const totalRec =
+        typeof data.totalRecords === 'number' ? data.totalRecords : recordsList.length;
+
+      hasLiveAiExtractedRowsRef.current = recordsList.length > 0;
+      setNodeLiveInspectorData({
+        loading: false,
+        supported: true,
+        nodeId: 'extract_ai_doc_ocr',
+        companyName: data.companyName || 'Empresa Activa',
+        sourceCollection: data.sourceCollection || '',
+        totalRecords: totalRec,
+        criticalCount: computedCrit,
+        connected: typeof data.connected === 'boolean' ? data.connected : undefined,
+        connectedEmail:
+          typeof data.connectedEmail === 'string' ? data.connectedEmail : undefined,
+        resolvedFolder: data.resolvedFolder || null,
+        availableFolders: availableFoldersList,
+        kpis: kpisList,
+        records: recordsList,
+        latestReports: latestReportsList,
+      });
+      setUpstreamLiveRecordsCache((prev) => ({
+        ...prev,
+        extractor_extract_ai_doc_ocr: {
+          loading: false,
+          nodeId: 'extract_ai_doc_ocr',
+          companyName: data.companyName || 'Empresa Activa',
+          sourceCollection: data.sourceCollection || '',
+          totalRecords: totalRec,
+          records: recordsList,
+        },
+      }));
+    } catch (_) {
+      setNodeLiveInspectorData((prev) => ({
+        ...prev,
+        loading: false,
+      }));
+    } finally {
+      setRunningLiveAiExtraction(false);
+    }
+  }, [
+    runningLiveAiExtraction,
+    workflowNodes?.canvasLayout?.nodeConfigs,
+    resolveEffectiveInspectorCfg,
+    buildLiveInspectorUrl,
+  ]);
 
   // Cargar automáticamente el Inspector de Datos y Resultados Reales en Vivo (/api/sgsst/automatizaciones/node-live-inspector)
   useEffect(() => {
@@ -3408,7 +3709,10 @@ export default function WappyWorkflowCanvas({
 
       axios
         .get(
-          buildLiveInspectorUrl(inspectQueryNodeId, allNodeCfgs[activeNode.key]),
+          buildLiveInspectorUrl(
+            inspectQueryNodeId,
+            resolveEffectiveInspectorCfg(activeNode.key, allNodeCfgs),
+          ),
           token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
         )
         .then((res) => {
@@ -3426,34 +3730,53 @@ export default function WappyWorkflowCanvas({
               : recordsList.filter((r: any) => Boolean(r?.isCritical)).length;
           const totalRec =
             typeof data.totalRecords === 'number' ? data.totalRecords : recordsList.length;
-          setNodeLiveInspectorData({
-            loading: false,
-            supported: true,
-            nodeId: cleanId,
-            companyName: data.companyName || 'Empresa Activa',
-            sourceCollection: data.sourceCollection || '',
-            totalRecords: totalRec,
-            criticalCount: computedCrit,
-            connected: typeof data.connected === 'boolean' ? data.connected : undefined,
-            connectedEmail:
-              typeof data.connectedEmail === 'string' ? data.connectedEmail : undefined,
-            resolvedFolder: data.resolvedFolder || null,
-            availableFolders: availableFoldersList,
-            kpis: kpisList,
-            records: recordsList,
-            latestReports: latestReportsList,
-          });
-          setUpstreamLiveRecordsCache((prev) => ({
-            ...prev,
-            [activeNode.key]: {
+          setNodeLiveInspectorData((prev) => {
+            const keepAiRows =
+              activeNode.key === 'extractor_extract_ai_doc_ocr' &&
+              hasLiveAiExtractedRowsRef.current &&
+              recordsList.length === 0 &&
+              prev.nodeId === cleanId &&
+              prev.records.length > 0;
+            return {
               loading: false,
+              supported: true,
               nodeId: cleanId,
               companyName: data.companyName || 'Empresa Activa',
-              sourceCollection: data.sourceCollection || '',
-              totalRecords: totalRec,
-              records: recordsList,
-            },
-          }));
+              sourceCollection: keepAiRows ? prev.sourceCollection : data.sourceCollection || '',
+              totalRecords: keepAiRows ? prev.totalRecords : totalRec,
+              criticalCount: keepAiRows ? prev.criticalCount : computedCrit,
+              connected: typeof data.connected === 'boolean' ? data.connected : undefined,
+              connectedEmail:
+                typeof data.connectedEmail === 'string' ? data.connectedEmail : undefined,
+              resolvedFolder: data.resolvedFolder || null,
+              availableFolders: availableFoldersList,
+              kpis: keepAiRows && kpisList.length === 0 ? prev.kpis : kpisList,
+              records: keepAiRows ? prev.records : recordsList,
+              latestReports: latestReportsList,
+            };
+          });
+          setUpstreamLiveRecordsCache((prev) => {
+            const existing = prev[activeNode.key];
+            if (
+              activeNode.key === 'extractor_extract_ai_doc_ocr' &&
+              hasLiveAiExtractedRowsRef.current &&
+              recordsList.length === 0 &&
+              existing?.records?.length
+            ) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [activeNode.key]: {
+                loading: false,
+                nodeId: cleanId,
+                companyName: data.companyName || 'Empresa Activa',
+                sourceCollection: data.sourceCollection || '',
+                totalRecords: totalRec,
+                records: recordsList,
+              },
+            };
+          });
         })
         .catch(() => {
           if (cancelled) return;
@@ -3514,24 +3837,37 @@ export default function WappyWorkflowCanvas({
           : uRawId;
       axios
         .get(
-          buildLiveInspectorUrl(uInspectId, allNodeCfgs[uNode.key]),
+          buildLiveInspectorUrl(
+            uInspectId,
+            resolveEffectiveInspectorCfg(uNode.key, allNodeCfgs),
+          ),
           token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
         )
         .then((res) => {
           if (cancelled) return;
           const d = res.data || {};
           const recs = Array.isArray(d.records) ? d.records : [];
-          setUpstreamLiveRecordsCache((prev) => ({
-            ...prev,
-            [uNode.key]: {
-              loading: false,
-              nodeId: uInspectId,
-              companyName: d.companyName || 'Empresa Activa',
-              sourceCollection: d.sourceCollection || '',
-              totalRecords: typeof d.totalRecords === 'number' ? d.totalRecords : recs.length,
-              records: recs,
-            },
-          }));
+          setUpstreamLiveRecordsCache((prev) => {
+            if (
+              uNode.key === 'extractor_extract_ai_doc_ocr' &&
+              hasLiveAiExtractedRowsRef.current &&
+              recs.length === 0 &&
+              prev[uNode.key]?.records?.length
+            ) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [uNode.key]: {
+                loading: false,
+                nodeId: uInspectId,
+                companyName: d.companyName || 'Empresa Activa',
+                sourceCollection: d.sourceCollection || '',
+                totalRecords: typeof d.totalRecords === 'number' ? d.totalRecords : recs.length,
+                records: recs,
+              },
+            };
+          });
         })
         .catch(() => {});
     });
@@ -3546,6 +3882,7 @@ export default function WappyWorkflowCanvas({
     debouncedInspectorParamsSig,
     liveInspectorRefreshTick,
     buildLiveInspectorUrl,
+    resolveEffectiveInspectorCfg,
     readOnly,
   ]);
 
@@ -6544,22 +6881,37 @@ export default function WappyWorkflowCanvas({
 
               // 1B. ETAPA 2: FIGURA NODO DE EXTRACCIÓN / LECTURA PREVIA (Haz clic para elegir campos: ej. Nombre, Cédula y Edad)
               if (node.shape === 'square_extractor') {
+                const isAiDocExtractorNode = node.nodeId === 'extract_ai_doc_ocr';
                 return (
                   <div
                     key={node.key}
                     onPointerDown={(e) => handleNodePointerDown(e, node)}
                     onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                     style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                    title="Haz clic sobre este nodo para configurar qué campos extraer (ej. Nombre, Cédula y Edad) y su contexto"
+                    title={
+                      isAiDocExtractorNode
+                        ? 'Haz clic para configurar qué columnas exactas extraer con IA + Visión OCR Multimodal (ej. Cédula, Diagnóstico, Fecha)'
+                        : 'Haz clic sobre este nodo para configurar qué campos extraer (ej. Nombre, Cédula y Edad) y su contexto'
+                    }
                     className={`absolute z-20 group/node select-none ${
                       readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                     }`}
                   >
                     {renderSandboxNodeOverlay(node)}
 
-                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-500 border-2 border-white dark:border-slate-900" />
+                    <div
+                      className={`absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full ${
+                        isAiDocExtractorNode ? 'bg-purple-500' : 'bg-sky-500'
+                      } border-2 border-white dark:border-slate-900`}
+                    />
 
-                    <div className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500 shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}>
+                    <div
+                      className={`w-full h-full rounded-2xl bg-white dark:bg-slate-800 border-2 ${
+                        isAiDocExtractorNode
+                          ? 'border-purple-400 dark:border-purple-500 group-hover/node:border-purple-600'
+                          : 'border-sky-400 dark:border-sky-600 group-hover/node:border-sky-500'
+                      } shadow-md flex items-center justify-center relative transition-colors ${selectedRingClass}`}
+                    >
                       {renderOfficialNodeSvg(node.nodeId, 'w-8 h-8')}
 
                       {!readOnly && node.removable && (
@@ -6589,15 +6941,23 @@ export default function WappyWorkflowCanvas({
                         )
                       }
                       title="Arrastra desde este puerto para conectar a cualquier módulo o Agente IA"
-                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-500 hover:bg-purple-600 border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125"
+                      className={`absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full ${
+                        isAiDocExtractorNode ? 'bg-purple-500 hover:bg-emerald-500' : 'bg-sky-500 hover:bg-purple-600'
+                      } border-2 border-white dark:border-slate-900 cursor-crosshair transition-transform hover:scale-125`}
                     />
 
                     <div className="mt-1.5 w-[116px] -ml-[23px] text-center pointer-events-none">
                       <div className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate">
                         {node.title}
                       </div>
-                      <div className="text-[9px] text-sky-600 dark:text-sky-400 font-semibold truncate">
-                        {buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                      <div
+                        className={`text-[9px] font-semibold truncate ${
+                          isAiDocExtractorNode
+                            ? 'text-purple-600 dark:text-[#C7F303]'
+                            : 'text-sky-600 dark:text-sky-400'
+                        }`}
+                      >
+                        {buildNodeConfigSummary(nodeCfg, node.nodeId) || node.subtitle}
                       </div>
                       {showAntigravityBadge && (
                         <div className="mt-0.5 flex justify-center">
@@ -7664,12 +8024,28 @@ export default function WappyWorkflowCanvas({
               ...(rec?.values && typeof rec.values === 'object' ? rec.values : {}),
               ...(rec?.fields && typeof rec.fields === 'object' ? rec.fields : {}),
             };
+            if (
+              Array.isArray(nodeCfg?.aiExtractionSchema) &&
+              nodeCfg.aiExtractionSchema.length > 0
+            ) {
+              nodeCfg.aiExtractionSchema.forEach((fDef) => {
+                const colName = fDef?.name?.trim();
+                if (
+                  colName &&
+                  (bag[colName] === undefined ||
+                    bag[colName] === null ||
+                    String(bag[colName]).trim() === '')
+                ) {
+                  bag[colName] = '—';
+                }
+              });
+            }
             const bagKeys = Object.keys(bag).filter(
               (k) => bag[k] !== undefined && bag[k] !== null && String(bag[k]).trim() !== '',
             );
             if (bagKeys.length > 0) {
               const cleanObj: Record<string, any> = {};
-              bagKeys.slice(0, 10).forEach((k) => {
+              bagKeys.slice(0, 16).forEach((k) => {
                 cleanObj[k] = Array.isArray(bag[k]) ? bag[k].join(', ') : bag[k];
               });
               return cleanObj;
@@ -7804,7 +8180,19 @@ export default function WappyWorkflowCanvas({
             .filter((w) => !w.isSub && w.targetKey === activeNode.key)
             .map((w) => visualNodes.find((vn) => vn.key === w.sourceKey))
             .find((vn) => vn && vn.shape !== 'trigger');
-          if (mainIncomingExtractor) return mainIncomingExtractor;
+          if (mainIncomingExtractor) {
+            if (
+              activeNode.key === 'extractor_extract_ai_doc_ocr' &&
+              (mainIncomingExtractor.shape === 'if' || mainIncomingExtractor.shape === 'logic')
+            ) {
+              const rawDocSource = visualNodes.find(
+                (vn) =>
+                  vn.shape === 'square_extractor' && vn.key !== 'extractor_extract_ai_doc_ocr',
+              );
+              if (rawDocSource) return rawDocSource;
+            }
+            return mainIncomingExtractor;
+          }
 
           if (activePlanIdx > 0) {
             const priorExtractorStep = [...connectedExecutionPlan.slice(0, activePlanIdx)]
@@ -7867,6 +8255,30 @@ export default function WappyWorkflowCanvas({
           // 2) Si el nodo ya se ejecutó en Sandbox (`Play`) y tiene `outputItems` trazados, usarlos
           if (targetTrace?.outputItems && targetTrace.outputItems.length > 0) {
             return targetTrace.outputItems;
+          }
+
+          // 2B) Para `extractor_extract_ai_doc_ocr` antes de correr la extracción en vivo: reflejar en tiempo real las columnas exactas del `aiExtractionSchema`
+          if (targetNode.key === 'extractor_extract_ai_doc_ocr') {
+            const schemaFields =
+              Array.isArray(targetCfg.aiExtractionSchema) &&
+              targetCfg.aiExtractionSchema.length > 0
+                ? targetCfg.aiExtractionSchema
+                : [
+                    { name: 'Cédula', type: 'string' as const },
+                    { name: 'Diagnóstico', type: 'string' as const },
+                    { name: 'Fecha', type: 'date' as const },
+                  ];
+            const previewRow: Record<string, any> = {
+              'Archivo Origen': '⚡ Pulsa «Extraer Datos con IA Ahora» para leer archivos',
+              'Método Lectura': `IA + Visión OCR (${targetCfg.aiModel || 'gemini-3.6-flash'})`,
+            };
+            schemaFields.forEach((f) => {
+              const col = f?.name?.trim();
+              if (col) {
+                previewRow[col] = `(${f.type === 'date' ? 'Fecha' : f.type === 'number' ? 'Número' : f.type === 'boolean' ? 'Sí/No' : 'Texto'})`;
+              }
+            });
+            return [previewRow];
           }
 
           // 3) Si es un Sub-Nodo (`custom_node` como `Alto Riesgo & SENA`, `Antigravity Scraper`, `Skill`, `Sub-Agente`, `Regla`)
@@ -8746,19 +9158,26 @@ export default function WappyWorkflowCanvas({
                           type="button"
                           size="sm"
                           variant="emerald"
-                          disabled={sandboxRunning}
+                          disabled={sandboxRunning || runningLiveAiExtraction}
                           icon={
-                            sandboxRunning ? (
+                            sandboxRunning || runningLiveAiExtraction ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <Play className="w-3.5 h-3.5 fill-current" />
                             )
                           }
                           label={
-                            sandboxRunning ? 'Ejecutando...' : 'Probar paso (Test step)'
+                            sandboxRunning || runningLiveAiExtraction
+                              ? 'Ejecutando...'
+                              : 'Probar paso (Test step)'
                           }
                           title="Ejecutar simulación y actualizar INPUT, OUTPUT y LOGS de este nodo en vivo"
-                          onClick={handleRunSandboxSimulation}
+                          onClick={() => {
+                            if (activeNode.key === 'extractor_extract_ai_doc_ocr') {
+                              void handleRunLiveAiDocExtraction();
+                            }
+                            void handleRunSandboxSimulation();
+                          }}
                         />
 
                         <ExpandableButton
@@ -9171,9 +9590,9 @@ export default function WappyWorkflowCanvas({
                               type="button"
                               size="sm"
                               variant="orange"
-                              disabled={sandboxRunning}
+                              disabled={sandboxRunning || runningLiveAiExtraction}
                               icon={
-                                sandboxRunning ? (
+                                sandboxRunning || runningLiveAiExtraction ? (
                                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
                                   <Play className="w-3.5 h-3.5 fill-current" />
@@ -9181,7 +9600,12 @@ export default function WappyWorkflowCanvas({
                               }
                               label="Probar paso"
                               title="Probar este paso y refrescar INPUT / OUTPUT / LOGS"
-                              onClick={handleRunSandboxSimulation}
+                              onClick={() => {
+                                if (activeNode.key === 'extractor_extract_ai_doc_ocr') {
+                                  void handleRunLiveAiDocExtraction();
+                                }
+                                void handleRunSandboxSimulation();
+                              }}
                             />
                           </div>
                         </div>
@@ -9271,6 +9695,8 @@ export default function WappyWorkflowCanvas({
                                 }))
                               }
                               resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
+                              onRunLiveAiExtraction={handleRunLiveAiDocExtraction}
+                              runningLiveAiExtraction={runningLiveAiExtraction}
                             />
                           ) : (
                             /* ─── PESTAÑA `AJUSTES` CON SECCIONES DESPLEGABLES (ACCORDIONS) ─── */

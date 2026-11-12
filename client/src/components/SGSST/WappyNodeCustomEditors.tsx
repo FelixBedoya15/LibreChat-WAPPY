@@ -39,6 +39,7 @@ import {
   Zap,
   Cloud,
   Laptop,
+  Loader2,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
@@ -51,6 +52,7 @@ import {
   getNodeDefById,
   getNodeModuleMetadata,
   doesNodeRequireAntigravity,
+  type AiExtractionFieldDef,
   type CanvasNodeConfig,
   type CanvasExtraAgentNode,
   type CanvasCustomUserNode,
@@ -264,6 +266,8 @@ export interface WappyNodeCustomEditorProps {
     rec: any,
     chosenFields: string[],
   ) => Array<{ field: string; value: string }>;
+  onRunLiveAiExtraction?: () => void;
+  runningLiveAiExtraction?: boolean;
 }
 
 const WEEK_DAYS = [
@@ -391,6 +395,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     onPreviewNodeReport,
     onCloseReportPreview,
     resolveRecordSurgicalPreview,
+    onRunLiveAiExtraction,
+    runningLiveAiExtraction = false,
   } = props;
 
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
@@ -399,6 +405,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [normativeCategoryFilter, setNormativeCategoryFilter] = useState<string>('all');
   const [normativeSearchQuery, setNormativeSearchQuery] = useState<string>('');
+  const [newAiFieldName, setNewAiFieldName] = useState<string>('');
+  const [newAiFieldType, setNewAiFieldType] = useState<AiExtractionFieldDef['type']>('string');
+  const [newAiFieldDesc, setNewAiFieldDesc] = useState<string>('');
 
   const rawId = (activeNode.nodeId || '').trim();
   const cleanId = rawId.replace(
@@ -4538,9 +4547,415 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   }
 
   /* ═════════════════════════════════════════════════════════════════════════
-     EQUIPO 2: EXTRACTORES EXTERNOS (Gmail, Drive, OneDrive, Carpeta Local PC)
+     EQUIPO 2: EXTRACTORES EXTERNOS E IA DOCUMENTAL (OCR + Gmail + Drive + PC)
      ═════════════════════════════════════════════════════════════════════════ */
   if (activeNode.shape === 'square_extractor') {
+    if (cleanId === 'extract_ai_doc_ocr') {
+      const DEFAULT_AI_DOC_SCHEMA: AiExtractionFieldDef[] = [
+        { name: 'Cédula', type: 'string', description: 'Número de documento sin puntos' },
+        { name: 'Diagnóstico', type: 'string', description: 'Código CIE-10, concepto o hallazgo' },
+        { name: 'Fecha', type: 'date', description: 'Fecha del documento (AAAA-MM-DD)' },
+      ];
+      const activeSchema: AiExtractionFieldDef[] = Array.isArray(currentCfg.aiExtractionSchema)
+        ? currentCfg.aiExtractionSchema
+        : DEFAULT_AI_DOC_SCHEMA;
+
+      const selectedOcrModel =
+        currentCfg.aiModel === 'gemini-3.5-flash-lite' ||
+        currentCfg.aiModel === 'gemini-3.8-flash' ||
+        currentCfg.aiModel === 'gemini-3.6-flash'
+          ? currentCfg.aiModel
+          : 'gemini-3.6-flash';
+
+      const selectedRowMode =
+        currentCfg.aiExtractionRowMode === 'multiple_rows' ? 'multiple_rows' : 'single_row';
+
+      const commitSchema = (nextSchema: AiExtractionFieldDef[]) => {
+        onUpdateNodeConfig(activeNode.key, {
+          aiExtractionSchema: nextSchema,
+          fields: [],
+          selectedFields: [],
+          strictFieldFilter: false,
+        });
+      };
+
+      const handleAddFieldRow = () => {
+        const cleanName = (newAiFieldName || '').trim();
+        if (!cleanName) return;
+        const nextSchema: AiExtractionFieldDef[] = [
+          ...activeSchema,
+          {
+            name: cleanName,
+            type: newAiFieldType,
+            ...(newAiFieldDesc.trim() ? { description: newAiFieldDesc.trim() } : {}),
+          },
+        ];
+        commitSchema(nextSchema);
+        setNewAiFieldName('');
+        setNewAiFieldType('string');
+        setNewAiFieldDesc('');
+      };
+
+      const AI_EXTRACTION_TEMPLATES: Array<{
+        id: string;
+        label: string;
+        schema: AiExtractionFieldDef[];
+      }> = [
+        {
+          id: 'emo',
+          label: '🩺 Concepto Médico / EMO',
+          schema: [
+            { name: 'Cédula', type: 'string', description: 'Número de documento sin puntos' },
+            { name: 'Nombre Trabajador', type: 'string', description: 'Apellidos y nombres completos' },
+            { name: 'Concepto Aptitud', type: 'string', description: 'Apto, Apto con restricciones o Aplazado' },
+            { name: 'Diagnóstico / Restricciones', type: 'string', description: 'Restricciones o recomendaciones laborales' },
+            { name: 'Fecha Examen', type: 'date', description: 'Fecha de realización AAAA-MM-DD' },
+          ],
+        },
+        {
+          id: 'furat',
+          label: '🚑 Reporte FURAT / ATEL',
+          schema: [
+            { name: 'Cédula', type: 'string', description: 'Documento del trabajador accidentado' },
+            { name: 'Nombre Trabajador', type: 'string', description: 'Nombre completo del accidentado' },
+            { name: 'Fecha Accidente', type: 'date', description: 'Fecha del evento AAAA-MM-DD' },
+            { name: 'Diagnóstico / Lesión', type: 'string', description: 'Parte del cuerpo y tipo de lesión' },
+            { name: 'Descripción del Evento', type: 'string', description: 'Relato breve de cómo ocurrió el accidente' },
+          ],
+        },
+        {
+          id: 'incapacidad',
+          label: '🏥 Incapacidad Médica',
+          schema: [
+            { name: 'Cédula', type: 'string', description: 'Documento del trabajador' },
+            { name: 'Diagnóstico CIE-10', type: 'string', description: 'Código CIE-10 o descripción clínica' },
+            { name: 'Días Incapacidad', type: 'number', description: 'Total de días otorgados en número' },
+            { name: 'Fecha Inicio', type: 'date', description: 'Fecha inicial AAAA-MM-DD' },
+            { name: 'EPS', type: 'string', description: 'Entidad promotora de salud emisora' },
+          ],
+        },
+        {
+          id: 'alturas',
+          label: '🪖 Certificado Alturas / Curso',
+          schema: [
+            { name: 'Cédula', type: 'string', description: 'Documento del trabajador certificado' },
+            { name: 'Nombre Trabajador', type: 'string', description: 'Nombre completo' },
+            { name: 'Nivel Curso', type: 'string', description: 'Trabajador autorizado, Reentrenamiento, Coordinador' },
+            { name: 'Entidad Certificadora', type: 'string', description: 'Centro de entrenamiento o SENA' },
+            { name: 'Fecha Expedición', type: 'date', description: 'Fecha de emisión AAAA-MM-DD' },
+          ],
+        },
+      ];
+
+      return (
+        <div className="space-y-3.5 min-w-0">
+          {/* 1. Banner explícito de transparencia IA + OCR */}
+          <div className="p-3 rounded-2xl border border-purple-500/35 bg-purple-500/10 dark:bg-purple-950/30 space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-purple-500/40 bg-purple-500/15 text-[10.5px] font-black uppercase tracking-wide text-purple-800 dark:text-[#C7F303]">
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span>✨ ESTE PASO USA IA + VISIÓN OCR MULTIMODAL</span>
+              </span>
+              {nodeLiveInspectorData.resolvedFolder?.name && (
+                <span className="px-2 py-0.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-purple-500/30 text-[10px] font-extrabold text-purple-700 dark:text-purple-200 truncate max-w-full">
+                  📂 Fuente: {nodeLiveInspectorData.resolvedFolder.name}
+                </span>
+              )}
+            </div>
+            <p className="text-[11.5px] leading-snug font-medium text-slate-700 dark:text-slate-200">
+              Lee PDFs digitales o escaneados, fotos, Word o correos entregados por el nodo anterior (Drive, Gmail o Carpeta PC) y extrae exactamente las columnas que definas abajo hacia una tabla limpia.
+            </p>
+          </div>
+
+          {/* 2. Barra superior compacta: Modelo IA / Visión OCR + Modo de Filas + Botón Extraer Ahora */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                🧠 Modelo IA / Visión OCR
+              </label>
+              <select
+                value={selectedOcrModel}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { aiModel: e.target.value })
+                }
+                className="w-full min-w-0 px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              >
+                <option value="gemini-3.6-flash">
+                  Gemini 3.6 Flash (Recomendado · Equilibrio OCR + Precisión)
+                </option>
+                <option value="gemini-3.5-flash-lite">
+                  Gemini 3.5 Flash Lite (Ultra rápido · Documentos simples)
+                </option>
+                <option value="gemini-3.8-flash">
+                  Gemini 3.8 Flash (Máxima precisión · Tablas o letra manuscrita)
+                </option>
+              </select>
+            </div>
+
+            <div className="min-w-0">
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📋 Modo de Salida por Documento
+              </label>
+              <select
+                value={selectedRowMode}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, {
+                    aiExtractionRowMode:
+                      e.target.value === 'multiple_rows' ? 'multiple_rows' : 'single_row',
+                  })
+                }
+                className="w-full min-w-0 px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              >
+                <option value="single_row">
+                  1 fila por cada documento leído (Ej: 1 EMO = 1 trabajador)
+                </option>
+                <option value="multiple_rows">
+                  Varias filas por documento (Ej: listado o tabla con varias personas)
+                </option>
+              </select>
+            </div>
+          </div>
+
+          {/* 3. Plantillas Rápidas de Campos con Texto Claro (1 clic) */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-2.5 space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-[10.5px] font-extrabold uppercase text-slate-600 dark:text-slate-300">
+                ⚡ Plantillas rápidas de columnas (1 clic · Opcional):
+              </span>
+              <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300">
+                {activeSchema.length} columna(s) activa(s)
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {AI_EXTRACTION_TEMPLATES.map((tpl) => {
+                const isSameTemplate =
+                  activeSchema.length === tpl.schema.length &&
+                  tpl.schema.every(
+                    (tf, idx) =>
+                      (activeSchema[idx]?.name || '').trim().toLowerCase() ===
+                      tf.name.toLowerCase(),
+                  );
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => commitSchema(tpl.schema.map((f) => ({ ...f })))}
+                    className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all duration-200 active:scale-95 ${
+                      isSameTemplate
+                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-800 dark:text-[#C7F303]'
+                        : 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
+                    }`}
+                  >
+                    {tpl.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. Constructor Limpio de Campos Exactos a Extraer (`aiExtractionSchema`) */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-2.5 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-extrabold uppercase text-slate-800 dark:text-slate-100">
+                🎯 Columnas Exactas a Extraer de cada Documento
+              </label>
+              {activeSchema.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => commitSchema(DEFAULT_AI_DOC_SCHEMA)}
+                  className="px-2.5 py-1 rounded-xl border border-teal-500/30 bg-teal-500/10 text-[10.5px] font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-500/20"
+                >
+                  ↺ Restaurar campos base (Cédula, Diagnóstico, Fecha)
+                </button>
+              )}
+            </div>
+
+            {activeSchema.length > 0 && (
+              <div className="space-y-2">
+                {activeSchema.map((fieldDef, idx) => (
+                  <div
+                    key={`ai_ext_field_${idx}`}
+                    className="grid grid-cols-1 sm:grid-cols-[minmax(120px,1.25fr)_104px_minmax(130px,1.6fr)_auto] gap-1.5 items-center p-2 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 min-w-0"
+                  >
+                    <input
+                      type="text"
+                      value={fieldDef.name}
+                      onChange={(e) => {
+                        const next = activeSchema.map((it, i) =>
+                          i === idx ? { ...it, name: e.target.value } : it,
+                        );
+                        commitSchema(next);
+                      }}
+                      placeholder="Nombre de la columna (ej: Cédula)"
+                      aria-label="Nombre de la columna"
+                      className="w-full min-w-0 px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                    />
+
+                    <select
+                      value={fieldDef.type || 'string'}
+                      onChange={(e) => {
+                        const nextType = e.target.value as AiExtractionFieldDef['type'];
+                        const next = activeSchema.map((it, i) =>
+                          i === idx ? { ...it, type: nextType } : it,
+                        );
+                        commitSchema(next);
+                      }}
+                      aria-label="Tipo de dato"
+                      className="w-full min-w-0 px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="string">Texto</option>
+                      <option value="date">Fecha</option>
+                      <option value="number">Número</option>
+                      <option value="boolean">Sí / No</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      value={fieldDef.description || ''}
+                      onChange={(e) => {
+                        const next = activeSchema.map((it, i) =>
+                          i === idx ? { ...it, description: e.target.value } : it,
+                        );
+                        commitSchema(next);
+                      }}
+                      placeholder="Pista opcional para la IA (ej: sin puntos, CIE-10)"
+                      aria-label="Pista opcional para la IA"
+                      className="w-full min-w-0 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-purple-500"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = activeSchema.filter((_, i) => i !== idx);
+                        commitSchema(next);
+                      }}
+                      title="Eliminar campo"
+                      className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors shrink-0"
+                    >
+                      <span>×</span>
+                      <span className="sm:hidden md:inline">Quitar</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Fila inferior para agregar un nuevo campo */}
+            <div className="pt-1.5 border-t border-slate-200/80 dark:border-slate-800 space-y-1.5">
+              <span className="block text-[10.5px] font-extrabold uppercase text-emerald-700 dark:text-emerald-400">
+                ➕ Agregar otra columna exacta a extraer:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-[minmax(140px,1.5fr)_104px_auto] gap-1.5 items-center min-w-0">
+                <input
+                  type="text"
+                  value={newAiFieldName}
+                  onChange={(e) => setNewAiFieldName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddFieldRow();
+                    }
+                  }}
+                  placeholder="Escribe nuevo campo (ej: Restricciones, ARL, Cargo)..."
+                  className="w-full min-w-0 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                />
+
+                <select
+                  value={newAiFieldType}
+                  onChange={(e) =>
+                    setNewAiFieldType(e.target.value as AiExtractionFieldDef['type'])
+                  }
+                  className="w-full min-w-0 px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100"
+                >
+                  <option value="string">Texto</option>
+                  <option value="date">Fecha</option>
+                  <option value="number">Número</option>
+                  <option value="boolean">Sí / No</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleAddFieldRow}
+                  disabled={!newAiFieldName.trim()}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-45 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  <span>+ Agregar campo</span>
+                </button>
+              </div>
+              <input
+                type="text"
+                value={newAiFieldDesc}
+                onChange={(e) => setNewAiFieldDesc(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newAiFieldName.trim()) {
+                    e.preventDefault();
+                    handleAddFieldRow();
+                  }
+                }}
+                placeholder="Pista opcional para este nuevo campo (ej: Extraer solo el número entero o código CIE-10)..."
+                className="w-full min-w-0 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 text-[11px] text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* 5. Instrucción extra opcional + Botón destacado de Extracción en Vivo */}
+          <div className="space-y-2.5">
+            <div>
+              <label className="block text-[10.5px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                💬 Instrucción extra opcional para la IA
+              </label>
+              <input
+                type="text"
+                value={currentCfg.customInstruction || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+                }
+                placeholder="Instrucción extra opcional (ej: Si la fecha viene en texto, conviértela a AAAA-MM-DD)"
+                className="w-full min-w-0 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            {onRunLiveAiExtraction && (
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-emerald-500/10">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100">
+                    🔬 Prueba real sobre los documentos del paso anterior
+                  </p>
+                  <p className="text-[10.5px] text-slate-600 dark:text-slate-300">
+                    Ejecuta Gemini OCR sobre los archivos detectados y envía la tabla exacta al panel derecho <strong>OUTPUT</strong>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onRunLiveAiExtraction}
+                  disabled={runningLiveAiExtraction || nodeLiveInspectorData.loading}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/25 text-xs font-extrabold text-purple-800 dark:text-[#C7F303] transition-all duration-200 active:scale-95 disabled:opacity-60 shrink-0"
+                >
+                  {runningLiveAiExtraction || nodeLiveInspectorData.loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      <span>Extrayendo con IA + OCR...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 shrink-0" />
+                      <span>⚡ Extraer Datos con IA Ahora (Probar con archivos de entrada)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {nodeLiveInspectorData.records.length > 0 &&
+            renderSimpleReadOnlyPreviewTable(
+              '✨ Tabla exacta extraída con IA + Visión OCR Multimodal',
+            )}
+        </div>
+      );
+    }
+
     if (cleanId.includes('gmail')) {
       return (
         <div className="space-y-3">

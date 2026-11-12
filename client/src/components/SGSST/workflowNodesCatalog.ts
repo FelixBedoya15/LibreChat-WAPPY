@@ -6,6 +6,7 @@ export interface WorkflowNodeDef {
   toolHint: string;
   badgeColor: string;
   icon?: string;
+  iconName?: string;
   badge?: string;
   description?: string;
   /** ID oficial del aplicativo en Somos SST (PHASE_CATEGORIES en constants.ts) */
@@ -118,8 +119,20 @@ export interface CanvasCustomUserNode {
   agentId?: string;
 }
 
+export interface AiExtractionFieldDef {
+  name: string;
+  type: 'string' | 'date' | 'number' | 'boolean';
+  description?: string;
+}
+
 export interface CanvasNodeConfig {
   fields?: string[];
+  /** Esquema exacto de columnas a extraer con IA + Visión OCR Multimodal (`extract_ai_doc_ocr`) */
+  aiExtractionSchema?: AiExtractionFieldDef[];
+  /** Modo de salida por documento leído en `extract_ai_doc_ocr` */
+  aiExtractionRowMode?: 'single_row' | 'multiple_rows';
+  /** Fuente documental anterior heredada automáticamente para el inspector en vivo */
+  upstreamSourceType?: 'drive' | 'pc' | 'gmail';
   /** Alias estructurado de campos quirúrgicos seleccionados (compatible con backend systemWorkflowPresetsCatalog) */
   selectedFields?: string[];
   /** Si es true (por defecto cuando hay campos elegidos), el nodo extrae ÚNICAMENTE los campos seleccionados para no saturar el flujo */
@@ -619,6 +632,20 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     category: 'extractor',
     toolHint: 'Extraer información de una carpeta local en el computador del usuario mediante Google Antigravity Local (google_antigravity)',
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  },
+  {
+    id: 'extract_ai_doc_ocr',
+    label: '✨ Extractor IA de Documentos (PDF / OCR -> Datos Exactos)',
+    shortLabel: 'Extractor IA Docs',
+    category: 'extractor',
+    iconName: 'Sparkles',
+    description:
+      'Usa IA + Visión OCR Multimodal para leer PDFs digitales o escaneados, imágenes, Word o correos del paso anterior y devolver una tabla exacta con los campos que escribas (ej. Cédula, Diagnóstico, Fecha).',
+    badge: '✨ Usa IA + OCR',
+    toolHint:
+      'Extractor IA de Documentos con Visión OCR Multimodal para leer PDFs digitales o escaneados, imágenes, Word o correos del paso anterior y extraer una tabla exacta con los campos configurados',
+    badgeColor:
+      'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300 dark:border-purple-800',
   },
   {
     id: 'extract_sst_workers',
@@ -11088,6 +11115,14 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     ],
     reportTags: [],
   },
+  extract_ai_doc_ocr: {
+    moduleTitle: '✨ Extractor IA de Documentos (PDF / OCR → Datos Exactos)',
+    moduleBadge: '✨ Usa IA + OCR',
+    fieldsLabel: 'Columnas Exactas a Extraer por Documento con IA + Visión OCR',
+    fields: ['Archivo Origen', 'Cédula', 'Diagnóstico', 'Fecha'],
+    quickCombos: [],
+    reportTags: [],
+  },
   extract_sst_workers: {
     moduleTitle: '📥 Extractor · Extraer Trabajadores y Expedientes (Somos SST)',
     moduleBadge: 'Extractor · Expedientes SST',
@@ -14653,9 +14688,23 @@ export function getPresetFieldsForNode(nodeId: string, shape?: string): string[]
  * Construye una síntesis visual compacta de la configuración quirúrgica de un nodo
  * (filtro de registros en vivo, campos seleccionados e informes adjuntos).
  */
-export function buildNodeConfigSummary(cfg?: CanvasNodeConfig): string {
+export function buildNodeConfigSummary(cfg?: CanvasNodeConfig, nodeId?: string): string {
   if (!cfg) return '';
   const badges: string[] = [];
+
+  if (
+    (Array.isArray(cfg.aiExtractionSchema) && cfg.aiExtractionSchema.length > 0) ||
+    cfg.aiExtractionRowMode ||
+    nodeId === 'extract_ai_doc_ocr'
+  ) {
+    const schemaCols =
+      cfg.aiExtractionSchema
+        ?.map((f) => f?.name?.trim())
+        .filter(Boolean)
+        .join(', ') || 'Cédula, Diagnóstico, Fecha';
+    const ocrModel = cfg.aiModel || 'gemini-3.6-flash';
+    badges.push(`✨ ${schemaCols} · ${ocrModel}`);
+  }
 
   if (cfg.recordFilterMode === 'expiry_only') {
     badges.push('⏳ Solo Vencimientos <= 30d');
@@ -14798,9 +14847,34 @@ export function buildPromptFromWorkflowNodes(
 
   const formatNodeConfigDetail = (candidateKeys: string | string[]): string => {
     const keys = Array.isArray(candidateKeys) ? candidateKeys : [candidateKeys];
+    const isAiDocOcrKey = keys.some((k) => k.includes('extract_ai_doc_ocr'));
     const cfg = resolveConfigByCandidates(keys);
-    if (!cfg) return '';
+    if (!cfg && !isAiDocOcrKey) return '';
     const parts: string[] = [];
+
+    if (isAiDocOcrKey || (cfg && (Array.isArray(cfg.aiExtractionSchema) || cfg.aiExtractionRowMode))) {
+      const schemaCols =
+        cfg?.aiExtractionSchema
+          ?.map((f) =>
+            f?.name?.trim()
+              ? `${f.name.trim()}${f.type ? ` (${f.type})` : ''}${f.description?.trim() ? `: ${f.description.trim()}` : ''}`
+              : '',
+          )
+          .filter(Boolean)
+          .join(', ') || 'Cédula, Diagnóstico, Fecha';
+      const ocrModel = cfg?.aiModel || 'gemini-3.6-flash';
+      const rowModeLabel =
+        cfg?.aiExtractionRowMode === 'multiple_rows'
+          ? 'Varias filas por documento'
+          : '1 fila por documento';
+      parts.push(
+        `✨ EXTRACCIÓN IA + VISIÓN OCR MULTIMODAL (Modelo: ${ocrModel} · Modo: ${rowModeLabel}) ➔ Extraer tabla exacta con columnas: [${schemaCols}]`,
+      );
+    }
+
+    if (!cfg) {
+      return parts.length > 0 ? ` ➔ { ${parts.join(' | ')} }` : '';
+    }
 
     if (cfg.recordFilterMode === 'expiry_only') {
       parts.push(

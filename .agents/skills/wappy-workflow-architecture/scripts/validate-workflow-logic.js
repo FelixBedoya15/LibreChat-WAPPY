@@ -243,6 +243,15 @@ function validateSingleWorkflow(preset, index = 0) {
       `[Inv-02] Modelo IA "${wf.aiModel}" no pertenece a GOOGLE_MODELS verificados (${Array.from(ALLOWED_TEXT_MODELS).join(', ')}).`,
     );
   }
+  if (extractors.includes('extract_ai_doc_ocr')) {
+    const aiExtCfg =
+      nodeConfigs.extractor_extract_ai_doc_ocr || nodeConfigs.extract_ai_doc_ocr || {};
+    if (aiExtCfg.aiModel && !ALLOWED_TEXT_MODELS.has(aiExtCfg.aiModel)) {
+      errors.push(
+        `[Inv-02] Modelo IA "${aiExtCfg.aiModel}" en "extract_ai_doc_ocr" no pertenece a GOOGLE_MODELS verificados (${Array.from(ALLOWED_TEXT_MODELS).join(', ')}).`,
+      );
+    }
+  }
 
   // Invariante 3: Cero nodos en construcción / bloqueados
   const allReferencedIds = [

@@ -24,6 +24,10 @@ const {
   normalizeInspectorNodeId,
 } = require('~/server/services/workflowNodeInspectorService');
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
+const {
+  extractStructuredFieldsFromDocuments,
+  listPassiveCandidateMetadata,
+} = require('~/server/services/aiDocumentExtractorService');
 
 /**
  * Extrae el ID real de una carpeta o archivo de Google Drive desde URLs (`folders/<ID>`, `/d/<ID>`, `?id=<ID>`),
@@ -1962,6 +1966,56 @@ async function buildLivePreExtractionAndLogicBlocks({
     } catch (gmErr) {
       blocks.push(
         `📧 [PRE-EXTRACCIÓN GMAIL]: Gmail OAuth no conectado o expirado para "${companyName}" (${gmErr?.message || 'sin sesión'}).`,
+      );
+    }
+  }
+
+  // 2B. Pre-listado pasivo (0 tokens IA) cuando `extract_ai_doc_ocr` se conecta sin `extract_drive` / `extract_gmail` separados
+  if (
+    (extractors.includes('extract_ai_doc_ocr') ||
+      extractors.includes('extractor_extract_ai_doc_ocr')) &&
+    !extractors.includes('extract_drive') &&
+    !extractors.includes('extract_gmail')
+  ) {
+    try {
+      const aiExtCfg = getNodeCfg(
+        'extractor_extract_ai_doc_ocr',
+        'ext_extract_ai_doc_ocr',
+        'extract_ai_doc_ocr',
+      );
+      const pcCfgPre = getNodeCfg(
+        'extractor_extract_pc_folder',
+        'ext_extract_pc_folder',
+        'extract_pc_folder',
+      );
+      const passiveMeta = await listPassiveCandidateMetadata({
+        userId: userIdStr,
+        companyId: targetCompanyIdStr,
+        extractorCfg: aiExtCfg,
+        driveCfg: driveCfg,
+        gmailCfg: gmailCfg,
+        pcCfg: pcCfgPre,
+        maxItems: Math.min(15, Math.max(1, parseInt(aiExtCfg?.maxItems, 10) || 8)),
+      });
+      const candList = Array.isArray(passiveMeta?.candidateFiles) ? passiveMeta.candidateFiles : [];
+      let freshCandCount = 0;
+      let dedupCandCount = 0;
+      for (const c of candList) {
+        const cKey = `${c.sourceType || 'ai_doc'}:${c.id}`;
+        if (safeProcessedSet.has(cKey)) {
+          dedupCandCount += 1;
+        } else {
+          freshCandCount += 1;
+          externalCandidateKeysSet.add(cKey);
+        }
+      }
+      traceMeta.driveFilesPrelisted += candList.length;
+      traceMeta.freshDriveFilesCount += freshCandCount;
+      traceMeta.deduplicatedDriveFilesCount += dedupCandCount;
+    } catch (aiPreErr) {
+      console.warn(
+        '[AutomationScheduler] Aviso en pre-listado pasivo de extract_ai_doc_ocr:',
+        aiPreErr?.message,
       );
     }
   }
@@ -4043,6 +4097,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     const watchesExternal =
       watchesDriveNewFiles ||
       wfExtractorsForCondition.includes('extract_gmail') ||
+      wfExtractorsForCondition.includes('extract_ai_doc_ocr') ||
+      wfExtractorsForCondition.includes('extractor_extract_ai_doc_ocr') ||
       wfTriggersForCondition.includes('trigger_email') ||
       wfTriggersForCondition.includes('trigger_email_in') ||
       wfTriggersForCondition.includes('trigger_webhook') ||
@@ -4218,6 +4274,76 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           `[AutomationScheduler] PRE-AGENT IF GATE -> Branch NO taken for "${automation.name}" (0 LLM tokens used). Outputs executed: [${(outResNo?.executedOutputs || []).join(', ')}]`,
         );
         return;
+      }
+    }
+
+    // 4.98. Extracción Estructurada IA + OCR de Documentos (`extract_ai_doc_ocr`)
+    // Se ejecuta ESTRICTAMENTE DESPUÉS de la compuerta `pre_agent` (0 tokens gastados si `pre_agent` dio NO)
+    if (
+      wfExtractorsForCondition.includes('extract_ai_doc_ocr') ||
+      wfExtractorsForCondition.includes('extractor_extract_ai_doc_ocr')
+    ) {
+      try {
+        const extractorCfg =
+          allNodeCfg?.extractor_extract_ai_doc_ocr ||
+          allNodeCfg?.extract_ai_doc_ocr ||
+          {};
+        const driveCfg =
+          allNodeCfg?.extractor_extract_drive ||
+          allNodeCfg?.extract_drive ||
+          null;
+        const gmailCfg =
+          allNodeCfg?.extractor_extract_gmail ||
+          allNodeCfg?.extract_gmail ||
+          null;
+        const pcCfg =
+          allNodeCfg?.extractor_extract_pc_folder ||
+          allNodeCfg?.extract_pc_folder ||
+          null;
+
+        const hasPrelistedDrive = wfExtractorsForCondition.includes('extract_drive');
+        const hasPrelistedGmail = wfExtractorsForCondition.includes('extract_gmail');
+
+        const aiOcrResult = await extractStructuredFieldsFromDocuments({
+          userId: String(automation?.user || reqUser?.id || ''),
+          companyId: targetCompanyIdStr,
+          companyName: automationCompany?.companyName || 'Empresa Activa',
+          extractorCfg,
+          driveCfg,
+          gmailCfg,
+          pcCfg,
+          freshDriveFiles: hasPrelistedDrive ? preRes?.freshDriveFiles || [] : null,
+          freshGmailMessages: hasPrelistedGmail ? preRes?.freshGmailMessages || [] : null,
+          eventPayload: eventPayload || null,
+          maxDocs: Math.min(10, Math.max(1, Number(extractorCfg?.maxItems) || 5)),
+        });
+
+        preExtractionTraceMeta.aiDocOcrExecuted = true;
+        preExtractionTraceMeta.aiDocOcrModelUsed = aiOcrResult.modelUsed;
+        preExtractionTraceMeta.aiDocOcrDocumentsCount = aiOcrResult.documentsCount;
+        preExtractionTraceMeta.aiDocOcrRowsCount = Array.isArray(aiOcrResult.rows)
+          ? aiOcrResult.rows.length
+          : 0;
+
+        if (Array.isArray(aiOcrResult.rows) && aiOcrResult.rows.length > 0) {
+          const aiOcrBlock =
+            `\n✨ [DATOS EXACTOS EXTRAÍDOS CON IA + OCR DE DOCUMENTOS (${aiOcrResult.documentsCount} archivo(s) · Modelo: ${aiOcrResult.modelUsed})]:\n` +
+            `${aiOcrResult.markdownTable}\n` +
+            `JSON Estructurado:\n${JSON.stringify(aiOcrResult.rows, null, 2)}\n`;
+          livePreExtractionBlock = `${livePreExtractionBlock || ''}${aiOcrBlock}`;
+          console.log(
+            `[AutomationScheduler] ✨ Extractor IA + OCR procesó ${aiOcrResult.documentsCount} archivo(s) -> ${aiOcrResult.rows.length} fila(s) (${aiOcrResult.modelUsed}) para "${automation.name}".`,
+          );
+        } else {
+          console.log(
+            `[AutomationScheduler] ℹ️ Extractor IA + OCR verificado para "${automation.name}": 0 documentos candidatos extraíbles.`,
+          );
+        }
+      } catch (aiOcrErr) {
+        console.warn(
+          '[AutomationScheduler] Aviso en extractStructuredFieldsFromDocuments:',
+          aiOcrErr?.message || aiOcrErr,
+        );
       }
     }
 
@@ -7164,13 +7290,18 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category: 'trigger',
       });
     });
-    configuredExtractors.forEach((extId) => {
-      executionPlan.push({
-        nodeKey: `extractor_${extId}`,
-        nodeId: extId,
-        category: 'extractor',
+    configuredExtractors
+      .filter(
+        (extId) =>
+          !isPreAgentIfFallback || normalizeInspectorNodeId(extId) !== 'extract_ai_doc_ocr',
+      )
+      .forEach((extId) => {
+        executionPlan.push({
+          nodeKey: `extractor_${extId}`,
+          nodeId: extId,
+          category: 'extractor',
+        });
       });
-    });
     sourceReadHitosFallback.forEach((hId) => {
       executionPlan.push({
         nodeKey: `hito_${hId}`,
@@ -7201,6 +7332,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         nodeId: 'if_condition',
         category: 'condition',
       });
+      configuredExtractors
+        .filter((extId) => normalizeInspectorNodeId(extId) === 'extract_ai_doc_ocr')
+        .forEach((extId) => {
+          executionPlan.push({
+            nodeKey: `extractor_${extId}`,
+            nodeId: extId,
+            category: 'extractor',
+          });
+        });
     }
     executionPlan.push({
       nodeKey: 'sub_model',
@@ -7453,6 +7593,19 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       }
     } else {
       try {
+        const isAiDocOcrStep = normalizeInspectorNodeId(effectiveInspectNodeId) === 'extract_ai_doc_ocr';
+        const effectiveStepCfg = isAiDocOcrStep
+          ? {
+              ...cfg,
+              runAiExtraction: true,
+              driveCfg: nodeConfigs?.extractor_extract_drive || nodeConfigs?.extract_drive || null,
+              gmailCfg: nodeConfigs?.extractor_extract_gmail || nodeConfigs?.extract_gmail || null,
+              pcCfg:
+                nodeConfigs?.extractor_extract_pc_folder || nodeConfigs?.extract_pc_folder || null,
+              eventPayload: mockTriggerInput ? String(mockTriggerInput).trim() : null,
+            }
+          : cfg;
+
         liveData = await inspectNodeLiveData({
           userId: userIdStr,
           companyId: targetCompanyIdStr,
@@ -7468,7 +7621,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           sstAppSourceId: cfg.sstAppSourceId,
           emailSubjectFilter: cfg.emailSubjectFilter,
           endpointUrl: cfg.endpointUrl,
-          nodeConfig: cfg,
+          nodeConfig: effectiveStepCfg,
         });
       } catch (inspectErr) {
         stepError = inspectErr?.message || 'Error inspeccionando datos del nodo';
@@ -8335,8 +8488,10 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       category === 'hito'
     ) {
       if (
-        category === 'hito' &&
-        resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report' &&
+        ((category === 'hito' &&
+          resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'target_write_report') ||
+          (category === 'extractor' &&
+            normalizeInspectorNodeId(nodeId) === 'extract_ai_doc_ocr')) &&
         ifHasEvaluated &&
         ifEvaluation.branchTaken === 'NO'
       ) {
@@ -8344,13 +8499,13 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           type: 'step_start',
           nodeKey,
           nodeId,
-          category: 'hito',
+          category,
         });
-        const skippedHitoStep = {
+        const skippedNodeStep = {
           stepIndex: ++stepCounter,
           nodeKey,
           nodeId,
-          category: 'hito',
+          category,
           title: `${stepCustomTitle || nodeId} (⏭️ Omitido — Rama SÍ no activa · 0 tokens IA)`,
           status: 'skipped',
           durationMs: 2,
@@ -8359,7 +8514,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           inputSummary: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
           inputContext: '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA',
           outputPreview:
-            '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: Este aplicativo Hito tiene rol de destino (target_write_report) en la Rama SÍ y la compuerta condicional tomó la Rama NO.',
+            category === 'extractor'
+              ? '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: El Extractor IA + OCR no consume tokens cuando la compuerta pre_agent toma la Rama NO.'
+              : '⏭️ Omitido — Rama SÍ no activa · 0 tokens IA: Este aplicativo Hito tiene rol de destino (target_write_report) en la Rama SÍ y la compuerta condicional tomó la Rama NO.',
           sourceNodeKey: lastProducerNode.nodeKey,
           sourceNodeTitle: lastProducerNode.title,
           inputItems: [],
@@ -8374,12 +8531,12 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           ],
           error: null,
         };
-        nodeTrace.push(skippedHitoStep);
+        nodeTrace.push(skippedNodeStep);
         await emitProgress({
           type: 'step_done',
           nodeKey,
           nodeId,
-          step: skippedHitoStep,
+          step: skippedNodeStep,
         });
         continue;
       }
@@ -9042,6 +9199,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         connectedNodeIds.has('extract_drive') ||
         connectedNodeIds.has('google_drive') ||
         connectedNodeIds.has('extract_gmail') ||
+        connectedNodeIds.has('extract_ai_doc_ocr') ||
         connectedNodeIds.has('trigger_email') ||
         connectedNodeIds.has('trigger_email_in') ||
         connectedNodeIds.has('trigger_webhook') ||

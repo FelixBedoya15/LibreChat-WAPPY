@@ -689,7 +689,47 @@ router.get('/node-live-inspector', async (req, res) => {
     const dedupWindow = optStr(req.query.dedupWindow);
     const sstAppSourceId = optStr(req.query.sstAppSourceId) || '';
     const emailSubjectFilter = optStr(req.query.emailSubjectFilter) || '';
+    const emailSenderFilter = optStr(req.query.emailSenderFilter);
+    const timeWindow = optStr(req.query.timeWindow);
+    const onlyWithAttachments = optBool(req.query.onlyWithAttachments);
     const endpointUrl = optStr(req.query.endpointUrl) || '';
+
+    let aiExtractionSchema;
+    if (
+      req.query.aiExtractionSchema !== undefined &&
+      req.query.aiExtractionSchema !== null &&
+      String(req.query.aiExtractionSchema).trim() !== ''
+    ) {
+      if (Array.isArray(req.query.aiExtractionSchema)) {
+        aiExtractionSchema = req.query.aiExtractionSchema;
+      } else {
+        try {
+          aiExtractionSchema = JSON.parse(String(req.query.aiExtractionSchema));
+        } catch {
+          aiExtractionSchema = undefined;
+        }
+      }
+    }
+    let fields;
+    if (req.query.fields !== undefined && req.query.fields !== null && String(req.query.fields).trim() !== '') {
+      if (Array.isArray(req.query.fields)) {
+        fields = req.query.fields;
+      } else {
+        try {
+          const parsedFields = JSON.parse(String(req.query.fields));
+          fields = Array.isArray(parsedFields)
+            ? parsedFields
+            : String(req.query.fields).split(',').map((s) => s.trim()).filter(Boolean);
+        } catch {
+          fields = String(req.query.fields).split(',').map((s) => s.trim()).filter(Boolean);
+        }
+      }
+    }
+    const aiExtractionRowMode = optStr(req.query.aiExtractionRowMode);
+    const aiModel = optStr(req.query.aiModel);
+    const customInstruction = optStr(req.query.customInstruction);
+    const upstreamSourceType = optStr(req.query.upstreamSourceType);
+    const runAiExtraction = optBool(req.query.runAiExtraction);
 
     const nodeConfig = {
       ...(driveFolderId !== undefined ? { driveFolderId } : {}),
@@ -705,7 +745,17 @@ router.get('/node-live-inspector', async (req, res) => {
       ...(dedupWindow !== undefined ? { dedupWindow } : {}),
       sstAppSourceId,
       emailSubjectFilter,
+      ...(emailSenderFilter !== undefined ? { emailSenderFilter } : {}),
+      ...(timeWindow !== undefined ? { timeWindow } : {}),
+      ...(onlyWithAttachments !== undefined ? { onlyWithAttachments } : {}),
       endpointUrl,
+      ...(aiExtractionSchema !== undefined ? { aiExtractionSchema } : {}),
+      ...(fields !== undefined ? { fields } : {}),
+      ...(aiExtractionRowMode !== undefined ? { aiExtractionRowMode } : {}),
+      ...(aiModel !== undefined ? { aiModel } : {}),
+      ...(customInstruction !== undefined ? { customInstruction } : {}),
+      ...(upstreamSourceType !== undefined ? { upstreamSourceType } : {}),
+      ...(runAiExtraction !== undefined ? { runAiExtraction } : {}),
     };
 
     const data = await inspectNodeLiveData({
@@ -725,7 +775,17 @@ router.get('/node-live-inspector', async (req, res) => {
       dedupWindow,
       sstAppSourceId,
       emailSubjectFilter,
+      emailSenderFilter,
+      timeWindow,
+      onlyWithAttachments,
       endpointUrl,
+      aiExtractionSchema,
+      fields,
+      aiExtractionRowMode,
+      aiModel,
+      customInstruction,
+      upstreamSourceType,
+      runAiExtraction,
       nodeConfig,
     });
     return res.json({ success: true, ...data });

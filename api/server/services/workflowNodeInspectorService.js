@@ -926,6 +926,10 @@ function normalizeInspectorNodeId(rawId) {
     voice_briefing: 'tenshi_voice_briefing',
     documento_vivo: 'canvas_doc',
     respaldo_drive: 'drive_backup',
+    extract_ai_doc_ocr: 'extract_ai_doc_ocr',
+    extractor_extract_ai_doc_ocr: 'extract_ai_doc_ocr',
+    ai_doc_ocr: 'extract_ai_doc_ocr',
+    information_extractor: 'extract_ai_doc_ocr',
   };
 
   return aliasMap[clean] || clean;
@@ -6808,6 +6812,174 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
+  // 8B. Equipo 2: Extractor IA de Documentos (PDF / OCR -> Datos Exactos) (`extract_ai_doc_ocr`)
+  if (canonicalId === 'extract_ai_doc_ocr') {
+    const {
+      normalizeAiExtractionSchema,
+      resolveExtractorAiModel,
+      listPassiveCandidateMetadata,
+      extractStructuredFieldsFromDocuments,
+    } = require('./aiDocumentExtractorService');
+
+    const cfg = ctx?.nodeConfig || ctx?.options || {};
+    const schema = normalizeAiExtractionSchema(
+      cfg.aiExtractionSchema,
+      cfg.fields || cfg.selectedFields,
+    );
+    const model = resolveExtractorAiModel(cfg.aiModel);
+    const rowMode = cfg.aiExtractionRowMode === 'multiple_rows' ? 'multiple_rows' : 'single_row';
+    const maxItemsLimit = Math.min(10, Math.max(1, Number(cfg.maxItems) || 3));
+    const runAiExtraction = cfg.runAiExtraction === true || ctx?.executeLive === true;
+
+    const passiveMeta = await listPassiveCandidateMetadata({
+      userId,
+      companyId: companyIdStr,
+      extractorCfg: cfg,
+      driveCfg: cfg.driveCfg || null,
+      gmailCfg: cfg.gmailCfg || null,
+      pcCfg: cfg.pcCfg || null,
+      maxItems: 8,
+    });
+
+    if (runAiExtraction) {
+      const liveExtraction = await extractStructuredFieldsFromDocuments({
+        userId,
+        companyId: companyIdStr,
+        companyName: company?.companyName || 'Empresa Activa',
+        extractorCfg: cfg,
+        driveCfg: cfg.driveCfg || null,
+        gmailCfg: cfg.gmailCfg || null,
+        pcCfg: cfg.pcCfg || null,
+        eventPayload: cfg.eventPayload || null,
+        maxDocs: Math.min(3, maxItemsLimit || 3),
+      });
+
+      const extractedRecords = (Array.isArray(liveExtraction.rows) ? liveExtraction.rows : []).map(
+        (row, idx) => {
+          const orderedFields = {
+            'Archivo Origen': row['Archivo Origen'] || 'Documento',
+            'Método Lectura': row['Método Lectura'] || '📄 Texto + IA',
+          };
+          const previewPairs = [];
+          for (const fieldDef of schema) {
+            const cellVal = row[fieldDef.name] ?? 'No registra';
+            orderedFields[fieldDef.name] = cellVal;
+            if (previewPairs.length < 3) {
+              previewPairs.push(`${fieldDef.name}: ${cellVal}`);
+            }
+          }
+          return {
+            id: `ai_doc_ocr_live_${idx + 1}`,
+            label: `📄 ${orderedFields['Archivo Origen']}`,
+            sublabel: `${orderedFields['Método Lectura']} • ${liveExtraction.modelUsed}${previewPairs.length > 0 ? ` • ${previewPairs.join(' | ')}` : ''}`,
+            badge: '✨ EXTRAÍDO CON IA',
+            badgeTone: 'purple',
+            isCritical: false,
+            fields: orderedFields,
+          };
+        },
+      );
+
+      return {
+        connected: passiveMeta.connected,
+        connectedEmail: passiveMeta.connectedEmail || '',
+        resolvedFolder: passiveMeta.resolvedFolder || null,
+        availableFolders: passiveMeta.availableFolders || [],
+        moduleTitle: `Equipo 2 · Extractor IA de Documentos (PDF / OCR ➔ Datos Exactos)`,
+        sourceCollection: `Gemini Multimodal OCR (${liveExtraction.modelUsed})`,
+        kpis: [
+          {
+            label: 'Archivos Leídos',
+            value: liveExtraction.documentsCount,
+            tone: liveExtraction.documentsCount > 0 ? 'emerald' : 'amber',
+          },
+          {
+            label: 'Filas Extraídas',
+            value: extractedRecords.length,
+            tone: extractedRecords.length > 0 ? 'teal' : 'slate',
+          },
+          {
+            label: 'Campos Esquema',
+            value: schema.length,
+            tone: 'indigo',
+          },
+          {
+            label: 'Modelo IA / OCR',
+            value: liveExtraction.modelUsed,
+            tone: 'emerald',
+          },
+        ],
+        records: extractedRecords,
+      };
+    }
+
+    // Modo B (apertura pasiva del modal — 0 tokens IA consumidos)
+    const pendingPlaceholder =
+      '⚡ Pulsa «Probar Extracción IA» o ▶ Probar paso para extraer con IA';
+    const candidateList =
+      Array.isArray(passiveMeta.candidateFiles) && passiveMeta.candidateFiles.length > 0
+        ? passiveMeta.candidateFiles
+        : [
+            {
+              id: 'schema_preview_guide',
+              name: `📄 Esquema listo (${passiveMeta.sourceLabel || 'Conecta Drive / Gmail / Carpeta PC'})`,
+            },
+          ];
+
+    const passiveRecords = candidateList.map((cand, idx) => {
+      const orderedFields = {
+        'Archivo Origen': cand.name || `Documento #${idx + 1}`,
+        'Modelo IA / OCR': `${model} (Visión OCR + Texto)`,
+      };
+      for (const fieldDef of schema) {
+        orderedFields[fieldDef.name] = pendingPlaceholder;
+      }
+      return {
+        id: String(cand.id || `ai_doc_ocr_preview_${idx + 1}`),
+        label: String(cand.name || '').startsWith('📄') || String(cand.name || '').startsWith('✉️')
+          ? String(cand.name)
+          : `📄 ${cand.name}`,
+        sublabel: `Fuente: ${passiveMeta.sourceLabel} • Modo: ${rowMode === 'multiple_rows' ? 'Múltiples filas' : '1 fila por documento'} • 0 tokens en vista previa`,
+        badge: 'ESQUEMA IA LISTO',
+        badgeTone: 'teal',
+        isCritical: false,
+        fields: orderedFields,
+      };
+    });
+
+    return {
+      connected: passiveMeta.connected,
+      connectedEmail: passiveMeta.connectedEmail || '',
+      resolvedFolder: passiveMeta.resolvedFolder || null,
+      availableFolders: passiveMeta.availableFolders || [],
+      moduleTitle: `Equipo 2 · Extractor IA de Documentos (PDF / OCR ➔ Datos Exactos)`,
+      sourceCollection: `${passiveMeta.sourceLabel} ➔ ${model}`,
+      kpis: [
+        {
+          label: 'Fuente Detectada',
+          value: passiveMeta.sourceLabel,
+          tone: 'teal',
+        },
+        {
+          label: 'Archivos Candidatos',
+          value: passiveMeta.candidateFiles.length,
+          tone: passiveMeta.candidateFiles.length > 0 ? 'emerald' : 'amber',
+        },
+        {
+          label: 'Campos a Extraer',
+          value: schema.length,
+          tone: 'indigo',
+        },
+        {
+          label: 'Modelo IA / OCR',
+          value: model,
+          tone: 'emerald',
+        },
+      ],
+      records: passiveRecords,
+    };
+  }
+
   // 9. Equipo 2, 5 y 8: Búsqueda Web en Vivo (extract_web_search, web_search, search_node_realtime, search_node_live_web)
   if (['extract_web_search', 'web_search', 'search_node_realtime', 'search_node_live_web'].includes(canonicalId)) {
     const act = company?.economicActivity || 'Actividades Empresariales';
@@ -7728,7 +7900,17 @@ async function inspectNodeLiveData(params = {}) {
     dedupWindow,
     sstAppSourceId,
     emailSubjectFilter,
+    emailSenderFilter,
+    timeWindow,
+    onlyWithAttachments,
     endpointUrl,
+    aiExtractionSchema,
+    fields,
+    aiExtractionRowMode,
+    aiModel,
+    customInstruction,
+    upstreamSourceType,
+    runAiExtraction,
   } = params || {};
 
   const topLevelQueryOverrides = {};
@@ -7745,7 +7927,17 @@ async function inspectNodeLiveData(params = {}) {
   if (dedupWindow !== undefined) topLevelQueryOverrides.dedupWindow = dedupWindow;
   if (sstAppSourceId !== undefined) topLevelQueryOverrides.sstAppSourceId = sstAppSourceId;
   if (emailSubjectFilter !== undefined) topLevelQueryOverrides.emailSubjectFilter = emailSubjectFilter;
+  if (emailSenderFilter !== undefined) topLevelQueryOverrides.emailSenderFilter = emailSenderFilter;
+  if (timeWindow !== undefined) topLevelQueryOverrides.timeWindow = timeWindow;
+  if (onlyWithAttachments !== undefined) topLevelQueryOverrides.onlyWithAttachments = onlyWithAttachments;
   if (endpointUrl !== undefined) topLevelQueryOverrides.endpointUrl = endpointUrl;
+  if (aiExtractionSchema !== undefined) topLevelQueryOverrides.aiExtractionSchema = aiExtractionSchema;
+  if (fields !== undefined) topLevelQueryOverrides.fields = fields;
+  if (aiExtractionRowMode !== undefined) topLevelQueryOverrides.aiExtractionRowMode = aiExtractionRowMode;
+  if (aiModel !== undefined) topLevelQueryOverrides.aiModel = aiModel;
+  if (customInstruction !== undefined) topLevelQueryOverrides.customInstruction = customInstruction;
+  if (upstreamSourceType !== undefined) topLevelQueryOverrides.upstreamSourceType = upstreamSourceType;
+  if (runAiExtraction !== undefined) topLevelQueryOverrides.runAiExtraction = runAiExtraction;
 
   const effectiveNodeConfig = {
     ...(options && typeof options === 'object' ? options : {}),
