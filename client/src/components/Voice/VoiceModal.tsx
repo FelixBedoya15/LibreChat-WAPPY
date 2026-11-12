@@ -13,9 +13,25 @@ import {
     loadTasksVision,
     loadClassicPoseScripts,
     initPoseLandmarker,
+    initAuxiliaryVisionTrackers,
     drawBiomechanicSkeleton,
+    drawClinicalXRayLabels,
     calculateBiomechanicAngles,
+    composeBiomechanicSnapshotPlate,
+    getBiomechanicVisionConfig,
+    type AuxiliaryVisionTrackers,
+    type BiomechanicAngles,
 } from '~/utils/biomechanics3D';
+import {
+    renderAnatomyXRayFrame,
+    flushAnatomyXRayCanvas,
+    clearAnatomyXRayCanvas,
+    disposeAnatomyXRayCanvas,
+} from '~/utils/anatomyXRay3D';
+import {
+    BiomechanicVisionControls,
+    useBiomechanicVisionConfig,
+} from '~/components/Biomechanics/BiomechanicVisionControls';
 
 declare global {
     interface Window {
@@ -226,6 +242,8 @@ const VoiceModal: FC<VoiceModalProps> = ({
     const [armAngle, setArmAngle] = useState<number | null>(null);
     const [elbowAngle, setElbowAngle] = useState<number | null>(null);
     const [kneeAngle, setKneeAngle] = useState<number | null>(null);
+    const [wristAngle, setWristAngle] = useState<number | null>(null);
+    const [jawOpenLive, setJawOpenLive] = useState<number>(0);
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
     const [is3DTelemetry, setIs3DTelemetry] = useState(false);
@@ -234,10 +252,18 @@ const VoiceModal: FC<VoiceModalProps> = ({
     const [reportSuccess, setReportSuccess] = useState(false);
     const reportGeneratedRef = useRef(false);
 
+    const { config: biomechConfig } = useBiomechanicVisionConfig();
+    const biomechConfigRef = useRef(biomechConfig);
+    biomechConfigRef.current = biomechConfig;
+
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const xrayCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
     const handsRef = useRef<any>(null);
+    const auxTrackersRef = useRef<AuxiliaryVisionTrackers | null>(null);
     const handsResultsRef = useRef<any>(null);
+    const jawOpenRef = useRef<number>(0);
+    const lastPosePayloadRef = useRef<{ landmarks: any[]; worldLandmarks: any[] | null } | null>(null);
     const landmarkerRef = useRef<any>(null);
     const badPostureStartRef = useRef<number | null>(null);
     const lastSnapshotTimeRef = useRef<number>(0);
@@ -247,7 +273,9 @@ const VoiceModal: FC<VoiceModalProps> = ({
         arm: number | null;
         elbow: number | null;
         knee: number | null;
-    }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null });
+        wrist?: number | null;
+        jawOpen?: number;
+    }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null, wrist: null, jawOpen: 0 });
     const lastStateUpdateRef = useRef<number>(0);
 
     const getNeckStatus = (angle: number | null) => {
@@ -285,11 +313,19 @@ const VoiceModal: FC<VoiceModalProps> = ({
         return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
     };
 
+    const getWristStatus = (angle: number | null) => {
+        if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+        if (angle > 25) return { status: 'Crítico', colorClass: 'bg-red-500/15 border-red-500/30 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+        if (angle > 15) return { status: 'Moderado', colorClass: 'bg-amber-500/10 border-amber-500/20 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+        return { status: 'Normal', colorClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+    };
+
     const neckInfo = useMemo(() => getNeckStatus(neckAngle), [neckAngle]);
     const trunkInfo = useMemo(() => getTrunkStatus(trunkAngle), [trunkAngle]);
     const armInfo = useMemo(() => getArmStatus(armAngle), [armAngle]);
     const elbowInfo = useMemo(() => getElbowStatus(elbowAngle), [elbowAngle]);
     const kneeInfo = useMemo(() => getKneeStatus(kneeAngle), [kneeAngle]);
+    const wristInfo = useMemo(() => getWristStatus(wristAngle), [wristAngle]);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -806,6 +842,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     const aAngle = currentAngles.arm ?? armAngle;
                     const eAngle = currentAngles.elbow ?? elbowAngle;
                     const kAngle = currentAngles.knee ?? kneeAngle;
+                    const wAngle = currentAngles.wrist ?? wristAngle;
 
                     const parts: string[] = [];
                     if (nAngle !== null) parts.push(`Cuello: ${nAngle}° (${neckInfo.status})`);
@@ -813,6 +850,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     if (aAngle !== null) parts.push(`Brazo: ${aAngle}° (${armInfo.status})`);
                     if (eAngle !== null) parts.push(`Codo: ${eAngle}° (${elbowInfo.status})`);
                     if (kAngle !== null) parts.push(`Rodilla: ${kAngle}° (${kneeInfo.status})`);
+                    if (wAngle !== null && wAngle !== undefined) parts.push(`Muñeca: ${wAngle}° (${getWristStatus(wAngle).status})`);
 
                     if (parts.length > 0) {
                         const phaseName = currentPhaseRef.current?.name || 'Evaluación General';
@@ -826,10 +864,14 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     telemetryString = `[Inspección en Vivo • ${proto.title} • ${phase.name} • ${perspective} • Enfoque: ${phase.focus}]`;
                 }
 
+                const activeOverlay = isBiomechanicsAgent
+                    ? (biomechConfigRef.current.mode === 'xray_3d' && xrayCanvasRef.current ? xrayCanvasRef.current : canvasRef.current)
+                    : null;
+
                 sendVideoFrame(
                     videoRef.current,
                     telemetryString,
-                    isBiomechanicsAgent && canvasRef.current ? canvasRef.current : null
+                    activeOverlay
                 );
             }
         }, 1200);
@@ -854,6 +896,35 @@ const VoiceModal: FC<VoiceModalProps> = ({
             return null;
         }
         try {
+            if (isBiomechanicsAgent) {
+                const cfg = getBiomechanicVisionConfig();
+                const proto = activeProtocolRef.current;
+                const phase = proto.phases[currentPhaseIndexRef.current] || proto.phases[0];
+                const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
+                const currentAngles = anglesRef.current || { neck: null, trunk: null, arm: null, elbow: null, knee: null };
+
+                const plateUrl = composeBiomechanicSnapshotPlate({
+                    video,
+                    webglCanvas: xrayCanvasRef.current,
+                    overlay2DCanvas: canvasRef.current,
+                    zoom,
+                    maxDim: 640,
+                    jpegQuality: 0.78,
+                    is3DXRayMode: cfg.mode === 'xray_3d',
+                    phaseTitle,
+                    methodLabel:
+                        currentAngles.knee !== null && currentAngles.knee !== undefined && currentAngles.knee > 25
+                            ? 'REBA'
+                            : 'RULA',
+                    angles: { ...currentAngles, is3D: is3DTelemetry },
+                    onBeforeWebGLCopy: () => flushAnatomyXRayCanvas(xrayCanvasRef.current),
+                });
+                if (plateUrl) {
+                    console.log(`[VoiceModal] Biomechanic snapshot plate captured (${cfg.mode}, zoom: ${zoom}x)`);
+                    return plateUrl;
+                }
+            }
+
             // Limit maximum dimension to 640px to reduce payload size and speed up transmission over WebSocket
             const maxDim = 640;
             let targetW = w;
@@ -878,46 +949,6 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 const sx = (w - sw) / 2;
                 const sy = (h - sh) / 2;
                 ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
-                if (isBiomechanicsAgent && canvasRef.current) {
-                    ctx.drawImage(canvasRef.current, 0, 0, targetW, targetH);
-                }
-
-                if (isBiomechanicsAgent) {
-                    const currentAngles = anglesRef.current || {};
-                    const proto = activeProtocolRef.current;
-                    const phase = proto.phases[currentPhaseIndexRef.current] || proto.phases[0];
-                    const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
-
-                    const nAngle = currentAngles.neck;
-                    const tAngle = currentAngles.trunk;
-                    const aAngle = currentAngles.arm;
-                    const eAngle = currentAngles.elbow;
-
-                    const bannerH = 46;
-                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-                    ctx.fillRect(0, targetH - bannerH, targetW, bannerH);
-
-                    // Cyan accent top line
-                    ctx.fillStyle = '#06b6d4';
-                    ctx.fillRect(0, targetH - bannerH, targetW, 2);
-
-                    // Phase label
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillStyle = '#22d3ee';
-                    ctx.fillText(`📐 ${phaseTitle}`, 12, targetH - bannerH + 18);
-
-                    // Angle metrics
-                    const metrics: string[] = [];
-                    if (nAngle !== null && nAngle !== undefined) metrics.push(`Cuello: ${nAngle}°`);
-                    if (tAngle !== null && tAngle !== undefined) metrics.push(`Tronco: ${tAngle}°`);
-                    if (aAngle !== null && aAngle !== undefined) metrics.push(`Brazo: ${aAngle}°`);
-                    if (eAngle !== null && eAngle !== undefined) metrics.push(`Codo: ${eAngle}°`);
-
-                    ctx.font = '11px sans-serif';
-                    ctx.fillStyle = '#f8fafc';
-                    const metricsStr = metrics.length > 0 ? metrics.join('  •  ') : 'Telemetría MediaPipe Activa';
-                    ctx.fillText(metricsStr, 12, targetH - bannerH + 34);
-                }
 
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
                 console.log(`[VoiceModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
@@ -927,7 +958,57 @@ const VoiceModal: FC<VoiceModalProps> = ({
             console.error('Error capturing snapshot in VoiceModal:', e);
         }
         return null;
-    }, [zoom, isBiomechanicsAgent]);
+    }, [zoom, isBiomechanicsAgent, is3DTelemetry]);
+
+    const renderBiomechanicsOverlays = useCallback((landmarks: any[], worldLandmarks: any[] | null, computedAngles: BiomechanicAngles) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cfg = biomechConfigRef.current;
+
+        if (cfg.mode === 'xray_3d') {
+            const xrayCanvas = xrayCanvasRef.current;
+            if (xrayCanvas) {
+                const w = canvas.width || xrayCanvas.width || 640;
+                const h = canvas.height || xrayCanvas.height || 480;
+                if (xrayCanvas.width !== w || xrayCanvas.height !== h) {
+                    xrayCanvas.width = w;
+                    xrayCanvas.height = h;
+                }
+                renderAnatomyXRayFrame(xrayCanvas, {
+                    landmarks,
+                    worldLandmarks,
+                    multiHandLandmarks: handsResultsRef.current,
+                    angles: computedAngles,
+                    jawOpen: jawOpenRef.current,
+                    config: cfg,
+                    width: w,
+                    height: h,
+                });
+            }
+            if (cfg.layers.clinicalLabels) {
+                try {
+                    drawClinicalXRayLabels(ctx, landmarks, computedAngles, {
+                        layers: cfg.layers,
+                        multiHandLandmarks: handsResultsRef.current,
+                        jawOpen: jawOpenRef.current,
+                    });
+                } catch (labelErr) {
+                    console.error('[VoiceModal] Error drawing clinical labels:', labelErr);
+                }
+            }
+        } else {
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
+            try {
+                drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
+            } catch (drawErr) {
+                console.error('[VoiceModal] Error drawing skeleton:', drawErr);
+            }
+        }
+    }, []);
 
     const onPoseResults = useCallback((results: any) => {
         const canvas = canvasRef.current;
@@ -939,19 +1020,24 @@ const VoiceModal: FC<VoiceModalProps> = ({
         const landmarks = results?.landmarks ? results.landmarks[0] : (results?.poseLandmarks || null);
         const worldLandmarks = results?.worldLandmarks ? results.worldLandmarks[0] : (results?.poseWorldLandmarks || null);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!landmarks) return;
-
-        // 1. Dibujar esqueleto neón HUD nativo con rostro limpio y manos completas
-        try {
-            drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
-        } catch (drawErr) {
-            console.error('[VoiceModal] Error drawing skeleton:', drawErr);
+        if (!landmarks) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
+            lastPosePayloadRef.current = null;
+            return;
         }
 
-        // 2. Cálculo ergonómico de los 5 ángulos
+        lastPosePayloadRef.current = { landmarks, worldLandmarks };
+
+        // 1. Cálculo ergonómico de ángulos + muñeca + mandíbula
         try {
-            const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
+            const computed = calculateBiomechanicAngles(
+                landmarks,
+                worldLandmarks,
+                handsResultsRef.current,
+                jawOpenRef.current,
+            );
+            const { neck, trunk, arm, elbow, knee, wrist, is3D } = computed;
 
             anglesRef.current = {
                 neck,
@@ -959,23 +1045,47 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 arm,
                 elbow,
                 knee,
+                wrist: wrist ?? null,
+                jawOpen: jawOpenRef.current,
             };
+
+            // 2. Dibujar Rayos X 3D o Esqueleto Neón 2D según configuración activa
+            renderBiomechanicsOverlays(landmarks, worldLandmarks, computed);
 
             // Actualización suave de telemetría en HUD
             const now = Date.now();
-            if (now - lastStateUpdateRef.current >= 250) {
+            if (now - lastStateUpdateRef.current >= 220) {
                 lastStateUpdateRef.current = now;
                 setNeckAngle(neck);
                 setTrunkAngle(trunk);
                 setArmAngle(arm);
                 setElbowAngle(elbow);
                 setKneeAngle(knee);
+                setWristAngle(wrist ?? null);
+                setJawOpenLive(jawOpenRef.current);
                 setIs3DTelemetry(is3D);
             }
         } catch (calcErr) {
-            console.error('[VoiceModal] Error calculating angles:', calcErr);
+            console.error('[VoiceModal] Error calculating/rendering biomechanics:', calcErr);
         }
-    }, []);
+    }, [renderBiomechanicsOverlays]);
+
+    // Conmutación instantánea Rayos X 3D <-> Neón 2D o capas sin esperar nuevo frame
+    useEffect(() => {
+        if (!isBiomechanicsAgent || !lastPosePayloadRef.current) return;
+        const { landmarks, worldLandmarks } = lastPosePayloadRef.current;
+        const cur = anglesRef.current;
+        renderBiomechanicsOverlays(landmarks, worldLandmarks, {
+            neck: cur.neck,
+            trunk: cur.trunk,
+            arm: cur.arm,
+            elbow: cur.elbow,
+            knee: cur.knee,
+            wrist: cur.wrist ?? null,
+            jawOpen: cur.jawOpen ?? 0,
+            is3D: is3DTelemetry,
+        });
+    }, [biomechConfig, isBiomechanicsAgent, is3DTelemetry, renderBiomechanicsOverlays]);
 
     // Cargar Google MediaPipe para Visión IA (arranque instantáneo)
     useEffect(() => {
@@ -1037,6 +1147,11 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 }
                 poseRef.current = null;
             }
+            if (auxTrackersRef.current) {
+                auxTrackersRef.current.close();
+                auxTrackersRef.current = null;
+            }
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
             setIsPoseActive(false);
             return;
         }
@@ -1045,6 +1160,17 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
         const initEngine = async () => {
             console.log('[VoiceModal] Initializing Vision Engine...');
+
+            // Inicializar trackers auxiliares (HandLandmarker 21 pts + FaceLandmarker jawOpen) en segundo plano sin bloquear Pose
+            initAuxiliaryVisionTrackers()
+                .then((aux) => {
+                    if (isSubscribed && aux) {
+                        auxTrackersRef.current = aux;
+                    } else if (aux) {
+                        aux.close();
+                    }
+                })
+                .catch(() => {});
 
             // 1. Intentar Tasks-Vision PoseLandmarker
             const tasksVision = (window as any).MediaPipeTasksVision;
@@ -1088,7 +1214,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 }
             }
 
-            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos
+            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos (fallback clásico)
             if (typeof window !== 'undefined' && (window as any).Hands && isSubscribed) {
                 try {
                     const hands = new (window as any).Hands({
@@ -1140,18 +1266,32 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 } catch (_) {}
                 handsRef.current = null;
             }
+            if (auxTrackersRef.current) {
+                auxTrackersRef.current.close();
+                auxTrackersRef.current = null;
+            }
             handsResultsRef.current = null;
+            jawOpenRef.current = 0;
+            lastPosePayloadRef.current = null;
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
             setIsPoseActive(false);
         };
     }, [isMediaPipeLoaded, isCameraOn, isBiomechanicsAgent, onPoseResults]);
 
-    // Procesar frames a 10 FPS (óptimo para telemetría continua sin saturar CPU ni el hilo principal)
+    useEffect(() => {
+        return () => {
+            disposeAnatomyXRayCanvas(xrayCanvasRef.current);
+            auxTrackersRef.current?.close();
+        };
+    }, []);
+
+    // Procesar frames a ~14 FPS (fluidez en Rayos X 3D + telemetría continua sin saturar CPU)
     useEffect(() => {
         if (!isPoseActive || !videoRef.current) return;
 
         let active = true;
         let lastFrameTime = 0;
-        const fpsInterval = 1000 / 10; // 10 FPS
+        const fpsInterval = 1000 / 14;
 
         const poseLoop = async () => {
             if (!active) return;
@@ -1169,10 +1309,24 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                     }
+                    const xrayCanvas = xrayCanvasRef.current;
+                    if (xrayCanvas && (xrayCanvas.width !== video.videoWidth || xrayCanvas.height !== video.videoHeight)) {
+                        xrayCanvas.width = video.videoWidth;
+                        xrayCanvas.height = video.videoHeight;
+                    }
+
+                    const ts = performance.now();
+                    if (auxTrackersRef.current) {
+                        const aux = auxTrackersRef.current.detectStep(video, ts);
+                        if (aux.multiHandLandmarks) {
+                            handsResultsRef.current = aux.multiHandLandmarks;
+                        }
+                        jawOpenRef.current = aux.jawOpen;
+                    }
 
                     if (landmarkerRef.current) {
                         try {
-                            const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                            const results = landmarkerRef.current.detectForVideo(video, ts);
                             onPoseResults(results);
                         } catch (e) {
                             console.error('[VoiceModal] Tasks-Vision detect error:', e);
@@ -1180,7 +1334,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     } else if (poseRef.current) {
                         try {
                             await poseRef.current.send({ image: video });
-                            if (handsRef.current) {
+                            if (!auxTrackersRef.current && handsRef.current) {
                                 await handsRef.current.send({ image: video }).catch(() => {});
                             }
                         } catch (e) {
@@ -1238,6 +1392,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
         const aAngle = currentAngles.arm ?? null;
         const eAngle = currentAngles.elbow ?? null;
         const kAngle = currentAngles.knee ?? null;
+        const wAngle = currentAngles.wrist ?? null;
 
         let telemetryParts: string[] = [];
         if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${getNeckStatus(nAngle).status})`);
@@ -1245,6 +1400,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
         if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${getArmStatus(aAngle).status})`);
         if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${getElbowStatus(eAngle).status})`);
         if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${getKneeStatus(kAngle).status})`);
+        if (wAngle !== null) telemetryParts.push(`Desviación Radiocarpiana: ${wAngle}° (${getWristStatus(wAngle).status})`);
 
         let telemetryText = '';
         if (isBiomechanicsAgent) {
@@ -1259,6 +1415,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
         const metadata = {
             phaseIndex: targetPhaseIdx,
             phaseName: phase.name,
+            visionMode: getBiomechanicVisionConfig().mode,
             is3D: is3DTelemetry,
             telemetry: {
                 neck: nAngle,
@@ -1266,6 +1423,7 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 arm: aAngle,
                 elbow: eAngle,
                 knee: kAngle,
+                wrist: wAngle,
                 summary: telemetryParts.join(' • ')
             }
         };
@@ -1533,10 +1691,10 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
                 {/* Specialized Inspection HUD - STRICTLY for Biomechanics / Fisioterapeuta */}
                 {isBiomechanicsAgent && (
-                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-40 bg-black/75 backdrop-blur-xl border border-white/15 rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-2xl flex flex-col gap-1.5 sm:gap-2 pointer-events-auto transition-all animate-in fade-in duration-300 max-w-full overflow-hidden">
-                        {/* Fila 1: Badges, Método y Selector de Fases */}
+                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-40 bg-black/75 backdrop-blur-xl border border-white/15 rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-2xl flex flex-col gap-1.5 sm:gap-2 pointer-events-auto transition-all animate-in fade-in duration-300 max-w-full overflow-visible">
+                        {/* Fila 1: Badges, Control Rayos X 3D / Neón 2D y Selector de Fases */}
                         <div className="flex flex-wrap items-center justify-between gap-1 sm:gap-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                 <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
                                 <span className="text-[9px] sm:text-xs font-mono font-bold uppercase tracking-wider text-cyan-300">
                                     {activeProtocol.badgeText}
@@ -1553,28 +1711,44 @@ const VoiceModal: FC<VoiceModalProps> = ({
                                 {/* Perspective Badge */}
                                 <span className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
                                     <UserCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
-                                    {capturePerspective}
+                                    <span className="sm:hidden">{isMobileDevice && facingMode === 'environment' ? '3ra Pers.' : 'Auto'}</span>
+                                    <span className="hidden sm:inline">{capturePerspective}</span>
                                 </span>
                             </div>
 
-                            {/* Ergonomic Multi-Phase Selector */}
-                            <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-0.5 sm:p-1">
-                                {activeProtocol.phases.map((p, idx) => (
-                                    <button
-                                        key={p.id}
-                                        type="button"
-                                        onClick={() => setCurrentPhaseIndex(idx)}
-                                        className={`px-1.5 sm:px-2.5 py-0.5 rounded text-[8px] sm:text-[9px] font-mono transition-all duration-200 ${
-                                            currentPhaseIndex === idx 
-                                                ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30' 
-                                                : 'text-white/60 hover:text-white hover:bg-white/10'
-                                        }`}
-                                        title={p.desc}
-                                    >
-                                        <span className="sm:hidden">{`F${idx + 1}: ${p.shortName.replace(/Fase\s*\d+:\s*/i, '')}`}</span>
-                                        <span className="hidden sm:inline">{p.shortName}</span>
-                                    </button>
-                                ))}
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                <BiomechanicVisionControls
+                                    compact
+                                    angles={{
+                                        neck: neckAngle,
+                                        trunk: trunkAngle,
+                                        arm: armAngle,
+                                        elbow: elbowAngle,
+                                        knee: kneeAngle,
+                                        wrist: wristAngle,
+                                        jawOpen: jawOpenLive,
+                                    }}
+                                />
+
+                                {/* Ergonomic Multi-Phase Selector */}
+                                <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-0.5 sm:p-1">
+                                    {activeProtocol.phases.map((p, idx) => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setCurrentPhaseIndex(idx)}
+                                            className={`px-1.5 sm:px-2.5 py-0.5 rounded text-[8px] sm:text-[9px] font-mono transition-all duration-200 ${
+                                                currentPhaseIndex === idx 
+                                                    ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30' 
+                                                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                                            }`}
+                                            title={p.desc}
+                                        >
+                                            <span className="sm:hidden">{`F${idx + 1}: ${p.shortName.replace(/Fase\s*\d+:\s*/i, '')}`}</span>
+                                            <span className="hidden sm:inline">{p.shortName}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -1630,6 +1804,18 @@ const VoiceModal: FC<VoiceModalProps> = ({
                                     {kneeInfo.status}
                                 </span>
                             </div>
+                            {/* Wrist Angle (Carpal Tunnel) */}
+                            {wristAngle !== null && (
+                                <div className={`flex shrink-0 items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-lg sm:rounded-xl border transition-all duration-300 ${wristInfo.colorClass}`}>
+                                    <span className="text-[8px] sm:text-[9px] font-mono font-medium opacity-60">Muñeca</span>
+                                    <span className={`text-[10px] sm:text-xs font-bold font-mono ${wristInfo.valColorClass}`}>
+                                        {`${wristAngle}°`}
+                                    </span>
+                                    <span className={`text-[8px] sm:text-[9px] uppercase tracking-wider font-mono ${wristInfo.textClass}`}>
+                                        {wristInfo.status}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1643,13 +1829,25 @@ const VoiceModal: FC<VoiceModalProps> = ({
                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
 
-                    {/* Simplified Neon HUD Canvas Overlay */}
+                    {/* Radiographic Veil + 3D WebGL Anatomy + 2D HUD Canvas Overlay */}
                     {isBiomechanicsAgent && (isCameraOn || isScreenSharing) && (
-                        <canvas
-                            ref={canvasRef}
-                            className="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"
-                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
-                        />
+                        <>
+                            {biomechConfig.mode === 'xray_3d' && (
+                                <div className="absolute inset-0 bg-[#0C192E]/20 z-[9] pointer-events-none transition-opacity duration-200" />
+                            )}
+                            <canvas
+                                ref={xrayCanvasRef}
+                                className={`absolute inset-0 w-full h-full object-cover z-10 pointer-events-none transition-opacity duration-200 ${
+                                    biomechConfig.mode === 'xray_3d' ? 'opacity-100' : 'opacity-0'
+                                }`}
+                                style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                            />
+                            <canvas
+                                ref={canvasRef}
+                                className="absolute inset-0 w-full h-full object-cover z-[11] pointer-events-none"
+                                style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                            />
+                        </>
                     )}
 
                     {/* Camera Flash Overlay */}

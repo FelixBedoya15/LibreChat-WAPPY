@@ -14,9 +14,25 @@ import {
     loadTasksVision,
     loadClassicPoseScripts,
     initPoseLandmarker,
+    initAuxiliaryVisionTrackers,
     drawBiomechanicSkeleton,
+    drawClinicalXRayLabels,
     calculateBiomechanicAngles,
+    composeBiomechanicSnapshotPlate,
+    getBiomechanicVisionConfig,
+    type AuxiliaryVisionTrackers,
+    type BiomechanicAngles,
 } from '~/utils/biomechanics3D';
+import {
+    renderAnatomyXRayFrame,
+    flushAnatomyXRayCanvas,
+    clearAnatomyXRayCanvas,
+    disposeAnatomyXRayCanvas,
+} from '~/utils/anatomyXRay3D';
+import {
+    BiomechanicVisionControls,
+    useBiomechanicVisionConfig,
+} from '~/components/Biomechanics/BiomechanicVisionControls';
 
 declare global {
     interface Window {
@@ -61,14 +77,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [armAngle, setArmAngle] = useState<number | null>(null);
     const [elbowAngle, setElbowAngle] = useState<number | null>(null);
     const [kneeAngle, setKneeAngle] = useState<number | null>(null);
+    const [wristAngle, setWristAngle] = useState<number | null>(null);
+    const [jawOpenLive, setJawOpenLive] = useState<number>(0);
     const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
     const [isPoseActive, setIsPoseActive] = useState(false);
     const [is3DTelemetry, setIs3DTelemetry] = useState(false);
 
+    const { config: biomechConfig } = useBiomechanicVisionConfig();
+    const biomechConfigRef = useRef(biomechConfig);
+    biomechConfigRef.current = biomechConfig;
+
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const xrayCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const poseRef = useRef<any>(null);
     const handsRef = useRef<any>(null);
+    const auxTrackersRef = useRef<AuxiliaryVisionTrackers | null>(null);
     const handsResultsRef = useRef<any>(null);
+    const jawOpenRef = useRef<number>(0);
+    const lastPosePayloadRef = useRef<{ landmarks: any[]; worldLandmarks: any[] | null } | null>(null);
     const landmarkerRef = useRef<any>(null);
     const badPostureStartRef = useRef<number | null>(null);
     const lastSnapshotTimeRef = useRef<number>(0);
@@ -78,7 +104,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         arm: number | null;
         elbow: number | null;
         knee: number | null;
-    }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null });
+        wrist?: number | null;
+        jawOpen?: number;
+    }>({ neck: null, trunk: null, arm: null, elbow: null, knee: null, wrist: null, jawOpen: 0 });
     const lastStateUpdateRef = useRef<number>(0);
 
     const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
@@ -363,6 +391,39 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [kneeAngle]);
 
+    const wristInfo = useMemo(() => {
+        if (wristAngle === null) {
+            return {
+                status: '--',
+                colorClass: 'bg-white/1 border-white/5 text-white/80',
+                textClass: 'text-white/40',
+                valColorClass: 'text-white/50'
+            };
+        }
+        if (wristAngle > 25) {
+            return {
+                status: 'Crítico',
+                colorClass: 'bg-red-500/10 border-red-500/30 text-red-200',
+                textClass: 'text-red-400 font-bold animate-pulse',
+                valColorClass: 'text-red-400'
+            };
+        }
+        if (wristAngle > 15) {
+            return {
+                status: 'Moderado',
+                colorClass: 'bg-amber-500/8 border-amber-500/20 text-amber-200',
+                textClass: 'text-amber-400 font-semibold',
+                valColorClass: 'text-amber-400'
+            };
+        }
+        return {
+            status: 'Normal',
+            colorClass: 'bg-emerald-500/3 border-emerald-500/10 text-emerald-100',
+            textClass: 'text-emerald-400 font-medium',
+            valColorClass: 'text-emerald-400'
+        };
+    }, [wristAngle]);
+
 
 
     // ==================== HELPER FUNCTIONS & CALLBACKS ====================
@@ -379,6 +440,36 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             return null;
         }
         try {
+            const isBiomech = selectedTemplate === 'biomecanico_mediapipe' || activeProtocolRef.current?.id === 'biomecanico';
+            if (isBiomech) {
+                const cfg = getBiomechanicVisionConfig();
+                const proto = activeProtocolRef.current;
+                const phase = proto?.phases?.[currentPhaseIndexRef.current] || proto?.phases?.[0];
+                const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
+                const currentAngles = anglesRef.current || { neck: null, trunk: null, arm: null, elbow: null, knee: null };
+
+                const plateUrl = composeBiomechanicSnapshotPlate({
+                    video,
+                    webglCanvas: xrayCanvasRef.current,
+                    overlay2DCanvas: canvasRef.current,
+                    zoom,
+                    maxDim: 640,
+                    jpegQuality: 0.78,
+                    is3DXRayMode: cfg.mode === 'xray_3d',
+                    phaseTitle,
+                    methodLabel:
+                        currentAngles.knee !== null && currentAngles.knee !== undefined && currentAngles.knee > 25
+                            ? 'REBA'
+                            : 'RULA',
+                    angles: { ...currentAngles, is3D: is3DTelemetry },
+                    onBeforeWebGLCopy: () => flushAnatomyXRayCanvas(xrayCanvasRef.current),
+                });
+                if (plateUrl) {
+                    console.log(`[LiveAnalysisModal] Biomechanic snapshot plate captured (${cfg.mode}, zoom: ${zoom}x)`);
+                    return plateUrl;
+                }
+            }
+
             // Limit maximum dimension to 640px to reduce payload size and speed up transmission over WebSocket
             const maxDim = 640;
             let targetW = w;
@@ -404,48 +495,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 const sy = (h - sh) / 2;
                 ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
-                const isBiomech = selectedTemplate === 'biomecanico_mediapipe' || activeProtocolRef.current?.id === 'biomecanico';
-                if (isBiomech && canvasRef.current) {
-                    ctx.drawImage(canvasRef.current, 0, 0, targetW, targetH);
-                }
-
-                if (isBiomech) {
-                    const currentAngles = anglesRef.current || {};
-                    const proto = activeProtocolRef.current;
-                    const phase = proto?.phases?.[currentPhaseIndexRef.current] || proto?.phases?.[0];
-                    const phaseTitle = (phase?.name || `Fase ${currentPhaseIndexRef.current + 1}`).toUpperCase();
-
-                    const nAngle = currentAngles.neck;
-                    const tAngle = currentAngles.trunk;
-                    const aAngle = currentAngles.arm;
-                    const eAngle = currentAngles.elbow;
-
-                    const bannerH = 46;
-                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-                    ctx.fillRect(0, targetH - bannerH, targetW, bannerH);
-
-                    // Cyan accent top line
-                    ctx.fillStyle = '#06b6d4';
-                    ctx.fillRect(0, targetH - bannerH, targetW, 2);
-
-                    // Phase label
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillStyle = '#22d3ee';
-                    ctx.fillText(`📐 ${phaseTitle}`, 12, targetH - bannerH + 18);
-
-                    // Angle metrics
-                    const metrics: string[] = [];
-                    if (nAngle !== null && nAngle !== undefined) metrics.push(`Cuello: ${nAngle}°`);
-                    if (tAngle !== null && tAngle !== undefined) metrics.push(`Tronco: ${tAngle}°`);
-                    if (aAngle !== null && aAngle !== undefined) metrics.push(`Brazo: ${aAngle}°`);
-                    if (eAngle !== null && eAngle !== undefined) metrics.push(`Codo: ${eAngle}°`);
-
-                    ctx.font = '11px sans-serif';
-                    ctx.fillStyle = '#f8fafc';
-                    const metricsStr = metrics.length > 0 ? metrics.join('  •  ') : 'Telemetría MediaPipe Activa';
-                    ctx.fillText(metricsStr, 12, targetH - bannerH + 34);
-                }
-
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
                 console.log(`[LiveAnalysisModal] Snapshot captured and scaled: ${targetW}x${targetH} (original: ${w}x${h}, zoom: ${zoom}x)`);
                 return dataUrl;
@@ -454,7 +503,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('Error capturing snapshot:', e);
         }
         return null;
-    }, [zoom]);
+    }, [zoom, selectedTemplate, is3DTelemetry]);
 
     const scheduleAudio = useCallback((buffer: AudioBuffer) => {
         if (!audioContextRef.current) return;
@@ -741,6 +790,56 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         statusRef.current = status;
     }, [status]);
 
+    const renderBiomechanicsOverlays = useCallback((landmarks: any[], worldLandmarks: any[] | null, computedAngles: BiomechanicAngles) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cfg = biomechConfigRef.current;
+
+        if (cfg.mode === 'xray_3d') {
+            const xrayCanvas = xrayCanvasRef.current;
+            if (xrayCanvas) {
+                const w = canvas.width || xrayCanvas.width || 640;
+                const h = canvas.height || xrayCanvas.height || 480;
+                if (xrayCanvas.width !== w || xrayCanvas.height !== h) {
+                    xrayCanvas.width = w;
+                    xrayCanvas.height = h;
+                }
+                renderAnatomyXRayFrame(xrayCanvas, {
+                    landmarks,
+                    worldLandmarks,
+                    multiHandLandmarks: handsResultsRef.current,
+                    angles: computedAngles,
+                    jawOpen: jawOpenRef.current,
+                    config: cfg,
+                    width: w,
+                    height: h,
+                });
+            }
+            if (cfg.layers.clinicalLabels) {
+                try {
+                    drawClinicalXRayLabels(ctx, landmarks, computedAngles, {
+                        layers: cfg.layers,
+                        multiHandLandmarks: handsResultsRef.current,
+                        jawOpen: jawOpenRef.current,
+                    });
+                } catch (labelErr) {
+                    console.error('[LiveAnalysisModal] Error drawing clinical labels:', labelErr);
+                }
+            }
+        } else {
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
+            try {
+                drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
+            } catch (drawErr) {
+                console.error('[LiveAnalysisModal] Error drawing skeleton:', drawErr);
+            }
+        }
+    }, []);
+
     const onPoseResults = useCallback((results: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -751,19 +850,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const landmarks = results?.landmarks ? results.landmarks[0] : (results?.poseLandmarks || null);
         const worldLandmarks = results?.worldLandmarks ? results.worldLandmarks[0] : (results?.poseWorldLandmarks || null);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!landmarks) return;
-
-        // 1. Dibujar esqueleto neón HUD nativo con rostro limpio y manos completas
-        try {
-            drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
-        } catch (drawErr) {
-            console.error('[LiveAnalysisModal] Error drawing skeleton:', drawErr);
+        if (!landmarks) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
+            lastPosePayloadRef.current = null;
+            return;
         }
 
-        // 2. Cálculos ergonómicos en 3D libre de distorsión de perspectiva con fallback a 2D
+        lastPosePayloadRef.current = { landmarks, worldLandmarks };
+
+        // 1. Cálculos ergonómicos en 3D libre de distorsión de perspectiva con fallback a 2D
         try {
-            const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
+            const computed = calculateBiomechanicAngles(
+                landmarks,
+                worldLandmarks,
+                handsResultsRef.current,
+                jawOpenRef.current,
+            );
+            const { neck, trunk, arm, elbow, knee, wrist, is3D } = computed;
 
             anglesRef.current = {
                 neck,
@@ -771,23 +875,47 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 arm,
                 elbow,
                 knee,
+                wrist: wrist ?? null,
+                jawOpen: jawOpenRef.current,
             };
 
-            // Throttle React state updates to at most once every 250ms
+            // 2. Renderizar Rayos X 3D o Esqueleto Neón 2D según configuración activa
+            renderBiomechanicsOverlays(landmarks, worldLandmarks, computed);
+
+            // Throttle React state updates to at most once every 220ms
             const now = Date.now();
-            if (now - lastStateUpdateRef.current >= 250) {
+            if (now - lastStateUpdateRef.current >= 220) {
                 lastStateUpdateRef.current = now;
                 setNeckAngle(neck);
                 setTrunkAngle(trunk);
                 setArmAngle(arm);
                 setElbowAngle(elbow);
                 setKneeAngle(knee);
+                setWristAngle(wrist ?? null);
+                setJawOpenLive(jawOpenRef.current);
                 setIs3DTelemetry(is3D);
             }
         } catch (calcErr) {
-            console.error('[LiveAnalysisModal] Error calculating angles:', calcErr);
+            console.error('[LiveAnalysisModal] Error calculating/rendering biomechanics:', calcErr);
         }
-    }, []);
+    }, [renderBiomechanicsOverlays]);
+
+    // Conmutación instantánea Rayos X 3D <-> Neón 2D o capas sin esperar nuevo frame
+    useEffect(() => {
+        if (selectedTemplate !== 'biomecanico_mediapipe' || !lastPosePayloadRef.current) return;
+        const { landmarks, worldLandmarks } = lastPosePayloadRef.current;
+        const cur = anglesRef.current;
+        renderBiomechanicsOverlays(landmarks, worldLandmarks, {
+            neck: cur.neck,
+            trunk: cur.trunk,
+            arm: cur.arm,
+            elbow: cur.elbow,
+            knee: cur.knee,
+            wrist: cur.wrist ?? null,
+            jawOpen: cur.jawOpen ?? 0,
+            is3D: is3DTelemetry,
+        });
+    }, [biomechConfig, selectedTemplate, is3DTelemetry, renderBiomechanicsOverlays]);
 
     // ==================== CONTROLLER HELPER FUNCTIONS ====================
 
@@ -947,6 +1075,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const aAngle = currentAngles.arm ?? armAngle;
         const eAngle = currentAngles.elbow ?? elbowAngle;
         const kAngle = currentAngles.knee ?? kneeAngle;
+        const wAngle = currentAngles.wrist ?? wristAngle;
 
         let telemetryParts: string[] = [];
         if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${neckInfo.status})`);
@@ -954,6 +1083,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${armInfo.status})`);
         if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${elbowInfo.status})`);
         if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${kneeInfo.status})`);
+        if (wAngle !== null && wAngle !== undefined) telemetryParts.push(`Desviación Radiocarpiana: ${wAngle}° (${wristInfo.status})`);
 
         const proto = activeProtocolRef.current;
         const phase = currentPhaseRef.current || proto.phases[0];
@@ -972,6 +1102,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         const metadata = {
             phaseIndex: currentPhaseIndexRef.current,
             phaseName: phase.name,
+            visionMode: getBiomechanicVisionConfig().mode,
             is3D: is3DTelemetry,
             telemetry: {
                 neck: nAngle,
@@ -979,6 +1110,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 arm: aAngle,
                 elbow: eAngle,
                 knee: kAngle,
+                wrist: wAngle,
                 summary: telemetryParts.join(' • ')
             }
         };
@@ -1000,6 +1132,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         elbowInfo.status, 
         kneeAngle, 
         kneeInfo.status,
+        wristAngle,
+        wristInfo.status,
+        selectedTemplate,
         is3DTelemetry
     ]);
 
@@ -1093,6 +1228,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 }
                 poseRef.current = null;
             }
+            if (auxTrackersRef.current) {
+                auxTrackersRef.current.close();
+                auxTrackersRef.current = null;
+            }
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
             setIsPoseActive(false);
             return;
         }
@@ -1101,6 +1241,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         const initEngine = async () => {
             console.log('[LiveAnalysisModal] Initializing Vision Engine...');
+
+            // Inicializar trackers auxiliares (HandLandmarker 21 pts + FaceLandmarker jawOpen) en segundo plano sin bloquear Pose
+            initAuxiliaryVisionTrackers()
+                .then((aux) => {
+                    if (isSubscribed && aux) {
+                        auxTrackersRef.current = aux;
+                    } else if (aux) {
+                        aux.close();
+                    }
+                })
+                .catch(() => {});
 
             // 1. Intentar Tasks-Vision PoseLandmarker
             const tasksVision = (window as any).MediaPipeTasksVision;
@@ -1144,7 +1295,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 }
             }
 
-            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos
+            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos (fallback clásico)
             if (typeof window !== 'undefined' && (window as any).Hands && isSubscribed) {
                 try {
                     const hands = new (window as any).Hands({
@@ -1196,18 +1347,32 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 } catch (_) {}
                 handsRef.current = null;
             }
+            if (auxTrackersRef.current) {
+                auxTrackersRef.current.close();
+                auxTrackersRef.current = null;
+            }
             handsResultsRef.current = null;
+            jawOpenRef.current = 0;
+            lastPosePayloadRef.current = null;
+            clearAnatomyXRayCanvas(xrayCanvasRef.current);
             setIsPoseActive(false);
         };
     }, [isMediaPipeLoaded, isCameraOn, selectedTemplate, onPoseResults]);
 
-    // Procesar frames a 10 FPS (óptimo para telemetría continua sin saturar CPU ni el hilo principal)
+    useEffect(() => {
+        return () => {
+            disposeAnatomyXRayCanvas(xrayCanvasRef.current);
+            auxTrackersRef.current?.close();
+        };
+    }, []);
+
+    // Procesar frames a ~14 FPS (fluidez en Rayos X 3D + telemetría continua sin saturar CPU)
     useEffect(() => {
         if (!isPoseActive || !videoRef.current) return;
 
         let active = true;
         let lastFrameTime = 0;
-        const fpsInterval = 1000 / 10; // 10 FPS
+        const fpsInterval = 1000 / 14;
 
         const poseLoop = async () => {
             if (!active) return;
@@ -1225,10 +1390,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                     }
+                    const xrayCanvas = xrayCanvasRef.current;
+                    if (xrayCanvas && (xrayCanvas.width !== video.videoWidth || xrayCanvas.height !== video.videoHeight)) {
+                        xrayCanvas.width = video.videoWidth;
+                        xrayCanvas.height = video.videoHeight;
+                    }
+
+                    const ts = performance.now();
+                    if (auxTrackersRef.current) {
+                        const aux = auxTrackersRef.current.detectStep(video, ts);
+                        if (aux.multiHandLandmarks) {
+                            handsResultsRef.current = aux.multiHandLandmarks;
+                        }
+                        jawOpenRef.current = aux.jawOpen;
+                    }
 
                     if (landmarkerRef.current) {
                         try {
-                            const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                            const results = landmarkerRef.current.detectForVideo(video, ts);
                             onPoseResults(results);
                         } catch (e) {
                             console.error('[LiveAnalysisModal] Tasks-Vision detect error:', e);
@@ -1236,7 +1415,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     } else if (poseRef.current) {
                         try {
                             await poseRef.current.send({ image: video });
-                            if (handsRef.current) {
+                            if (!auxTrackersRef.current && handsRef.current) {
                                 await handsRef.current.send({ image: video }).catch(() => {});
                             }
                         } catch (e) {
@@ -1603,18 +1782,32 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                 {selectedTemplate === 'biomecanico_mediapipe' && isReady && (
                     isTelemetryCollapsed ? (
-                        /* Minimized Floating Badge for clean video visibility on mobile */
-                        <div 
-                            onClick={() => setIsTelemetryCollapsed(false)}
-                            className="absolute top-4 right-4 z-40 bg-black/15 hover:bg-black/30 backdrop-blur-md border border-white/5 rounded-full px-3 py-1.5 shadow-lg flex items-center gap-2 text-white pointer-events-auto cursor-pointer transition-all hover:scale-105"
-                        >
-                            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
-                            <span className="font-mono text-[10px] font-bold uppercase tracking-widest">Telemetría</span>
-                            <svg className="w-3.5 h-3.5 text-white/60 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4M4 20l5-5m11 5h-4m4 0v-4m0 4l-5-5"/></svg>
+                        /* Minimized Floating Controls + Badge for clean video visibility on mobile */
+                        <div className="absolute top-4 right-4 z-40 flex items-center gap-1.5 pointer-events-auto">
+                            <BiomechanicVisionControls
+                                compact
+                                angles={{
+                                    neck: neckAngle,
+                                    trunk: trunkAngle,
+                                    arm: armAngle,
+                                    elbow: elbowAngle,
+                                    knee: kneeAngle,
+                                    wrist: wristAngle,
+                                    jawOpen: jawOpenLive,
+                                }}
+                            />
+                            <div 
+                                onClick={() => setIsTelemetryCollapsed(false)}
+                                className="bg-black/45 hover:bg-black/65 backdrop-blur-md border border-white/15 rounded-full px-3 py-1.5 shadow-lg flex items-center gap-2 text-white cursor-pointer transition-all hover:scale-105"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
+                                <span className="font-mono text-[10px] font-bold uppercase tracking-widest">Telemetría</span>
+                                <svg className="w-3.5 h-3.5 text-white/60 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4M4 20l5-5m11 5h-4m4 0v-4m0 4l-5-5"/></svg>
+                            </div>
                         </div>
                     ) : (
                         /* Highly translucent, responsive panel with collapse button */
-                        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-40 w-[calc(100%-2rem)] sm:w-80 max-w-sm bg-black/12 backdrop-blur-[3px] border border-white/5 rounded-2xl p-4 shadow-xl flex flex-col gap-3 text-white pointer-events-auto transition-all duration-300">
+                        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-40 w-[calc(100%-2rem)] sm:w-84 max-w-sm bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 sm:p-4 shadow-xl flex flex-col gap-2.5 text-white pointer-events-auto transition-all duration-300">
                             <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
@@ -1625,7 +1818,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-mono text-white/40 uppercase">GTC 45 / RULA</span>
                                     <button 
                                         onClick={() => setIsTelemetryCollapsed(true)}
@@ -1637,17 +1830,34 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1">
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
-                                    <UserCheck className="w-3 h-3 text-emerald-400" />
-                                    {capturePerspective}
+                            {/* Control Rayos X 3D / Neón 2D + Capas Anatómicas */}
+                            <div className="flex items-center justify-between gap-1.5">
+                                <BiomechanicVisionControls
+                                    compact
+                                    angles={{
+                                        neck: neckAngle,
+                                        trunk: trunkAngle,
+                                        arm: armAngle,
+                                        elbow: elbowAngle,
+                                        knee: kneeAngle,
+                                        wrist: wristAngle,
+                                        jawOpen: jawOpenLive,
+                                    }}
+                                />
+                                <span className="text-[8.5px] px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-semibold flex items-center gap-1">
+                                    <UserCheck className="w-2.5 h-2.5 text-emerald-400" />
+                                    <span className="sm:hidden">{isMobileDevice && facingMode === 'environment' ? '3ra Pers.' : 'Auto'}</span>
+                                    <span className="hidden sm:inline">{isMobileDevice && facingMode === 'environment' ? 'Asistida' : 'Auto-eval.'}</span>
                                 </span>
-                                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
+                            </div>
+
+                            <div className="flex items-center justify-between gap-1.5 pb-0.5">
+                                <div className="flex items-center justify-center w-full gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
                                     {activeProtocol.phases.map((p, idx) => (
                                         <button
                                             key={p.id}
                                             onClick={() => setCurrentPhaseIndex(idx)}
-                                            className={`px-1.5 py-0.5 rounded text-[8.5px] font-mono transition-all duration-200 ${
+                                            className={`flex-1 px-1.5 py-0.5 rounded text-[8.5px] font-mono transition-all duration-200 ${
                                                 currentPhaseIndex === idx 
                                                     ? 'bg-cyan-500 text-black font-bold shadow-sm shadow-cyan-500/30' 
                                                     : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -1746,8 +1956,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 </div>
 
                                 {/* Knee Flexion Box */}
-                                <div className={`col-span-2 p-2.5 rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
-                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Flexión de Rodillas</div>
+                                <div className={`${wristAngle !== null ? 'col-span-1' : 'col-span-2'} p-2.5 rounded-xl border transition-all duration-300 ${kneeInfo.colorClass}`}>
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">{wristAngle !== null ? 'Rodillas (Flex.)' : 'Flexión de Rodillas'}</div>
                                     <div className="flex items-baseline justify-between">
                                         <span className={`text-xl font-mono font-black ${kneeInfo.valColorClass}`}>
                                             {kneeAngle !== null ? `${kneeAngle}°` : '--'}
@@ -1765,6 +1975,29 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                         />
                                     </div>
                                 </div>
+
+                                {/* Wrist / Carpal Box */}
+                                {wristAngle !== null && (
+                                    <div className={`col-span-1 p-2.5 rounded-xl border transition-all duration-300 ${wristInfo.colorClass}`}>
+                                        <div className="text-[9px] font-mono uppercase tracking-wider text-white/40 mb-1">Muñeca (Carpo)</div>
+                                        <div className="flex items-baseline justify-between">
+                                            <span className={`text-xl font-mono font-black ${wristInfo.valColorClass}`}>
+                                                {`${wristAngle}°`}
+                                            </span>
+                                            <span className={`text-[8.5px] uppercase font-black ${wristInfo.textClass}`}>
+                                                {wristInfo.status}
+                                            </span>
+                                        </div>
+                                        <div className="h-1 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
+                                            <div 
+                                                className={`h-full transition-all duration-300 ${
+                                                    wristAngle > 25 ? 'bg-red-500' : wristAngle > 15 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                }`}
+                                                style={{ width: `${Math.min(100, (wristAngle / 45) * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Warnings Alert Box */}
@@ -1772,13 +2005,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                              (trunkAngle !== null && trunkAngle > 0) || 
                              (armAngle !== null && armAngle > 20) || 
                              (elbowAngle !== null && (elbowAngle < 60 || elbowAngle > 100)) || 
-                             (kneeAngle !== null && kneeAngle > 30) ? (
+                             (kneeAngle !== null && kneeAngle > 30) ||
+                             (wristAngle !== null && wristAngle > 15) ? (
                                 <div className={`border px-2.5 py-1.5 rounded-xl flex items-center gap-2 text-[10px] font-bold ${
                                     (neckAngle !== null && neckAngle > 20) || 
                                     (trunkAngle !== null && trunkAngle > 20) || 
                                     (armAngle !== null && armAngle > 45) || 
                                     (elbowAngle !== null && (elbowAngle < 30 || elbowAngle > 130)) || 
-                                    (kneeAngle !== null && kneeAngle > 60)
+                                    (kneeAngle !== null && kneeAngle > 60) ||
+                                    (wristAngle !== null && wristAngle > 25)
                                         ? 'bg-red-500/10 border-red-500/20 text-red-200 animate-pulse'
                                         : 'bg-amber-500/10 border-amber-500/15 text-amber-200'
                                 }`}>
@@ -1788,7 +2023,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                          (trunkAngle !== null && trunkAngle > 20) || 
                                          (armAngle !== null && armAngle > 45) || 
                                          (elbowAngle !== null && (elbowAngle < 30 || elbowAngle > 130)) || 
-                                         (kneeAngle !== null && kneeAngle > 60)
+                                         (kneeAngle !== null && kneeAngle > 60) ||
+                                         (wristAngle !== null && wristAngle > 25)
                                             ? '¡Postura Crítica Detectada! Guardando evidencia...'
                                             : 'Postura ergonómica subóptima (Riesgo Moderado)'}
                                     </span>
@@ -1812,9 +2048,21 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         playsInline
                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                     />
+                    {selectedTemplate === 'biomecanico_mediapipe' && isCameraOn && biomechConfig.mode === 'xray_3d' && (
+                        <div className="absolute inset-0 bg-[#0C192E]/20 pointer-events-none z-[9] transition-opacity duration-200" />
+                    )}
+                    <canvas
+                        ref={xrayCanvasRef}
+                        className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-300 z-10 ${
+                            selectedTemplate === 'biomecanico_mediapipe' && isCameraOn && biomechConfig.mode === 'xray_3d'
+                                ? 'opacity-100'
+                                : 'opacity-0'
+                        }`}
+                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                    />
                     <canvas
                         ref={canvasRef}
-                        className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-500 z-10 ${
+                        className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-500 z-[11] ${
                             selectedTemplate === 'biomecanico_mediapipe' && isCameraOn ? 'opacity-100' : 'opacity-0'
                         }`}
                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}

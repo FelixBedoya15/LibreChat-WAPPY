@@ -77,9 +77,24 @@ import {
   loadTasksVision,
   loadClassicPoseScripts,
   initPoseLandmarker,
+  initAuxiliaryVisionTrackers,
   drawBiomechanicSkeleton,
+  drawClinicalXRayLabels,
   calculateBiomechanicAngles,
+  composeBiomechanicSnapshotPlate,
+  getBiomechanicVisionConfig,
+  type AuxiliaryVisionTrackers,
 } from '~/utils/biomechanics3D';
+import {
+  renderAnatomyXRayFrame,
+  flushAnatomyXRayCanvas,
+  clearAnatomyXRayCanvas,
+  disposeAnatomyXRayCanvas,
+} from '~/utils/anatomyXRay3D';
+import {
+  BiomechanicVisionControls,
+  useBiomechanicVisionConfig,
+} from '~/components/Biomechanics/BiomechanicVisionControls';
 
 export interface TenshiFileAttachment {
   title: string;
@@ -1341,6 +1356,8 @@ export default function TenshiChat() {
   const [armAngle, setArmAngle] = useState<number | null>(null);
   const [elbowAngle, setElbowAngle] = useState<number | null>(null);
   const [kneeAngle, setKneeAngle] = useState<number | null>(null);
+  const [wristAngle, setWristAngle] = useState<number | null>(null);
+  const [jawOpenLive, setJawOpenLive] = useState<number>(0);
   const [is3DTelemetry, setIs3DTelemetry] = useState(false);
   const [currentErgoPhaseIndex, setCurrentErgoPhaseIndex] = useState(0);
   const currentErgoPhaseIndexRef = useRef(currentErgoPhaseIndex);
@@ -1351,16 +1368,50 @@ export default function TenshiChat() {
   const [isPoseActive, setIsPoseActive] = useState(false);
   const [isFlashActive, setIsFlashActive] = useState(false);
 
+  const { config: biomechConfig } = useBiomechanicVisionConfig();
+  const biomechConfigRef = useRef(biomechConfig);
+  biomechConfigRef.current = biomechConfig;
+
   const biomechanicCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const xrayWebglCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const setBiomechanicCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
+    if (node) {
+      biomechanicCanvasRef.current = node;
+    } else if (biomechanicCanvasRef.current && !biomechanicCanvasRef.current.isConnected) {
+      biomechanicCanvasRef.current = null;
+    }
+  }, []);
+  const setXrayWebglCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
+    if (node) {
+      xrayWebglCanvasRef.current = node;
+    } else if (xrayWebglCanvasRef.current && !xrayWebglCanvasRef.current.isConnected) {
+      disposeAnatomyXRayCanvas(xrayWebglCanvasRef.current);
+      xrayWebglCanvasRef.current = null;
+    }
+  }, []);
+
   const landmarkerRef = useRef<any>(null);
   const poseRef = useRef<any>(null);
+  const auxTrackersRef = useRef<AuxiliaryVisionTrackers | null>(null);
   const handsResultsRef = useRef<any>(null);
-  const anglesRef = useRef<{ neck: number | null; trunk: number | null; arm: number | null; elbow: number | null; knee: number | null }>({
+  const jawOpenRef = useRef<number>(0);
+  const lastPosePayloadRef = useRef<{ landmarks: any[]; worldLandmarks: any[] | null } | null>(null);
+  const anglesRef = useRef<{
+    neck: number | null;
+    trunk: number | null;
+    arm: number | null;
+    elbow: number | null;
+    knee: number | null;
+    wrist?: number | null;
+    jawOpen?: number;
+  }>({
     neck: null,
     trunk: null,
     arm: null,
     elbow: null,
     knee: null,
+    wrist: null,
+    jawOpen: 0,
   });
   const lastErgoUpdateRef = useRef<number>(0);
   const isVoiceActiveRef = useRef(false);
@@ -1431,11 +1482,19 @@ export default function TenshiChat() {
     return { status: 'Normal', colorClass: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
   };
 
+  const getWristStatus = (angle: number | null) => {
+    if (angle === null) return { status: '--', colorClass: 'bg-white/5 border-white/10 text-white/80', textClass: 'text-white/40', valColorClass: 'text-white/50' };
+    if (angle > 25) return { status: 'Crítico', colorClass: 'bg-red-500/20 border-red-500/40 text-red-200', textClass: 'text-red-400 font-bold animate-pulse', valColorClass: 'text-red-400' };
+    if (angle > 15) return { status: 'Moderado', colorClass: 'bg-amber-500/20 border-amber-500/40 text-amber-200', textClass: 'text-amber-400 font-semibold', valColorClass: 'text-amber-400' };
+    return { status: 'Normal', colorClass: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-100', textClass: 'text-emerald-400 font-medium', valColorClass: 'text-emerald-400' };
+  };
+
   const neckInfo = useMemo(() => getNeckStatus(neckAngle), [neckAngle]);
   const trunkInfo = useMemo(() => getTrunkStatus(trunkAngle), [trunkAngle]);
   const armInfo = useMemo(() => getArmStatus(armAngle), [armAngle]);
   const elbowInfo = useMemo(() => getElbowStatus(elbowAngle), [elbowAngle]);
   const kneeInfo = useMemo(() => getKneeStatus(kneeAngle), [kneeAngle]);
+  const wristInfo = useMemo(() => getWristStatus(wristAngle), [wristAngle]);
 
   const handleFileAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3799,42 +3858,133 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     playPowerDownChime();
   }, [playPowerDownChime]);
 
-  const onPoseResults = useCallback((results: any) => {
-    const canvas = biomechanicCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const renderBiomechanicsOverlays = useCallback(
+    (landmarks: any[] | null, worldLandmarks: any[] | null) => {
+      const canvas = biomechanicCanvasRef.current;
+      const xrayCanvas = xrayWebglCanvasRef.current;
+      const cfg = biomechConfigRef.current || getBiomechanicVisionConfig();
 
-    const landmarks = results?.landmarks?.[0] || results?.poseLandmarks;
-    const worldLandmarks = results?.worldLandmarks?.[0] || results?.ea;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!landmarks) return;
-
-    try {
-      drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
-    } catch (e) {
-      console.error('[TenshiChat] Error drawing skeleton:', e);
-    }
-
-    try {
-      const { neck, trunk, arm, elbow, knee, is3D } = calculateBiomechanicAngles(landmarks, worldLandmarks);
-      anglesRef.current = { neck, trunk, arm, elbow, knee };
-
-      const now = Date.now();
-      if (now - lastErgoUpdateRef.current >= 200) {
-        lastErgoUpdateRef.current = now;
-        setNeckAngle(neck);
-        setTrunkAngle(trunk);
-        setArmAngle(arm);
-        setElbowAngle(elbow);
-        setKneeAngle(knee);
-        setIs3DTelemetry(is3D);
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
       }
-    } catch (calcErr) {
-      console.error('[TenshiChat] Error calculating angles:', calcErr);
+
+      if (!landmarks) {
+        clearAnatomyXRayCanvas(xrayCanvas);
+        return;
+      }
+
+      let computedAngles = anglesRef.current;
+      try {
+        const calc = calculateBiomechanicAngles(
+          landmarks,
+          worldLandmarks,
+          handsResultsRef.current,
+          jawOpenRef.current
+        );
+        computedAngles = calc;
+        anglesRef.current = {
+          neck: calc.neck,
+          trunk: calc.trunk,
+          arm: calc.arm,
+          elbow: calc.elbow,
+          knee: calc.knee,
+          wrist: calc.wrist ?? null,
+          jawOpen: calc.jawOpen ?? 0,
+        };
+
+        const now = Date.now();
+        if (now - lastErgoUpdateRef.current >= 180) {
+          lastErgoUpdateRef.current = now;
+          setNeckAngle(calc.neck);
+          setTrunkAngle(calc.trunk);
+          setArmAngle(calc.arm);
+          setElbowAngle(calc.elbow);
+          setKneeAngle(calc.knee);
+          setWristAngle(calc.wrist ?? null);
+          setJawOpenLive(calc.jawOpen ?? 0);
+          setIs3DTelemetry(calc.is3D);
+        }
+      } catch (calcErr) {
+        console.error('[TenshiChat] Error calculating angles:', calcErr);
+      }
+
+      if (cfg.mode === 'xray_3d') {
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx && cfg.layers.clinicalLabels) {
+            try {
+              drawClinicalXRayLabels(ctx, landmarks, computedAngles, {
+                layers: cfg.layers,
+                multiHandLandmarks: handsResultsRef.current,
+                jawOpen: jawOpenRef.current,
+              });
+            } catch (lblErr) {
+              console.error('[TenshiChat] Error drawing clinical labels:', lblErr);
+            }
+          }
+        }
+        if (xrayCanvas) {
+          const w = canvas?.width || xrayCanvas.width || 640;
+          const h = canvas?.height || xrayCanvas.height || 480;
+          if (xrayCanvas.width !== w || xrayCanvas.height !== h) {
+            xrayCanvas.width = w;
+            xrayCanvas.height = h;
+          }
+          renderAnatomyXRayFrame(xrayCanvas, {
+            landmarks,
+            worldLandmarks,
+            multiHandLandmarks: handsResultsRef.current,
+            angles: computedAngles,
+            jawOpen: jawOpenRef.current,
+            config: cfg,
+            width: w,
+            height: h,
+          });
+        }
+      } else {
+        clearAnatomyXRayCanvas(xrayCanvas);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            try {
+              drawBiomechanicSkeleton(ctx, landmarks, handsResultsRef.current);
+            } catch (e) {
+              console.error('[TenshiChat] Error drawing skeleton:', e);
+            }
+          }
+        }
+      }
+    },
+    []
+  );
+
+  const onPoseResults = useCallback(
+    (results: any) => {
+      const landmarks = results?.landmarks?.[0] || results?.poseLandmarks || null;
+      const worldLandmarks = results?.worldLandmarks?.[0] || results?.poseWorldLandmarks || results?.ea || null;
+      if (landmarks) {
+        lastPosePayloadRef.current = { landmarks, worldLandmarks };
+      } else {
+        lastPosePayloadRef.current = null;
+      }
+      renderBiomechanicsOverlays(landmarks, worldLandmarks);
+    },
+    [renderBiomechanicsOverlays]
+  );
+
+  // Re-renderizar instantáneamente al conmutar 3D/2D, capas u opacidad
+  useEffect(() => {
+    if (!isVisionActive || !isBiomechanicsActive) return;
+    const last = lastPosePayloadRef.current;
+    if (last?.landmarks) {
+      renderBiomechanicsOverlays(last.landmarks, last.worldLandmarks);
+    } else if (biomechConfig.mode !== 'xray_3d') {
+      clearAnatomyXRayCanvas(xrayWebglCanvasRef.current);
     }
-  }, []);
+  }, [biomechConfig, isVisionActive, isBiomechanicsActive, renderBiomechanicsOverlays]);
 
   // Sincronizar referencia de voz activa
   useEffect(() => {
@@ -3874,7 +4024,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     };
   }, [isVisionActive, isBiomechanicsActive]);
 
-  // Inicializar motor de PoseLandmarker con fallback a window.Pose
+  // Inicializar motor de PoseLandmarker + Trackers Auxiliares (Manos 21 pts + Mandíbula ATM)
   useEffect(() => {
     if (!isMediaPipeLoaded || !isVisionActive || visionSource !== 'camera' || !isBiomechanicsActive) {
       if (landmarkerRef.current) {
@@ -3885,17 +4035,38 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         try { poseRef.current.close(); } catch (_) {}
         poseRef.current = null;
       }
+      if (auxTrackersRef.current) {
+        try { auxTrackersRef.current.close(); } catch (_) {}
+        auxTrackersRef.current = null;
+      }
+      handsResultsRef.current = null;
+      jawOpenRef.current = 0;
+      lastPosePayloadRef.current = null;
       setIsPoseActive(false);
       if (biomechanicCanvasRef.current) {
         const ctx = biomechanicCanvasRef.current.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, biomechanicCanvasRef.current.width, biomechanicCanvasRef.current.height);
       }
+      clearAnatomyXRayCanvas(xrayWebglCanvasRef.current);
       return;
     }
 
     let isSubscribed = true;
 
     const initEngine = async () => {
+      // Inicializar en paralelo HandLandmarker + FaceLandmarker (ATM jawOpen) sin bloquear Pose
+      initAuxiliaryVisionTrackers(visionVideoRef.current)
+        .then((aux) => {
+          if (!isSubscribed) {
+            aux?.close();
+            return;
+          }
+          if (aux) {
+            auxTrackersRef.current = aux;
+          }
+        })
+        .catch(() => {});
+
       const tasksVision = (window as any).MediaPipeTasksVision;
       if (tasksVision) {
         try {
@@ -3946,17 +4117,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         try { poseRef.current.close(); } catch (_) {}
         poseRef.current = null;
       }
+      if (auxTrackersRef.current) {
+        try { auxTrackersRef.current.close(); } catch (_) {}
+        auxTrackersRef.current = null;
+      }
+      handsResultsRef.current = null;
+      jawOpenRef.current = 0;
       setIsPoseActive(false);
     };
   }, [isMediaPipeLoaded, isVisionActive, visionSource, isBiomechanicsActive, onPoseResults]);
 
-  // Loop de telemetría a 10 FPS
+  // Loop de telemetría a ~14 FPS (con interpolación WebGL 3D fluida a 60 FPS)
   useEffect(() => {
     if (!isPoseActive || !visionVideoRef.current) return;
 
     let active = true;
     let lastFrameTime = 0;
-    const fpsInterval = 1000 / 10;
+    const fpsInterval = 1000 / 14;
 
     const poseLoop = async () => {
       if (!active) return;
@@ -3968,11 +4145,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         lastFrameTime = now - (elapsed % fpsInterval);
 
         const video = visionVideoRef.current;
-        if (video && video.readyState >= 2) {
+        if (video && video.readyState >= 2 && video.videoWidth > 0) {
           const canvas = biomechanicCanvasRef.current;
           if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+          }
+          const xrayCanvas = xrayWebglCanvasRef.current;
+          if (xrayCanvas && (xrayCanvas.width !== video.videoWidth || xrayCanvas.height !== video.videoHeight)) {
+            xrayCanvas.width = video.videoWidth;
+            xrayCanvas.height = video.videoHeight;
+          }
+
+          if (auxTrackersRef.current) {
+            const auxRes = auxTrackersRef.current.detectStep(video, performance.now());
+            handsResultsRef.current = auxRes.multiHandLandmarks;
+            jawOpenRef.current = auxRes.jawOpen;
           }
 
           if (landmarkerRef.current) {
@@ -4008,50 +4196,72 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       return null;
     }
     try {
-      if (!visionCanvasRef.current) {
-        visionCanvasRef.current = document.createElement('canvas');
-      }
-      const canvas = visionCanvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const phaseIdx = targetPhaseIdx !== undefined ? targetPhaseIdx : currentErgoPhaseIndexRef.current;
+      manualCapturedPhasesRef.current.add(phaseIdx);
+      const phase = ERGO_PHASES[phaseIdx] || ERGO_PHASES[0];
+      const isFisio = isBiomechanicsActive;
+      const currentAngles = anglesRef.current || {};
+      const cfg = biomechConfigRef.current || getBiomechanicVisionConfig();
 
-      // Si hay esqueleto biomecánico activo, dibujarlo encima en el snapshot
-      if (biomechanicCanvasRef.current && biomechanicCanvasRef.current.width > 0) {
-        try {
-          ctx.drawImage(biomechanicCanvasRef.current, 0, 0, canvas.width, canvas.height);
-        } catch (_) {}
+      let dataUrl: string | null = null;
+
+      if (isFisio) {
+        dataUrl = composeBiomechanicSnapshotPlate({
+          video,
+          webglCanvas: xrayWebglCanvasRef.current,
+          overlay2DCanvas: biomechanicCanvasRef.current,
+          zoom: 1,
+          maxDim: 760,
+          jpegQuality: 0.85,
+          is3DXRayMode: cfg.mode === 'xray_3d',
+          phaseTitle: phase.name || phase.shortName,
+          methodLabel:
+            currentAngles.knee !== null && currentAngles.knee !== undefined && currentAngles.knee > 25
+              ? 'REBA'
+              : 'RULA',
+          angles: currentAngles,
+          onBeforeWebGLCopy: () => flushAnatomyXRayCanvas(xrayWebglCanvasRef.current),
+        });
       }
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      if (!dataUrl) {
+        if (!visionCanvasRef.current) {
+          visionCanvasRef.current = document.createElement('canvas');
+        }
+        const canvas = visionCanvasRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (biomechanicCanvasRef.current && biomechanicCanvasRef.current.width > 0) {
+          try {
+            ctx.drawImage(biomechanicCanvasRef.current, 0, 0, canvas.width, canvas.height);
+          } catch (_) {}
+        }
+        dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      }
 
       // Activar destello visual
       setIsFlashActive(true);
       setTimeout(() => setIsFlashActive(false), 250);
 
-      // Determinar fase a capturar (forzada o actual)
-      const phaseIdx = targetPhaseIdx !== undefined ? targetPhaseIdx : currentErgoPhaseIndexRef.current;
-      manualCapturedPhasesRef.current.add(phaseIdx);
-
       // Construir telemetría de ángulos con MediaPipe
-      const currentAngles = anglesRef.current || {};
       const nAngle = currentAngles.neck ?? null;
       const tAngle = currentAngles.trunk ?? null;
       const aAngle = currentAngles.arm ?? null;
       const eAngle = currentAngles.elbow ?? null;
       const kAngle = currentAngles.knee ?? null;
+      const wAngle = currentAngles.wrist ?? null;
 
       const telemetryParts: string[] = [];
       if (nAngle !== null) telemetryParts.push(`Flexión Cervical: ${nAngle}° (${getNeckStatus(nAngle).status})`);
       if (tAngle !== null) telemetryParts.push(`Flexión de Tronco: ${tAngle}° (${getTrunkStatus(tAngle).status})`);
       if (aAngle !== null) telemetryParts.push(`Abducción de Brazo: ${aAngle}° (${getArmStatus(aAngle).status})`);
       if (eAngle !== null) telemetryParts.push(`Flexión de Codo: ${eAngle}° (${getElbowStatus(eAngle).status})`);
+      if (wAngle !== null) telemetryParts.push(`Muñeca / Carpo: ${wAngle}° (${getWristStatus(wAngle).status})`);
       if (kAngle !== null) telemetryParts.push(`Flexión de Rodilla: ${kAngle}° (${getKneeStatus(kAngle).status})`);
 
-      const phase = ERGO_PHASES[phaseIdx] || ERGO_PHASES[0];
-      const isFisio = isBiomechanicsActive;
       const label = customLabel || (isFisio
         ? `📸 Evidencia Postural (${phase.shortName})${telemetryParts.length > 0 ? ` • ${telemetryParts.join(', ')}` : ''}`
         : `📸 Evidencia de Inspección Visual SST (${phase.shortName})`);
@@ -4074,6 +4284,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           phaseName: phase.name,
           shortName: phase.shortName,
           telemetry: currentAngles,
+          visionMode: cfg.mode,
           is3D: is3DTelemetry,
         });
         console.log(`[Tenshi Vision] Evidencia enviada al WebSocket para Fase ${phaseIdx + 1} (${phase.name})`);
@@ -4237,10 +4448,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         visionIntervalRef.current = setInterval(() => {
           if (!isCameraOnRef.current && source === 'camera') return;
           if (visionVideoRef.current && sendVideoFrameRef.current) {
+            const activeOverlayCanvas =
+              biomechConfigRef.current.mode === 'xray_3d' && xrayWebglCanvasRef.current
+                ? xrayWebglCanvasRef.current
+                : biomechanicCanvasRef.current || null;
             sendVideoFrameRef.current(
               visionVideoRef.current,
               `[Tenshi Visión en Vivo • ${source === 'screen' ? 'Pantalla' : 'Cámara ' + mode}]`,
-              biomechanicCanvasRef.current || null
+              activeOverlayCanvas
             );
           }
         }, 1200);
@@ -4292,6 +4507,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     return () => {
       if (visionIntervalRef.current) clearInterval(visionIntervalRef.current);
       if (visionStreamRef.current) visionStreamRef.current.getTracks().forEach((t) => t.stop());
+      disposeAnatomyXRayCanvas(xrayWebglCanvasRef.current);
+      auxTrackersRef.current?.close();
     };
   }, []);
 
@@ -7594,10 +7811,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     </div>
                   )}
 
-                  {/* Canvas de MediaPipe para Exoesqueleto Neón */}
+                  {/* Velo radiográfico sutil para modo Rayos X 3D */}
+                  {isBiomechanicsActive && biomechConfig.mode === 'xray_3d' && (
+                    <div className="absolute inset-0 bg-[#0C192E]/20 pointer-events-none z-[9] transition-opacity duration-200" />
+                  )}
+
+                  {/* Canvas WebGL 3D Anatómico (BodyParts3D + Three.js) */}
                   <canvas
-                    ref={biomechanicCanvasRef}
-                    className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                    ref={setXrayWebglCanvasNode}
+                    className={cn(
+                      'absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-opacity duration-200',
+                      isBiomechanicsActive && biomechConfig.mode === 'xray_3d' ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+
+                  {/* Canvas 2D de MediaPipe para Exoesqueleto Neón / Callouts Clínicos */}
+                  <canvas
+                    ref={setBiomechanicCanvasNode}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[11]"
                   />
 
                   {/* Flash visual de captura de foto */}
@@ -7615,8 +7846,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                   {/* HUD Superior de Biomecánica / Fisioterapeuta en Móvil */}
                   {isBiomechanicsActive && (
-                    <div className="absolute top-2 left-2 right-16 z-20 flex flex-col gap-1 pointer-events-none">
-                      {/* Fila 1: Badges y Fases */}
+                    <div className="absolute top-2 left-2 right-11 sm:right-14 z-20 flex flex-col gap-1 pointer-events-none">
+                      {/* Fila 1: Badges, Control 3D/2D y Fases */}
                       <div className="flex flex-wrap items-center justify-between gap-1 bg-black/75 backdrop-blur-md border border-white/15 rounded-xl px-2 py-1 pointer-events-auto shadow-md">
                         <div className="flex items-center gap-1.5">
                           <span className="relative flex h-2 w-2">
@@ -7631,24 +7862,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           </span>
                         </div>
 
-                        {/* Fases Ergonómicas Compactas */}
-                        <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-lg p-0.5">
-                          {ERGO_PHASES.map((p, idx) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => setCurrentErgoPhaseIndex(idx)}
-                              className={cn(
-                                'px-1.5 py-0.5 rounded text-[8px] font-mono transition-all duration-200',
-                                currentErgoPhaseIndex === idx
-                                  ? 'bg-cyan-500 text-black font-bold shadow-xs'
-                                  : 'text-white/70 hover:text-white'
-                              )}
-                              title={p.desc}
-                            >
-                              {`F${idx + 1}`}
-                            </button>
-                          ))}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <BiomechanicVisionControls
+                            compact
+                            angles={{
+                              neck: neckAngle,
+                              trunk: trunkAngle,
+                              arm: armAngle,
+                              elbow: elbowAngle,
+                              knee: kneeAngle,
+                              wrist: wristAngle,
+                              jawOpen: jawOpenLive,
+                            }}
+                          />
+
+                          {/* Fases Ergonómicas Compactas */}
+                          <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-lg p-0.5">
+                            {ERGO_PHASES.map((p, idx) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setCurrentErgoPhaseIndex(idx)}
+                                className={cn(
+                                  'px-1.5 py-0.5 rounded text-[8px] font-mono transition-all duration-200',
+                                  currentErgoPhaseIndex === idx
+                                    ? 'bg-cyan-500 text-black font-bold shadow-xs'
+                                    : 'text-white/70 hover:text-white'
+                                )}
+                                title={p.desc}
+                              >
+                                {`F${idx + 1}`}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
@@ -7674,6 +7920,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           <span>R:</span>
                           <span className={cn('font-bold', kneeInfo.valColorClass)}>{kneeAngle !== null ? `${kneeAngle}°` : '--'}</span>
                         </div>
+                        {wristAngle !== null && (
+                          <div className={cn('flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-mono', wristInfo.colorClass)}>
+                            <span>M:</span>
+                            <span className={cn('font-bold', wristInfo.valColorClass)}>{`${wristAngle}°`}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -8486,10 +8738,24 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 </div>
               )}
 
-              {/* Canvas de MediaPipe para Exoesqueleto Neón */}
+              {/* Velo radiográfico sutil para modo Rayos X 3D */}
+              {isBiomechanicsActive && biomechConfig.mode === 'xray_3d' && (
+                <div className="absolute inset-0 bg-[#0C192E]/20 pointer-events-none z-[9] transition-opacity duration-200" />
+              )}
+
+              {/* Canvas WebGL 3D Anatómico (BodyParts3D + Three.js) */}
               <canvas
-                ref={biomechanicCanvasRef}
-                className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                ref={setXrayWebglCanvasNode}
+                className={cn(
+                  'absolute inset-0 w-full h-full object-cover pointer-events-none z-10 transition-opacity duration-200',
+                  isBiomechanicsActive && biomechConfig.mode === 'xray_3d' ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+
+              {/* Canvas 2D de MediaPipe para Exoesqueleto Neón / Callouts Clínicos */}
+              <canvas
+                ref={setBiomechanicCanvasNode}
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[11]"
               />
 
               {/* Flash visual de captura de foto */}
@@ -8508,7 +8774,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               {/* HUD Superior de Biomecánica / Fisioterapeuta */}
               {isBiomechanicsActive && (
                 <div className="absolute top-2.5 left-2.5 right-14 z-20 flex flex-col gap-1.5 pointer-events-none">
-                  {/* Fila 1: Badges y Selector de Fases */}
+                  {/* Fila 1: Badges, Control 3D/2D y Selector de Fases */}
                   <div className="flex flex-wrap items-center justify-between gap-1.5 bg-black/75 backdrop-blur-md border border-white/15 rounded-xl px-2.5 py-1.5 pointer-events-auto shadow-lg">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="relative flex h-2 w-2">
@@ -8529,24 +8795,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       )}
                     </div>
 
-                    {/* Selector de Fases Ergonómicas */}
-                    <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
-                      {ERGO_PHASES.map((p, idx) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setCurrentErgoPhaseIndex(idx)}
-                          className={cn(
-                            'px-2 py-0.5 rounded-md text-[9px] font-mono transition-all duration-200',
-                            currentErgoPhaseIndex === idx
-                              ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30'
-                              : 'text-white/70 hover:text-white hover:bg-white/10'
-                          )}
-                          title={p.desc}
-                        >
-                          {p.shortName}
-                        </button>
-                      ))}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <BiomechanicVisionControls
+                        compact
+                        angles={{
+                          neck: neckAngle,
+                          trunk: trunkAngle,
+                          arm: armAngle,
+                          elbow: elbowAngle,
+                          knee: kneeAngle,
+                          wrist: wristAngle,
+                          jawOpen: jawOpenLive,
+                        }}
+                      />
+
+                      {/* Selector de Fases Ergonómicas */}
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
+                        {ERGO_PHASES.map((p, idx) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setCurrentErgoPhaseIndex(idx)}
+                            className={cn(
+                              'px-2 py-0.5 rounded-md text-[9px] font-mono transition-all duration-200',
+                              currentErgoPhaseIndex === idx
+                                ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/30'
+                                : 'text-white/70 hover:text-white hover:bg-white/10'
+                            )}
+                            title={p.desc}
+                          >
+                            {p.shortName}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -8606,6 +8887,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         {kneeInfo.status}
                       </span>
                     </div>
+
+                    {/* Muñeca (Carpo) */}
+                    {wristAngle !== null && (
+                      <div className={cn('flex items-center gap-1 px-2 py-0.5 rounded-lg border transition-all duration-200', wristInfo.colorClass)}>
+                        <span className="text-[9px] font-mono opacity-70">Muñeca</span>
+                        <span className={cn('text-[11px] font-bold font-mono', wristInfo.valColorClass)}>
+                          {`${wristAngle}°`}
+                        </span>
+                        <span className={cn('text-[8px] font-mono uppercase tracking-wider', wristInfo.textClass)}>
+                          {wristInfo.status}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
