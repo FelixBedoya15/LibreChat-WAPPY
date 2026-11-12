@@ -1271,16 +1271,16 @@ export default function TenshiChat() {
     const widthRatio = stageW >= 1280 ? 0.44 : stageW >= 1080 ? 0.41 : 0.39;
     const giantSize = Math.min(
       760,
-      Math.max(360, Math.min(Math.round(stageH * 0.96), Math.round(stageW * widthRatio)))
+      Math.max(360, Math.min(Math.round(stageH * 0.95), Math.round(stageW * widthRatio)))
     );
-    const closedAvatarTop = Math.max(20, Math.round((stageH - giantSize) * 0.35));
+    const closedAvatarTop = Math.max(24, Math.round((stageH - giantSize) * 0.38));
 
     // 2. Tamaño y anclaje Split-View cuando el chat se despliega a la izquierda (Imagen 5)
     const controlsHeightSplit = 158;
     const splitGap = 10;
-    const splitSize = Math.min(305, Math.max(135, safeStageH - controlsHeightSplit - splitGap - 16));
+    const splitSize = Math.min(295, Math.max(135, safeStageH - controlsHeightSplit - splitGap - 26));
     const totalSplitRightHeight = splitSize + splitGap + controlsHeightSplit;
-    const splitAvatarTop = Math.max(10, Math.round((safeStageH - totalSplitRightHeight) / 2));
+    const splitAvatarTop = Math.max(18, Math.round((safeStageH - totalSplitRightHeight) / 2));
     const splitControlsTop = splitAvatarTop + splitSize + splitGap;
 
     // 3. Posición centrada de Controles Derechos cuando el chat está cerrado (Imagen 2)
@@ -6778,9 +6778,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/10 dark:bg-teal-500/[0.06] blur-3xl" />
 
-          {/* Cabecera Superior (z-30 protege botones superiores cuando el avatar gigante saluda o salta) */}
+          {/* Cabecera Superior (z-10 para que Tenshi en z-20 siempre se dibuje POR ENCIMA de la cabecera y nunca quede recortada debajo de ella) */}
           <div
-            className="relative z-30 flex items-center justify-between px-4 md:px-8 lg:px-12 pb-2.5 md:pb-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md shrink-0 select-none"
+            className="relative z-10 flex items-center justify-between px-4 md:px-8 lg:px-12 pb-2.5 md:pb-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md shrink-0 select-none"
             style={{
               paddingTop: 'max(14px, env(safe-area-inset-top, 0px))',
             }}
@@ -6854,15 +6854,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             </div>
           </div>
 
-          {/* Cuerpo Central Adaptativo:
-              - PC Panorámico (>=900px): Escenario de 3 zonas con transición coreografiada (Avisos a la izquierda | Suri Gigante en el centro | Saludo + Cápsula a la derecha) <-> Split-View al abrir Chat (Chat a la izquierda | Suri + Controles a la derecha).
-              - Celular / Tablet Compacta (<900px): Flujo vertical centrado y chat adaptativo. */}
+          {/* Cuerpo Central Adaptativo (z-20 > cabecera z-10, y contenedor padre z-[70] < barra inferior MobileBottomNav z-[80]):
+              - Tenshi siempre queda POR ENCIMA de la cabecera superior y POR DEBAJO de la barra de botones inferior. */}
           <div
             className={cn(
-              'relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto',
+              'relative z-20 flex-1 min-h-0 w-full max-w-[1680px] mx-auto',
               isDesktopPanoramic
                 ? 'overflow-visible'
-                : 'flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-8 lg:px-12 md:py-2 md:gap-6 lg:gap-8'
+                : cn(
+                    'flex flex-col md:flex-row items-stretch justify-center md:px-8 lg:px-12 md:py-2 md:gap-6 lg:gap-8',
+                    isHeroChatOpen ? 'overflow-hidden' : 'overflow-visible'
+                  )
             )}
           >
             {/* 🅰️ CUADRÍCULA IZQUIERDA DE AVISOS EN PC (Imágenes 3 y 4: Píldoras en Vivo, Rich Voice Cards, Briefing Ejecutivo y Proactividad) */}
@@ -7164,8 +7166,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 isDesktopPanoramic
                   ? 'contents'
                   : cn(
-                      'flex-1 min-h-0 px-4 flex flex-col items-center overflow-y-auto no-scrollbar select-none relative transition-all duration-500 ease-out md:order-2',
-                      isHeroChatOpen ? 'md:w-[46%] lg:w-[48%] xl:w-[50%]' : 'w-full'
+                      'flex-1 min-h-0 px-4 flex flex-col items-center no-scrollbar select-none relative transition-all duration-500 ease-out md:order-2',
+                      isHeroChatOpen
+                        ? 'overflow-y-auto md:w-[46%] lg:w-[48%] xl:w-[50%]'
+                        : 'overflow-visible w-full'
                     )
               )}
             >
