@@ -154,6 +154,11 @@ const startServer = async () => {
   app.get(['/wappystudio', '/wappystudio.html', '/wappy-studio', '/wappy-studio.html'], servePortableAppNoCache('wappystudio.html'));
   app.get(['/wappypodcast', '/wappypodcast.html', '/wappy-podcast', '/wappy-podcast.html'], servePortableAppNoCache('wappypodcast.html'));
   app.get(['/matrizipvr', '/matrizipvr.html', '/matriz-ipvr', '/matriz-ipvr.html'], servePortableAppNoCache('matrizipvr.html'));
+  app.get('/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html', servePortableAppNoCache('Aplicativo_Matriz_IPVR_GTC45_WAPPY.html'));
+  app.get('/yt-embed.html', (req, res, next) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    return servePortableAppNoCache('yt-embed.html')(req, res, next);
+  });
   app.get(['/pago-matrizipvr', '/checkout-matrizipvr', '/promo-matrizipvr'], require('./controllers/MarketplaceController').redirectToPromoIpvrCheckout);
   app.get(['/cursoadelantoregistro', '/cursoadelantoregistro.html'], servePortableAppNoCache('cursoadelantoregistro.html'));
 

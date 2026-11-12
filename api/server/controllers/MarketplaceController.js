@@ -2212,8 +2212,11 @@ const downloadMatrizIpvrApp = async (req, res) => {
     }
 
     const candidatePaths = [
+      path.resolve(__dirname, '../../../client/dist/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html'),
+      path.resolve(__dirname, '../../../client/public/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html'),
       path.resolve(__dirname, '../../../client/dist/matrizipvr.html'),
       path.resolve(__dirname, '../../../client/public/matrizipvr.html'),
+      path.resolve(__dirname, '../../../client/public/matriz_ipvr_gtc45_offline.html'),
       path.resolve(__dirname, '../../../matriz_ipvr_gtc45_offline.html')
     ];
 
@@ -2223,7 +2226,11 @@ const downloadMatrizIpvrApp = async (req, res) => {
     }
 
     const rawHtml = fs.readFileSync(targetFile, 'utf8');
-    const cleanHtml = prepareDownloadedPortableHtml(rawHtml);
+    const isPrebuiltStandalone =
+      targetFile.endsWith('Aplicativo_Matriz_IPVR_GTC45_WAPPY.html') &&
+      rawHtml.includes('WAPPY_IS_DOWNLOADED_HTML') &&
+      !rawHtml.includes('id="descargar-aplicativo"');
+    const cleanHtml = isPrebuiltStandalone ? rawHtml : prepareDownloadedPortableHtml(rawHtml);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader(

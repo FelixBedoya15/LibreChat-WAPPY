@@ -106,3 +106,11 @@ if (fs.existsSync(matrizSourceHtml)) {
     console.log(`✓ ${path.relative(repoDir, out)} (${(matrizHtml.length / 1024).toFixed(0)} KB)`);
   }
 }
+
+const matrizDownloadableHtml = path.join(repoDir, 'Aplicativo_Matriz_IPVR_GTC45_WAPPY.html');
+if (fs.existsSync(matrizDownloadableHtml)) {
+  const downloadableContent = fs.readFileSync(matrizDownloadableHtml, 'utf8');
+  const downloadableOut = path.join(clientDir, 'public/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html');
+  fs.writeFileSync(downloadableOut, downloadableContent);
+  console.log(`✓ ${path.relative(repoDir, downloadableOut)} (${(downloadableContent.length / 1024).toFixed(0)} KB)`);
+}

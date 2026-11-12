@@ -25,6 +25,12 @@ async function postBuild() {
       await fs.copy('public/matrizipvr.html', 'dist/matrizipvr.html');
       await fs.copy('public/matrizipvr.html', 'dist/assets/matrizipvr.html');
     }
+    if (await fs.pathExists('public/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html')) {
+      await fs.copy('public/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html', 'dist/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html');
+    }
+    if (await fs.pathExists('public/yt-embed.html')) {
+      await fs.copy('public/yt-embed.html', 'dist/yt-embed.html');
+    }
     console.log('✅ PWA icons, videos, images and robots.txt copied successfully.');
   } catch (err) {
     console.error('❌ Error copying files:', err);

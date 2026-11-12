@@ -3695,26 +3695,36 @@ function getCatColor(cat) {
 }
 
 // ─── GESTIÓN DE VIDEO TUTORIAL "¿CÓMO USAR LA HERRAMIENTA?" ────────
+const DEFAULT_IPVR_TUTORIAL_VIDEO_URL = 'https://youtu.be/1LN_7YkmWXk';
+const DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE = '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
+const TUTORIAL_VIDEO_STORAGE_KEY = 'wappy_matrizipvr_tutorial_video_v2';
+
 let tutorialVideoState = {
-  url: '',
-  title: '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR',
-  isPlaying: false
+  url: DEFAULT_IPVR_TUTORIAL_VIDEO_URL,
+  title: DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE,
+  isPlaying: false,
+  fileRelayReady: null,
+  fileRelayOrigin: 'https://wappy.club'
 };
 let isPlatformAdmin = false;
 
 function parseVideoEmbed(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   const url = rawUrl.trim();
+  if (!url) return null;
 
   // 1. YouTube (watch, embed, shorts, live, youtu.be)
   const ytRegExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
   const ytMatch = url.match(ytRegExp);
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
+    const relayOrigin = (tutorialVideoState && tutorialVideoState.fileRelayOrigin) || 'https://wappy.club';
     return {
       type: 'youtube',
       id: id,
+      watchUrl: `https://youtu.be/${id}`,
       embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
+      relayEmbedUrl: `${relayOrigin}/yt-embed.html?v=${encodeURIComponent(id)}&autoplay=1`,
       thumbnailUrl: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
       fallbackThumb: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
       isShort: url.includes('/shorts/')
@@ -3815,16 +3825,99 @@ function renderTutorialVideo() {
     titleDisplay.textContent = tutorialVideoState.title;
   }
 
-  const parsed = parseVideoEmbed(tutorialVideoState.url);
+  const parsed = parseVideoEmbed(tutorialVideoState.url || DEFAULT_IPVR_TUTORIAL_VIDEO_URL);
 
   // Caso 1: Hay video y está en modo reproducción
   if (parsed && tutorialVideoState.isPlaying) {
-    if (parsed.type === 'youtube' || parsed.type === 'drive' || parsed.type === 'generic') {
+    if (parsed.type === 'youtube') {
+      const isLocalFile = window.location.protocol === 'file:';
+      if (isLocalFile && tutorialVideoState.fileRelayReady !== true) {
+        const posterSrc = parsed.thumbnailUrl || TUTORIAL_THUMBNAIL_B64;
+        const secondaryThumb = parsed.fallbackThumb || TUTORIAL_THUMBNAIL_B64;
+        container.innerHTML = `
+          <div class="relative w-full aspect-video bg-slate-950 overflow-hidden">
+            <img
+              src="${posterSrc}"
+              onerror="if(!this.dataset.triedHq){this.dataset.triedHq='1';this.src='${secondaryThumb}';}else{this.onerror=null;this.src=TUTORIAL_THUMBNAIL_B64;}"
+              alt="${tutorialVideoState.title}"
+              class="w-full h-full object-cover opacity-35 blur-[1px]"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-slate-950/85 flex flex-col items-center justify-center p-6 text-center text-white">
+              <div class="inline-flex items-center gap-2 bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] px-3.5 py-1 rounded-full text-[11px] font-black mb-3">
+                <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-ping"></span>
+                <span>REPRODUCIENDO TUTORIAL OFICIAL EN YOUTUBE</span>
+              </div>
+              <h3 class="font-display font-black text-base sm:text-xl mb-2 max-w-xl">${tutorialVideoState.title}</h3>
+              <p class="text-xs sm:text-sm text-slate-300 max-w-lg mb-5">
+                El tutorial oficial se abrió en YouTube para reproducción en alta definición (1080p60). Si tu navegador bloqueó la pestaña emergente, ábrelo con un clic abajo:
+              </p>
+              <div class="flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href="${parsed.watchUrl}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#c7f303] text-[#0e1300] font-black text-xs sm:text-sm hover:brightness-105 active:scale-95 transition-all shadow-lg shadow-[#c7f303]/30"
+                >
+                  <span>▶</span>
+                  <span>Ver Video en YouTube</span>
+                  <span>↗</span>
+                </a>
+                <button
+                  type="button"
+                  onclick="stopTutorialVideo(event)"
+                  class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 cursor-pointer transition-all"
+                >
+                  <span>✕</span>
+                  <span>Volver a la portada</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const activeYoutubeSrc = isLocalFile ? parsed.relayEmbedUrl : parsed.embedUrl;
+      container.innerHTML = `
+        <div class="relative w-full aspect-video bg-black">
+          <iframe 
+            src="${activeYoutubeSrc}" 
+            title="${tutorialVideoState.title}"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen 
+            class="w-full h-full border-0 block"
+          ></iframe>
+          <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
+            <a
+              href="${parsed.watchUrl}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-[#c7f303] text-xs font-bold backdrop-blur-md transition-colors shadow-md flex items-center gap-1"
+              title="Abrir en YouTube"
+            >
+              <span>YouTube</span>
+              <span>↗</span>
+            </a>
+            <button 
+              type="button"
+              onclick="stopTutorialVideo(event)" 
+              class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-white text-xs font-bold backdrop-blur-md cursor-pointer transition-colors shadow-md flex items-center gap-1"
+              title="Cerrar reproductor"
+            >
+              <span>✕</span>
+              <span>Cerrar</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (parsed.type === 'drive' || parsed.type === 'generic') {
       container.innerHTML = `
         <div class="relative w-full aspect-video bg-black">
           <iframe 
             src="${parsed.embedUrl}" 
             title="${tutorialVideoState.title}"
+            referrerpolicy="strict-origin-when-cross-origin"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
             allowfullscreen 
             class="w-full h-full border-0 block"
@@ -3882,7 +3975,7 @@ function renderTutorialVideo() {
   // Caso 2: Hay video pero aún no se le da clic (Poster Mode)
   if (parsed && !tutorialVideoState.isPlaying) {
     const posterSrc = parsed.type === 'youtube' && parsed.thumbnailUrl ? parsed.thumbnailUrl : TUTORIAL_THUMBNAIL_B64;
-    const fallbackSrc = TUTORIAL_THUMBNAIL_B64;
+    const secondaryThumb = parsed.type === 'youtube' && parsed.fallbackThumb ? parsed.fallbackThumb : TUTORIAL_THUMBNAIL_B64;
 
     container.innerHTML = `
       <div 
@@ -3891,7 +3984,7 @@ function renderTutorialVideo() {
       >
         <img 
           src="${posterSrc}" 
-          onerror="this.onerror=null; this.src='${fallbackSrc}'" 
+          onerror="if(!this.dataset.triedHq){this.dataset.triedHq='1';this.src='${secondaryThumb}';}else{this.onerror=null;this.src=TUTORIAL_THUMBNAIL_B64;}" 
           alt="${tutorialVideoState.title}" 
           class="w-full h-full object-cover group-hover:scale-102 transition-all duration-500" 
         />
@@ -3981,7 +4074,44 @@ function handleTutorialPosterClick() {
   }
 }
 
+async function probeFileYoutubeRelay() {
+  if (window.location.protocol !== 'file:') {
+    tutorialVideoState.fileRelayReady = true;
+    return true;
+  }
+  const candidateOrigins = ['https://wappy.club', 'http://localhost:3080'];
+  for (const origin of candidateOrigins) {
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 2200) : null;
+      const res = await fetch(`${origin}/yt-embed.html?ping=1`, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      if (timer) clearTimeout(timer);
+      if (res.ok) {
+        const txt = await res.text();
+        if (txt && txt.includes('WAPPY_YT_EMBED_RELAY')) {
+          tutorialVideoState.fileRelayOrigin = origin;
+          tutorialVideoState.fileRelayReady = true;
+          return true;
+        }
+      }
+    } catch (e) {}
+  }
+  tutorialVideoState.fileRelayReady = false;
+  return false;
+}
+
 function playTutorialVideo() {
+  const parsed = parseVideoEmbed(tutorialVideoState.url || DEFAULT_IPVR_TUTORIAL_VIDEO_URL);
+  if (parsed && parsed.type === 'youtube' && window.location.protocol === 'file:' && tutorialVideoState.fileRelayReady !== true) {
+    try {
+      window.open(parsed.watchUrl || `https://youtu.be/${parsed.id}`, '_blank', 'noopener,noreferrer');
+    } catch (e) {}
+  }
   tutorialVideoState.isPlaying = true;
   renderTutorialVideo();
 }
@@ -4030,27 +4160,30 @@ function updateAdminUi() {
   // Actualizar botón principal de barra superior y menú móvil según login activo (idéntico a LandingPage wappy.club)
   const navCta = document.getElementById('navCtaEnterWappy');
   const mobileCta = document.getElementById('mobileCtaEnterWappy');
+  const isFileProto = window.location.protocol === 'file:';
+  const wappyAppHref = isFileProto ? 'https://wappy.club/c/new' : '/c/new';
+  const wappyLoginHref = isFileProto ? 'https://wappy.club/login' : '/login';
   if (isAuthenticatedWappyUser && platformUser) {
     const rawName = String(platformUser.name || platformUser.username || platformUser.email || 'Usuario').trim();
     const firstName = rawName.split(' ')[0] || 'Usuario';
     const avatarSrc = platformUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rawName)}&backgroundColor=0d9488`;
     if (navCta) {
-      navCta.setAttribute('href', '/c/new');
+      navCta.setAttribute('href', wappyAppHref);
       navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm pl-2 pr-3.5 sm:pr-5 py-1 sm:py-1.5 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
       navCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-6 h-6 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY →</span>`;
     }
     if (mobileCta) {
-      mobileCta.setAttribute('href', '/c/new');
+      mobileCta.setAttribute('href', wappyAppHref);
       mobileCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-5 h-5 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY como ${firstName} →</span>`;
     }
   } else {
     if (navCta) {
-      navCta.setAttribute('href', '/login');
+      navCta.setAttribute('href', wappyLoginHref);
       navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
       navCta.innerHTML = '<span>Ir a WAPPY</span>';
     }
     if (mobileCta) {
-      mobileCta.setAttribute('href', '/login');
+      mobileCta.setAttribute('href', wappyLoginHref);
       mobileCta.innerHTML = '<span>Ir a la Plataforma WAPPY</span><span>→</span>';
     }
   }
@@ -4198,7 +4331,10 @@ async function handleDownloadPurchasedApp() {
     }
 
     const rawText = await res.text();
-    const cleanHtml = stripDownloadBannerFromHtmlString(rawText);
+    const isPrebuiltStandalone =
+      rawText.includes('WAPPY_IS_DOWNLOADED_HTML') &&
+      !rawText.includes('id="descargar-aplicativo"');
+    const cleanHtml = isPrebuiltStandalone ? rawText : stripDownloadBannerFromHtmlString(rawText);
     const htmlBlob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(htmlBlob);
     const a = document.createElement('a');
@@ -4220,8 +4356,32 @@ async function handleDownloadPurchasedApp() {
   }
 }
 
-function downloadStandaloneHtmlDirectly() {
+async function downloadStandaloneHtmlDirectly() {
   try {
+    if (window.location.protocol !== 'file:') {
+      try {
+        const res = await fetch('/Aplicativo_Matriz_IPVR_GTC45_WAPPY.html', {
+          cache: 'no-store',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const exactHtml = await res.text();
+          if (exactHtml && exactHtml.includes('<!DOCTYPE html')) {
+            const blob = new Blob([exactHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Aplicativo_Matriz_IPVR_GTC45_WAPPY.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Archivo Aplicativo_Matriz_IPVR_GTC45_WAPPY.html descargado.', 'success');
+            return;
+          }
+        }
+      } catch (fetchErr) {}
+    }
     const rawHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
     const cleanHtml = stripDownloadBannerFromHtmlString(rawHtml);
     const blob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
@@ -4435,11 +4595,11 @@ async function handleSaveVideoConfig(e) {
   }
 
   tutorialVideoState.url = newUrl;
-  tutorialVideoState.title = newTitle || '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
+  tutorialVideoState.title = newTitle || DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE;
   tutorialVideoState.isPlaying = false;
 
   // Guardar en localStorage inmediatamente
-  window.wappySafeSetItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
+  window.wappySafeSetItem(TUTORIAL_VIDEO_STORAGE_KEY, JSON.stringify({
     url: tutorialVideoState.url,
     title: tutorialVideoState.title
   }));
@@ -4488,14 +4648,24 @@ async function handleSaveVideoConfig(e) {
 }
 
 async function initTutorialVideo() {
-  // 1. Cargar desde LocalStorage primero (renderizado instantáneo)
-  const cached = window.wappySafeGetItem('wappy_matrizipvr_tutorial_video');
+  // 0. En modo archivo local (file://), verificar relay HTTPS de WAPPY en segundo plano
+  probeFileYoutubeRelay();
+
+  // 1. Cargar desde LocalStorage primero (con respaldo garantizado al video oficial)
+  const cached = window.wappySafeGetItem(TUTORIAL_VIDEO_STORAGE_KEY);
   if (cached) {
     try {
       const parsedCached = JSON.parse(cached);
-      if (parsedCached.url) tutorialVideoState.url = parsedCached.url;
-      if (parsedCached.title) tutorialVideoState.title = parsedCached.title;
+      if (parsedCached.url && !parsedCached.url.includes('w3schools.com')) {
+        tutorialVideoState.url = parsedCached.url;
+      }
+      if (parsedCached.title && parsedCached.title !== 'Clase Extra 1') {
+        tutorialVideoState.title = parsedCached.title;
+      }
     } catch(e){}
+  }
+  if (!tutorialVideoState.url) {
+    tutorialVideoState.url = DEFAULT_IPVR_TUTORIAL_VIDEO_URL;
   }
 
   renderTutorialVideo();
@@ -4503,25 +4673,27 @@ async function initTutorialVideo() {
   // 2. Detectar sesión activa de administrador
   await detectAdminSession();
 
-  // 3. Consultar configuración global de MongoDB
-  try {
-    const configRes = await fetch('/api/comunidad/config?funnelKey=matrizipvr');
-    if (configRes.ok) {
-      const data = await configRes.json();
-      if (data && data.videoUrl && !data.videoUrl.includes('w3schools.com')) {
-        tutorialVideoState.url = data.videoUrl;
-        if (data.extraVideoTitle1 && data.extraVideoTitle1 !== 'Clase Extra 1') {
-          tutorialVideoState.title = data.extraVideoTitle1;
+  // 3. Consultar configuración global de MongoDB (solo en entorno web)
+  if (window.location.protocol !== 'file:') {
+    try {
+      const configRes = await fetch('/api/comunidad/config?funnelKey=matrizipvr');
+      if (configRes.ok) {
+        const data = await configRes.json();
+        if (data && data.videoUrl && !data.videoUrl.includes('w3schools.com')) {
+          tutorialVideoState.url = data.videoUrl;
+          if (data.extraVideoTitle1 && data.extraVideoTitle1 !== 'Clase Extra 1') {
+            tutorialVideoState.title = data.extraVideoTitle1;
+          }
+          window.wappySafeSetItem(TUTORIAL_VIDEO_STORAGE_KEY, JSON.stringify({
+            url: tutorialVideoState.url,
+            title: tutorialVideoState.title
+          }));
+          renderTutorialVideo();
+          updateAdminUi();
         }
-        window.wappySafeSetItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
-          url: tutorialVideoState.url,
-          title: tutorialVideoState.title
-        }));
-        renderTutorialVideo();
-        updateAdminUi();
       }
-    }
-  } catch(err){}
+    } catch(err){}
+  }
 }
 
 // ─── MÓDULO DE ANÁLISIS DE MÉTRICAS (ADMIN WAPPY) ─────────────────────

@@ -21,11 +21,14 @@ const getComunidadConfig = async (req, res) => {
         const query = getFunnelQuery(req);
         let config = await ComunidadConfig.findOne(query);
         const funnelKey = req.query.funnelKey || req.body.funnelKey || 'comunidad';
+        const isMatrizIpvrFunnel = funnelKey === 'matrizipvr';
         if (!config) {
             config = new ComunidadConfig({
                 funnelKey,
                 isGlobalSetting: true,
-                videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                videoUrl: isMatrizIpvrFunnel
+                    ? 'https://youtu.be/1LN_7YkmWXk'
+                    : 'https://www.w3schools.com/html/mov_bbb.mp4',
                 requiresPayment: false,
                 price: 0,
                 gatingSeconds: 120,
@@ -40,7 +43,9 @@ const getComunidadConfig = async (req, res) => {
                 matrizDate3: 'Sábado 4:00 PM',
                 matrizWhatsappUrl3: '',
                 extraVideoUrl1: '',
-                extraVideoTitle1: 'Clase Extra 1',
+                extraVideoTitle1: isMatrizIpvrFunnel
+                    ? '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR'
+                    : 'Clase Extra 1',
                 extraVideoUrl2: '',
                 extraVideoTitle2: 'Clase Extra 2',
                 extraVideoUrl3: '',
@@ -60,6 +65,15 @@ const getComunidadConfig = async (req, res) => {
                 extraVideoUrl10: '',
                 extraVideoTitle10: 'Clase Extra 10'
             });
+            await config.save();
+        } else if (
+            isMatrizIpvrFunnel &&
+            (!config.videoUrl || config.videoUrl.includes('w3schools.com'))
+        ) {
+            config.videoUrl = 'https://youtu.be/1LN_7YkmWXk';
+            if (!config.extraVideoTitle1 || config.extraVideoTitle1 === 'Clase Extra 1') {
+                config.extraVideoTitle1 = '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
+            }
             await config.save();
         }
         const approvedPurchasesCount = await ComunidadPurchase.countDocuments({ funnelKey });
