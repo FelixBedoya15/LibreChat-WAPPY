@@ -35,6 +35,7 @@ export interface TenshiAvatarProps {
   showHUD?: boolean;
   statusText?: string; // Texto de estado opcional estilo píldora Coucou
   statusPlacement?: 'bottom' | 'below-dock' | 'above-dock';
+  smoothSizeTransition?: boolean; // Transición fluida de tamaño al alternar modo protagonista <-> split chat en PC
 }
 
 interface Particle {
@@ -172,6 +173,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   showHUD = true,
   statusText,
   statusPlacement = 'bottom',
+  smoothSizeTransition = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [globalAvatarId, setGlobalAvatarId] = useState<string>(() => {
@@ -240,7 +242,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Función para emitir una ráfaga de emoticones gatunos personalizados
   const emitCustomEmojis = useCallback((emojis: string[]) => {
     const now = Date.now();
-    const baseSize = size >= 200 ? 22 : size >= 80 ? 15 : 11;
+    const baseSize = size >= 420 ? 30 : size >= 200 ? 22 : size >= 80 ? 15 : 11;
     const created: Particle[] = emojis.map((emoji, i) => ({
       id: now + i,
       kind: 'cat',
@@ -319,7 +321,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   const emitParticles = useCallback(
     (kind: Particle['kind'], count: number) => {
       const now = Date.now();
-      const baseSize = size >= 200 ? 20 : size >= 80 ? 14 : 10;
+      const baseSize = size >= 420 ? 28 : size >= 200 ? 20 : size >= 80 ? 14 : 10;
       if (kind === 'heart') {
         const catLove = ['😻', '😽', '💚', '🐾', '✨'];
         setParticles(
@@ -674,7 +676,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   const renderHUDLenses = () => {
     if (!showHUD || size < 28) return null;
 
-    const maxShift = size < 55 ? 1.4 : 3.2;
+    const maxShift = size < 55 ? 1.4 : Math.min(12, Math.max(3.2, size * 0.018));
     const eyeOffsetX =
       activeMood === 'thinking' ? maxShift * 0.75 : tilt.lookX * maxShift;
     const eyeOffsetY =
@@ -907,32 +909,45 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Badges flotantes holográficos estilo Coucou (?, !, •••)
   const renderStatusBadge = () => {
     if (size < 55) return null;
+    const isGiant = size >= 420;
     if (activeMood === 'question') {
       return (
-        <div className="absolute -top-1 right-[8%] z-30 animate-bounce rounded-full bg-cyan-400/90 px-1.5 py-0.5 text-[10px] font-black text-zinc-950 shadow-[0_0_12px_#22d3ee] pointer-events-none">
+        <div
+          className={cn(
+            'absolute top-0 right-[8%] z-30 animate-bounce rounded-full bg-cyan-400/90 font-black text-zinc-950 shadow-[0_0_14px_#22d3ee] pointer-events-none',
+            isGiant ? 'px-2.5 py-0.5 text-sm' : 'px-1.5 py-0.5 text-[10px]'
+          )}
+        >
           ?
         </div>
       );
     }
     if (activeMood === 'approval') {
       return (
-        <div className="absolute -top-1 right-[8%] z-30 animate-bounce rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[10px] font-black text-zinc-950 shadow-[0_0_12px_#fbbf24] pointer-events-none">
+        <div
+          className={cn(
+            'absolute top-0 right-[8%] z-30 animate-bounce rounded-full bg-amber-400/95 font-black text-zinc-950 shadow-[0_0_14px_#fbbf24] pointer-events-none',
+            isGiant ? 'px-2.5 py-0.5 text-sm' : 'px-1.5 py-0.5 text-[10px]'
+          )}
+        >
           !
         </div>
       );
     }
     if (activeMood === 'thinking' || activeMood === 'searching') {
+      const dotClass = isGiant
+        ? 'h-1.5 w-1.5 rounded-full bg-amber-300 animate-bounce'
+        : 'h-1 w-1 rounded-full bg-amber-300 animate-bounce';
       return (
-        <div className="absolute -top-1 right-[6%] z-30 flex items-center gap-0.5 rounded-full bg-zinc-900/85 border border-amber-400/60 px-1.5 py-1 shadow-[0_0_10px_rgba(251,191,36,0.4)] pointer-events-none">
-          <span className="h-1 w-1 rounded-full bg-amber-300 animate-bounce" />
-          <span
-            className="h-1 w-1 rounded-full bg-amber-300 animate-bounce"
-            style={{ animationDelay: '0.15s' }}
-          />
-          <span
-            className="h-1 w-1 rounded-full bg-amber-300 animate-bounce"
-            style={{ animationDelay: '0.3s' }}
-          />
+        <div
+          className={cn(
+            'absolute top-0 right-[6%] z-30 flex items-center rounded-full bg-zinc-900/85 border border-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.45)] pointer-events-none',
+            isGiant ? 'gap-1 px-2.5 py-1.5' : 'gap-0.5 px-1.5 py-1'
+          )}
+        >
+          <span className={dotClass} />
+          <span className={dotClass} style={{ animationDelay: '0.15s' }} />
+          <span className={dotClass} style={{ animationDelay: '0.3s' }} />
         </div>
       );
     }
@@ -976,9 +991,12 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       style={{
         width: Math.round(size * 0.75),
         height: size,
-        perspective: '800px',
+        perspective: `${Math.max(800, Math.round(size * 2.4))}px`,
+        transition: smoothSizeTransition
+          ? 'width 560ms cubic-bezier(0.22, 1, 0.36, 1), height 560ms cubic-bezier(0.22, 1, 0.36, 1)'
+          : undefined,
       }}
-      title={interactive ? 'Tenshi - Copiloto SG-SST (Haz clic para hablar o acarícialo)' : undefined}
+      title={interactive ? 'Tenshi - Asistente SG-SST (Haz clic para hablar o acarícialo)' : undefined}
     >
       <style>{`
         @keyframes tenshi-halo-pulse {
@@ -1021,9 +1039,9 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         }
         @keyframes tenshi-happy-jump {
           0% { transform: translateY(0) scaleX(1) scaleY(1); }
-          20% { transform: translateY(3%) scaleX(1.12) scaleY(0.86); }
-          50% { transform: translateY(-9%) scaleX(0.92) scaleY(1.1) rotateZ(-3deg); }
-          75% { transform: translateY(2%) scaleX(1.06) scaleY(0.94) rotateZ(2deg); }
+          20% { transform: translateY(var(--tenshi-jump-down, 3%)) scaleX(var(--tenshi-squash-x, 1.12)) scaleY(var(--tenshi-squash-y, 0.86)); }
+          50% { transform: translateY(var(--tenshi-jump-up, -9%)) scaleX(var(--tenshi-stretch-x, 0.92)) scaleY(var(--tenshi-stretch-y, 1.1)) rotateZ(-3deg); }
+          75% { transform: translateY(1.5%) scaleX(1.04) scaleY(0.96) rotateZ(2deg); }
           100% { transform: translateY(0) scaleX(1) scaleY(1) rotateZ(0deg); }
         }
         .animate-tenshi-happy-jump {
@@ -1117,7 +1135,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           transform:
             activeMood === 'dizzy'
               ? 'scale(0.92)'
-              : `perspective(800px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) translateY(${bodyTranslateY}px) scaleX(${bodyScaleX}) scaleY(${bodyScaleY})`,
+              : `perspective(${Math.max(800, Math.round(size * 2.4))}px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) rotateZ(${tilt.rz}deg) translateY(${bodyTranslateY}px) scaleX(${bodyScaleX}) scaleY(${bodyScaleY})`,
           transformStyle: 'preserve-3d',
           transition:
             isClicked || isSquashing
@@ -1128,7 +1146,17 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         {/* Cuerpo 3D Íntegro de Tenshi (0 cortes en axilas o cuello) con Cinemática Elástica apoyada en sus pies */}
         <div
           className={cn('relative h-full w-full pointer-events-none select-none', bodyKinematicClass)}
-          style={{ transformOrigin: '50% 92%' }}
+          style={
+            {
+              transformOrigin: '50% 92%',
+              '--tenshi-jump-down': size >= 420 ? '1.8%' : '3%',
+              '--tenshi-squash-x': size >= 420 ? '1.06' : '1.12',
+              '--tenshi-squash-y': size >= 420 ? '0.93' : '0.86',
+              '--tenshi-jump-up': size >= 420 ? '-3.6%' : '-9%',
+              '--tenshi-stretch-x': size >= 420 ? '0.96' : '0.92',
+              '--tenshi-stretch-y': size >= 420 ? '1.045' : '1.1',
+            } as React.CSSProperties
+          }
         >
           {/* Halo Celestial Dorado sincronizado al 100% con el movimiento del cuerpo de Tenshi */}
           {showHaloEffect && size >= 45 && (

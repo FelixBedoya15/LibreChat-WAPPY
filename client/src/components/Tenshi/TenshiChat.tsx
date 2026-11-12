@@ -1258,15 +1258,69 @@ export default function TenshiChat() {
   // ─── Tenshi Vision Mode State & Video Infrastructure ──────────────────────────
   const [isVisionActive, setIsVisionActive] = useState(false);
 
+  const isDesktopPanoramic = viewportSize.width >= 900;
+
+  const pcStageMetrics = useMemo(() => {
+    const headerEstimate = 58;
+    const bottomNavReserve = 100;
+    const stageW = Math.min(viewportSize.width, 1680);
+    const stageH = Math.max(360, viewportSize.height - headerEstimate);
+    const safeStageH = Math.max(280, stageH - bottomNavReserve);
+
+    // 1. Tamaño Gigante Protagonista cuando el chat está cerrado en PC (Imagen 1)
+    const widthRatio = stageW >= 1280 ? 0.44 : stageW >= 1080 ? 0.41 : 0.39;
+    const giantSize = Math.min(
+      760,
+      Math.max(360, Math.min(Math.round(stageH * 0.96), Math.round(stageW * widthRatio)))
+    );
+    const closedAvatarTop = Math.max(20, Math.round((stageH - giantSize) * 0.35));
+
+    // 2. Tamaño y anclaje Split-View cuando el chat se despliega a la izquierda (Imagen 5)
+    const controlsHeightSplit = 158;
+    const splitGap = 10;
+    const splitSize = Math.min(305, Math.max(135, safeStageH - controlsHeightSplit - splitGap - 16));
+    const totalSplitRightHeight = splitSize + splitGap + controlsHeightSplit;
+    const splitAvatarTop = Math.max(10, Math.round((safeStageH - totalSplitRightHeight) / 2));
+    const splitControlsTop = splitAvatarTop + splitSize + splitGap;
+
+    // 3. Posición centrada de Controles Derechos cuando el chat está cerrado (Imagen 2)
+    const controlsHeightClosed = isVisionActive ? 314 : 164;
+    const closedControlsTop = Math.max(16, Math.round((safeStageH - controlsHeightClosed) / 2));
+
+    return {
+      stageW,
+      stageH,
+      safeStageH,
+      bottomNavReserve,
+      giantSize,
+      splitSize,
+      closedAvatarTop,
+      splitAvatarTop,
+      closedControlsTop,
+      splitControlsTop,
+    };
+  }, [viewportSize.width, viewportSize.height, isVisionActive]);
+
   const heroAvatarSize = useMemo(() => {
     if (viewportSize.width < 768) {
       const reservedMobile = isVisionActive && !isHeroChatOpen ? 500 : 365;
       return Math.min(315, Math.max(150, viewportSize.height - reservedMobile));
     }
-    const reservedDesktop = isVisionActive && !isHeroChatOpen ? 535 : 395;
-    const maxDesktopAvatar = isHeroChatOpen ? 300 : 340;
-    return Math.min(maxDesktopAvatar, Math.max(145, viewportSize.height - reservedDesktop));
-  }, [viewportSize.width, viewportSize.height, isVisionActive, isHeroChatOpen]);
+    if (isDesktopPanoramic) {
+      return isHeroChatOpen ? pcStageMetrics.splitSize : pcStageMetrics.giantSize;
+    }
+    const reservedTablet = isVisionActive && !isHeroChatOpen ? 535 : 385;
+    const maxTabletAvatar = isHeroChatOpen ? 290 : 360;
+    return Math.min(maxTabletAvatar, Math.max(145, viewportSize.height - reservedTablet));
+  }, [
+    viewportSize.width,
+    viewportSize.height,
+    isVisionActive,
+    isHeroChatOpen,
+    isDesktopPanoramic,
+    pcStageMetrics.splitSize,
+    pcStageMetrics.giantSize,
+  ]);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const isCameraOnRef = useRef(true);
   isCameraOnRef.current = isCameraOn;
@@ -1591,10 +1645,10 @@ export default function TenshiChat() {
   }, [isAuthenticated, token, fetchDailyBriefing]);
 
   useEffect(() => {
-    if ((isVoiceActive || isOpen) && isAuthenticated && token) {
+    if ((isVoiceActive || isOpen || isHeroChatOpen || isMobileHeroMode) && isAuthenticated && token) {
       fetchDailyBriefing();
     }
-  }, [isVoiceActive, isOpen, isAuthenticated, token, fetchDailyBriefing]);
+  }, [isVoiceActive, isOpen, isHeroChatOpen, isMobileHeroMode, isAuthenticated, token, fetchDailyBriefing]);
 
   useEffect(() => {
     const onReloadSgsst = () => {
@@ -1649,7 +1703,7 @@ export default function TenshiChat() {
   useEffect(() => {
     const routeKey = `${location.pathname}${location.search}`;
     setAmbientTip(null);
-    if (isVoiceActive || isOpen || shownAmbientRoutesRef.current.has(routeKey)) return;
+    if (isVoiceActive || isOpen || isHeroChatOpen || shownAmbientRoutesRef.current.has(routeKey)) return;
 
     const lowerRoute = routeKey.toLowerCase();
     let suggestion: { id: string; title: string; prompt: string } | null = null;
@@ -6699,7 +6753,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           id="tenshi-mobile-hero-container"
           className="fixed inset-0 w-screen z-[70] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
           style={{
-            paddingBottom: 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 94px)',
+            paddingBottom: isDesktopPanoramic
+              ? '0px'
+              : 'calc(max(8px, calc(env(safe-area-inset-bottom, 0px) - 6px)) + 94px)',
           }}
         >
           {/* Ocultar por completo barras laterales izquierda y derecha mientras Tenshi está en Modo Protagonista */}
@@ -6722,9 +6778,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/10 dark:bg-teal-500/[0.06] blur-3xl" />
 
-          {/* Cabecera Superior (Con respeto de Notch/Dynamic Island en iPhone y padding amplio en PC/Tablet) */}
+          {/* Cabecera Superior (z-30 protege botones superiores cuando el avatar gigante saluda o salta) */}
           <div
-            className="relative z-10 flex items-center justify-between px-4 md:px-8 lg:px-12 pb-2.5 md:pb-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md shrink-0 select-none"
+            className="relative z-30 flex items-center justify-between px-4 md:px-8 lg:px-12 pb-2.5 md:pb-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md shrink-0 select-none"
             style={{
               paddingTop: 'max(14px, env(safe-area-inset-top, 0px))',
             }}
@@ -6798,19 +6854,348 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             </div>
           </div>
 
-          {/* Cuerpo Central Adaptativo: En Celular superpone el chat; en PC/Portátil/Tablet divide la pantalla (Chat a la izquierda + Tenshi a la derecha) */}
-          <div className="relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-8 lg:px-12 md:py-2 md:gap-6 lg:gap-8">
-            {/* Escenario Hero de Tenshi: Centrado cuando el chat está cerrado; desplazado suavemente a la derecha en pantallas grandes cuando el chat se abre */}
+          {/* Cuerpo Central Adaptativo:
+              - PC Panorámico (>=900px): Escenario de 3 zonas con transición coreografiada (Avisos a la izquierda | Suri Gigante en el centro | Saludo + Cápsula a la derecha) <-> Split-View al abrir Chat (Chat a la izquierda | Suri + Controles a la derecha).
+              - Celular / Tablet Compacta (<900px): Flujo vertical centrado y chat adaptativo. */}
+          <div
+            className={cn(
+              'relative z-10 flex-1 min-h-0 w-full max-w-[1680px] mx-auto',
+              isDesktopPanoramic
+                ? 'overflow-visible'
+                : 'flex flex-col md:flex-row items-stretch justify-center overflow-hidden md:px-8 lg:px-12 md:py-2 md:gap-6 lg:gap-8'
+            )}
+          >
+            {/* 🅰️ CUADRÍCULA IZQUIERDA DE AVISOS EN PC (Imágenes 3 y 4: Píldoras en Vivo, Rich Voice Cards, Briefing Ejecutivo y Proactividad) */}
+            {isDesktopPanoramic && (
+              <div
+                aria-hidden={isHeroChatOpen}
+                style={{
+                  position: 'absolute',
+                  left: '19%',
+                  top: '14px',
+                  bottom: `${pcStageMetrics.bottomNavReserve}px`,
+                  width: 'min(375px, 28vw)',
+                  transform: isHeroChatOpen
+                    ? 'translate(-50%, 0) translateX(-32px) scale(0.96)'
+                    : 'translate(-50%, 0) translateX(0px) scale(1)',
+                  opacity: isHeroChatOpen ? 0 : 1,
+                  visibility: isHeroChatOpen ? 'hidden' : 'visible',
+                  transition: isHeroChatOpen
+                    ? 'transform 460ms cubic-bezier(0.22, 1, 0.36, 1), opacity 320ms ease, visibility 0s linear 460ms'
+                    : 'transform 540ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms ease, visibility 0s linear 0s',
+                }}
+                className="z-[25] pointer-events-none flex flex-col justify-center gap-3 overflow-y-auto no-scrollbar py-2 select-none"
+              >
+                {/* 1. Aviso de Acción en Vivo / Estado de Ejecución (Nunca tapa el saludo) */}
+                {(liveActionPill || tenshiStatus || isGeneratingTechnicalReport) && (
+                  <div className="pointer-events-auto rounded-2xl border border-emerald-500/45 bg-zinc-900/95 px-4 py-3 text-zinc-100 shadow-[0_18px_45px_rgba(0,0,0,0.3)] backdrop-blur-2xl animate-in fade-in slide-in-from-left-4 duration-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+                        Aviso en Vivo • {resolvedHeroAvatarName}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-100 leading-snug">
+                      {isGeneratingTechnicalReport
+                        ? '📑 Compilando informe técnico oficial SG-SST... por favor espera'
+                        : liveActionPill || tenshiStatus}
+                    </p>
+                  </div>
+                )}
+
+                {/* 2. Tarjeta de Confirmación Instantánea (Rich Voice Card: Informes, Correos, Agenda, Empresa) */}
+                {richVoiceCard && (
+                  <div className="pointer-events-auto rounded-2xl border border-emerald-500/45 bg-zinc-900/95 p-4 text-zinc-100 shadow-[0_20px_50px_rgba(0,0,0,0.32)] backdrop-blur-2xl animate-in fade-in slide-in-from-left-4 duration-250">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-base">
+                          {richVoiceCard.kind === 'email'
+                            ? '📧'
+                            : richVoiceCard.kind === 'calendar'
+                            ? '📅'
+                            : '📄'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-white truncate">
+                            {richVoiceCard.title}
+                          </p>
+                          <p className="text-[11px] font-medium text-zinc-300 truncate">
+                            {richVoiceCard.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRichVoiceCard(null)}
+                        className="p-0.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                        title="Cerrar aviso"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {richVoiceCard.badge && (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="truncate max-w-[260px]">{richVoiceCard.badge}</span>
+                      </div>
+                    )}
+                    {richVoiceCard.actionLabel &&
+                      (richVoiceCard.htmlReport || richVoiceCard.actionPrompt) && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (richVoiceCard.htmlReport) {
+                                openHtmlReport(richVoiceCard.htmlReport);
+                              } else if (richVoiceCard.actionPrompt) {
+                                setIsHeroChatOpen(true);
+                                handleSend(richVoiceCard.actionPrompt);
+                              }
+                              setRichVoiceCard(null);
+                            }}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white cursor-pointer"
+                          >
+                            <span>{richVoiceCard.actionLabel}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* 3. Tarjeta Ejecutiva de Briefing del Día (Idéntica a Imagen 4, integrada en la cuadrícula izquierda) */}
+                {dailyBriefing && !isBriefingDismissed && (
+                  <div className="pointer-events-auto rounded-2xl border border-zinc-700/80 bg-zinc-900/95 p-4 text-zinc-100 shadow-[0_22px_50px_rgba(0,0,0,0.32)] backdrop-blur-2xl animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-wide truncate">
+                          Briefing • {dailyBriefing.empresa || 'Tu Empresa'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsBriefingDismissed(true)}
+                        className="p-0.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                        title="Ocultar briefing"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 text-xs text-zinc-200 leading-relaxed">
+                      {dailyBriefing.ultimaActividad && (
+                        <div className="truncate">
+                          <span className="font-bold text-white">📋 Último: </span>
+                          <span>{dailyBriefing.ultimaActividad.titulo}</span>
+                        </div>
+                      )}
+                      <div className="line-clamp-2">
+                        <span className="font-bold text-white">
+                          📅 Hoy ({dailyBriefing.agendaHoy?.length || 0}):{' '}
+                        </span>
+                        <span>
+                          {dailyBriefing.agendaHoy && dailyBriefing.agendaHoy.length > 0
+                            ? dailyBriefing.agendaHoy
+                                .map((a) => {
+                                  const cleanTitle = (a.titulo || '').replace(/^📅\s*/, '');
+                                  return a.hora && a.hora !== 'Hoy'
+                                    ? `${cleanTitle} (${a.hora})`
+                                    : cleanTitle;
+                                })
+                                .join(' • ')
+                            : dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0
+                            ? `${dailyBriefing.vencidas.length} pendientes activos en ACPM`
+                            : 'Agenda del día despejada'}
+                        </span>
+                      </div>
+                      <div className="line-clamp-2">
+                        <span className="font-bold text-amber-300">
+                          ⏰ Mañana ({dailyBriefing.vencenManana?.length || 0}):{' '}
+                        </span>
+                        <span>
+                          {dailyBriefing.vencenManana && dailyBriefing.vencenManana.length > 0
+                            ? dailyBriefing.vencenManana
+                                .map((a) => {
+                                  const cleanTitle = (a.titulo || '').replace(/^📅\s*/, '');
+                                  return a.hora && a.hora !== 'Mañana'
+                                    ? `${cleanTitle} (${a.hora})`
+                                    : cleanTitle;
+                                })
+                                .join(' • ')
+                            : 'Sin eventos programados mañana'}
+                        </span>
+                      </div>
+                      {dailyBriefing.vencidas && dailyBriefing.vencidas.length > 0 && (
+                        <div className="truncate">
+                          <span className="font-bold text-amber-400">
+                            ⚠️ Pendientes ({dailyBriefing.vencidas.length}):{' '}
+                          </span>
+                          <span>
+                            {dailyBriefing.vencidas
+                              .slice(0, 2)
+                              .map((t) => t.titulo)
+                              .join(' • ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Sugerencia Proactiva SG-SST (Ambient Tip) */}
+                {ambientTip && !richVoiceCard && (
+                  <div className="pointer-events-auto rounded-2xl border border-teal-500/40 bg-zinc-900/95 p-4 text-zinc-100 shadow-[0_18px_45px_rgba(0,0,0,0.3)] backdrop-blur-2xl animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold text-zinc-100 leading-relaxed">
+                        {ambientTip.title}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setAmbientTip(null)}
+                        className="p-0.5 rounded-lg text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                        title="Descartar sugerencia"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAmbientTip(null)}
+                        className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all active:scale-95 cursor-pointer"
+                      >
+                        Ahora no
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const promptToSend = ambientTip.prompt;
+                          setAmbientTip(null);
+                          setIsHeroChatOpen(true);
+                          handleSend(promptToSend);
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-[11px] shadow-md transition-all active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white cursor-pointer"
+                      >
+                        <span>Sí, revisar</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Píldora compacta superior derecha en PC solo cuando el Chat está abierto y hay una acción en curso */}
+            {isDesktopPanoramic &&
+              isHeroChatOpen &&
+              Boolean(liveActionPill || tenshiStatus || isGeneratingTechnicalReport) && (
+                <div
+                  style={{ left: '75.5%' }}
+                  className="pointer-events-none absolute top-2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-emerald-500/45 bg-zinc-900/95 px-3.5 py-1 text-xs font-semibold text-emerald-300 shadow-lg backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 max-w-[42vw]"
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="truncate">
+                    {isGeneratingTechnicalReport
+                      ? '📑 Compilando informe técnico...'
+                      : liveActionPill || tenshiStatus}
+                  </span>
+                </div>
+              )}
+
+            {/* Banner flotante de confirmación en Celular/Tablet compacta cuando el chat está cerrado */}
+            {!isDesktopPanoramic && !isHeroChatOpen && richVoiceCard && (
+              <div className="absolute top-2 inset-x-3 z-30 mx-auto max-w-sm rounded-2xl border border-emerald-500/45 bg-zinc-900/95 p-3 text-zinc-100 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-sm">
+                      {richVoiceCard.kind === 'email'
+                        ? '📧'
+                        : richVoiceCard.kind === 'calendar'
+                        ? '📅'
+                        : '📄'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-white truncate">
+                        {richVoiceCard.title}
+                      </p>
+                      <p className="text-[11px] text-zinc-300 truncate">
+                        {richVoiceCard.subtitle}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRichVoiceCard(null)}
+                    className="p-0.5 text-zinc-400 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {richVoiceCard.actionLabel &&
+                  (richVoiceCard.htmlReport || richVoiceCard.actionPrompt) && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (richVoiceCard.htmlReport) {
+                            openHtmlReport(richVoiceCard.htmlReport);
+                          } else if (richVoiceCard.actionPrompt) {
+                            setIsHeroChatOpen(true);
+                            handleSend(richVoiceCard.actionPrompt);
+                          }
+                          setRichVoiceCard(null);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 rounded-xl font-bold text-[11px] bg-gradient-to-r from-teal-500 to-emerald-500 text-white"
+                      >
+                        <span>{richVoiceCard.actionLabel}</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* 🅱️ ESCENARIO PERSISTENTE DE SURI + CONTROLES DERECHOS (Transición fluida 560ms sin desmontar avatar) */}
             <div
               className={cn(
-                'flex-1 min-h-0 px-4 flex flex-col items-center overflow-y-auto no-scrollbar select-none relative transition-all duration-500 ease-out md:order-2',
-                isHeroChatOpen ? 'md:w-[46%] lg:w-[48%] xl:w-[50%]' : 'w-full'
+                isDesktopPanoramic
+                  ? 'contents'
+                  : cn(
+                      'flex-1 min-h-0 px-4 flex flex-col items-center overflow-y-auto no-scrollbar select-none relative transition-all duration-500 ease-out md:order-2',
+                      isHeroChatOpen ? 'md:w-[46%] lg:w-[48%] xl:w-[50%]' : 'w-full'
+                    )
               )}
             >
-              <div className="my-auto flex w-full flex-col items-center py-2">
-                {/* 1. Avatar Grande Adaptativo de Tenshi (pt-3 protege el halo superior de cualquier recorte) */}
+              <div
+                className={cn(
+                  isDesktopPanoramic ? 'contents' : 'my-auto flex w-full flex-col items-center py-2'
+                )}
+              >
+                {/* 1. Avatar Adaptativo Persistente de Tenshi / Suri */}
                 <div
-                  className="relative flex flex-col items-center pt-3 shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95"
+                  style={
+                    isDesktopPanoramic
+                      ? {
+                          position: 'absolute',
+                          left: isHeroChatOpen ? '75.5%' : '50%',
+                          top: `${
+                            isHeroChatOpen
+                              ? pcStageMetrics.splitAvatarTop
+                              : pcStageMetrics.closedAvatarTop
+                          }px`,
+                          transform: 'translateX(-50%)',
+                          transition:
+                            'left 560ms cubic-bezier(0.22, 1, 0.36, 1), top 560ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    'flex flex-col items-center shrink-0 cursor-pointer select-none',
+                    isDesktopPanoramic ? 'z-[15]' : 'relative pt-3'
+                  )}
                   onClick={() => {
                     tenshiAudio.playBlip();
                     if (!isVoiceActive) {
@@ -6819,38 +7204,94 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       stopVoiceMode();
                     }
                   }}
-                  title={isMobileScreen ? 'Tócame para hablar' : 'Haz clic para hablar'}
+                  title={
+                    isMobileScreen
+                      ? 'Tócame para hablar'
+                      : 'Tenshi - Asistente SG-SST (Haz clic para hablar o acarícialo)'
+                  }
                 >
-                  <TenshiAvatar
-                    size={heroAvatarSize}
-                    avatarId={resolvedHeroAvatarId}
-                    mood={derivedAvatarMood}
-                    isSpeaking={isTenshiSpeaking}
-                    outputAmplitude={outputAmplitude}
-                    isVoiceActive={isVoiceActive}
-                    isTyping={isTyping || isChatSubmitting || isWaitingConsultation || Boolean(tenshiStatus)}
-                    statusText={liveActionPill || tenshiStatus || undefined}
-                    interactive={true}
-                    showHaloEffect={true}
-                    showHUD={true}
-                  />
+                  <div className="transition-transform duration-300 hover:scale-[1.03] active:scale-[0.97]">
+                    <TenshiAvatar
+                      size={heroAvatarSize}
+                      avatarId={resolvedHeroAvatarId}
+                      mood={derivedAvatarMood}
+                      isSpeaking={isTenshiSpeaking}
+                      outputAmplitude={outputAmplitude}
+                      isVoiceActive={isVoiceActive}
+                      isTyping={
+                        isTyping ||
+                        isChatSubmitting ||
+                        isWaitingConsultation ||
+                        Boolean(tenshiStatus)
+                      }
+                      statusText={undefined}
+                      smoothSizeTransition={isDesktopPanoramic}
+                      interactive={true}
+                      showHaloEffect={true}
+                      showHUD={true}
+                    />
+                  </div>
                 </div>
 
-                {/* 2. Saludo & Subtítulo */}
-                <div className="text-center max-w-xs md:max-w-md mt-2.5 md:mt-3.5 mb-2.5 md:mb-3.5 shrink-0">
-                  <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
-                  </h2>
-                  <p className="text-xs md:text-sm text-slate-500 dark:text-zinc-400 mt-1 leading-snug font-medium">
-                    {isVoiceActive
-                      ? isMicMuted
-                        ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
-                        : 'Voz en vivo activa. Te estoy escuchando...'
-                      : isMobileScreen
-                      ? 'Soy tu copiloto en SG-SST. Tócame para hablar o pulsa el micrófono.'
-                      : 'Soy tu copiloto en SG-SST. Haz clic en mí para hablar o pulsa el micrófono.'}
-                  </p>
-                </div>
+                {/* 2. Bloque de Saludo + "Asistente" + Visión PiP + Botonera Cápsula Negra (Imagen 2 a la derecha -> Imagen 5 en Split-View) */}
+                <div
+                  style={
+                    isDesktopPanoramic
+                      ? {
+                          position: 'absolute',
+                          left: isHeroChatOpen ? '75.5%' : '81%',
+                          top: `${
+                            isHeroChatOpen
+                              ? pcStageMetrics.splitControlsTop
+                              : pcStageMetrics.closedControlsTop
+                          }px`,
+                          width: isHeroChatOpen ? 'min(430px, 42vw)' : 'min(395px, 28.5vw)',
+                          transform: 'translateX(-50%)',
+                          transition:
+                            'left 560ms cubic-bezier(0.22, 1, 0.36, 1), top 560ms cubic-bezier(0.22, 1, 0.36, 1), width 560ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    'flex flex-col items-center shrink-0 select-none',
+                    isDesktopPanoramic ? 'z-[25]' : 'w-full'
+                  )}
+                >
+                  {/* Píldora de estado sin solapamiento en Celular/Tablet compacta */}
+                  {!isDesktopPanoramic &&
+                    Boolean(liveActionPill || tenshiStatus || isGeneratingTechnicalReport) && (
+                      <div className="mt-1.5 mb-0.5 inline-flex max-w-[90vw] items-center gap-1.5 rounded-full border border-emerald-500/45 bg-zinc-900/95 px-3.5 py-1 text-[11px] font-semibold text-emerald-300 shadow-lg backdrop-blur-md">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="truncate">
+                          {isGeneratingTechnicalReport
+                            ? '📑 Compilando informe técnico...'
+                            : liveActionPill || tenshiStatus}
+                        </span>
+                      </div>
+                    )}
+
+                  {/* Saludo & Subtítulo ("Asistente en SG-SST") */}
+                  <div
+                    className={cn(
+                      'text-center shrink-0',
+                      isDesktopPanoramic
+                        ? 'max-w-[380px] mb-3.5'
+                        : 'max-w-xs md:max-w-md mt-2.5 md:mt-3.5 mb-2.5 md:mb-3.5'
+                    )}
+                  >
+                    <h2 className="text-xl md:text-2xl lg:text-[32px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+                      ¡Hola, {user?.name?.split(' ')[0] || user?.username || 'Especialista'}!
+                    </h2>
+                    <p className="text-xs md:text-[13.5px] text-slate-600 dark:text-zinc-400 mt-1.5 leading-snug font-semibold">
+                      {isVoiceActive
+                        ? isMicMuted
+                          ? 'Micrófono silenciado (Mute activo). Tenshi no te escucha.'
+                          : 'Voz en vivo activa. Te estoy escuchando...'
+                        : isMobileScreen
+                        ? 'Soy tu Asistente en SG-SST. Tócame para hablar o pulsa el micrófono.'
+                        : 'Soy tu Asistente en SG-SST. Haz clic en mí para hablar o pulsa el micrófono.'}
+                    </p>
+                  </div>
 
                 {/* PiP en Pantalla Hero cuando el chat está cerrado */}
                 {isVisionActive && !isHeroChatOpen && (
@@ -6919,7 +7360,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   title={isHeroChatOpen ? 'Cerrar chat' : 'Abrir chat con Tenshi'}
                   className={cn(
                     'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
-                    isHeroChatOpen ? 'text-emerald-400 bg-white/15' : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                    isHeroChatOpen
+                      ? 'text-emerald-400 bg-emerald-500/15 ring-2 ring-emerald-400/50 shadow-md shadow-emerald-500/20'
+                      : 'text-zinc-200 ring-1 ring-white/15 hover:text-white hover:bg-white/10'
                   )}
                 >
                   <MessageSquare className="h-5 w-5" />
@@ -7013,12 +7456,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 )}
               </div>
               </div>
+              </div>
             </div>
 
-            {/* 4. Panel de Chat: En Celular sube sobre la pantalla; en PC/Portátil/Tablet se abre A LA IZQUIERDA desplazando a Tenshi a la derecha */}
-            {isHeroChatOpen && (
+            {/* 4. Panel de Chat: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
+            {(isDesktopPanoramic || isHeroChatOpen) && (
               <div
-                className="absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full flex flex-col bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 backdrop-blur-2xl rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300 overflow-hidden"
+                aria-hidden={!isHeroChatOpen}
+                style={
+                  isDesktopPanoramic
+                    ? {
+                        position: 'absolute',
+                        left: 'clamp(20px, 2.8vw, 48px)',
+                        top: '10px',
+                        bottom: `${pcStageMetrics.bottomNavReserve}px`,
+                        width: 'calc(50% - clamp(24px, 3vw, 52px))',
+                        transform: isHeroChatOpen
+                          ? 'translateX(0px) scale(1)'
+                          : 'translateX(-44px) scale(0.97)',
+                        opacity: isHeroChatOpen ? 1 : 0,
+                        visibility: isHeroChatOpen ? 'visible' : 'hidden',
+                        pointerEvents: isHeroChatOpen ? 'auto' : 'none',
+                        transition: isHeroChatOpen
+                          ? 'transform 560ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s'
+                          : 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease, visibility 0s linear 500ms',
+                      }
+                    : undefined
+                }
+                className={cn(
+                  'flex flex-col backdrop-blur-2xl shadow-2xl overflow-hidden',
+                  isDesktopPanoramic
+                    ? 'z-[26] bg-white/92 dark:bg-zinc-900/92 rounded-3xl border border-slate-200/85 dark:border-zinc-800/90'
+                    : 'absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300'
+                )}
               >
               {/* Cabecera del Panel de Chat */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/80 shrink-0">
@@ -7093,8 +7563,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 </div>
               </div>
 
-              {/* Visor de Tenshi Visión y Telemetría Ergonómica en Chat Móvil */}
-              {isVisionActive && (
+              {/* Visor de Tenshi Visión y Telemetría Ergonómica en Chat Móvil / Split PC */}
+              {isVisionActive && isHeroChatOpen && (
                 <div
                   className={cn(
                     'relative overflow-hidden bg-zinc-950 transition-all duration-300 animate-in fade-in zoom-in-95 flex items-center justify-center',
@@ -7356,6 +7826,59 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 ref={mobileMessagesScrollRef}
                 className={cn('min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-3', isVisionActive && isVisionExpanded ? 'hidden' : 'flex-1')}
               >
+                {/* 0. Rich Voice Card integrada dentro del chat cuando está desplegado */}
+                {richVoiceCard && (
+                  <div className="rounded-2xl border border-teal-500/40 bg-white dark:bg-zinc-900 p-3.5 shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/30 text-sm">
+                          {richVoiceCard.kind === 'email' ? '📧' : richVoiceCard.kind === 'calendar' ? '📅' : '📄'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                            {richVoiceCard.title}
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 truncate">
+                            {richVoiceCard.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRichVoiceCard(null)}
+                        className="p-0.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {richVoiceCard.badge && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{richVoiceCard.badge}</span>
+                      </div>
+                    )}
+                    {richVoiceCard.actionLabel && (richVoiceCard.htmlReport || richVoiceCard.actionPrompt) && (
+                      <div className="mt-2.5 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (richVoiceCard.htmlReport) {
+                              openHtmlReport(richVoiceCard.htmlReport);
+                            } else if (richVoiceCard.actionPrompt) {
+                              handleSend(richVoiceCard.actionPrompt);
+                            }
+                            setRichVoiceCard(null);
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white"
+                        >
+                          <span>{richVoiceCard.actionLabel}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 1. Tarjeta de Memoria Autobiográfica y Briefing del Día (Estilo Dot) */}
                 {dailyBriefing && !isBriefingDismissed && (
                   <div className="rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/70 p-3.5 shadow-sm dark:border-teal-500/30 dark:from-teal-950/40 dark:via-zinc-900 dark:to-emerald-950/30">
@@ -7607,6 +8130,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       </div>
                     </div>
                   ))}
+                {tenshiStatus && (
+                  <div className="flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 animate-pulse">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{tenshiStatus}</span>
+                  </div>
+                )}
+                {isTyping && !tenshiStatus && (
+                  <div className="flex items-center gap-1 text-slate-400 pl-2 py-1">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" />
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.2s]" />
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.4s]" />
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
