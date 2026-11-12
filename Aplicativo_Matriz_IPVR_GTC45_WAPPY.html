@@ -599,7 +599,709 @@
 
         <!-- Contenedor del Reproductor / Poster de Video -->
         <div id="tutorialVideoContainer" class="relative w-full rounded-xl sm:rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/60 shadow-inner">
-          <!-- Renderizado dinámicamente por JS -->
+          <!-- Renderizado dinámicamente por renderTutorialVideo() -->
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Active Company Hero Banner -->
+    <div onclick="openCompanyModal()" class="cursor-pointer group inline-flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-md border border-teal-500/30 hover:border-teal-500 shadow-sm rounded-2xl px-4 py-2.5 max-w-4xl w-full mx-auto mb-4 transition-all hover:shadow-md text-left">
+      <div class="flex items-center gap-3">
+        <div id="heroCompanyLogoBox" class="w-11 h-11 rounded-xl border border-slate-200/80 p-0.5 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+          <span class="text-2xl">🏢</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="heroCompanyName" class="font-display font-black text-sm sm:text-base text-slate-900 group-hover:text-teal-700 transition-colors">WAPPY INDUSTRIA & SERVICIOS S.A.S.</span>
+            <span id="heroCompanyActiveBadge" class="text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full shrink-0">✔ Empresa Activa</span>
+          </div>
+          <div id="heroCompanyMeta" class="text-[11px] text-slate-500 font-semibold flex flex-wrap items-center gap-2 mt-0.5">
+            <span id="heroCompanyNit">NIT: 901.458.789-3</span>
+            <span>•</span>
+            <span id="heroCompanyArl">ARL: SURA</span>
+            <span>•</span>
+            <span id="heroCompanyRisk" class="text-teal-700 font-bold">Clase IV</span>
+            <span>•</span>
+            <span id="heroCompanyWorkers">58 Trabajadores</span>
+            <span>•</span>
+            <span id="heroCompanyCity">Medellín, Antioquia</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0 text-xs font-bold text-teal-700 group-hover:translate-x-1 transition-transform">
+        <span>⚙️ Gestionar Perfil</span>
+        <span>→</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ========================================== -->
+  <!-- 3. CENTRAL FLOATING TOOLBAR (14-GROUP SYSTEM) -->
+  <!-- ========================================== -->
+  <section class="no-print max-w-7xl mx-auto px-4 sm:px-6 mb-6">
+    <div class="bg-white/95 backdrop-blur-md border border-white/80 shadow-md rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Lado Izquierdo: Botonera Principal Expandible -->
+      <div class="flex flex-wrap items-center gap-2">
+        
+        <!-- Botón 1: Historial de Versiones (Grupo 12: Orange) -->
+        <button onclick="openHistoryModal()" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-700 hover:bg-orange-500/20 active:scale-95 cursor-pointer select-none" title="Historial de Versiones">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Historial de Versiones
+          </span>
+        </button>
+
+        <!-- Botón 2: Guardar Versión / Cambios (Grupo 3: Teal) -->
+        <button onclick="saveHistorySnapshot(); saveToLocalStorage(true);" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 active:scale-95 cursor-pointer select-none" title="Guardar Cambios">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Guardar Cambios
+          </span>
+        </button>
+
+        <!-- Botón 2.1: Nuevo Riesgo (+) (Grupo 4: Emerald) -->
+        <button onclick="addNewRiskRow()" id="btnToolbarNewRisk" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/20 active:scale-95 cursor-pointer select-none" title="Crear Nuevo Riesgo GTC-45">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Nuevo Riesgo (+)
+          </span>
+        </button>
+
+        <!-- Botón 3: Generar con IA (Grupo 6: Purple) -->
+        <button onclick="handleGenerateFullAI()" id="btnGenerateFullAI" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 hover:bg-purple-500/20 active:scale-95 cursor-pointer select-none" title="Generar Peligros con IA">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Generar con IA
+          </span>
+        </button>
+
+        <!-- Botón 4: Selector de Modelo IA (Grupo 7: Indigo) -->
+        <div class="wappy-expand-btn group relative inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-700 hover:bg-indigo-500/20 cursor-pointer select-none">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <div class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            <select id="modelSelector" onchange="changeModel(this.value)" class="bg-transparent font-extrabold outline-none text-indigo-900 cursor-pointer py-1">
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+              <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Botón 5: Exportar Dropdown (Grupo 10: Green) -->
+        <div class="relative inline-block">
+          <button onclick="toggleExportDropdown()" id="exportDropdownBtn" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 active:scale-95 cursor-pointer select-none" title="Exportar Matriz">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+              Exportar Matriz ▾
+            </span>
+          </button>
+
+          <!-- Menú Flotante de Exportación (Exacto como en WAPPY) -->
+          <div id="exportDropdownMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50">
+            <div class="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Opciones de Descarga
+            </div>
+            <button onclick="downloadEmptyTemplate()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-green-600">📥</span> Descargar Formato / Plantilla (.xlsx)
+            </button>
+            <button onclick="exportMatrixToExcel()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-emerald-600">📊</span> Exportar Registros a Excel (.xlsx)
+            </button>
+            <button onclick="openReportInNewWindow()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-teal-600">🌐</span> Abrir en Navegador (HTML)
+            </button>
+            <button onclick="downloadReportHTML()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-sky-600">💾</span> Descargar HTML (.html)
+            </button>
+            <button onclick="exportReportToWord()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-blue-600">📝</span> Descargar Word (.doc)
+            </button>
+            <button onclick="window.print()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <span class="text-slate-600">🖨️</span> Descargar PDF / Imprimir
+            </button>
+          </div>
+        </div>
+
+        <!-- Botón 6: Importar Matriz Excel (Grupo 9: Blue) -->
+        <button onclick="document.getElementById('importFileInput').click()" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-700 hover:bg-blue-500/20 active:scale-95 cursor-pointer select-none" title="Importar Matriz Excel">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Importar Matriz Excel
+          </span>
+        </button>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" onchange="handleFileSelectForImport(this)" class="hidden">
+
+        <!-- Botón 7: Datos de Prueba (Grupo 8: Amber) -->
+        <button onclick="loadDummyData()" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 hover:bg-amber-500/20 active:scale-95 cursor-pointer select-none" title="Cargar 12 Riesgos Oficiales">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Datos de Prueba (Dummy)
+          </span>
+        </button>
+
+      </div>
+
+      <!-- Lado Derecho: Estado de Rotación y Respaldo JSON -->
+      <div class="flex items-center gap-2">
+        <div id="aiStatusPill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 transition-all" title="Gestión manual 100% offline. Conecta claves API de Google Gemini para habilitar el asistente inteligente.">
+          <span id="rotationIndicator" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="rotationStatusText">Modo Manual (100% Offline)</span>
+        </div>
+
+        <button onclick="downloadJsonBackup()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer" title="Descargar Respaldo JSON Completo">
+          📥 JSON
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================== -->
+  <!-- 4. CONTENEDOR DEL DASHBOARD INTERACTIVO    -->
+  <!-- ========================================== -->
+  <section id="dashboardMainContainer" class="no-print max-w-7xl mx-auto px-4 sm:px-6 mb-8 transition-all">
+    <!-- Se inyecta dinámicamente con renderDashboard() en JavaScript -->
+  </section>
+
+  <!-- ========================================== -->
+  <!-- 5. TARJETA PRINCIPAL: MATRIZ IPEVR LIVE    -->
+  <!-- ========================================== -->
+  <main id="matriz-section" class="no-print max-w-7xl mx-auto px-4 sm:px-6 mb-12">
+    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+      
+      <!-- Encabezado de la Tarjeta con Botonera de Iconos (Exacta a Image 2) -->
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+        
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center text-xl shrink-0">
+            🛡️
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-display font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
+                Matriz IPEVR Live (GTC 45:2012)
+              </h2>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-teal-700 font-semibold mt-0.5">
+              <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+              <span>Sincronización Activa con Ecosistema SST</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones en Pastilla de la Tarjeta con WAPPY 14-Group Design System -->
+        <div class="flex items-center gap-2">
+          
+          <!-- Botón 1: Gráficas & Métricas (WAPPY Grupo 5/3: Teal) -->
+          <button onclick="navigateToDashboard(event)" id="btnCardToggleDashboard" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 active:scale-95 cursor-pointer select-none" title="Ir a Gráficas y Métricas">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span id="dashBadgeCount" class="ml-1 bg-teal-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black shrink-0">12</span>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Gráficas & Métricas
+            </span>
+          </button>
+
+          <!-- Botón Guardar Matriz (WAPPY Grupo 3: Teal - Guardar / Confirmar) -->
+          <button onclick="handleManualSaveMatrix()" id="btnCardSaveMatrix" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 hover:bg-teal-500/20 active:scale-95 cursor-pointer select-none" title="Guardar Cambios de la Matriz">
+            <svg class="h-4 w-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Guardar Matriz
+            </span>
+          </button>
+
+          <!-- Botón 2: Añadir Riesgo (+) (WAPPY Grupo 4: Emerald) -->
+          <button onclick="addNewRiskRow()" id="btnAddRisk" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/20 active:scale-95 cursor-pointer select-none" title="Añadir Nuevo Riesgo GTC-45">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Nuevo Riesgo (+)
+            </span>
+          </button>
+
+          <!-- Botón 3: Exportar Matriz Dropdown (WAPPY Grupo 10: Green) -->
+          <div class="relative inline-block">
+            <button onclick="toggleTableExportDropdown()" id="btnCardExportDropdown" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 active:scale-95 cursor-pointer select-none" title="Exportar Matriz">
+              <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+                Exportar Matriz ▾
+              </span>
+            </button>
+
+            <!-- Menú Flotante de Exportación de la Tarjeta -->
+            <div id="tableExportDropdownMenu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50">
+              <div class="px-3 py-1.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Descargas & Reportes
+              </div>
+              <button onclick="downloadEmptyTemplate()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-green-600">📥</span> Descargar Plantilla (.xlsx)
+              </button>
+              <button onclick="exportMatrixToExcel()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-emerald-600">📊</span> Exportar Registros a Excel (.xlsx)
+              </button>
+              <button onclick="openReportInNewWindow()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-teal-600">🌐</span> Abrir Informe en Navegador
+              </button>
+              <button onclick="downloadReportHTML()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-sky-600">💾</span> Descargar Informe HTML (.html)
+              </button>
+              <button onclick="exportReportToWord()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-blue-600">📝</span> Descargar Informe Word (.doc)
+              </button>
+              <button onclick="window.print()" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+                <span class="text-slate-600">🖨️</span> Descargar PDF / Imprimir
+              </button>
+            </div>
+          </div>
+
+          <!-- Botón 4: Historial de Versiones (WAPPY Grupo 12: Orange) -->
+          <button onclick="openHistoryModal()" id="btnCardHistory" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-700 hover:bg-orange-500/20 active:scale-95 cursor-pointer select-none" title="Historial de Versiones">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Historial Versiones
+            </span>
+          </button>
+
+          <!-- Botón 5: Vaciar Matriz (WAPPY Grupo 13: Rose / Danger) -->
+          <button onclick="handleClearMatrix()" id="btnCardClearMatrix" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 hover:bg-rose-500/20 active:scale-95 cursor-pointer select-none" title="Vaciar Matriz">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Vaciar Matriz
+            </span>
+          </button>
+
+          <!-- Botón 6: Pantalla Completa (WAPPY Grupo 14: Neutral/Slate) -->
+          <button onclick="toggleFullscreen()" id="btnCardFullscreen" class="wappy-expand-btn group inline-flex items-center justify-center h-8 px-2.5 min-w-[34px] sm:h-9 sm:px-3 sm:min-w-[38px] rounded-xl bg-slate-500/10 border border-slate-300/60 text-slate-700 hover:bg-slate-500/20 active:scale-95 cursor-pointer select-none" title="Pantalla Completa">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold tracking-wide">
+              Pantalla Completa
+            </span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Barra de Filtros (Exacta a Image 1 y Image 2) -->
+      <div class="no-print bg-slate-50/80 p-3 sm:px-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+        
+        <div class="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+          <!-- Buscador de Texto -->
+          <div class="relative flex-1 min-w-[200px]">
+            <input type="text" id="filterTextInput" placeholder="🔍 Buscar en la matriz..." oninput="filterText = this.value; renderTable(); renderDashboard();" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-medium">
+          </div>
+
+          <!-- Filtro Proceso -->
+          <select id="filterSelectProceso" onchange="filterProceso = this.value; renderTable(); renderDashboard();" class="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold text-slate-700">
+            <option value="">Todos los procesos</option>
+          </select>
+
+          <!-- Filtro Cargo -->
+          <select id="filterSelectCargo" onchange="filterCargo = this.value; renderTable(); renderDashboard();" class="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold text-slate-700">
+            <option value="">Todos los cargos</option>
+          </select>
+
+          <!-- Filtro Peligro -->
+          <select id="filterSelectPeligro" onchange="filterPeligro = this.value; renderTable(); renderDashboard();" class="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold text-slate-700">
+            <option value="">Todos los peligros</option>
+          </select>
+
+          <!-- Filtro Calificación -->
+          <select id="filterSelectCalificacion" onchange="filterCalificacion = this.value; renderTable(); renderDashboard();" class="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold text-slate-700">
+            <option value="">Todas las calificaciones</option>
+            <option value="I">Nivel I (No Aceptable)</option>
+            <option value="II">Nivel II (Control Esp.)</option>
+            <option value="III">Nivel III (Mejorable)</option>
+            <option value="IV">Nivel IV (Aceptable)</option>
+          </select>
+        </div>
+
+        <!-- Botón Guardar Cambios Rápido en la Barra de Filtros -->
+        <div class="flex items-center gap-2">
+          <div id="activeFilterNotice" class="hidden px-3 py-1 rounded-xl bg-teal-100 text-teal-800 font-semibold flex items-center gap-1">
+            <!-- Dinámico -->
+          </div>
+          <button onclick="handleManualSaveMatrix()" id="btnFilterSaveMatrix" class="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer" title="Guardar todos los cambios realizados en la matriz">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            <span>Guardar Cambios</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Banner de Bloqueo por Empresa Incompleta -->
+      <div id="companyIncompleteBlockingBanner" class="hidden mx-4 sm:mx-6 my-4 p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-900 shadow-sm animate-in fade-in duration-300">
+        <div class="flex items-start sm:items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 text-xl font-bold">
+            🔒
+          </div>
+          <div>
+            <h4 class="font-display font-black text-xs sm:text-sm text-amber-950 flex items-center gap-2">
+              <span>Matriz Bloqueada:</span> Información de la Empresa Incompleta
+            </h4>
+            <p class="text-xs text-amber-800 mt-0.5 leading-relaxed">
+              Para crear, parametrizar o modificar la Matriz IPEVR (GTC 45) o emitir el Informe Gerencial oficial, es obligatorio diligenciar primero todos los datos de la empresa activa. Esta información se utiliza exclusivamente para actualizar la matriz y realizar el informe técnico (las firmas digitales son lo único opcional).
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="openCompanyModal()" class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer">
+          <span>🏢</span>
+          <span>Completar Datos de la Empresa</span>
+        </button>
+      </div>
+
+      <!-- Sub-barra informativa Excel (Image 2) -->
+      <div class="px-6 py-2 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <div class="flex items-center gap-1.5 font-medium">
+          <span class="w-2.5 h-2.5 bg-teal-600 rounded-xs inline-block"></span>
+          <span>Arrastra la esquina de una casilla o haz doble clic para autorellenar filas (Excel)</span>
+        </div>
+        <div id="tableCountBottom" class="font-bold text-slate-700">
+          12 / 12 riesgos
+        </div>
+      </div>
+
+      <!-- Tabla Live Interactiva Estilo Excel con TODAS LAS CASILLAS ORIGINALES -->
+      <div class="overflow-x-auto max-h-[720px] scrollbar-thin">
+        <table class="w-full border-collapse text-left text-xs">
+          <thead class="sticky top-0 bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-600 tracking-wider z-20">
+            <tr>
+              <!-- Identificación -->
+              <th class="p-3 border-r border-slate-200 min-w-[150px] cursor-pointer hover:text-teal-700" onclick="toggleSort('proceso')">
+                PROCESO ⇅
+              </th>
+              <th class="p-3 border-r border-slate-200 min-w-[170px] cursor-pointer hover:text-teal-700" onclick="toggleSort('cargo')">
+                CARGO ⇅
+              </th>
+              <th class="p-3 border-r border-slate-200 min-w-[130px]">ZONA</th>
+              <th class="p-3 border-r border-slate-200 min-w-[160px]">ACTIVIDAD</th>
+              <th class="p-3 border-r border-slate-200 min-w-[200px]">TAREAS</th>
+              <th class="p-3 border-r border-slate-200 text-center min-w-[90px]">RUTINARIA</th>
+
+              <!-- Peligro -->
+              <th class="p-3 border-l-2 border-teal-500/30 border-r border-slate-200 min-w-[220px]">
+                PELIGRO DESC.
+              </th>
+              <th class="p-3 border-r border-slate-200 min-w-[245px] w-[245px] cursor-pointer hover:text-teal-700" onclick="toggleSort('peligro_clasificacion')">
+                CLASIFICACIÓN ⇅
+              </th>
+              <th class="p-3 border-r border-slate-200 min-w-[220px]">EFECTOS POSIBLES</th>
+
+              <!-- Controles Existentes -->
+              <th class="p-3 border-l-2 border-blue-500/20 bg-blue-50/20 border-r border-slate-200 min-w-[180px] text-blue-800">
+                CTRL. FUENTE
+              </th>
+              <th class="p-3 bg-blue-50/20 border-r border-slate-200 min-w-[180px] text-blue-800">
+                CTRL. MEDIO
+              </th>
+              <th class="p-3 bg-blue-50/20 border-r border-slate-200 min-w-[180px] text-blue-800">
+                CTRL. INDIVIDUO
+              </th>
+
+              <!-- Evaluación -->
+              <th class="p-3 border-l-2 border-purple-500/20 text-center min-w-[80px] text-purple-800">ND</th>
+              <th class="p-3 text-center min-w-[60px] text-purple-800">NE</th>
+              <th class="p-3 text-center min-w-[60px] text-purple-800">NP</th>
+              <th class="p-3 text-center min-w-[140px] text-purple-800">INTERPRETACIÓN NP</th>
+              <th class="p-3 text-center min-w-[60px] text-purple-800">NC</th>
+              <th class="p-3 border-l-2 border-orange-500/20 text-center min-w-[70px] text-orange-800 cursor-pointer hover:text-orange-950" onclick="toggleSort('nr')">
+                NR ⇅
+              </th>
+              <th class="p-3 text-center min-w-[130px] text-slate-700 cursor-pointer hover:text-slate-950" onclick="toggleSort('interpretacion_nr')">
+                INTERPRETACIÓN NR ⇅
+              </th>
+              <th class="p-3 min-w-[180px] text-slate-700">ACEPTABILIDAD DEL RIESGO</th>
+
+              <!-- Criterios Controles -->
+              <th class="p-3 border-l-2 border-sky-500/20 bg-sky-50/20 text-center min-w-[100px] text-sky-800">NRO. EXPUESTOS</th>
+              <th class="p-3 bg-sky-50/20 min-w-[180px] text-sky-800">PEOR CONSECUENCIA</th>
+              <th class="p-3 bg-sky-50/20 text-center min-w-[120px] text-sky-800">REQUISITO LEGAL</th>
+
+              <!-- Clasificación Repetida -->
+              <th class="p-3 border-l-2 border-teal-500/20 min-w-[200px] text-teal-800 cursor-pointer hover:text-teal-950" onclick="toggleSort('peligro_clasificacion')">
+                CLASIFICACIÓN ⇅
+              </th>
+
+              <!-- Medidas Jerarquía -->
+              <th class="p-3 border-l-2 border-emerald-500/20 bg-emerald-50/20 min-w-[200px] text-emerald-800">ELIMINACIÓN</th>
+              <th class="p-3 bg-emerald-50/20 min-w-[200px] text-emerald-800">SUSTITUCIÓN</th>
+              <th class="p-3 bg-emerald-50/20 min-w-[200px] text-emerald-800">INGENIERÍA</th>
+              <th class="p-3 bg-emerald-50/20 min-w-[220px] text-emerald-800">ADMINISTRATIVOS</th>
+              <th class="p-3 bg-emerald-50/20 min-w-[180px] text-emerald-800">EPP</th>
+
+              <!-- Anexo E -->
+              <th class="p-3 border-l-2 border-purple-400/30 bg-purple-50/40 min-w-[420px] text-purple-800">
+                FACTORES REDUCCIÓN (ANEXO E)
+              </th>
+
+              <!-- Acciones (Sticky Right) -->
+              <th class="sticky right-0 z-30 border-l border-slate-200 bg-slate-100 p-3 text-center min-w-[100px] shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">
+                ACCIONES
+              </th>
+            </tr>
+          </thead>
+          <tbody id="matrixTableBody" class="divide-y divide-slate-200 bg-white">
+            <!-- Se inyecta dinámicamente con renderTable() -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- 6. INFORME GERENCIAL EJECUTIVO COMPLETO    -->
+  <!-- ========================================== -->
+  <section id="reporte-section" class="max-w-7xl mx-auto px-4 sm:px-6 mb-16">
+    
+    <div class="no-print bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/80 shadow-md mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h3 class="font-display font-black text-lg text-slate-900 flex items-center gap-2">
+          <span>📑</span> Informe Gerencial Ejecutivo GTC 45:2012
+        </h3>
+        <p class="text-xs text-slate-500">Documento auditable listo para descarga, firma digital e impresión directa A4.</p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="handleGenerateReportAI()" id="btnGenerateReportAI" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 hover:bg-purple-500/20 active:scale-95 cursor-pointer select-none" title="Redactar Informe con IA">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Redactar con IA
+          </span>
+        </button>
+
+        <button onclick="toggleReportEditMode()" id="btnToggleReportEdit" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-700 hover:bg-orange-500/20 active:scale-95 cursor-pointer select-none" title="Editar Directamente">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Modo Edición
+          </span>
+        </button>
+
+        <button onclick="window.print()" class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 active:scale-95 cursor-pointer select-none" title="Imprimir o Guardar PDF">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
+            Imprimir / PDF
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Aviso de desplazamiento táctil en móvil -->
+    <div class="no-print sm:hidden flex items-center justify-center gap-2 py-2 px-3 mb-3 rounded-2xl bg-teal-500/10 border border-teal-500/25 text-teal-900 text-xs font-bold text-center shadow-xs">
+      <span class="text-base animate-pulse">👆</span>
+      <span>Desliza horizontalmente para explorar el Informe A4 oficial</span>
+      <span class="text-sm font-black text-teal-700">⇄</span>
+    </div>
+
+    <!-- Contenedor con Scroll Horizontal Fluido Estilo Matriz / Gráficas -->
+    <div id="reportPaperScrollWrapper" class="w-full overflow-x-auto pb-6 scrollbar-thin rounded-3xl -mx-2 px-2 sm:mx-0 sm:px-0 scroll-smooth focus:outline-none" style="-webkit-overflow-scrolling: touch;">
+      <div id="reportPaperContainer" class="paper-mode bg-white p-6 sm:p-14 rounded-3xl border border-slate-200/90 shadow-xl min-w-[780px] max-w-5xl mx-auto transition-all">
+        <!-- Se inyecta dinámicamente con renderExecutiveReport() -->
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ======================================================== -->
+  <!-- 5.5 APLICATIVO DESCARGABLE MATRIZ IPVR ($50.000 COP)     -->
+  <!-- ======================================================== -->
+  
+
+  <!-- ======================================================== -->
+  <!-- 6. MÓDULO DE ANÁLISIS DE MÉTRICAS (SOLO ADMINISTRADORES) -->
+  <!-- ======================================================== -->
+  <section id="admin-metrics-section" class="hidden no-print max-w-7xl mx-auto px-4 sm:px-6 mb-16">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 border border-purple-200/80 shadow-2xl relative overflow-hidden">
+      
+      <!-- Fondo decorativo sutil -->
+      <div class="absolute -top-24 -right-24 w-80 h-80 bg-gradient-to-br from-purple-200/30 to-indigo-200/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-tr from-teal-200/20 to-sky-200/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Cabecera del Módulo -->
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+              Exclusivo Administrador
+            </span>
+            <span class="text-xs text-slate-400 font-semibold">• Ecosistema WAPPY</span>
+          </div>
+          <h2 class="font-display font-extrabold text-xl sm:text-2xl text-slate-900 tracking-tight flex items-center gap-2">
+            <span>📊</span> Análisis de Métricas & Caracterización de Empresas
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+            Consolidado general de la información ingresada por los usuarios y empresas (datos organizacionales, colaboradores, sectores económicos y matrices de riesgos GTC-45. Excluye estrictamente firmas digitales para cumplimiento de privacidad).
+          </p>
+        </div>
+
+        <!-- Botones de Acción de Métricas -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button 
+            type="button" 
+            onclick="loadAdminMetrics(true)" 
+            id="btnRefreshMetrics"
+            class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-3 min-w-[36px] rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 hover:bg-cyan-500/20 active:scale-95 cursor-pointer text-xs font-bold transition-all shadow-xs"
+            title="Recargar datos actualizados del servidor"
+          >
+            <svg class="h-4 w-4 shrink-0 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold">
+              Actualizar
+            </span>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="exportAdminMetricsToExcel()" 
+            class="wappy-expand-btn group inline-flex items-center justify-center h-9 px-3 min-w-[36px] rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 active:scale-95 cursor-pointer text-xs font-bold transition-all shadow-xs"
+            title="Exportar base consolidada de empresas a Excel (.xlsx)"
+          >
+            <svg class="h-4 w-4 shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold">
+              Exportar Excel
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjetas Bento de KPIs -->
+      <div class="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6">
+        
+        <!-- KPI 1: Empresas -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-indigo-500/5 border border-purple-500/20">
+          <div class="flex items-center justify-between text-xs text-purple-700 font-bold mb-1">
+            <span>EMPRESAS TOTALES</span>
+            <span>🏢</span>
+          </div>
+          <div id="kpiTotalCompanies" class="font-display font-black text-2xl sm:text-3xl text-purple-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">Registradas en el ecosistema</p>
+        </div>
+
+        <!-- KPI 2: Trabajadores -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-500/10 to-emerald-500/5 border border-teal-500/20">
+          <div class="flex items-center justify-between text-xs text-teal-700 font-bold mb-1">
+            <span>COLABORADORES CUBIERTOS</span>
+            <span>👥</span>
+          </div>
+          <div id="kpiTotalWorkers" class="font-display font-black text-2xl sm:text-3xl text-teal-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">Censo poblacional protegido</p>
+        </div>
+
+        <!-- KPI 3: Riesgos Evaluados -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-sky-500/10 to-blue-500/5 border border-sky-500/20">
+          <div class="flex items-center justify-between text-xs text-sky-700 font-bold mb-1">
+            <span>RIESGOS GTC-45 IDENTIFICADOS</span>
+            <span>⚡</span>
+          </div>
+          <div id="kpiTotalRisks" class="font-display font-black text-2xl sm:text-3xl text-sky-900 tracking-tight">0</div>
+          <p class="text-[11px] text-slate-500 font-medium mt-1">En matrices de peligros</p>
+        </div>
+
+        <!-- KPI 4: Riesgos No Aceptables -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-amber-500/5 border border-rose-500/20">
+          <div class="flex items-center justify-between text-xs text-rose-700 font-bold mb-1">
+            <span>RIESGOS CRÍTICOS (NIVEL I)</span>
+            <span>🚨</span>
+          </div>
+          <div id="kpiTotalHighRisks" class="font-display font-black text-2xl sm:text-3xl text-rose-900 tracking-tight">0</div>
+          <p id="kpiHighRisksPct" class="text-[11px] text-rose-600 font-semibold mt-1">0% de intervención inmediata</p>
+        </div>
+
+      </div>
+
+      <!-- Grid de Distribución y Caracterización Visual -->
+      <div class="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        
+        <!-- Card A: Distribución por Nivel de Riesgo ARL -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>🛡️</span> Distribución por Riesgo ARL
+          </h4>
+          <div id="metricsRiskLevelsBars" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Card B: Tamaño de Empresa -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>📏</span> Estratificación por Tamaño
+          </h4>
+          <div id="metricsCompanySizeBars" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Card C: Top Sectores Económicos -->
+        <div class="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+          <h4 class="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>🏭</span> Top Sectores Económicos
+          </h4>
+          <div id="metricsTopSectorsList" class="space-y-2 text-xs">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tabla Detallada con Buscador y Filtros -->
+      <div class="relative z-10">
+        
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-3">
+          <div class="relative w-full sm:w-80">
+            <input 
+              type="text" 
+              id="adminMetricsSearchInput" 
+              oninput="filterAdminMetricsTable()" 
+              placeholder="🔍 Buscar por nombre, NIT, ciudad..." 
+              class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs outline-none focus:border-purple-500 font-medium"
+            >
+          </div>
+          
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <select 
+              id="adminMetricsFilterRisk" 
+              onchange="filterAdminMetricsTable()" 
+              class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-purple-500 font-bold text-slate-700"
+            >
+              <option value="">Todos los Riesgos ARL</option>
+              <option value="I">Clase I</option>
+              <option value="II">Clase II</option>
+              <option value="III">Clase III</option>
+              <option value="IV">Clase IV</option>
+              <option value="V">Clase V</option>
+            </select>
+
+            <span id="adminMetricsTableCount" class="text-xs font-bold text-slate-500 whitespace-nowrap">
+              0 empresas
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla Responsive -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-xs bg-white">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-white font-bold text-[11px] uppercase tracking-wider">
+                <th class="p-3">Empresa / Razón Social</th>
+                <th class="p-3">NIT</th>
+                <th class="p-3">Representante Legal</th>
+                <th class="p-3 text-center">Trabajadores</th>
+                <th class="p-3 text-center">Riesgo ARL</th>
+                <th class="p-3">Responsable SG-SST</th>
+                <th class="p-3 text-center">Riesgos GTC-45</th>
+                <th class="p-3">Ciudad</th>
+                <th class="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="adminMetricsTableBody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+              <tr>
+                <td colspan="9" class="p-8 text-center text-slate-400">
+                  <div class="inline-block animate-spin mr-2">⏳</div> Cargando métricas de empresas...
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
       </div>
@@ -2825,36 +3527,26 @@ function getCatColor(cat) {
 }
 
 // ─── GESTIÓN DE VIDEO TUTORIAL "¿CÓMO USAR LA HERRAMIENTA?" ────────
-const DEFAULT_IPVR_TUTORIAL_VIDEO_URL = 'https://youtu.be/1LN_7YkmWXk';
-const DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE = '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
-const TUTORIAL_VIDEO_STORAGE_KEY = 'wappy_matrizipvr_tutorial_video_v2';
-
 let tutorialVideoState = {
-  url: DEFAULT_IPVR_TUTORIAL_VIDEO_URL,
-  title: DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE,
-  isPlaying: false,
-  fileRelayReady: null,
-  fileRelayOrigin: 'https://wappy.club'
+  url: 'https://youtu.be/1LN_7YkmWXk',
+  title: '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR',
+  isPlaying: false
 };
 let isPlatformAdmin = false;
 
 function parseVideoEmbed(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   const url = rawUrl.trim();
-  if (!url) return null;
 
   // 1. YouTube (watch, embed, shorts, live, youtu.be)
   const ytRegExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
   const ytMatch = url.match(ytRegExp);
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
-    const relayOrigin = (tutorialVideoState && tutorialVideoState.fileRelayOrigin) || 'https://wappy.club';
     return {
       type: 'youtube',
       id: id,
-      watchUrl: `https://youtu.be/${id}`,
-      embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
-      relayEmbedUrl: `${relayOrigin}/yt-embed.html?v=${encodeURIComponent(id)}&autoplay=1`,
+      embedUrl: window.location.protocol === 'file:' ? `https://wappy.club/yt-embed.html?v=${id}&autoplay=1` : `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
       thumbnailUrl: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
       fallbackThumb: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
       isShort: url.includes('/shorts/')
@@ -2955,99 +3647,16 @@ function renderTutorialVideo() {
     titleDisplay.textContent = tutorialVideoState.title;
   }
 
-  const parsed = parseVideoEmbed(tutorialVideoState.url || DEFAULT_IPVR_TUTORIAL_VIDEO_URL);
+  const parsed = parseVideoEmbed(tutorialVideoState.url);
 
   // Caso 1: Hay video y está en modo reproducción
   if (parsed && tutorialVideoState.isPlaying) {
-    if (parsed.type === 'youtube') {
-      const isLocalFile = window.location.protocol === 'file:';
-      if (isLocalFile && tutorialVideoState.fileRelayReady !== true) {
-        const posterSrc = parsed.thumbnailUrl || TUTORIAL_THUMBNAIL_B64;
-        const secondaryThumb = parsed.fallbackThumb || TUTORIAL_THUMBNAIL_B64;
-        container.innerHTML = `
-          <div class="relative w-full aspect-video bg-slate-950 overflow-hidden">
-            <img
-              src="${posterSrc}"
-              onerror="if(!this.dataset.triedHq){this.dataset.triedHq='1';this.src='${secondaryThumb}';}else{this.onerror=null;this.src=TUTORIAL_THUMBNAIL_B64;}"
-              alt="${tutorialVideoState.title}"
-              class="w-full h-full object-cover opacity-35 blur-[1px]"
-            />
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-slate-950/85 flex flex-col items-center justify-center p-6 text-center text-white">
-              <div class="inline-flex items-center gap-2 bg-[#c7f303]/15 border border-[#c7f303]/40 text-[#c7f303] px-3.5 py-1 rounded-full text-[11px] font-black mb-3">
-                <span class="w-2 h-2 rounded-full bg-[#c7f303] animate-ping"></span>
-                <span>REPRODUCIENDO TUTORIAL OFICIAL EN YOUTUBE</span>
-              </div>
-              <h3 class="font-display font-black text-base sm:text-xl mb-2 max-w-xl">${tutorialVideoState.title}</h3>
-              <p class="text-xs sm:text-sm text-slate-300 max-w-lg mb-5">
-                El tutorial oficial se abrió en YouTube para reproducción en alta definición (1080p60). Si tu navegador bloqueó la pestaña emergente, ábrelo con un clic abajo:
-              </p>
-              <div class="flex flex-wrap items-center justify-center gap-3">
-                <a
-                  href="${parsed.watchUrl}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#c7f303] text-[#0e1300] font-black text-xs sm:text-sm hover:brightness-105 active:scale-95 transition-all shadow-lg shadow-[#c7f303]/30"
-                >
-                  <span>▶</span>
-                  <span>Ver Video en YouTube</span>
-                  <span>↗</span>
-                </a>
-                <button
-                  type="button"
-                  onclick="stopTutorialVideo(event)"
-                  class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 cursor-pointer transition-all"
-                >
-                  <span>✕</span>
-                  <span>Volver a la portada</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      const activeYoutubeSrc = isLocalFile ? parsed.relayEmbedUrl : parsed.embedUrl;
-      container.innerHTML = `
-        <div class="relative w-full aspect-video bg-black">
-          <iframe 
-            src="${activeYoutubeSrc}" 
-            title="${tutorialVideoState.title}"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-            allowfullscreen 
-            class="w-full h-full border-0 block"
-          ></iframe>
-          <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-            <a
-              href="${parsed.watchUrl}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-[#c7f303] text-xs font-bold backdrop-blur-md transition-colors shadow-md flex items-center gap-1"
-              title="Abrir en YouTube"
-            >
-              <span>YouTube</span>
-              <span>↗</span>
-            </a>
-            <button 
-              type="button"
-              onclick="stopTutorialVideo(event)" 
-              class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black text-white text-xs font-bold backdrop-blur-md cursor-pointer transition-colors shadow-md flex items-center gap-1"
-              title="Cerrar reproductor"
-            >
-              <span>✕</span>
-              <span>Cerrar</span>
-            </button>
-          </div>
-        </div>
-      `;
-    } else if (parsed.type === 'drive' || parsed.type === 'generic') {
+    if (parsed.type === 'youtube' || parsed.type === 'drive' || parsed.type === 'generic') {
       container.innerHTML = `
         <div class="relative w-full aspect-video bg-black">
           <iframe 
             src="${parsed.embedUrl}" 
             title="${tutorialVideoState.title}"
-            referrerpolicy="strict-origin-when-cross-origin"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
             allowfullscreen 
             class="w-full h-full border-0 block"
@@ -3105,7 +3714,7 @@ function renderTutorialVideo() {
   // Caso 2: Hay video pero aún no se le da clic (Poster Mode)
   if (parsed && !tutorialVideoState.isPlaying) {
     const posterSrc = parsed.type === 'youtube' && parsed.thumbnailUrl ? parsed.thumbnailUrl : TUTORIAL_THUMBNAIL_B64;
-    const secondaryThumb = parsed.type === 'youtube' && parsed.fallbackThumb ? parsed.fallbackThumb : TUTORIAL_THUMBNAIL_B64;
+    const fallbackSrc = TUTORIAL_THUMBNAIL_B64;
 
     container.innerHTML = `
       <div 
@@ -3114,7 +3723,7 @@ function renderTutorialVideo() {
       >
         <img 
           src="${posterSrc}" 
-          onerror="if(!this.dataset.triedHq){this.dataset.triedHq='1';this.src='${secondaryThumb}';}else{this.onerror=null;this.src=TUTORIAL_THUMBNAIL_B64;}" 
+          onerror="this.onerror=null; this.src='${fallbackSrc}'" 
           alt="${tutorialVideoState.title}" 
           class="w-full h-full object-cover group-hover:scale-102 transition-all duration-500" 
         />
@@ -3204,44 +3813,7 @@ function handleTutorialPosterClick() {
   }
 }
 
-async function probeFileYoutubeRelay() {
-  if (window.location.protocol !== 'file:') {
-    tutorialVideoState.fileRelayReady = true;
-    return true;
-  }
-  const candidateOrigins = ['https://wappy.club', 'http://localhost:3080'];
-  for (const origin of candidateOrigins) {
-    try {
-      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timer = ctrl ? setTimeout(() => ctrl.abort(), 2200) : null;
-      const res = await fetch(`${origin}/yt-embed.html?ping=1`, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'no-store',
-        signal: ctrl ? ctrl.signal : undefined
-      });
-      if (timer) clearTimeout(timer);
-      if (res.ok) {
-        const txt = await res.text();
-        if (txt && txt.includes('WAPPY_YT_EMBED_RELAY')) {
-          tutorialVideoState.fileRelayOrigin = origin;
-          tutorialVideoState.fileRelayReady = true;
-          return true;
-        }
-      }
-    } catch (e) {}
-  }
-  tutorialVideoState.fileRelayReady = false;
-  return false;
-}
-
 function playTutorialVideo() {
-  const parsed = parseVideoEmbed(tutorialVideoState.url || DEFAULT_IPVR_TUTORIAL_VIDEO_URL);
-  if (parsed && parsed.type === 'youtube' && window.location.protocol === 'file:' && tutorialVideoState.fileRelayReady !== true) {
-    try {
-      window.open(parsed.watchUrl || `https://youtu.be/${parsed.id}`, '_blank', 'noopener,noreferrer');
-    } catch (e) {}
-  }
   tutorialVideoState.isPlaying = true;
   renderTutorialVideo();
 }
@@ -3290,30 +3862,27 @@ function updateAdminUi() {
   // Actualizar botón principal de barra superior y menú móvil según login activo (idéntico a LandingPage wappy.club)
   const navCta = document.getElementById('navCtaEnterWappy');
   const mobileCta = document.getElementById('mobileCtaEnterWappy');
-  const isFileProto = window.location.protocol === 'file:';
-  const wappyAppHref = isFileProto ? 'https://wappy.club/c/new' : '/c/new';
-  const wappyLoginHref = isFileProto ? 'https://wappy.club/login' : '/login';
   if (isAuthenticatedWappyUser && platformUser) {
     const rawName = String(platformUser.name || platformUser.username || platformUser.email || 'Usuario').trim();
     const firstName = rawName.split(' ')[0] || 'Usuario';
     const avatarSrc = platformUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(rawName)}&backgroundColor=0d9488`;
     if (navCta) {
-      navCta.setAttribute('href', wappyAppHref);
+      navCta.setAttribute('href', '/c/new');
       navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm pl-2 pr-3.5 sm:pr-5 py-1 sm:py-1.5 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
       navCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-6 h-6 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY →</span>`;
     }
     if (mobileCta) {
-      mobileCta.setAttribute('href', wappyAppHref);
+      mobileCta.setAttribute('href', '/c/new');
       mobileCta.innerHTML = `<img src="${avatarSrc}" alt="" class="w-5 h-5 rounded-full object-cover border border-[#0e1300]/20 shrink-0" /><span>Entrar a WAPPY como ${firstName} →</span>`;
     }
   } else {
     if (navCta) {
-      navCta.setAttribute('href', wappyLoginHref);
+      navCta.setAttribute('href', '/login');
       navCta.className = 'inline-flex items-center justify-center gap-2 bg-[#c7f303] hover:bg-[#b8e202] text-[#0e1300] font-display font-extrabold text-xs sm:text-sm px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-xs transition-all active:scale-95 whitespace-nowrap cursor-pointer';
       navCta.innerHTML = '<span>Ir a WAPPY</span>';
     }
     if (mobileCta) {
-      mobileCta.setAttribute('href', wappyLoginHref);
+      mobileCta.setAttribute('href', '/login');
       mobileCta.innerHTML = '<span>Ir a la Plataforma WAPPY</span><span>→</span>';
     }
   }
@@ -3696,16 +4265,14 @@ async function handleSaveVideoConfig(e) {
   }
 
   tutorialVideoState.url = newUrl;
-  tutorialVideoState.title = newTitle || DEFAULT_IPVR_TUTORIAL_VIDEO_TITLE;
+  tutorialVideoState.title = newTitle || '¿Cómo usar la herramienta? Tutorial Paso a Paso Matriz IPEVR';
   tutorialVideoState.isPlaying = false;
 
   // Guardar en localStorage inmediatamente
-  try {
-    localStorage.setItem(TUTORIAL_VIDEO_STORAGE_KEY, JSON.stringify({
-      url: tutorialVideoState.url,
-      title: tutorialVideoState.title
-    }));
-  } catch (e) {}
+  localStorage.setItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
+    url: tutorialVideoState.url,
+    title: tutorialVideoState.title
+  }));
 
   renderTutorialVideo();
   closeVideoConfigModal();
@@ -3751,25 +4318,14 @@ async function handleSaveVideoConfig(e) {
 }
 
 async function initTutorialVideo() {
-  // 0. En modo archivo local (file://), verificar relay HTTPS de WAPPY en segundo plano
-  probeFileYoutubeRelay();
-
-  // 1. Cargar desde LocalStorage primero (con respaldo garantizado al video oficial)
-  let cached = null;
-  try { cached = localStorage.getItem(TUTORIAL_VIDEO_STORAGE_KEY); } catch (e) {}
+  // 1. Cargar desde LocalStorage primero (renderizado instantáneo)
+  const cached = localStorage.getItem('wappy_matrizipvr_tutorial_video');
   if (cached) {
     try {
       const parsedCached = JSON.parse(cached);
-      if (parsedCached.url && !parsedCached.url.includes('w3schools.com')) {
-        tutorialVideoState.url = parsedCached.url;
-      }
-      if (parsedCached.title && parsedCached.title !== 'Clase Extra 1') {
-        tutorialVideoState.title = parsedCached.title;
-      }
+      if (parsedCached.url && !parsedCached.url.includes('w3schools.com')) tutorialVideoState.url = parsedCached.url;
+      if (parsedCached.title) tutorialVideoState.title = parsedCached.title;
     } catch(e){}
-  }
-  if (!tutorialVideoState.url) {
-    tutorialVideoState.url = DEFAULT_IPVR_TUTORIAL_VIDEO_URL;
   }
 
   renderTutorialVideo();
@@ -3777,29 +4333,25 @@ async function initTutorialVideo() {
   // 2. Detectar sesión activa de administrador
   await detectAdminSession();
 
-  // 3. Consultar configuración global de MongoDB (solo en entorno web)
-  if (window.location.protocol !== 'file:') {
-    try {
-      const configRes = await fetch('/api/comunidad/config?funnelKey=matrizipvr');
-      if (configRes.ok) {
-        const data = await configRes.json();
-        if (data && data.videoUrl && !data.videoUrl.includes('w3schools.com')) {
-          tutorialVideoState.url = data.videoUrl;
-          if (data.extraVideoTitle1 && data.extraVideoTitle1 !== 'Clase Extra 1') {
-            tutorialVideoState.title = data.extraVideoTitle1;
-          }
-          try {
-            localStorage.setItem(TUTORIAL_VIDEO_STORAGE_KEY, JSON.stringify({
-              url: tutorialVideoState.url,
-              title: tutorialVideoState.title
-            }));
-          } catch (e) {}
-          renderTutorialVideo();
-          updateAdminUi();
+  // 3. Consultar configuración global de MongoDB
+  try {
+    const configRes = await fetch('/api/comunidad/config?funnelKey=matrizipvr');
+    if (configRes.ok) {
+      const data = await configRes.json();
+      if (data && data.videoUrl && !data.videoUrl.includes('w3schools.com')) {
+        tutorialVideoState.url = data.videoUrl;
+        if (data.extraVideoTitle1 && data.extraVideoTitle1 !== 'Clase Extra 1') {
+          tutorialVideoState.title = data.extraVideoTitle1;
         }
+        localStorage.setItem('wappy_matrizipvr_tutorial_video', JSON.stringify({
+          url: tutorialVideoState.url,
+          title: tutorialVideoState.title
+        }));
+        renderTutorialVideo();
+        updateAdminUi();
       }
-    } catch(err){}
-  }
+    }
+  } catch(err){}
 }
 
 // ─── MÓDULO DE ANÁLISIS DE MÉTRICAS (ADMIN WAPPY) ─────────────────────

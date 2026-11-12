@@ -1,0 +1,7 @@
+BodyParts3D Anatomical 3D Models Attribution
+============================================
+BodyParts3D, © The Database Center for Life Science (DBCLS),
+licensed under Creative Commons Attribution-Share Alike 2.1 Japan (CC BY-SA 2.1 JP).
+License URL: https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en
+Source Archive DOI: http://doi.org/10.18908/lsdba.nbdc00837-000
+Reference: Mitsuhashi N et al., Nucleic Acids Res. 2009;37(Database issue):D782-5.
