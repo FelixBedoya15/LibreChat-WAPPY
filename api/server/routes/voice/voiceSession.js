@@ -32,6 +32,42 @@ const {
     searchInstantHistory,
 } = require('./tenshiOpenBotEngine');
 
+const LIVE_KEY_COOLDOWN_MS = 15 * 60 * 1000;
+const liveQuotaCooldowns = new Map();
+
+function isVoiceKeyCooledDown(key) {
+    if (!key) return true;
+    const expiry = liveQuotaCooldowns.get(key);
+    if (!expiry) return false;
+    if (Date.now() >= expiry) {
+        liveQuotaCooldowns.delete(key);
+        return false;
+    }
+    return true;
+}
+
+function markVoiceKeyCooldown(key, reason = '') {
+    if (!key) return;
+    const msg = String(reason || '');
+    if (/1011|quota|exceeded|resource_exhausted|rate[\s_-]?limit|too many requests|leaked|api[\s_-]?key[\s_-]?invalid|billing|403|400/i.test(msg)) {
+        liveQuotaCooldowns.set(key, Date.now() + LIVE_KEY_COOLDOWN_MS);
+        const tail = key.length > 6 ? key.slice(-4) : '***';
+        logger.warn(`[VoiceSession] Cooldown 15m aplicado a Live API key (...${tail}) por: ${msg.slice(0, 140)}`);
+    }
+}
+
+function orderVoiceKeysByCooldown(keys = []) {
+    if (!Array.isArray(keys) || keys.length <= 1) return Array.isArray(keys) ? keys : [];
+    const reversed = [...keys].reverse();
+    const fresh = [];
+    const cooled = [];
+    for (const k of reversed) {
+        if (isVoiceKeyCooledDown(k)) cooled.push(k);
+        else fresh.push(k);
+    }
+    return [...fresh, ...cooled];
+}
+
 function sanitizeSlug(title) {
     if (!title || typeof title !== 'string') return '';
     return title
@@ -1101,37 +1137,37 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_mcp_sst",
-                            description: "Suite oficial de operaciones y consultas MCP de WAPPY. Permite consultar o alimentar de forma autónoma: diagnóstico 360°, empresa, trabajadores, matriz GTC45, matriz PESV, matriz legal, estándares 0312, comités (COPASST, Convivencia, Brigadas), químicos SGA, vehículos, EPP, reportes de actos y condiciones, perfiles de cargo, casos ATEL, cronograma y tareas, capacitaciones, auditorías, creación/actualización/eliminación de agentes de IA (wappy_crear_agente, wappy_actualizar_agente, wappy_eliminar_agente), automatizaciones y cualquier acción dentro del usuario conectado (wappy_ejecutar_accion_usuario).",
+                            description: "Operaciones y consultas MCP de WAPPY SG-SST, agentes IA y automatizaciones.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     herramienta: {
                                         type: "string",
-                                        description: "Nombre exacto de la herramienta MCP a ejecutar: 'wappy_resumen_general_360', 'wappy_consultar_perfil_empresa', 'wappy_actualizar_perfil_empresa', 'wappy_consultar_matriz_gtc45', 'wappy_alimentar_matriz_gtc45', 'wappy_consultar_matriz_pesv', 'wappy_alimentar_matriz_pesv', 'wappy_consultar_matriz_legal', 'wappy_registrar_requisito_legal', 'wappy_consultar_diagnostico_0312', 'wappy_evaluar_estandar_0312', 'wappy_consultar_trabajadores', 'wappy_registrar_trabajador', 'wappy_actualizar_trabajador', 'wappy_eliminar_trabajador', 'wappy_consultar_comites', 'wappy_registrar_miembro_comite', 'wappy_consultar_epp', 'wappy_registrar_entrega_epp', 'wappy_consultar_perfiles_cargo', 'wappy_guardar_perfil_cargo', 'wappy_consultar_inventario_quimico', 'wappy_registrar_producto_quimico', 'wappy_consultar_vehiculos', 'wappy_registrar_vehiculo', 'wappy_consultar_reportes_actos_condiciones', 'wappy_registrar_reporte_acto_condicion', 'wappy_consultar_casos_atel', 'wappy_registrar_caso_atel', 'wappy_consultar_cronograma_sst', 'wappy_crear_actividad_cronograma', 'wappy_actualizar_estado_tarea', 'wappy_consultar_capacitaciones', 'wappy_programar_capacitacion', 'wappy_consultar_auditorias', 'wappy_registrar_hallazgo_auditoria', 'wappy_consultar_agentes_y_automatizaciones', 'wappy_crear_agente', 'wappy_actualizar_agente', 'wappy_eliminar_agente', 'wappy_ejecutar_accion_usuario', 'wappy_programar_automatizacion', 'wappy_consultar_conversaciones', 'wappy_consultar_mensajes_conversacion', 'wappy_consultar_archivos'."
+                                        description: "Tool MCP: 'wappy_resumen_general_360','wappy_consultar_perfil_empresa','wappy_actualizar_perfil_empresa','wappy_consultar_matriz_gtc45','wappy_alimentar_matriz_gtc45','wappy_consultar_matriz_pesv','wappy_alimentar_matriz_pesv','wappy_consultar_matriz_legal','wappy_registrar_requisito_legal','wappy_consultar_diagnostico_0312','wappy_evaluar_estandar_0312','wappy_consultar_trabajadores','wappy_registrar_trabajador','wappy_actualizar_trabajador','wappy_eliminar_trabajador','wappy_consultar_comites','wappy_registrar_miembro_comite','wappy_consultar_epp','wappy_registrar_entrega_epp','wappy_consultar_perfiles_cargo','wappy_guardar_perfil_cargo','wappy_consultar_inventario_quimico','wappy_registrar_producto_quimico','wappy_consultar_vehiculos','wappy_registrar_vehiculo','wappy_consultar_reportes_actos_condiciones','wappy_registrar_reporte_acto_condicion','wappy_consultar_casos_atel','wappy_registrar_caso_atel','wappy_consultar_cronograma_sst','wappy_crear_actividad_cronograma','wappy_actualizar_estado_tarea','wappy_consultar_capacitaciones','wappy_programar_capacitacion','wappy_consultar_auditorias','wappy_registrar_hallazgo_auditoria','wappy_consultar_agentes_y_automatizaciones','wappy_crear_agente','wappy_actualizar_agente','wappy_eliminar_agente','wappy_ejecutar_accion_usuario','wappy_programar_automatizacion','wappy_consultar_conversaciones','wappy_consultar_mensajes_conversacion','wappy_consultar_archivos'."
                                     },
                                     parametros: {
                                         type: "object",
-                                        description: "Argumentos u opciones para la herramienta.",
+                                        description: "Argumentos de la herramienta MCP.",
                                         properties: {
-                                            id: { type: "string", description: "ID del elemento, registro o agente" },
-                                            cedula: { type: "string", description: "Cédula o número de documento" },
-                                            nombre: { type: "string", description: "Nombre del elemento, persona o agente" },
-                                            name: { type: "string", description: "Nombre del agente (para wappy_crear_agente / wappy_actualizar_agente)" },
-                                            description: { type: "string", description: "Descripción o especialidad del agente" },
-                                            category: { type: "string", description: "Categoría del agente ('sgsst', 'legal', 'medicina', 'general')" },
-                                            instructions: { type: "string", description: "Instrucciones del sistema (System Prompt) detalladas del agente" },
-                                            model: { type: "string", description: "Modelo de IA ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')" },
-                                            temperature: { type: "number", description: "Temperatura del modelo (0.0 a 1.0)" },
-                                            tools: { type: "array", items: { type: "string" }, description: "Herramientas del agente (ej. ['todas'] o ['sst', 'google', 'notebooklm'])" },
-                                            incluirTodasLasHerramientas: { type: "boolean", description: "true para activar las 63 herramientas por defecto" },
-                                            skills: { type: "array", items: { type: "string" }, description: "Skills del agente (ej. ['todas'])" },
-                                            conversation_starters: { type: "array", items: { type: "string" }, description: "Frases iniciadoras sugeridas al abrir el chat" },
-                                            avatar_url: { type: "string", description: "URL o ruta de imagen del avatar" },
-                                            agent_ids: { type: "array", items: { type: "string" }, description: "IDs de subagentes encadenados" },
-                                            cargo: { type: "string", description: "Cargo del colaborador" },
-                                            filtro: { type: "string", description: "Criterio de filtro" },
-                                            estado: { type: "string", description: "Estado ('todo', 'in_progress', 'done', etc.)" },
-                                            datos: { type: "string", description: "Detalles adicionales en texto o JSON" }
+                                            id: { type: "string" },
+                                            cedula: { type: "string" },
+                                            nombre: { type: "string" },
+                                            name: { type: "string" },
+                                            description: { type: "string" },
+                                            category: { type: "string", description: "'sgsst'|'legal'|'medicina'|'general'" },
+                                            instructions: { type: "string" },
+                                            model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'" },
+                                            temperature: { type: "number" },
+                                            tools: { type: "array", items: { type: "string" } },
+                                            incluirTodasLasHerramientas: { type: "boolean" },
+                                            skills: { type: "array", items: { type: "string" } },
+                                            conversation_starters: { type: "array", items: { type: "string" } },
+                                            avatar_url: { type: "string" },
+                                            agent_ids: { type: "array", items: { type: "string" } },
+                                            cargo: { type: "string" },
+                                            filtro: { type: "string" },
+                                            estado: { type: "string" },
+                                            datos: { type: "string" }
                                         }
                                     }
                                 },
@@ -1140,62 +1176,46 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_crear_agente",
-                            description: "Crea un nuevo Agente de IA personalizado en WAPPY con sus 9 puntos configurables (Nombre, Descripción/Especialidad, Categoría, Instrucciones del Sistema/Prompt, Modelo y Temperatura, Herramientas, Skills, Frases Iniciadoras, Avatar y Subagentes encadenados). IMPORTANTE: Si el usuario pide crear un agente sin haber definido los puntos, primero guíalo preguntándole qué desea en cada punto antes de invocar esta herramienta (a menos que te pida crearlo de inmediato con valores recomendados).",
+                            description: "Crea un Agente de IA con sus 9 puntos. Entrevista primero si el usuario no ha definido los puntos.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    name: { type: "string", description: "1. Nombre del agente (ej: 'Auditor Integral PESV', 'Especialista en Alturas Res. 4272')." },
-                                    description: { type: "string", description: "2. Descripción breve de su especialidad que se verá en la tarjeta del agente." },
-                                    category: { type: "string", description: "3. Categoría del agente: 'sgsst', 'legal', 'medicina', 'general'." },
-                                    instructions: { type: "string", description: "4. Instrucciones del sistema (System Prompt): rol, normatividad que domina, tono, reglas y estructura de respuesta." },
-                                    model: { type: "string", description: "5a. Modelo de IA (por defecto 'gemini-3.5-flash-lite', o 'gemini-3.6-flash', 'gemini-3.8-flash')." },
-                                    temperature: { type: "number", description: "5b. Temperatura de generación entre 0.0 y 1.0 (por defecto 0.2 para rigor técnico)." },
-                                    tools: {
-                                        type: "array",
-                                        items: { type: "string" },
-                                        description: "6a. Lista de herramientas o atajos: ['todas'] (las 63 herramientas), ['sst'], ['google'], ['notebooklm'], ['antigravity'], ['flow'], ['canvas'], ['web_search'], ['matriz_ipevar'], ['matriz_pesv'], ['matriz_compatibilidad']."
-                                    },
-                                    incluirTodasLasHerramientas: { type: "boolean", description: "6b. Si es true, asigna todas las herramientas de WAPPY SST, Google Suite y NotebookLM." },
-                                    skills: {
-                                        type: "array",
-                                        items: { type: "string" },
-                                        description: "7. Habilidades/Skills especializadas a inyectar (usa ['todas'] para todas las skills o lista de IDs)."
-                                    },
-                                    conversation_starters: {
-                                        type: "array",
-                                        items: { type: "string" },
-                                        description: "8. Frases iniciadoras de conversación sugeridas al usuario (botones rápidos al abrir el chat con el agente)."
-                                    },
-                                    avatar_url: { type: "string", description: "9a. Ruta o URL del avatar del agente (por defecto '/images/tenshi.png')." },
-                                    agent_ids: {
-                                        type: "array",
-                                        items: { type: "string" },
-                                        description: "9b. IDs de otros agentes encadenados en equipo con este agente (opcional)."
-                                    }
+                                    name: { type: "string", description: "Nombre del agente" },
+                                    description: { type: "string", description: "Especialidad breve" },
+                                    category: { type: "string", description: "'sgsst'|'legal'|'medicina'|'general'" },
+                                    instructions: { type: "string", description: "System Prompt / instrucciones" },
+                                    model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'" },
+                                    temperature: { type: "number", description: "0.0-1.0 (defecto 0.2)" },
+                                    tools: { type: "array", items: { type: "string" }, description: "['todas'] o ['sst','google','notebooklm','antigravity','flow','canvas','web_search','matriz_ipevar','matriz_pesv','matriz_compatibilidad']" },
+                                    incluirTodasLasHerramientas: { type: "boolean" },
+                                    skills: { type: "array", items: { type: "string" } },
+                                    conversation_starters: { type: "array", items: { type: "string" } },
+                                    avatar_url: { type: "string" },
+                                    agent_ids: { type: "array", items: { type: "string" } }
                                 },
                                 required: ["name"]
                             }
                         },
                         {
                             name: "wappy_actualizar_agente",
-                            description: "Actualiza o edita cualquiera de los 9 puntos de un Agente de IA existente del usuario (por su ID o nombre actual): nuevo nombre, descripción, categoría, instrucciones/prompt, modelo, temperatura, agregar/quitar herramientas, skills, frases iniciadoras, avatar o cadena de subagentes.",
+                            description: "Edita los 9 puntos de un Agente de IA existente por ID o nombre.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    id: { type: "string", description: "ID (agent_xxx) o nombre actual del agente a modificar." },
-                                    nuevo_nombre: { type: "string", description: "Nuevo nombre del agente si deseas renombrarlo." },
-                                    description: { type: "string", description: "Nueva descripción breve." },
-                                    category: { type: "string", description: "Nueva categoría ('sgsst', 'legal', 'medicina', 'general')." },
-                                    instructions: { type: "string", description: "Nuevas instrucciones del sistema (System Prompt)." },
-                                    model: { type: "string", description: "Nuevo modelo ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')." },
-                                    temperature: { type: "number", description: "Nueva temperatura (0.0 a 1.0)." },
-                                    tools: { type: "array", items: { type: "string" }, description: "Reemplaza la lista completa de herramientas (usa ['todas'] para activar todas)." },
-                                    agregar_herramientas: { type: "array", items: { type: "string" }, description: "Herramientas a añadir sin borrar las actuales." },
-                                    quitar_herramientas: { type: "array", items: { type: "string" }, description: "Herramientas a quitar del agente." },
-                                    skills: { type: "array", items: { type: "string" }, description: "Lista de skills o ['todas']." },
-                                    conversation_starters: { type: "array", items: { type: "string" }, description: "Nuevas frases iniciadoras." },
-                                    avatar_url: { type: "string", description: "Nueva URL de avatar." },
-                                    agent_ids: { type: "array", items: { type: "string" }, description: "Nuevos IDs de agentes encadenados." }
+                                    id: { type: "string", description: "ID (agent_xxx) o nombre actual" },
+                                    nuevo_nombre: { type: "string" },
+                                    description: { type: "string" },
+                                    category: { type: "string" },
+                                    instructions: { type: "string" },
+                                    model: { type: "string" },
+                                    temperature: { type: "number" },
+                                    tools: { type: "array", items: { type: "string" } },
+                                    agregar_herramientas: { type: "array", items: { type: "string" } },
+                                    quitar_herramientas: { type: "array", items: { type: "string" } },
+                                    skills: { type: "array", items: { type: "string" } },
+                                    conversation_starters: { type: "array", items: { type: "string" } },
+                                    avatar_url: { type: "string" },
+                                    agent_ids: { type: "array", items: { type: "string" } }
                                 },
                                 required: ["id"]
                             }
@@ -1425,21 +1445,21 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_abrir_chat_agente",
-                            description: "MODO 3 — Abrir Chat Dedicado en Pantalla Principal: Abre la ventana de chat en pantalla con un Agente Especialista de WAPPY (Médico Laboral, Abogado Laboral, Fisioterapeuta Laboral, Ingeniero Químico SST, Coordinador PESV, Psicólogo SST, etc.) para trazabilidad y conversación directa en la interfaz principal. ÚNICAMENTE invócala cuando el usuario pida explícitamente ABRIR UN CHAT, IR AL CHAT o CREAR UNA CONVERSACIÓN en pantalla con el especialista (ej: 'ábreme un chat con el agente médico laboral', 'abre el chat del abogado'). Si el usuario solo pide el dictamen u opinión del especialista dentro de tu llamada sin pedir abrir otro chat ('quiero el dictamen del abogado'), NO uses esta herramienta; usa 'consultar_agente_especializado'. REQUISITO PREVIO OBLIGATORIO: solo invócala cuando el usuario ya te haya dicho QUÉ quiere consultar.",
+                            description: "MODO 3: Abre chat en pantalla con un especialista solo si el usuario pide abrir/ir a su chat y ya dijo qué consultar. Si solo pide el dictamen sin cambiar de pantalla usa 'consultar_agente_especializado'.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     agente: {
                                         type: "string",
-                                        description: "Nombre o especialidad del agente. Por defecto usa 'Tenshi' para trazabilidad y edición de documentos/aplicativos en Canvas. Ejemplos: 'tenshi', 'abogado_laboral', 'medico_laboral', 'fisioterapeuta_laboral', 'ingeniero_quimico_sst', 'coordinador_seguridad_vial', 'psicologo_sst', 'terapeuta_salud_mental', 'nutricionista_laboral', 'primer_respondiente', 'coordinador_emergencias', 'especialista_bioseguridad', 'ingeniero_electricista_sst', 'coordinador_tareas_criticas', 'ingeniero_minas_sst', 'auditor_sg_sst', 'ingeniero_ambiental', 'especialista_riesgo_climatico', 'redactor_creativo', 'simulador_accidentes', 'coordinador_capacitaciones', 'profesional_sst', 'agente_sst'"
+                                        description: "Especialidad/nombre ('tenshi','abogado_laboral','medico_laboral','fisioterapeuta_laboral','ingeniero_quimico_sst','coordinador_seguridad_vial','psicologo_sst','terapeuta_salud_mental','nutricionista_laboral','primer_respondiente','coordinador_emergencias','especialista_bioseguridad','ingeniero_electricista_sst','coordinador_tareas_criticas','ingeniero_minas_sst','auditor_sg_sst','ingeniero_ambiental','especialista_riesgo_climatico','redactor_creativo','simulador_accidentes','coordinador_capacitaciones','profesional_sst','agente_sst')."
                                     },
                                     pregunta: {
                                         type: "string",
-                                        description: "Consulta técnica estructurada y profesional para el especialista. Redáctala con claridad técnica profesional incluyendo la temática ocupacional o duda del usuario, solicitud de fundamentación normativa colombiana aplicable (ej. Decretos, Resoluciones) y recomendaciones clave para el SG-SST. Nunca envíes frases telegráficas cortas ni saludos vacíos."
+                                        description: "Consulta técnica estructurada con marco normativo colombiano."
                                     },
                                     nuevo_chat: {
                                         type: "boolean",
-                                        description: "true si el usuario pide expresamente abrir un nuevo chat, otro chat o cambiar de especialista/tema; false si continúa en la misma conversación o hace preguntas de seguimiento."
+                                        description: "true para nuevo chat; false para continuar el hilo."
                                     }
                                 },
                                 required: ["agente", "pregunta"]
@@ -1464,59 +1484,37 @@ class VoiceSession {
                         },
                         {
                             name: "google_drive",
-                            description: "Permite interactuar directamente con el Google Drive del usuario (listar archivos o leer documentos). REGLA ESTRICTA DE PRIORIDAD SOMOS SST: ESTÁ TERMINANTEMENTE PROHIBIDO usar 'google_drive' para buscar informes del SG-SST (Condiciones de Salud, Responsable, Matriz GTC45, Política, Objetivos, etc.) a menos que el usuario diga EXPLÍCITAMENTE la palabra 'Drive' o 'Google Drive'. Cuando el usuario pida consultar, leer o enviar un informe sin mencionar Drive, SIEMPRE usa 'wappy_leer_informe_aplicativo' (Historial oficial de SOMOS SST / WAPPY).",
+                            description: "Interactúa con Google Drive SOLO si el usuario dice 'Drive'/'Google Drive'. Para informes SG-SST usa siempre 'wappy_leer_informe_aplicativo'.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     action: {
                                         type: "string",
                                         enum: ["list_files_and_folders", "read_document_content", "create_folder", "write_file"],
-                                        description: "Acción a realizar en Google Drive: 'list_files_and_folders' para buscar o listar archivos, 'read_document_content' para leer un archivo específico."
+                                        description: "Acción en Google Drive."
                                     },
-                                    query: {
-                                        type: "string",
-                                        description: "Término de búsqueda para listar archivos (ej: 'matriz', 'gtc45', 'rut', 'politica') o el texto a escribir."
-                                    },
-                                    fileId: {
-                                        type: "string",
-                                        description: "El ID del archivo en Google Drive para leer su contenido."
-                                    },
-                                    fileName: {
-                                        type: "string",
-                                        description: "El nombre del archivo o carpeta que deseas crear."
-                                    },
-                                    parentId: {
-                                        type: "string",
-                                        description: "El ID de la carpeta contenedora en Google Drive (opcional)."
-                                    }
+                                    query: { type: "string", description: "Búsqueda o texto." },
+                                    fileId: { type: "string", description: "ID del archivo." },
+                                    fileName: { type: "string", description: "Nombre de archivo/carpeta." },
+                                    parentId: { type: "string", description: "ID carpeta padre." }
                                 },
                                 required: ["action"]
                             }
                         },
                         {
                             name: "canvas_tool",
-                            description: "Crea archivos descargables que el usuario recibe en el chat de Tenshi (con botón de descarga) y en el visor Canvas: documentos Word ('text'), hojas de cálculo Excel ('excel'), aplicativos/páginas HTML interactivos independientes ('html') o presentaciones ('presentation'). PROHIBICIÓN ESTRICTA: NUNCA USES canvas_tool SI EL USUARIO PIDE EL INFORME DE UN APLICATIVO, MÓDULO O PANTALLA DEL SG-SST (Responsable, Política, Objetivos, Perfiles de Cargo, Matriz Legal, Diagnóstico 0312, etc.), NI SI DICE 'realiza el informe del aplicativo', 'haz el informe de responsable' o 'generar con IA'; en esos casos DEBES usar 'wappy_generar_analisis_aplicativo' u 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA' }). Usa canvas_tool únicamente cuando el usuario pida explícitamente redactar un documento externo, matriz en Excel o una landing page interactiva independiente. Cada invocación con accion='crear' genera un archivo NUEVO e independiente.",
+                            description: "Crea archivos descargables en el chat/Canvas: Word ('text'), Excel ('excel'), HTML interactivo ('html') o presentación ('presentation'). PROHIBIDO para informes de aplicativos SG-SST (usa 'wappy_generar_analisis_aplicativo' u 'operar_interfaz_visual').",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: {
-                                        type: "string",
-                                        enum: ["crear"],
-                                        description: "Siempre 'crear' para generar un archivo nuevo."
-                                    },
+                                    accion: { type: "string", enum: ["crear"], description: "Siempre 'crear'." },
                                     fileType: {
                                         type: "string",
                                         enum: ["html", "text", "excel", "presentation"],
-                                        description: "Tipo de archivo según lo que pida el usuario: 'text' = documento Word (informes, protocolos, políticas, actas, cartas, procedimientos); 'excel' = hoja de cálculo (matrices, listados, indicadores tabulares, cronogramas); 'html' = aplicativo, prototipo o página web interactiva (landing pages, dashboards, calculadoras, apps interactivas); 'presentation' = diapositivas. Si el usuario dice 'landing page', 'prototipo', 'aplicativo', 'página' o 'en HTML', usa 'html'; si dice 'en Word', usa 'text'; si dice 'en Excel', usa 'excel'."
+                                        description: "'text'=Word, 'excel'=Excel, 'html'=app/landing, 'presentation'=diapositivas."
                                     },
-                                    title: {
-                                        type: "string",
-                                        description: "Título fiel a lo que pidió el usuario (ej: 'Protocolo de Despido Laboral', 'Indicadores de Accidentalidad Res. 0312', 'Landing Page de Incapacidades Prolongadas')."
-                                    },
-                                    content: {
-                                        type: "string",
-                                        description: "Contenido del archivo (opcional si es 'html' ya que el sistema lo genera automáticamente con Tailwind y gráficos si se omite, obligatorio para text/excel)."
-                                    }
+                                    title: { type: "string", description: "Título del archivo." },
+                                    content: { type: "string", description: "Contenido (opcional en 'html'; requerido en 'text'/'excel')." }
                                 },
                                 required: ["accion", "fileType", "title"]
                             }
@@ -1537,52 +1535,52 @@ class VoiceSession {
                         },
                         {
                             name: "somos_sst",
-                            description: "Herramienta oficial de SOMOS SST (anteriormente SGSST). Permite consultar y editar cualquier información en sus 2 MÓDULOS PRINCIPALES: el Motor Bio-Individual (Bio Motor - expediente del trabajador, exámenes médicos, accidentes ATEL, Hitos) y el Ecosistema SG-SST General (matrices GTC45, EPP, alturas, ATS, capacitaciones, políticas, Centro de Control ACPM y estadísticas en tiempo real).",
+                            description: "Consulta y edita el Motor Bio-Individual (trabajadores, exámenes, ATEL, hitos) y Ecosistema SOMOS SST (matrices, EPP, alturas, ATS, ACPM, informes HTML).",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: {
                                         type: "string",
-                                        description: "Acción a ejecutar: 'actualizar_informacion_empresa', 'consultar_expediente_integral', 'listar_trabajadores', 'resumen_empresa', 'actualizar_examen_medico', 'registrar_accidente_atel', 'actualizar_hito_tarea', 'editar_cualquier_aplicativo', 'generar_informe_html', 'consultar_historial_informes', 'consultar_planes_y_sistema', 'consultar_centro_control_acpm', 'crear_actividad_acpm', 'actualizar_actividad_acpm', 'crear_trabajador'."
+                                        description: "'actualizar_informacion_empresa','consultar_expediente_integral','listar_trabajadores','resumen_empresa','actualizar_examen_medico','registrar_accidente_atel','actualizar_hito_tarea','editar_cualquier_aplicativo','generar_informe_html','consultar_historial_informes','consultar_planes_y_sistema','consultar_centro_control_acpm','crear_actividad_acpm','actualizar_actividad_acpm','crear_trabajador'."
                                     },
-                                    razon_social: { type: "string", description: "Razón Social o Nombre legal de la empresa" },
-                                    tipo_empresa: { type: "string", description: "'Persona Jurídica' o 'Persona Natural'" },
-                                    nit: { type: "string", description: "Número de Identificación Tributaria (NIT)" },
-                                    representante_legal: { type: "string", description: "Nombre del Representante Legal" },
-                                    cedula_representante: { type: "string", description: "Cédula o ID del Representante Legal" },
-                                    numero_trabajadores: { type: "number", description: "Número total de trabajadores" },
-                                    arl: { type: "string", description: "Nombre de la ARL afiliada" },
-                                    actividad_economica: { type: "string", description: "Actividad económica principal" },
-                                    nivel_riesgo: { type: "string", description: "Nivel de riesgo ARL (I, II, III, IV, V)" },
-                                    ciiu: { type: "string", description: "Código CIIU" },
-                                    direccion: { type: "string", description: "Dirección física de la sede principal" },
-                                    ciudad: { type: "string", description: "Ciudad o municipio" },
-                                    departamento: { type: "string", description: "Departamento" },
-                                    telefono: { type: "string", description: "Teléfono de contacto" },
-                                    correo: { type: "string", description: "Correo electrónico corporativo" },
-                                    datos_json: { type: "string", description: "Datos estructurados en formato JSON o texto para guardado masivo" },
-                                    tipo_informe: { type: "string", description: "Tipo de informe formal HTML a generar" },
-                                    titulo_informe: { type: "string", description: "Título del informe formal HTML" },
-                                    contenido_html: { type: "string", description: "Contenido HTML del informe" },
-                                    nombre_o_cargo: { type: "string", description: "Nombre completo del trabajador o cargo" },
-                                    identificacion: { type: "string", description: "Cédula o ID del trabajador" },
-                                    fecha_examen: { type: "string", description: "Fecha del examen médico (YYYY-MM-DD)" },
-                                    concepto_diagnostico: { type: "string", description: "Concepto o aptitud médica laboral" },
-                                    restricciones: { type: "string", description: "Restricciones médicas" },
-                                    tipo_siniestro: { type: "string", description: "Tipo de evento ATEL: 'AT', 'EL', 'Ausentismo'" },
-                                    dias_incapacidad: { type: "string", description: "Días de incapacidad" },
-                                    descripcion_hechos: { type: "string", description: "Descripción de los hechos o accidente" },
+                                    razon_social: { type: "string" },
+                                    tipo_empresa: { type: "string", description: "'Persona Jurídica'|'Persona Natural'" },
+                                    nit: { type: "string" },
+                                    representante_legal: { type: "string" },
+                                    cedula_representante: { type: "string" },
+                                    numero_trabajadores: { type: "number" },
+                                    arl: { type: "string" },
+                                    actividad_economica: { type: "string" },
+                                    nivel_riesgo: { type: "string", description: "I-V" },
+                                    ciiu: { type: "string" },
+                                    direccion: { type: "string" },
+                                    ciudad: { type: "string" },
+                                    departamento: { type: "string" },
+                                    telefono: { type: "string" },
+                                    correo: { type: "string" },
+                                    datos_json: { type: "string" },
+                                    tipo_informe: { type: "string" },
+                                    titulo_informe: { type: "string" },
+                                    contenido_html: { type: "string" },
+                                    nombre_o_cargo: { type: "string" },
+                                    identificacion: { type: "string" },
+                                    fecha_examen: { type: "string", description: "YYYY-MM-DD" },
+                                    concepto_diagnostico: { type: "string" },
+                                    restricciones: { type: "string" },
+                                    tipo_siniestro: { type: "string", description: "'AT'|'EL'|'Ausentismo'" },
+                                    dias_incapacidad: { type: "string" },
+                                    descripcion_hechos: { type: "string" },
                                     nombre_aplicativo: {
                                         type: "string",
-                                        description: "Nombre del aplicativo a editar: 'empresa', 'cargos', 'estudio_puesto', 'auditoria', 'diagnostico', 'epp', 'alturas', 'ats', 'vehiculos', 'capacitaciones', 'gtc45', 'owas', 'actos', 'vulnerabilidad', 'quimicos', 'kanban', 'politica', 'matriz_legal', 'rhs', 'rit', 'estadisticas'."
+                                        description: "'empresa'|'cargos'|'estudio_puesto'|'auditoria'|'diagnostico'|'epp'|'alturas'|'ats'|'vehiculos'|'capacitaciones'|'gtc45'|'owas'|'actos'|'vulnerabilidad'|'quimicos'|'kanban'|'politica'|'matriz_legal'|'rhs'|'rit'|'estadisticas'."
                                     },
-                                    propiedad_o_ruta: { type: "string", description: "Campo o propiedad a modificar" },
-                                    nuevo_valor: { type: "string", description: "Nuevo valor a asignar" },
-                                    titulo_actividad: { type: "string", description: "Título de la actividad para el Centro de Control ACPM" },
-                                    descripcion_actividad: { type: "string", description: "Detalles o descripción de la actividad ACPM" },
-                                    fecha_vencimiento: { type: "string", description: "Fecha de vencimiento (YYYY-MM-DD o 'mañana')" },
-                                    estado_actividad: { type: "string", description: "'todo', 'due_soon', 'overdue', 'done'" },
-                                    tipo_actividad: { type: "string", description: "'manual', 'medical_exam', 'training', 'other'" }
+                                    propiedad_o_ruta: { type: "string" },
+                                    nuevo_valor: { type: "string" },
+                                    titulo_actividad: { type: "string" },
+                                    descripcion_actividad: { type: "string" },
+                                    fecha_vencimiento: { type: "string", description: "YYYY-MM-DD" },
+                                    estado_actividad: { type: "string", description: "'todo'|'due_soon'|'overdue'|'done'" },
+                                    tipo_actividad: { type: "string", description: "'manual'|'medical_exam'|'training'|'other'" }
                                 },
                                 required: ["accion"]
                             }
@@ -1722,16 +1720,16 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Crea, lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene o elimina TAREAS/FLUJOS (antes llamadas 'Automatizaciones IA') en la sección 'Tareas' (/tareas). Puedes identificar el flujo por su comando de voz Tenshi (ej: 'Activa el flujo 001' o '001'), su ID, su título exacto o 'todas'. NUNCA elijas otro flujo distinto si un código o comando no coincide.",
+                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas'. Sin coincidencia exacta NO elijas otro flujo.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: { type: "string", description: "'crear', 'listar', 'actualizar', 'activar', 'desactivar', 'activar_todas', 'desactivar_todas', 'eliminar', 'eliminar_todas', 'ejecutar_ahora', 'detener', 'ver_logs'" },
-                                    nombre: { type: "string", description: "Título del flujo o frase exacta/código de activación dicho por el usuario (ej: 'Activa el flujo 001')" },
-                                    nuevo_nombre: { type: "string", description: "Nuevo nombre si se desea renombrar la tarea" },
-                                    agente_objetivo: { type: "string", description: "Agente que ejecutará la tarea periódica" },
-                                    prompt_a_ejecutar: { type: "string", description: "Instrucción detallada a ejecutar periódicamente" },
-                                    tipo_frecuencia: { type: "string", description: "'daily', 'weekly', 'monthly', 'hourly'" },
+                                    accion: { type: "string", description: "'crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
+                                    nombre: { type: "string", description: "Título o código de activación" },
+                                    nuevo_nombre: { type: "string" },
+                                    agente_objetivo: { type: "string" },
+                                    prompt_a_ejecutar: { type: "string" },
+                                    tipo_frecuencia: { type: "string", description: "'daily'|'weekly'|'monthly'|'hourly'" },
                                     configuracion_horario: {
                                         type: "object",
                                         properties: {
@@ -1743,8 +1741,8 @@ class VoiceSession {
                                         }
                                     },
                                     correos_notificacion: { type: "array", items: { type: "string" } },
-                                    automatizacion_id: { type: "string", description: "ID de 24 caracteres, comando de voz Tenshi configurado en el flujo (ej: 'Activa el flujo 001' o '001'), título exacto de la tarea, o 'todas'" },
-                                    nuevo_estado: { type: "string", description: "'active' (activar/encender) o 'inactive' (desactivar/pausar/apagar)" }
+                                    automatizacion_id: { type: "string", description: "ID, comando Tenshi ('001'), título o 'todas'" },
+                                    nuevo_estado: { type: "string", description: "'active'|'inactive'" }
                                 },
                                 required: ["accion"]
                             }
@@ -1912,22 +1910,16 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_leer_informe_aplicativo",
-                            description: "Consulta, lee y extrae el último informe técnico oficial guardado en el Historial de SOMOS SST / WAPPY de cualquiera de los 30 aplicativos del SG-SST (Responsable SG-SST 'responsable', Condiciones de Salud 'condiciones_salud', Perfil Sociodemográfico 'perfil_socio', Política SST 'politica', Objetivos e Indicadores 'objetivos', Diagnóstico Res. 0312 'diagnostico_0312', Perfiles de Cargo 'perfil_cargo', Matriz IPEVAR / GTC-45 'gtc45', Vulnerabilidad y Emergencias 'vulnerabilidad', Ergonomía OWAS 'owas', Estudio de Puesto de Trabajo 'estudio_puesto', ATS 'ats', Alturas 'alturas', Matriz Legal 'legal', Comités COPASST 'comites', Capacitaciones 'capacitaciones', EPP 'epp', Investigación ATEL 'investigacion_atel', PESV 'pesv', Químicos SGA 'quimicos', Actos y Condiciones 'actos_condiciones', Vehículos 'vehiculos', Cronograma 'cronograma', Auditoría Anual 'auditoria', Alta Dirección 'alta_direccion', RIT 'rit'). ÚSALA SIEMPRE como primera opción cuando el usuario pida consultar, leer, buscar, revisar o enviar el último informe de cualquier módulo de SOMOS SST.",
+                            description: "Lee el último informe guardado en el Historial de SOMOS SST para cualquier aplicativo o cargo. Úsala siempre para leer/consultar/enviar informes existentes.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     aplicativo: {
                                         type: "string",
-                                        description: "Nombre o clave del aplicativo: 'responsable', 'condiciones_salud', 'perfil_socio', 'politica', 'objetivos', 'diagnostico_0312', 'perfil_cargo', 'gtc45', 'investigacion_atel', 'pesv', 'quimicos', 'auditoria', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'vehiculos', 'cronograma', 'alta_direccion', 'rit'."
+                                        description: "'responsable','condiciones_salud','perfil_socio','politica','objetivos','diagnostico_0312','perfil_cargo','gtc45','investigacion_atel','pesv','quimicos','auditoria','vulnerabilidad','owas','estudio_puesto','ats','alturas','legal','comites','capacitaciones','epp','actos_condiciones','vehiculos','cronograma','alta_direccion','rit'."
                                     },
-                                    cargo: {
-                                        type: "string",
-                                        description: "Nombre puntual del cargo para consultar su perfil específico (ej: 'Conductor', 'Operario', 'Auxiliar contable', 'Gerente')."
-                                    },
-                                    id: {
-                                        type: "string",
-                                        description: "ID opcional del caso o registro a consultar."
-                                    }
+                                    cargo: { type: "string", description: "Cargo puntual si aplicativo='perfil_cargo'." },
+                                    id: { type: "string", description: "ID opcional." }
                                 },
                                 required: ["aplicativo"]
                             }
@@ -2038,45 +2030,26 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_crear_informe",
-                            description: "Crea y genera un informe técnico oficial del SG-SST para entregar como documento descargable en el chat de Tenshi (Word, Excel o HTML interactivo). PROHIBICIÓN ESTRICTA: NUNCA USES esta herramienta si el usuario pide el informe de un aplicativo, módulo o pantalla del SG-SST en pantalla ('realiza el informe del aplicativo', 'haz el informe de responsable', 'generar con IA'); en esos casos DEBES usar 'wappy_generar_analisis_aplicativo' u 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA' }). Úsala únicamente cuando el usuario pida redactar un documento o dictamen general para recibirlo en su chat.",
+                            description: "Crea un informe técnico SG-SST descargable (Word/Excel/HTML) para entregar en el chat de Tenshi. PROHIBIDO si piden generar informe de un aplicativo en pantalla (usa 'wappy_generar_analisis_aplicativo').",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    titulo: {
-                                        type: "string",
-                                        description: "Título formal del informe (ej: 'Informe Técnico de Investigación ATEL', 'Informe Diagnóstico Res. 0312', 'Informe de Análisis Ergonómico OWAS')."
-                                    },
-                                    aplicativo: {
-                                        type: "string",
-                                        description: "Módulo o aplicativo del SG-SST: 'investigacion_atel', 'gtc45', 'diagnostico_0312', 'perfil_cargo', 'perfil_socio', 'vulnerabilidad', 'owas', 'estudio_puesto', 'ats', 'alturas', 'legal', 'comites', 'capacitaciones', 'epp', 'actos_condiciones', 'pesv', 'quimicos', 'vehiculos', 'cronograma', 'auditoria' o 'general'."
-                                    },
-                                    formato: {
-                                        type: "string",
-                                        enum: ["html", "text", "excel"],
-                                        description: "Formato del informe: 'html' (reporte corporativo interactivo), 'text' (documento Word / Markdown), 'excel' (hoja de cálculo)."
-                                    },
-                                    contenido: {
-                                        type: "string",
-                                        description: "Contenido técnico exhaustivo del informe en Markdown o HTML, estructurado con introducción, marco legal colombiano (Decreto 1072, Resoluciones), hallazgos, indicadores, plan de mejora y firmas."
-                                    }
+                                    titulo: { type: "string", description: "Título formal del informe." },
+                                    aplicativo: { type: "string", description: "'investigacion_atel','gtc45','diagnostico_0312','perfil_cargo','perfil_socio','vulnerabilidad','owas','estudio_puesto','ats','alturas','legal','comites','capacitaciones','epp','actos_condiciones','pesv','quimicos','vehiculos','cronograma','auditoria','general'." },
+                                    formato: { type: "string", enum: ["html", "text", "excel"], description: "'html'|'text'|'excel'." },
+                                    contenido: { type: "string", description: "Contenido técnico con marco legal e indicadores." }
                                 },
                                 required: ["titulo", "aplicativo"]
                             }
                         },
                         {
                             name: "wappy_generar_analisis_aplicativo",
-                            description: "Genera UN NUEVO informe o análisis con Inteligencia Artificial DENTRO de un aplicativo o módulo del SG-SST pulsando el botón 'Generar con IA'. ⚠️ PROHIBICIÓN ESTRICTA: NUNCA uses 'wappy_generar_analisis_aplicativo' cuando el usuario pida ENVIAR POR CORREO, LEER, CONSULTAR o VER el último informe existente en el Historial (ej: 'envíame el último informe de responsable', 'mándame el informe al correo', 'léeme el último informe'). En esos casos DEBES usar 'wappy_leer_informe_aplicativo' y/o 'wappy_enviar_correo'. Solo usa 'wappy_generar_analisis_aplicativo' cuando el usuario pida expresamente CREAR o GENERAR UN INFORME NUEVO.",
+                            description: "Genera UN NUEVO informe IA dentro de un aplicativo SG-SST ('Generar con IA'). NUNCA la uses para leer o enviar informes existentes (usa 'wappy_leer_informe_aplicativo').",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    aplicativo: {
-                                        type: "string",
-                                        description: "Nombre o clave del aplicativo/módulo: 'responsable' (Responsable SG-SST), 'politica' (Política SST), 'objetivos' (Objetivos SST), 'legal' (Matriz Legal), 'rit' (Reglamento Interno), 'perfil_cargo' (Perfiles de Cargo), 'diagnostico' (Res. 0312), 'vulnerabilidad' (Plan de Emergencias), 'comites' (COPASST/Convivencia), 'capacitaciones', 'epp', 'quimicos', 'vehiculos', 'auditoria'."
-                                    },
-                                    instruccion_adicional: {
-                                        type: "string",
-                                        description: "Instrucciones técnicas o requerimientos adicionales que el usuario haya indicado para el informe (opcional)."
-                                    }
+                                    aplicativo: { type: "string", description: "'responsable','politica','objetivos','legal','rit','perfil_cargo','diagnostico','vulnerabilidad','comites','capacitaciones','epp','quimicos','vehiculos','auditoria'." },
+                                    instruccion_adicional: { type: "string" }
                                 },
                                 required: ["aplicativo"]
                             }
@@ -2105,47 +2078,19 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_gestionar_agenda",
-                            description: "Gestiona la agenda, calendario y compromisos del SG-SST en Google Calendar y en el cronograma de WAPPY. Permite agendar inspecciones, capacitaciones, auditorías, comités COPASST o citas médicas laborales, listar eventos próximos, reprogramar citas a nuevas fechas y cancelar o eliminar compromisos.",
+                            description: "Gestiona citas y eventos en Google Calendar y cronograma WAPPY (agendar, listar, reprogramar, actualizar, eliminar).",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: {
-                                        type: "string",
-                                        enum: ["agendar_evento", "listar_agenda", "reprogramar_evento", "actualizar_evento", "eliminar_evento"],
-                                        description: "Acción a realizar: 'agendar_evento' para programar, 'listar_agenda' para ver compromisos próximos, 'reprogramar_evento' o 'actualizar_evento' para cambiar fecha/hora, 'eliminar_evento' para cancelar."
-                                    },
-                                    titulo: {
-                                        type: "string",
-                                        description: "Título o motivo del evento (ej: 'Inspección de Extintores', 'Capacitación Primeros Auxilios', 'Reunión COPASST')."
-                                    },
-                                    fecha_inicio: {
-                                        type: "string",
-                                        description: "Fecha y hora de inicio en formato ISO o YYYY-MM-DD HH:mm con Hora Colombia."
-                                    },
-                                    fecha_fin: {
-                                        type: "string",
-                                        description: "Fecha y hora de finalización en formato ISO (opcional)."
-                                    },
-                                    nueva_fecha: {
-                                        type: "string",
-                                        description: "Nueva fecha y hora para reprogramar el evento (ej: '2026-10-18T14:00:00')."
-                                    },
-                                    nuevo_titulo: {
-                                        type: "string",
-                                        description: "Nuevo título si se modifica el evento."
-                                    },
-                                    descripcion: {
-                                        type: "string",
-                                        description: "Descripción detallada del evento o cita."
-                                    },
-                                    tipo: {
-                                        type: "string",
-                                        description: "Tipo de actividad: 'manual', 'training', 'medical_exam', 'audit_finding', 'copasst_finding', 'other'."
-                                    },
-                                    id_evento: {
-                                        type: "string",
-                                        description: "ID o palabra clave del evento para eliminar, consultar o reprogramar."
-                                    }
+                                    accion: { type: "string", enum: ["agendar_evento", "listar_agenda", "reprogramar_evento", "actualizar_evento", "eliminar_evento"] },
+                                    titulo: { type: "string" },
+                                    fecha_inicio: { type: "string", description: "ISO / YYYY-MM-DD HH:mm Hora Colombia" },
+                                    fecha_fin: { type: "string" },
+                                    nueva_fecha: { type: "string" },
+                                    nuevo_titulo: { type: "string" },
+                                    descripcion: { type: "string" },
+                                    tipo: { type: "string", description: "'manual'|'training'|'medical_exam'|'audit_finding'|'copasst_finding'|'other'" },
+                                    id_evento: { type: "string", description: "ID o palabra clave" }
                                 },
                                 required: ["accion"]
                             }
@@ -2237,37 +2182,16 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_delegar_orden_antigravity",
-                            description: "Delega una orden de trabajo a Google Antigravity. Cuando la cámara o videollamada en vivo de Tenshi está activa, adjunta automáticamente en tiempo real las fotos en vivo, secuencias de fotogramas, evidencias capturadas y el clip de video en vivo de la cámara para que Antigravity vea y analice directamente lo que el usuario está mostrando. REGLA ESTRICTA: SOLO Y EXCLUSIVAMENTE se utiliza cuando el usuario mencione de forma explícita la palabra 'Antigravity' (ej: 'pídele a Antigravity...', 'delega en Antigravity'). Está PROHIBIDO usarla si el usuario no dice 'Antigravity' (para crear aplicativos, documentos o HTML sin mencionar Antigravity debes usar canvas_tool).",
+                            description: "Delega una orden a Google Antigravity (incluye fotos/video de cámara si está activa). PROHIBIDO usarla si el usuario no dice explícitamente 'Antigravity' (sin 'Antigravity' usa canvas_tool).",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    instruccion: {
-                                        type: "string",
-                                        description: "Instrucción o tarea detallada que Antigravity debe realizar."
-                                    },
-                                    carpeta_o_recurso: {
-                                        type: "string",
-                                        description: "Ruta de la carpeta local en el computador del usuario o Google Drive que Antigravity debe inspeccionar."
-                                    },
-                                    tipo_entregable: {
-                                        type: "string",
-                                        description: "Tipo de respuesta o entregable esperado según lo que pidió el usuario: 'respuesta' (POR DEFECTO cuando el usuario solo hace una pregunta, consulta o duda y NO pidió explícitamente crear un documento, informe o archivo), 'copia_archivo' (cuando el usuario pide que Antigravity busque y le envíe una COPIA ORIGINAL de un archivo existente en su PC/computador sin crear uno nuevo), 'documento' o 'word' (solo cuando pide explícitamente crear/redactar un documento, informe, acta o política nueva en el Editor de Documentos de WAPPY / Canvas), 'html' (solo cuando pide un aplicativo interactivo o dashboard), 'excel' o 'presentacion'."
-                                    },
-                                    titulo: {
-                                        type: "string",
-                                        description: "Título descriptivo de la orden de trabajo."
-                                    },
-                                    archivos: {
-                                        type: "array",
-                                        description: "Lista de archivos, imágenes, videos o documentos adjuntos para que Antigravity los analice o procese.",
-                                        items: {
-                                            type: "string"
-                                        }
-                                    },
-                                    entorno_destino: {
-                                        type: "string",
-                                        description: "Entorno donde ejecutar la orden si el usuario lo especifica o lo pide por voz: 'local' (en su Mac/PC), 'cloud' (en la nube antigravity.google.com), o 'auto' (automático según conexión)."
-                                    }
+                                    instruccion: { type: "string" },
+                                    carpeta_o_recurso: { type: "string", description: "Ruta PC o Google Drive" },
+                                    tipo_entregable: { type: "string", description: "'respuesta' (defecto consulta), 'copia_archivo', 'documento'/'word', 'html', 'excel', 'presentacion'." },
+                                    titulo: { type: "string" },
+                                    archivos: { type: "array", items: { type: "string" } },
+                                    entorno_destino: { type: "string", description: "'local'|'cloud'|'auto'" }
                                 },
                                 required: ["instruccion"]
                             }
@@ -2871,246 +2795,30 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
   * Tras invocar la herramienta, confirma oralmente: "He escrito la información solicitada en el campo correspondiente."
 
 [HERRAMIENTAS]:
-1. **google_drive**: Tienes acceso a Google Drive mediante tu herramienta 'google_drive', PERO CON REGLA ESTRICTA DE PRIORIDAD SOMOS SST:
-   - ⚠️ **PRIORIDAD ABSOLUTA DE SOMOS SST / WAPPY SOBRE GOOGLE DRIVE**: Cuando el usuario te pida buscar, consultar, leer o enviar por correo un informe del SG-SST (ej: Condiciones de Salud, Responsable SG-SST, Política, Objetivos, Diagnóstico 0312, Matriz GTC-45, etc.) y NO mencione explícitamente la palabra "Drive" o "Google Drive", **ESTÁ TERMINANTEMENTE PROHIBIDO buscarlo en Google Drive**. DEBES buscarlo SIEMPRE en el Historial oficial de SOMOS SST / WAPPY invocando 'wappy_leer_informe_aplicativo'.
-   - Solo invoca 'google_drive' cuando el usuario diga explícitamente "en mi Drive", "en Google Drive" o "busca en Drive".
-2. **wappy_diligenciar_formulario**: Diligencia de inmediato formularios en pantalla (Investigación ATEL, PESV, Alturas, etc.).
-   - INVÓCALA DE INMEDIATO cuando el usuario te pida escribir, llenar, colocar, redactar o reportar información en un aplicativo.
-   - Parámetros: 'modulo' (ej: 'investigacion_atel') y 'campos' (objeto con datos como afectadoNombre, lugarEvento, descripcionHechos, etc.).
-   - Responde oralmente en una sola frase breve: "¡Listo! Ya te dejé diligenciado el reporte en el formulario."
-3. **wappy_navegar**: Navega a cualquier módulo de los 8 Hitos Estratégicos o aplicativo del sistema WAPPY.
-   - Hito 1 (Gobernanza y Cimiento Legal): 'contexto_organizacion' (DOFA / PESTEL / partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial' (GTC 45), 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial' (SGA), 'oportunidades_sst' (riesgos del sistema y oportunidades), 'vulnerabilidad', 'plan_emergencias' (PPRE).
-   - Hito 2 (Huella Biocéntrica): 'perfil_cargo' (profesigrama / roles), 'perfil_socio' (sociodemográfico), 'condiciones_salud', 'oraculo_predictivo' (compatibilidad cargo-persona).
-   - Hito 3 (Comités, Brigadas y Órganos de Gobernanza): 'copasst' (vigía), 'cocolab' (convivencia), 'comite_pesv' (seguridad vial), 'brigada_emergencias' (SCI y comités de crisis).
-   - Hito 4 (Evaluación Dinámica de Riesgos): 'peligros' (matriz bio-IPEVR), 'metodo_owas' (ergonomía postural), 'estudio_puesto' (EPT biomecánico), 'animo' (termómetro psicosocial).
-   - Hito 5 (Dinámica Operativa y Terreno): 'compras_sst' (adquisiciones), 'contratistas_proveedores' (gestión y control), 'gestion_cambio' (MOC), 'analisis_trabajo_seguro' (ATS), 'permiso_alturas', 'heights_lifecycle' (hoja de vida alturas), 'epp_delivery' (EPP), 'chemical_registry' (SGA químicos), 'vehicles_pesv' (PESV automotores), 'equipos_emergencia' (extintores, botiquines).
-   - Hito 6 (Cultura, Escuela e Innovación): 'comunicaciones_sst' (plan y matriz de comunicaciones), 'capacitaciones' (PAC), 'ruta_aprendizaje' (LMS), 'reporte_actos', 'simulacros_emergencia', 'app_builder'.
-   - Hito 7 (Auditoría, Causalidad y Mejora Continua): 'estadisticas' (ATEL / ausentismo), 'investigacion_atel', 'control_acpm' (Kanban), 'auditoria', 'alta_direccion' (revisión gerencial), 'investigacion_profunda'.
-   - Hito 8 (Inteligencia Artificial & Oráculo Predictivo): 'predictivo' (oráculo estocástico, siniestralidad predictiva).
-   - Aplicativos y Dashboards: 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'events_meet', 'events_meet_admin', 'blog', 'blog_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Centro de Control / Kanban ACPM), 'tareas' (/tareas — sección 'Tareas' del menú lateral, debajo de Centro de Control; antes 'Automatizaciones IA'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'animo_dashboard' (/sgsst/animo), 'planes', 'auditoria' (/auditoria), 'live' (/c/new), 'chat_sst', 'roadmap' (/hoja-de-ruta), 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'.
-   - Portales públicos del trabajador: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'.
-   - INVÓCALA DE INMEDIATO siempre que el usuario mencione ir, abrir, consultar o ver cualquier hito, módulo o sección.
-4. **ORQUESTACIÓN TOTAL DESDE TENSHI (INFORMES DEL HISTORIAL, CORREOS, AGENDAS Y ESPECIALISTAS)**:
-   - TÚ ERES LA DIRECTORA DE ORQUESTA CENTRAL DE WAPPY.
-   - ⚠️ **REGLA CRÍTICA — LEER O ENVIAR EL ÚLTIMO INFORME DEL HISTORIAL VS CREAR UNO NUEVO**:
-     * Cuando el usuario diga: "envíame el último informe de responsable", "mándame el informe de condiciones de salud al correo", "qué dice el último informe", "consulta el historial de informes":
-     * **ESTÁ TERMINANTEMENTE PROHIBIDO invocar 'wappy_generar_analisis_aplicativo'** (eso crea un informe nuevo desde cero y sobrescribe).
-     * **DEBES invocar 'wappy_leer_informe_aplicativo'** para extraer el último informe ya existente en el Historial de SOMOS SST, y si pidió enviarlo por correo, invoca inmediatamente 'wappy_enviar_correo' con el destinatario indicado (o 'mi correo').
-   - ESTÁ TERMINANTEMENTE PROHIBIDO abrir nuevos chats (/c/new) o delegar sacando al usuario de tu conversación cuando te pida conceptos técnicos o informes de especialistas (Médico, Abogado, Auditor, Ergónomo, etc.).
-   - CREACIÓN Y ENTREGA DE INFORMES EN EL CHAT DE TENSHI ('wappy_crear_informe' y 'canvas_tool'):
-     * Cuando el usuario te pida crear, generar, redactar o entregar un informe o dictamen técnico oficial:
-     * INVOCA DE INMEDIATO 'wappy_crear_informe' o 'canvas_tool' redactando el informe completo con fundamentación legal colombiana (Decreto 1072 de 2015, Resolución 0312 de 2019), hallazgos, indicadores y recomendaciones.
-     * El informe se entrega DIRECTAMENTE en el chat de Tenshi con visor interactivo y botones de descarga en Word, Excel o HTML.
-     * Explica verbalmente los puntos clave y confírmale al usuario que ya se lo entregaste en su chat.
-   - CORREO ELECTRÓNICO ('wappy_enviar_correo'):
-     * Redacta y envía correos electrónicos formales a cualquier destinatario (o a 'mi correo') utilizando Google Gmail o el servidor de WAPPY. Si el usuario pide enviar un informe de un aplicativo de SOMOS SST, el sistema adjuntará e incrustará automáticamente el último informe original HTML guardado en el Historial del aplicativo.
-   - GESTIÓN DE AGENDAS Y CALENDARIO ('wappy_gestionar_agenda' y 'google_calendar'):
-     * Tienes control total de agendas: agendar eventos, inspecciones de seguridad, capacitaciones, comités COPASST, auditorías o citas médicas laborales en Google Calendar y en el cronograma de WAPPY.
-     * REPROGRAMACIÓN Y EDICIÓN: Puedes cambiar de fecha y hora cualquier evento existente (ej: "pasa la cita de mañana para el viernes a las 4pm", "mueve la reunión a las 10am").
-     * ELIMINACIÓN Y CANCELACIÓN: Puedes cancelar o eliminar cualquier cita usando el nombre o motivo de la reunión sin exigir IDs al usuario (ej: "cancela la cita de bomberos", "elimina la reunión de extintores").
-     * CONSULTA: Puedes consultar y listar la agenda de eventos próximos en cualquier momento.
-   - GOOGLE DRIVE Y ALIMENTACIÓN MASIVA DEL PERFIL SOCIODEMOGRÁFICO Y HITO 1 ('wappy_importar_sociodemografico_drive', 'wappy_importar_hito1_drive' y 'google_drive'):
-     * PERFIL SOCIODEMOGRÁFICO: SIEMPRE que el usuario te diga por voz: "busca en mi Drive el perfil sociodemográfico que está en la carpeta X y alimenta la información de los trabajadores en el perfil sociodemográfico y condiciones de salud de Somos SST" (o cualquier petición similar de importar/alimentar trabajadores desde Drive):
-       -> INVOCA DE INMEDIATO 'wappy_importar_sociodemografico_drive' pasando 'carpeta' con el nombre de la carpeta X y opcionalmente 'archivo'.
-       -> Esta herramienta híbrida busca la carpeta en Drive, lee todas las hojas/archivos, procesa a todos los trabajadores con el modelo de texto 'gemini-3.5-flash-lite' (y respaldo 'gemini-3.6-flash') y alimenta tanto el Perfil Sociodemográfico como las Condiciones de Salud en Somos SST.
-     * APLICATIVOS DEL HITO 1 (GTC-45, PESV, COMPATIBILIDAD QUÍMICA SGA, VULNERABILIDAD, DIAGNÓSTICO 0312, RESPONSABLE SST):
-       -> SIEMPRE que el usuario te pida buscar o importar desde Drive las matrices o documentos del Hito 1 (ej: "busca en mi Drive la matriz de riesgos GTC-45", "importa la matriz vial PESV", "carga la matriz de compatibilidad química", "alimenta el análisis de vulnerabilidad o emergencias", "importa el diagnóstico de estándares 0312", "carga la asignación del responsable SST"):
-       -> INVOCA DE INMEDIATO 'wappy_importar_hito1_drive' indicando 'aplicativo' ('gtc45', 'pesv', 'compatibilidad', 'vulnerabilidad', 'diagnostico', 'responsable' o 'auto'), 'carpeta' (si la especifica) y 'archivo' (si lo especifica).
-       -> Extrae, normaliza y calcula con fórmulas matemáticas exactas y el modelo 'gemini-3.5-flash-lite' (respaldo 'gemini-3.6-flash'), alimentando los aplicativos oficiales en Somos SST.
-       -> NOTA: La matriz legal está actualmente en construcción por lo que no debe procesarse en este hito.
-     * Para otras consultas generales de Drive, usa 'google_drive' únicamente cuando el usuario mencione explícitamente "Google Drive" o "Drive". NUNCA la priorices sobre SOMOS SST.
-   - DIFERENCIACIÓN ESTRICTA DE LOS 3 MODOS DE INTERACCIÓN CON ESPECIALISTAS (REGLA DE ORO):
-     * MODO 1 — RESPUESTA DIRECTA DE TENSHI (POR DEFECTO EN EL 90% DE LOS CASOS): Si el usuario solo hace una pregunta o consulta técnica (ej: dolor lumbar, cómo calificar un accidente, qué hacer con el benceno, qué vientos son seguros para alturas, etc.) y NO pide llamar al especialista ni abrir un chat: TENSHI ACTIVA DE INMEDIATO SU ROL DE EXPERTO CORRESPONDIENTE y responde ella misma de forma integral, técnica y fundamentada en 1 sola llamada, SIN invocar subagentes ni abrir un chat innecesario.
-     * MODO 2 — DICTAMEN DE SUBAGENTE EN SEGUNDO PLANO ('consultar_agente_especializado'): ÚNICAMENTE cuando el usuario pide literalmente el dictamen, opinión o concepto de un especialista dentro de la llamada sin pedir cambiar de ventana (ej: "Quiero el dictamen formal del Abogado Laboral", "Pregúntale al Médico Laboral qué opina"): invoca 'consultar_agente_especializado' para obtener su dictamen en segundo plano y explicarlo en el chat de Tenshi, SIN abrir un nuevo chat en pantalla.
-     * MODO 3 — ABRIR UN CHAT DEDICADO CON EL AGENTE EN PANTALLA ('wappy_abrir_chat_agente'): ÚNICAMENTE cuando el usuario pide explícitamente abrir un chat o ir a la ventana del agente en pantalla (ej: "Ábreme un chat con el agente Médico Laboral", "Abre un chat con el Abogado", "Llévame al chat del Ingeniero Químico"): invoca 'wappy_abrir_chat_agente' para abrir la conversación con el especialista en la pantalla principal.
-     * ESTUDIO DE PUESTO DE TRABAJO ERGONÓMICO EN VIVO ('wappy_iniciar_estudio_ergonomico_vivo', 'cambiar_fase_evaluacion' y 'generar_informe_tecnico'):
-       - Cuando el usuario te pida realizar un estudio de puesto ergonómico, evaluación postural, o la cámara esté en modo ergonómico:
-         1. Si la cámara no está activa, invoca 'wappy_iniciar_estudio_ergonomico_vivo'.
-         2. PASO PREVIO OBLIGATORIO (IDENTIFICACIÓN COMPLETA DEL TRABAJADOR):
-            En tu primera intervención, saluda cordialmente y formula en un solo mensaje fluido las 3 preguntas clave:
-            "¡Hola! Soy tu Especialista en Ergonomía y Fisioterapeuta Laboral en WAPPY IA. Para vincular este estudio ergonómico al expediente oficial de la empresa, por favor confírmame:
-             1. ¿Es una auto-evaluación de tu propio puesto o estás evaluando a un compañero?
-             2. Nombre completo y número de cédula del trabajador evaluado.
-             3. Cargo y una breve descripción de la actividad cotidiana a evaluar."
-            REGLA ESTRICTA: NUNCA inicies el Paso 1 ni pidas adoptar posturas antes de recibir estos datos (nombre, cédula y cargo). Si el usuario omite alguno, insiste amablemente en pedirlo antes de iniciar.
-         3. DIRECTIVA DE LIDERAZGO EN 3 FASES ERGONÓMICAS (CON RETROALIMENTACIÓN BIOMECÁNICA OBLIGATORIA):
-            - Al recibir la identificación completa, valida cordialmente en 1 frase e inicia el Paso 1 invocando 'cambiar_fase_evaluacion' con fase: 1.
-            - Paso 1 (Postura Habitual / Línea Base): Pide al usuario colocarse en su postura habitual de trabajo y avisar diciendo "Listo", "Ya" o presionar el botón de la cámara.
-            - AL PASAR DE FASE (RETROALIMENTACIÓN BIOMECÁNICA ORAL OBLIGATORIA): EXPLICA Y ANALIZA ORALMENTE en 1-2 oraciones lo que observas en la postura utilizando la telemetría articular (grados de flexión de cuello, tronco, brazos). Comenta si la postura está forzada o neutral y dale una recomendación física inmediata ANTES de pedir la postura del siguiente paso.
-            - Paso 2 (Alcance Máximo / Periféricos): Pide adoptar la postura de mayor alcance o exigencia y confirmar ("Listo"). Al confirmar, analiza la postura y llama a 'cambiar_fase_evaluacion' con fase: 2.
-            - Paso 3 (Fatiga / Apoyo Lumbar / Cuello): Pide evaluar la postura de fatiga o soporte de espalda y confirmar ("Listo"). Al confirmar, analiza la postura de fatiga y llama a 'cambiar_fase_evaluacion' con fase: 3.
-         4. Culminadas las 3 fases (tras analizar la postura de fatiga de la Fase 3) O cuando el usuario te pida el informe ("haz el informe", "genera el reporte", "dame el informe"):
-            - INVOCA DE INMEDIATO 'generar_informe_tecnico'.
-            - Confirma verbalmente en una sola frase breve: "Listo, procesando las evidencias para compilar tu informe técnico ergonómico oficial."
-   - NUEVAS APIS EXTERNAS ESPECIALIZADAS DE AGENTES:
-     * 'wappy_consultar_quimico_pubchem': Invocación de la API de PubChem (NIH) para buscar compuestos químicos por nombre, obtener su CID y extraer la clasificación oficial GHS/SGA con pictogramas, señal (Peligro/Atención), frases de peligro H y consejos de prudencia P según el Decreto 1496 de 2018.
-     * 'wappy_geocodificar_emergencias': Invocación de OpenStreetMap Nominatim para geolocalizar sedes y ubicar recursos asistenciales cercanos (hospitales, clínicas de trauma, estaciones de bomberos, defensa civil) para el Plan de Preparación y Respuesta ante Emergencias (Decreto 1072 de 2015).
-       ⚠️ SKILL OBLIGATORIA — GEOCODIFICACIÓN DE ACCIDENTADOS: Cuando el usuario reporte un trabajador accidentado y pida una clínica, hospital o recurso de emergencia cercano:
-       1. CONSTRUYE la query como: '<tipo_recurso> <barrio/zona> <ciudad>' — NUNCA pases la frase conversacional completa. Ejemplos correctos: 'clinica Poblado Medellin', 'hospital Envigado', 'urgencias Chapinero Bogota', 'bomberos Suba Bogota'.
-       2. INVOCA DE INMEDIATO 'wappy_geocodificar_emergencias' con ese query limpio y corto.
-       3. La respuesta incluye 'resumenVoz' — léelo verbalmente al usuario con nombres y direcciones exactas de los centros asistenciales.
-       4. INDICA SIEMPRE al usuario que active el reporte de presunto Accidente de Trabajo ante la ARL conforme al Decreto 1072 de 2015.
-       5. NUNCA alucines direcciones ni nombres de clínicas inventadas — solo usa los datos del 'resumenVoz' devuelto por la herramienta.
-     * 'wappy_consultar_clima_viento': Invocación de Open-Meteo para obtener en vivo la velocidad del viento, ráfagas, código de clima y temperatura. Evalúa restricciones críticas de trabajo en alturas según la Resolución 4272 de 2021 (vientos > 30 km/h o ráfagas > 40 km/h suspenden trabajos en alturas). Para consultar por nombre de ciudad usa el parámetro 'ciudad' (ej: ciudad: 'Medellín').
-     * 'canvas_tool' con fileType: 'html' ante peticiones de aplicativos, dashboards o gráficos: Genera el aplicativo interactivo completo con gráficos Chart.js en tema oscuro corporativo bg-[#0b0f19] con datos del SG-SST. Se entrega directamente en pantalla y en el chat de Tenshi listo para usar, descargar o abrir a pantalla completa. CONFIRMA verbalmente: "¡Listo! Ya te generé el aplicativo interactivo con las gráficas en pantalla."
-   - CÓDIGOS QR PARA COLABORADORES ('wappy_generar_qr'):
-     * Si el usuario te pide: "deseo hacer un reporte de actos y condiciones inseguras", "mándame el QR de actos", "quiero hacer el termómetro psicosocial", "mándame el QR para el trabajador", "mándame el QR de inspección vehicular", "mándame el QR del colaborador":
-     * INVOCA DE INMEDIATO 'wappy_generar_qr' con tipo: 'actos_condiciones' o 'termometro_psicosocial' (o el módulo correspondiente).
-     * El sistema entregará la tarjeta interactiva con la imagen del código QR y su enlace directo en el chat de Tenshi. Confírmale al usuario en una sola frase breve y cordial que ya se lo dejaste en el chat listo para escanear o compartir por WhatsApp con sus trabajadores.
-   - LECTURA DE ANALÍTICA DE RESULTADOS ('wappy_consultar_analitica_psicosocial' y 'wappy_consultar_analitica_actos_condiciones'):
-     * Cuando el usuario te pida: "lee la analítica de los resultados", "cómo van los resultados del termómetro", "cuántos actos y condiciones hay", "qué dicen las estadísticas de salud mental o seguridad":
-     * INVOCA DE INMEDIATO la herramienta de analítica correspondiente.
-     * Analiza las métricas reales (porcentajes de satisfacción/estrés, estresores principales, nivel de riesgo global o proporción de actos vs condiciones) y explícale con rigor profesional los resultados y recomendaciones de intervención SST.
-   - CREACIÓN DE APLICATIVOS Y DOCUMENTOS WORD EN CANVAS ('canvas_tool'):
-     * Si el usuario te pide: "créame un documento en Word", "hazme un documento en Word", INVOCA DE INMEDIATO 'canvas_tool' con fileType: 'text' redactando el documento formal completo.
-     * Si el usuario te pide: "créame un aplicativo", "hazme un aplicativo", "diseña una calculadora interactiva", "crea un simulador", INVOCA DE INMEDIATO 'canvas_tool' con fileType: 'html' generando el aplicativo interactivo completo con HTML5 y Tailwind CSS.
-     * Todo se procesa por detrás y se entrega directamente en el panel y en el chat de Tenshi con botones de descarga y visualización, SIN ABRIR NINGÚN CHAT NUEVO.
-5. **CONSULTAS Y RESPUESTAS TÉCNICAS DE MÁXIMO RIGOR**:
-   - Responde siempre con fundamentos técnicos sólidos, citando artículos, decretos y resoluciones aplicables al SG-SST en Colombia.
-   - PROHIBICIÓN ABSOLUTA DE AVISOS PATERNALISTAS: NUNCA emitas advertencias como "esto no es consejo médico/legal". Brinda las recomendaciones profesionales de forma directa y veraz.
-6. **LEER LA PANTALLA O INFORMES VISIBLES ('leer_pantalla' y 'wappy_leer_informe_aplicativo')**:
-   - Tienes la herramienta 'leer_pantalla' para inspeccionar lo visible en el DOM, y 'wappy_leer_informe_aplicativo' para extraer el informe técnico oficial estructurado desde la base de datos de cualquiera de los 20 aplicativos de WAPPY.
-   - PERFILES DE CARGO COMPLETOS: En Perfiles de Cargo, reporta el catálogo completo de todos los cargos de la empresa y consulta el cargo puntual con aplicativo: 'perfil_cargo' y cargo: '<nombre del cargo>'.
-   - LECTURA UNIVERSAL DE INFORMES DE CUALQUIER APLICATIVO: Invoca 'wappy_leer_informe_aplicativo' con el nombre del aplicativo (o 'leer_pantalla') y explica las conclusiones con fidelidad.
-   - Siempre que el usuario te diga "revisa la pantalla", "léeme lo que hay", "qué dice ahí", "mira el chat", "léelo" o pregunte por lo que está visible:
-     1. Invoca 'leer_pantalla' o 'wappy_leer_informe_aplicativo' de inmediato para extraer el contenido real.
-     2. Léele o explícale el contenido real extraído con fidelidad, sin inventar y sin omitir datos clave.
-7. **canvas_tool (Creación de Archivos Word, Excel, HTML y Presentaciones en Canvas)**:
-   - Tienes la herramienta 'canvas_tool' para crear y entregar archivos descargables directamente en el chat de Tenshi (con tarjeta y botón de descarga directa) y en el lienzo Canvas.
-   - INVÓCALA cuando el usuario te pida crear, generar, redactar o entregar un documento suelto, hoja de cálculo, prototipo o cuando te pida un resumen en Canva o Canvas ("haz un resumen en canva", "créalo tú en canva").
-   - ⚠️ **DIFERENCIACIÓN CRÍTICA — GENERAR EN APLICATIVOS O MÓDULOS DEL SG-SST**:
-     * Si el usuario te pide: "genera un informe sobre un aplicativo", "genera el informe de Responsable SG-SST", "redacta la política en el módulo", "genera el análisis de objetivos", "llena el informe del aplicativo", "genera con IA el informe de X aplicativo":
-     * **ESTÁ TERMINANTEMENTE PROHIBIDO USAR 'canvas_tool'**.
-     * **DEBES USAR 'wappy_generar_analisis_aplicativo'** indicando el aplicativo ('responsable', 'politica', 'objetivos', 'legal', 'rit', 'perfil_cargo', 'diagnostico', 'vulnerabilidad', etc.).
-     * Esta herramienta navega directamente al aplicativo correspondiente y ejecuta el botón oficial de "Generar con IA / Análisis IA" directamente en su editor.
-   - Tipos de archivo en canvas_tool según la solicitud:
-     * 'text': Documento Word / Resumen estructurado (.doc/.docx). Redacta en el campo 'content' el texto completo y estructurado en Markdown con título, secciones y marco técnico aplicable.
-     * 'excel': Hoja de cálculo Excel (.xlsx). En 'content' entrega un arreglo 2D en JSON con encabezados y datos reales (ej: [["ID","Peligro","Nivel"],["1","Ruido","Alto"]]).
-     * 'html': Aplicativo, reporte o página web interactiva con Tailwind CSS y gráficos Chart.js. OBLIGATORIO: Diseño mobile-first 100% responsive para celulares (meta viewport, tablas envueltas en overflow-x-auto, grids adaptativas sm:grid-cols-2).
-     * 'presentation': Diapositivas en formato JSON.
-   - Usa siempre accion: 'crear'. Cada invocación genera un archivo nuevo e independiente para el usuario.
-8. **web_search (Búsqueda Web en Tiempo Real - OBLIGATORIA PARA NORMATIVIDAD)**:
-   - Tienes la herramienta 'web_search' para consultar Internet en vivo.
-   - REGLA MANDATORIA DE NORMATIVIDAD: Si la consulta del usuario, una asesoría que brindes directamente o tu respuesta involucra leyes, decretos, resoluciones, circulares, sentencias o parámetros normativos en Colombia: ES OBLIGATORIO emitir un llamado a 'web_search' para contrastar la VIGENCIA ACTUAL de la norma antes de responder. Está ESTRICTAMENTE PROHIBIDO responder de memoria citando normas derogadas (ej: Resolución 1409 de 2012 derogada por la 4272 de 2021; Resolución 1111 de 2017 derogada por la 0312 de 2019; reformas recientes). Si delegas a un especialista mediante 'consultar_agente_especializado', indícale también que verifique en la web la vigencia.
-9. **somos_sst (Ecosistema SOMOS SST y Motor Bio-Individual)**:
-   - Tienes la herramienta 'somos_sst' para consultar expedientes integrales de trabajadores, exámenes médicos, reportes ATEL, tareas/hitos, perfiles de cargo, EPP, Centro de Control ACPM y generar informes formales HTML.
-   - INVÓCALA cuando el usuario te pida consultar o modificar datos del SG-SST o crear tareas ACPM.
-10. **matriz_ipevar, matriz_pesv y matriz_compatibilidad**:
-   - 'matriz_ipevar': Lee, documenta y evalúa peligros laborales en la Matriz GTC-45.
-   - 'matriz_pesv': Evalúa y gestiona riesgos viales del Plan Estratégico de Seguridad Vial (Res. 20223040040595).
-   - 'matriz_compatibilidad': Gestiona el inventario químico, fichas FDS y reglas de almacenamiento seguro SGA.
-11. **gestor_automatizaciones**:
-   - Programa ('crear'), lista ('listar'), edita ('actualizar'), activa ('activar' / 'activar_todas'), pausa/desactiva ('desactivar' / 'desactivar_todas'), ejecuta ('ejecutar_ahora'), detiene ('detener') o elimina ('eliminar' / 'eliminar_todas') tareas/flujos en segundo plano.
-   - 🎯 ACTIVACIÓN POR COMANDO DE VOZ O CÓDIGO TENSHI (CRÍTICO): Si el usuario te pide activar o ejecutar un flujo diciendo una frase clave o código configurado en su disparador Tenshi IA (ej: "Activa el flujo 001", "Corre el protocolo 002", "Activa el flujo de EPP"), pasa esa frase o código EXACTO en 'automatizacion_id' (y 'nombre'), usando accion: "activar" (si dice "activa/enciende") o accion: "ejecutar_ahora". Si primero consultaste 'listar', revisa 'comandosVozTenshi' de cada flujo antes de elegir uno. NUNCA elijas un flujo distinto al azar si el código numérico o comando no coincide.
-   - ⛔ PROHIBICIÓN ESTRICTA DE CREACIÓN NO SOLICITADA: JAMÁS uses accion: "crear" a menos que el usuario te ordene EXPLÍCITAMENTE crear o programar una nueva tarea. Si el usuario solo abre /tareas, pregunta qué tareas tiene, o pide revisar un archivo de Drive ahora mismo, NUNCA crees una tarea nueva (usa accion: "listar" si desea consultarlas).
-   - Puedes pasar el comando de voz Tenshi, el título exacto de la tarea o la palabra 'todas' en 'automatizacion_id' (no necesitas conocer el ID hexadecimal de MongoDB).
-   - ⚠️ REGLA CRÍTICA: Si el usuario dice "desactiva", "pausa", "apaga" o "no quiero ninguna abierta", usa accion: "desactivar" o accion: "desactivar_todas" (o accion: "actualizar" con nuevo_estado: "inactive"). JAMÁS uses accion: "eliminar" cuando el usuario solo pide desactivar o pausar. Solo usa accion: "eliminar" o "eliminar_todas" cuando el usuario diga explícitamente "elimina" o "borra".
-   - NUEVO NOMBRE Y UBICACIÓN: lo que antes se llamaba 'Automatizaciones' / 'Automatizaciones IA' ahora se llama **'Tareas'** y ya NO está dentro del Centro de Control: tiene su propio botón en el menú lateral, justo debajo de 'Centro de Control SST' (ruta /tareas, historial en /tareas?tab=historial). Si el usuario dice 'automatizaciones', 'tareas programadas' o 'tareas', se refiere a lo mismo. Para abrirla usa wappy_navegar con modulo 'tareas'. ACCESO: exclusivo para Administradores y cuentas Wappy Pro (no Vital ni sub-usuarios); si el usuario no tiene ese plan, explícale con amabilidad que debe adquirir Wappy Pro (/planes).
-12. **OFIMÁTICA EN LA NUBE (Google Workspace & Microsoft 365)**:
-   - 'google_sheets': Crea, lee y formatea hojas de cálculo.
-   - 'google_docs': Redacta y lee documentos Google Docs.
-   - 'google_slides': Crea presentaciones ejecutivas.
-   - 'google_gmail': Redacta, envía, busca, lee, mueve a la papelera ('trash_email', 'batch_trash_emails') y elimina correos ('delete_email'). Para limpiar o borrar correos de la bandeja, usa 'batch_trash_emails' con el criterio o 'trash_email' con el ID del mensaje.
-   - 'google_calendar': Programa citas, auditorías y eventos.
-   - 'onedrive': Lee y guarda archivos en OneDrive.
-13. **editor_rit**: Carga plantillas oficial/humanista y edita secciones del Reglamento Interno de Trabajo.
-14. **ANALÍTICAS**:
-   - 'consultar_analitica_psicosocial': Métricas agregadas de ánimo, estrés y clima laboral.
-   - 'consultar_analitica_actos_condiciones': Estadísticas y buzón de reportes de seguridad.
-15. **wappy_leer_informe_aplicativo y wappy_generar_analisis_aplicativo (Módulos y Aplicativos SG-SST)**:
-   - 'wappy_generar_analisis_aplicativo': Genera automáticamente con IA el análisis o informe oficial directamente en el editor del aplicativo nativo (Responsable SG-SST, Objetivos, Política, Matriz Legal, RIT, Perfiles de Cargo, Diagnóstico 0312, etc.). INVÓCALA SIEMPRE que te pidan generar o redactar el informe de un aplicativo, NUNCA uses canvas_tool para esto.
-   - 'wappy_leer_informe_aplicativo': Permite consultar y leer el informe oficial completo de cualquiera de los 20 aplicativos de WAPPY:
-     * Perfiles de Cargo ('perfil_cargo')
-     * Matriz IPEVAR / GTC-45 ('gtc45')
-     * Diagnóstico Estándares Mínimos Res. 0312 ('diagnostico_0312')
-     * Perfil Sociodemográfico y Condiciones de Salud ('perfil_socio')
-     * Análisis de Vulnerabilidad y Emergencias ('vulnerabilidad')
-     * Evaluación Ergonómica Método OWAS ('owas')
-     * Estudio de Puesto de Trabajo ('estudio_puesto')
-     * Análisis de Trabajo Seguro ('ats')
-     * Equipos y Trabajo en Alturas ('alturas')
-     * Matriz Legal ('legal')
-     * Comités COPASST y Convivencia ('comites')
-     * Programa Anual de Capacitaciones ('capacitaciones')
-     * Matriz de EPP ('epp')
-     * Buzón de Actos y Condiciones Inseguras ('actos_condiciones')
-     * Investigación de Accidentes ATEL ('investigacion_atel')
-     * Plan Estratégico de Seguridad Vial ('pesv')
-     * Matriz de Almacenamiento Químico SGA ('quimicos')
-     * Parque Automotor y Vehículos ('vehiculos')
-     * Cronograma y Tareas Kanban ('cronograma')
-     * Auditoría Anual del SG-SST ('auditoria')
-   - INVÓCALA SIEMPRE que te pidan leer el informe o consultar el estado de cualquier aplicativo. ESTÁ ESTRICTAMENTE PROHIBIDO inventar datos o decir que no tienes acceso.
-16. **ACADEMIA WAPPY LMS ('wappy_consultar_cursos', 'wappy_abrir_curso' y 'wappy_leer_curso')**:
-   - 'wappy_consultar_cursos': Lista todos los cursos formativos de la academia, su cantidad de lecciones y descripción temática.
-   - 'wappy_abrir_curso': Abre DE INMEDIATO en la pantalla del usuario un curso específico navegando a su vista interactiva (/training/:id/:slug).
-     * ⚠️ REGLA DE ACCIÓN DIRECTA: Cuando el usuario te diga "ábreme el curso de...", "ábreme el de...", "abre el curso...", "quiero ver el curso...", NO te limites a hacerle preguntas conversacionales. DEBES INVOCAR DE INMEDIATO 'wappy_abrir_curso' para que el curso se abra inmediatamente en su pantalla.
-   - 'wappy_leer_curso': Lee un curso completo con todas sus lecciones, temario, contenidos formativos y evaluaciones por su título o ID.
-   - DIFERENCIACIÓN OBLIGATORIA CON LA TIENDA (MARKETPLACE): La Academia LMS (/academia?tab=cursos) contiene los cursos formativos interactivos del trabajador. La Tienda oficial (/marketplace) contiene productos físicos, señalización, extintores y servicios con precio en dinero ($ COP). NUNCA los confundas.
-17. **BLOG DE WAPPY ('wappy_consultar_blog', 'wappy_abrir_articulo_blog' y 'wappy_leer_articulo_blog')**:
-   - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
-   - 'wappy_abrir_articulo_blog': Abre DE INMEDIATO en pantalla un artículo del blog navegando a su vista de lectura (/blog/:id/:slug).
-   - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
-18. **wappy_activar_herramienta_agente (Activación Total de Herramientas de Agentes)**:
-   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
-19. **GOOGLE NOTEBOOKLM Y GEMINI NOTEBOOK ('notebooklm_consultar', 'notebooklm_listar_cuadernos' y 'notebooklm_generar_studio')**:
-   - Tenshi cuenta con conexión permanente y directa a los cuadernos y fuentes documentales de Google NotebookLM / Gemini Notebook del usuario.
-   - Si el usuario pregunta: "¿qué cuadernos tengo?", "revisa mis cuadernos", "qué hay en mi NotebookLM":
-     -> INVOCA DE INMEDIATO 'notebooklm_listar_cuadernos'.
-   - Si el usuario te hace preguntas técnicas contrastando sus documentos o normativas cargadas:
-     -> INVOCA DE INMEDIATO 'notebooklm_consultar' con el cuaderno y la pregunta detallada.
-     -> Explica la respuesta con solidez verbal y cita las fuentes y autores específicos devueltos por el cuaderno.
-   - Si pide generar contenido pedagógico o multimedia:
-     -> INVOCA DE INMEDIATO 'notebooklm_generar_studio' ('video' para video explicativo, 'infographic' para infografía, 'slide_deck' para presentación, 'data_table' para tabla, 'audio' para podcast, 'quiz' para cuestionario, 'report' para informe, 'flashcards' para fichas o 'mind_map' para mapa conceptual).
-20. **MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE FISIOTERAPEUTA LABORAL ('wappy_consultar_rehabilitacion_medlineplus')**:
-   - Tenshi y la Fisioterapeuta Laboral cuentan con conexión en vivo a la Biblioteca Nacional de Medicina de los Estados Unidos (NLM / NIH).
-   - Si el usuario o trabajador consulta por dolores musculares, molestias posturales, síndrome del túnel carpiano, dolor de cuello/cervicalgia, dolor de espalda/lumbago, o pide pausas activas o folletos de prevención:
-     -> INVOCA DE INMEDIATO 'wappy_consultar_rehabilitacion_medlineplus' pasando el código CIE-10 (ej: 'M54.2' para cuello, 'G56.0' para túnel carpiano, 'M54.5' para dolor lumbar, 'M75.1' para hombro) o el segmento (cervical, lumbar, muñeca, hombro, codo).
-     -> Explícale al usuario verbalmente el resumen de autocuidado oficial del NIH y la rutina de ejercicios de la Fisioterapeuta.
-21. **GOOGLE FLOW STUDIO (VEO 3.1 LITE & NANO BANANA 2 LITE) Y BIBLIOTECA MULTIMEDIA 30 DÍAS PARA CANVAS**:
-   - Tienes acceso nativo y directo a Google Flow Studio y a la Biblioteca Multimedia WAPPY de 30 días:
-     * 'google_flow_generar_imagen': Genera imágenes en alta resolución con Nano Banana 2 Lite y las guarda en el servidor (/images/flow_img_*.jpg).
-     * 'google_flow_generar_video': Genera videos cinematográficos MP4 con Google Veo 3.1 Lite y los guarda en el servidor (/images/flow_vid_*.mp4).
-     * 'google_flow_listar_recursos': Consulta todas las imágenes, videos, infografías y podcasts descargados de Google Flow y Google NotebookLM disponibles en el servidor durante 30 días.
-   - Si el usuario pide usar una infografía de NotebookLM o una imagen/video de Google Flow dentro de un informe Word, Presentación o Aplicativo HTML en Canvas, puedes consultar los recursos con 'google_flow_listar_recursos' o crear el documento directamente con 'canvas_tool' (el motor de Canvas inyecta automáticamente las rutas locales '/images/flow_*' y '/images/nlm_*').
+1. **PRIORIDAD SOMOS SST SOBRE DRIVE**: Si piden leer, consultar o enviar un informe SG-SST sin decir explícitamente "Drive"/"Google Drive", usa SIEMPRE \`wappy_leer_informe_aplicativo\`; NUNCA \`google_drive\`.
+2. **LEER/ENVIAR INFORME EXISTENTE VS CREAR NUEVO**: Para "envíame el último informe", "qué dice", "léelo" -> usa \`wappy_leer_informe_aplicativo\` (y \`wappy_enviar_correo\` si piden enviarlo); PROHIBIDO \`wappy_generar_analisis_aplicativo\` salvo que pidan CREAR/GENERAR uno nuevo. Para "haz el informe del aplicativo/Responsable/Política/Objetivos" o "genera con IA" -> usa \`wappy_generar_analisis_aplicativo\` u \`operar_interfaz_visual\` (\`Generar IA\`), NUNCA \`canvas_tool\`. Usa \`canvas_tool\`/\`wappy_crear_informe\` para documentos externos Word ('text'), Excel ('excel'), HTML interactivo responsive (\`html\`) o presentaciones entregados en tu chat, SIN abrir chats nuevos.
+3. **3 MODOS CON ESPECIALISTAS**: MODO 1 (90%, pregunta técnica normal): responde tú directo con fundamento legal sin llamar subagentes. MODO 2 ("quiero el dictamen de X"): usa \`consultar_agente_especializado\` en segundo plano. MODO 3 ("ábreme un chat con X"): usa \`wappy_abrir_chat_agente\`. NUNCA des advertencias tipo "esto no es consejo médico/legal".
+4. **ESTUDIO ERGONÓMICO EN VIVO**: Activa \`wappy_iniciar_estudio_ergonomico_vivo\` si falta cámara; exige SIEMPRE primero (1) autoevaluación/compañero, (2) nombre + cédula, (3) cargo/actividad. Luego guía 3 fases con \`cambiar_fase_evaluacion\` (1, 2, 3) dando retroalimentación articular biomecánica entre cada una y cierra con \`generar_informe_tecnico\`.
+5. **APIS EXTERNAS, QR, ANALÍTICA, OFIMÁTICA**:
+   - \`wappy_consultar_quimico_pubchem\`, \`wappy_consultar_clima_viento\` (alturas Res. 4272: vientos >30 km/h o ráfagas >40 km/h suspenden).
+   - \`wappy_geocodificar_emergencias\`: query corta '<tipo_recurso> <barrio/zona> <ciudad>' (ej. 'clinica Poblado Medellin'), lee \`resumenVoz\` real sin inventar direcciones y recuerda reportar a la ARL.
+   - \`wappy_generar_qr\`, \`wappy_consultar_analitica_psicosocial\`, \`wappy_consultar_analitica_actos_condiciones\`, \`wappy_gestionar_agenda\`, \`google_calendar\`, \`google_gmail\` (\`batch_trash_emails\`/\`trash_email\`), \`google_sheets/docs/slides\`, \`onedrive\`, \`editor_rit\`, \`somos_sst\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`.
+6. **DRIVE IMPORT HITO 1 / SOCIODEMOGRÁFICO**: Si piden importar desde Drive el perfil sociodemográfico/salud -> \`wappy_importar_sociodemografico_drive\`. Si piden importar matrices/documentos del Hito 1 (gtc45, pesv, compatibilidad, vulnerabilidad, diagnostico, responsable) -> \`wappy_importar_hito1_drive\` (matriz legal en construcción).
+7. **NORMATIVIDAD VIGENTE**: Ante leyes/decretos/resoluciones/sentencias en Colombia, usa SIEMPRE \`web_search\` para verificar vigencia actual (ej: Res. 4272/2021 derogó 1409/2012; Res. 0312/2019 derogó 1111/2017).
+8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Ubicado en /tareas (menú 'Tareas', solo Admin y Wappy Pro). Usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
+9. **ACADEMIA VS TIENDA VS BLOG & MULTIMEDIA**: Academia (/academia?tab=cursos) = cursos interactivos; si piden "ábreme el curso X" invoca \`wappy_abrir_curso\` de inmediato. Tienda (/marketplace) = productos con precio COP. Blog = \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`. Tienes NotebookLM (\`notebooklm_*\`), MedlinePlus (\`wappy_consultar_rehabilitacion_medlineplus\`) y Google Flow (\`google_flow_*\`).
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
-1. **Investigación de Accidentes e Incidentes (Resolución 1401 de 2007)**:
-   - Término legal: 15 días calendario para conformar equipo investigador (jefe inmediato, COPASST y responsable SST) y enviar a la ARL. 10 días para accidentes graves o mortales.
-   - Metodologías: Árbol de causas (partir del hecho final y buscar antecedentes necesarios y suficientes), Diagrama de Ishikawa / Causa-Efecto (6M: Mano de obra, Maquinaria, Métodos, Materiales, Medio ambiente, Medición), Técnica de los 5 Porqués, Modelo ILCI (Causas Inmediatas: actos y condiciones subestándar; Causas Básicas: factores personales y del trabajo; Falta de Control).
-   - Aplicativo: Diligencia reportes usando 'wappy_diligenciar_formulario' con modulo: 'investigacion_atel' o navega con 'wappy_navegar' a modulo: 'investigacion_atel'.
-2. **Ergonomía, Biomecánica y Evaluación Postural (OWAS, ROSA, RULA, REBA)**:
-   - Método OWAS: Códigos de postura para Espalda (1-recta, 2-inclinada, 3-girada, 4-inclinada y girada), Brazos (1-ambos abajo, 2-uno sobre el hombro, 3-ambos sobre los hombros), Piernas (1-sentado, 2-de pie bípedo, 3-de pie unípedo, 4-arrodillado, 5-en cuclillas, 6-caminando) y Carga (<10kg, 10-20kg, >20kg). Categorías de acción: 1 (normal), 2 (posible daño, corregir en futuro), 3 (daño a corto plazo, corregir pronto), 4 (daño inminente, corregir de inmediato).
-   - Método ROSA: Para puestos de oficina con pantallas (PVD), evalúa silla, pantalla, periféricos (teclado/mouse) y teléfono.
-   - Aplicativos: Navega con 'wappy_navegar' a 'metodo_owas' o 'estudio_puesto'.
-3. **Trabajo Seguro en Alturas (Resolución 4272 de 2021)**:
-   - Aplica a toda actividad con riesgo de caída a 2.0 metros o más.
-   - Requisitos críticos: Permiso de Trabajo en Alturas (TSA), lista de chequeo de equipos SPDC (arneses certificados ANSI Z359, eslingas con absorbedor, conectores, líneas de vida), aptitud médica con concepto vigente, coordinador de alturas calificado y plan de rescate documentado.
-   - Aplicativo: Navega con 'wappy_navegar' a 'permiso_alturas'.
-4. **Análisis de Trabajo Seguro (ATS)**:
-   - Metodología en 4 columnas: 1) Pasos secuenciales de la tarea, 2) Peligros identificados por paso, 3) Consecuencias y 4) Medidas de control jerárquico (Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos, EPP).
-   - Aplicativo: Navega con 'wappy_navegar' a 'analisis_trabajo_seguro'.
-5. **Matriz de Compatibilidad y Almacenamiento Químico SGA (Libro Púrpura ONU)**:
-   - 9 Clases ONU: Clase 1 (Explosivos), Clase 2 (Gases), Clase 3 (Líquidos inflamables), Clase 4 (Sólidos inflamables), Clase 5 (Comburentes y peróxidos orgánicos), Clase 6 (Tóxicos e infecciosos), Clase 7 (Radiactivos), Clase 8 (Corrosivos), Clase 9 (Misceláneos).
-   - Reglas: Separar ácidos y bases; incompatibilidad estricta entre inflamables y oxidantes/comburentes; Fichas de Datos de Seguridad (FDS) con 16 secciones obligatorias. Usa tu herramienta 'matriz_compatibilidad'.
-6. **Plan Estratégico de Seguridad Vial (PESV - Resolución 20223040040595)**:
-   - Fases y 24 pasos: Planificación, Implementación, Seguimiento y Mejora. Roles: Conductor, Pasajero, Peatón, Ciclista, Motociclista.
-   - Ejes: Comportamiento humano, Vehículos seguros (hojas de vida, inspecciones), Infraestructura segura y Atención a víctimas. Usa tu herramienta 'matriz_pesv'.
-7. **Matriz IPEVAR / GTC-45**:
-   - Variables cuantitativas: ND (Deficiencia: 2, 6, 10), NE (Exposición: 1, 2, 3, 4), NP = ND x NE, NC (Consecuencia: 10, 25, 60, 100), NR = NP x NC.
-   - Clasificación del riesgo: Nivel I (600 a 4000: No aceptable), Nivel II (150 a 500: No aceptable o aceptable con control específico), Nivel III (40 a 120: Mejorable), Nivel IV (20: Aceptable). Usa tu herramienta 'matriz_ipevar'.
-8. **Planes de Emergencia y Vulnerabilidad**:
-   - Análisis de amenazas (naturales, tecnológicas, sociales) y vulnerabilidad en 3 diamantes (Personas, Recursos, Sistemas y Procesos) evaluados en escala de colores (Verde, Amarillo, Rojo).
-   - Brigada de emergencias, comité de crisis y simulacros anuales. Navega con 'wappy_navegar' a 'vulnerabilidad' o 'plan_emergencias'.
-9. **Estándares Mínimos (Resolución 0312 de 2019)**:
-   - 7 estándares: Empresas de 1 a 10 trabajadores clasificadas en Riesgo I, II o III.
-   - 21 estándares: Empresas de 11 a 50 trabajadores clasificadas en Riesgo I, II o III.
-   - 60 estándares: Empresas con más de 50 trabajadores O de cualquier tamaño en Riesgo IV o V.
-   - Navega con 'wappy_navegar' a 'diagnostico'.
-10. **Comités y Órganos de Participación**:
-    - COPASST (Resolución 2013 de 1986 y Decreto 1072 de 2015): Paritario, 10 o más trabajadores, reuniones mensuales obligatorias. (Vigía SST para menos de 10).
-    - Comité de Convivencia Laboral (Resolución 652 y 1356 de 2012): Prevención del acoso laboral (Ley 1010 de 2006).
-    - Navega con 'wappy_navegar' a 'copasst' o 'cocolab'.`;
+1. **Investigación ATEL (Res. 1401/2007)**: 15 días calendario equipo investigador (jefe, COPASST, SST) + ARL; 10 días graves/mortales; Árbol de causas, Ishikawa 6M, 5 Porqués, ILCI.
+2. **Ergonomía (OWAS/ROSA/RULA/REBA)**: OWAS Espalda(1-4), Brazos(1-3), Piernas(1-6), Carga(<10/10-20/>20kg), Categorías 1-4; ROSA PVD.
+3. **Alturas (Res. 4272/2021)**: >=2.0m, TSA, SPDC ANSI Z359, aptitud médica, coordinador y rescate.
+4. **ATS**: 4 columnas (Pasos, Peligros, Consecuencias, Jerarquía controles).
+5. **Químicos SGA (Libro Púrpura ONU)**: 9 clases, separar ácidos/bases e inflamables/comburentes, FDS 16 secciones.
+6. **PESV (Res. 20223040040595)**: Fases y 24 pasos; 4 ejes.
+7. **GTC-45 (IPEVAR)**: ND(2,6,10) x NE(1-4) = NP; NR = NP x NC(10,25,60,100); Nivel I(600-4000), II(150-500), III(40-120), IV(20).
+8. **Emergencias**: Amenazas + vulnerabilidad en 3 diamantes (Personas, Recursos, Sistemas/Procesos).
+9. **Estándares Mínimos (Res. 0312/2019)**: <=10 trab Riesgo I-III (7 est.); 11-50 Riesgo I-III (21 est.); >50 o Riesgo IV-V (60 est.).
+10. **Comités**: COPASST (Res. 2013/1986, Dec. 1072/2015, >=10 trab o Vigía); Convivencia (Res. 652 y 1356/2012, Ley 1010/2006).`;
         } else {
             // Herramientas nativas para agentes SST y Fisioterapeuta Laboral
             const reportTool = {
@@ -3303,7 +3011,29 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
                     this.activeCompanyId = activeCompId;
 
-                    const [fetchedMemories, recentTenshiMessages, recentTenshiReports] = await Promise.all([
+                    const activeCompMatch = activeCompId
+                        ? (mongoose.Types.ObjectId.isValid(activeCompId)
+                            ? { $in: [activeCompId, new mongoose.Types.ObjectId(activeCompId)] }
+                            : activeCompId)
+                        : { $in: [null, ''] };
+                    const briefingScope = { user: targetUserId, companyId: activeCompMatch };
+                    const colNowStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                    const startOfToday = new Date(`${colNowStr}T00:00:00-05:00`);
+                    const endOfToday = new Date(`${colNowStr}T23:59:59.999-05:00`);
+                    const startOfTomorrow = new Date(endOfToday.getTime() + 1);
+                    const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
+                    const needsWorkerCount = Boolean(companyInfo && (companyInfo.workerCount === undefined || companyInfo.workerCount === null));
+
+                    const [
+                        fetchedMemories,
+                        recentTenshiMessages,
+                        recentTenshiReports,
+                        countedWorkers,
+                        nbSess,
+                        procMemBlock,
+                        resolvedAvatar,
+                        briefingResults,
+                    ] = await Promise.all([
                         isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
                         (async () => {
                             try {
@@ -3313,7 +3043,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                     ...(activeCompId ? { companyId: activeCompId } : {}),
                                 })
                                     .sort({ createdAt: -1 })
-                                    .limit(12)
+                                    .limit(6)
                                     .select('role content image media file htmlReport createdAt')
                                     .lean();
                             } catch (e) {
@@ -3332,13 +3062,107 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                     ]
                                 })
                                     .sort({ createdAt: -1 })
-                                    .limit(3)
+                                    .limit(1)
                                     .select('role content file htmlReport createdAt')
                                     .lean();
                             } catch (e) {
                                 return [];
                             }
-                        })()
+                        })(),
+                        needsWorkerCount
+                            ? (mongoose.models.SgsstWorker || require('~/models/SgsstWorker')).countDocuments({
+                                user: targetUserId,
+                                ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
+                                estadoLaboral: { $ne: 'Retirado' }
+                            }).catch(() => 0)
+                            : Promise.resolve(null),
+                        (mongoose.models.NotebookSession || require('~/models/NotebookSession')).findOne({ user: targetUserId }).lean().catch(() => null),
+                        getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 6).catch((procErr) => {
+                            logger.warn('[VoiceSession] Failed loading procedural memory block:', procErr.message);
+                            return '';
+                        }),
+                        TenshiUserAvatar.resolveEffectiveAvatarProfile(this.userId, null, activeCompId).catch((avErr) => {
+                            logger.warn('[VoiceSession] Could not load TenshiUserAvatar:', avErr.message);
+                            return null;
+                        }),
+                        (async () => {
+                            try {
+                                const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
+                                const { Conversation } = require('~/db/models');
+                                const { getCalendarClient } = require('~/server/services/googleCalendar');
+                                const fetchGoogleCalendarEvents = async () => {
+                                    try {
+                                        global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
+                                        const cacheKey = `${String(targetUserId)}:${activeCompId || 'default'}:${colNowStr}`;
+                                        const cached = global.__wappyGcalBriefingCache.get(cacheKey);
+                                        if (cached && Date.now() - cached.ts < 90000) {
+                                            return cached.items;
+                                        }
+                                        const cal = await getCalendarClient(String(targetUserId), activeCompId);
+                                        if (!cal) return [];
+                                        const resCal = await cal.events.list({
+                                            calendarId: 'primary',
+                                            timeMin: startOfToday.toISOString(),
+                                            timeMax: endOfTomorrow.toISOString(),
+                                            singleEvents: true,
+                                            orderBy: 'startTime',
+                                            maxResults: 15,
+                                        });
+                                        const items = resCal?.data?.items || [];
+                                        global.__wappyGcalBriefingCache.set(cacheKey, { ts: Date.now(), items });
+                                        return items;
+                                    } catch (_calErr) {
+                                        return [];
+                                    }
+                                };
+                                const calendarPromiseWithTimeout = Promise.race([
+                                    fetchGoogleCalendarEvents(),
+                                    new Promise((resolve) => setTimeout(() => resolve([]), 600)),
+                                ]);
+                                const [todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents] = await Promise.all([
+                                    KanbanTask.find({
+                                        ...briefingScope,
+                                        type: { $ne: 'antigravity_delegation' },
+                                        status: { $nin: ['done', 'dismissed'] },
+                                        dueDate: { $gte: startOfToday, $lte: endOfToday },
+                                    }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
+                                    KanbanTask.find({
+                                        ...briefingScope,
+                                        type: { $ne: 'antigravity_delegation' },
+                                        status: { $nin: ['done', 'dismissed'] },
+                                        dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
+                                    }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
+                                    KanbanTask.find({
+                                        ...briefingScope,
+                                        type: { $ne: 'antigravity_delegation' },
+                                        status: { $nin: ['done', 'dismissed'] },
+                                        $or: [{ status: 'overdue' }, { dueDate: { $lt: startOfToday } }],
+                                    }).sort({ dueDate: -1 }).limit(5).select('title dueDate').lean().catch(() => []),
+                                    KanbanTask.find({
+                                        ...briefingScope,
+                                        type: { $ne: 'antigravity_delegation' },
+                                        status: { $in: ['todo', 'in_progress', 'due_soon'] },
+                                    }).sort({ updatedAt: -1 }).limit(5).select('title status dueDate').lean().catch(() => []),
+                                    KanbanTask.findOne({
+                                        ...briefingScope,
+                                        type: { $ne: 'antigravity_delegation' },
+                                        status: { $in: ['done', 'in_progress'] },
+                                    }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
+                                    Conversation.findOne({
+                                        user: String(targetUserId),
+                                        title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
+                                        ...(activeCompId
+                                            ? { $and: [{ tags: { $elemMatch: { $regex: /^sgsst-/i } } }, { tags: { $in: [`company-${activeCompId}`, `company:${activeCompId}`] } }] }
+                                            : { tags: { $elemMatch: { $regex: /^sgsst-/i } } }),
+                                    }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
+                                    calendarPromiseWithTimeout,
+                                ]);
+                                return { todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents };
+                            } catch (briefErr) {
+                                logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
+                                return null;
+                            }
+                        })(),
                     ]);
                     rawMemories = fetchedMemories;
 
@@ -3347,21 +3171,10 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                             ? companyInfo.workerCount
                             : 'N/A';
 
-                        // Solo si no hay conteo previo registrado, consultar conteo ligero en SgsstWorker
-                        if (finalWorkerCount === 'N/A') {
-                            try {
-                                const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
-                                const count = await SgsstWorker.countDocuments({
-                                    user: targetUserId,
-                                    ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
-                                    estadoLaboral: { $ne: 'Retirado' }
-                                });
-                                if (count > 0) {
-                                    finalWorkerCount = count;
-                                    CompanyInfo.updateOne({ _id: companyInfo._id }, { $set: { workerCount: count } }).catch(() => {});
-                                    companyInfo.workerCount = count;
-                                }
-                            } catch (_) {}
+                        if (finalWorkerCount === 'N/A' && typeof countedWorkers === 'number' && countedWorkers > 0) {
+                            finalWorkerCount = countedWorkers;
+                            CompanyInfo.updateOne({ _id: companyInfo._id }, { $set: { workerCount: countedWorkers } }).catch(() => {});
+                            companyInfo.workerCount = countedWorkers;
                         }
 
                         const companyType = companyInfo.companyType || 'Persona Jurídica';
@@ -3396,35 +3209,25 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         }
                     }
 
-                    try {
-                        const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
-                        const nbSess = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
-                        if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
-                            const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
-                            companyAndMemoryPrompt += `\n\n[ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n` +
-                                `- Tenshi tiene acceso TOTAL e irrestricto a TODOS los cuadernos de Google NotebookLM del usuario.\n`;
-                            if (cachedNbs.length > 0) {
-                                companyAndMemoryPrompt += `- Cuadernos disponibles (${cachedNbs.length}): ` +
-                                    cachedNbs.map((nb) => `${nb.emoji || '📓'} "${nb.title}" (ID: ${nb.id}, ${nb.sources_count || 0} fuentes)`).join(' | ') + `.\n`;
-                            }
+                    if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
+                        const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
+                        companyAndMemoryPrompt += `\n\n[ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n` +
+                            `- Tenshi tiene acceso TOTAL a TODOS los cuadernos de Google NotebookLM del usuario.\n`;
+                        if (cachedNbs.length > 0) {
+                            companyAndMemoryPrompt += `- Cuadernos disponibles (${cachedNbs.length}): ` +
+                                cachedNbs.slice(0, 8).map((nb) => `${nb.emoji || '📓'} "${nb.title}" (ID: ${nb.id}, ${nb.sources_count || 0} fuentes)`).join(' | ') + `.\n`;
                         }
-                    } catch (_) {}
+                    }
 
-                    // Inyectar Memoria Procedural y de Hábitos de la Empresa (Estilo OpenBot)
-                    try {
-                        const procMemBlock = await getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 8);
-                        if (procMemBlock) {
-                            companyAndMemoryPrompt += procMemBlock;
-                        }
-                    } catch (procErr) {
-                        logger.warn('[VoiceSession] Failed loading procedural memory block:', procErr.message);
+                    if (procMemBlock) {
+                        companyAndMemoryPrompt += procMemBlock;
                     }
                     companyAndMemoryPrompt += `\n\n[CAPACIDADES INTERACTIVAS OPENBOT (WIDGETS, HÁBITOS Y GOBERNANZA HITL)]:
 - Si el usuario te enseña una regla operativa o hábito de su empresa ("siempre que...", "recuerda que para..."), usa \`wappy_memoria_procedimental\` (accion="guardar"). Si pregunta qué hábitos o reglas recuerdas, usa accion="listar".
 - Si el usuario pide una calculadora interactiva de riesgos GTC-45 o una lista de chequeo interactiva en el chat, usa \`wappy_renderizar_widget_interactivo\`.
-- Las acciones destructivas o críticas (retirar/eliminar trabajador, eliminar riesgos GTC-45/PESV, eliminar requisitos legales, químicos, vehículos, ATEL, tareas, capacitaciones o hallazgos) están protegidas por Gobernanza Human-in-the-Loop: al invocar la herramienta, el sistema generará una Tarjeta de Aprobación en el chat para que el usuario autorice con un clic.`;
+- Las acciones destructivas o críticas están protegidas por Gobernanza Human-in-the-Loop mediante Tarjeta de Aprobación en el chat.`;
 
-                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 12 turnos completos)
+                    // Inyectar Historial reciente de Tenshi (TenshiMessage) - UNIFICADO Y VIVO (Últimos 6 turnos activos)
                     if (recentTenshiMessages && recentTenshiMessages.length > 0) {
                         const validMessages = [];
                         const reversedChronological = [...recentTenshiMessages].reverse();
@@ -3432,7 +3235,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                             const role = m.role === 'user' ? 'Usuario' : 'Tenshi';
                             const cleanContent = (m.content || '').replace(/\s+/g, ' ').trim();
                             const hasReport = Boolean(m.file || m.htmlReport);
-                            const maxLen = hasReport ? 600 : 300;
+                            const maxLen = hasReport ? 450 : 280;
                             let snippet = cleanContent.length > maxLen ? cleanContent.substring(0, maxLen) + '...' : cleanContent;
                             if (hasReport) {
                                 const rawHtml = m.file?.content || m.htmlReport || '';
@@ -3442,7 +3245,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                     .replace(/<[^>]+>/g, ' ')
                                     .replace(/\s+/g, ' ')
                                     .trim()
-                                    .substring(0, 900);
+                                    .substring(0, 400);
                                 if (cleanReportText) {
                                     snippet += ` | Extracto del Informe "${m.file?.title || 'Informe Oficial SG-SST'}": ${cleanReportText}`;
                                 }
@@ -3456,10 +3259,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         }
 
                         if (validMessages.length > 0) {
-                            companyAndMemoryPrompt += `\n\n[HISTORIAL CONVERSACIONAL RECIENTE DE TU PROPIO CHAT DE TENSHI (ÚLTIMOS ${validMessages.length} TURNOS ACTIVOS - CHAT, LIVE Y CÁMARA)]:
-(DIRECTIVA CRÍTICA DE MEMORIA Y CONTINUIDAD:
-Este es el contexto vivo e inmediato de lo que has venido conversando con el usuario en TU propio chat de Tenshi.
-Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes generados, evidencias observadas y acuerdos previos):`;
+                            companyAndMemoryPrompt += `\n\n[HISTORIAL CONVERSACIONAL RECIENTE DE TU PROPIO CHAT DE TENSHI (ÚLTIMOS ${validMessages.length} TURNOS ACTIVOS)]:`;
                             validMessages.forEach((m, idx) => {
                                 const isLast = idx === validMessages.length - 1;
                                 const tag = isLast ? 'ÚLTIMO TURNO - PRESENTE INMEDIATO' : `Turno previo ${idx + 1}`;
@@ -3468,11 +3268,10 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                         }
                     }
 
-                    // Inyectar los últimos informes oficiales generados en el propio chat de Tenshi
+                    // Inyectar último informe oficial generado en el chat de Tenshi
                     if (recentTenshiReports && recentTenshiReports.length > 0) {
-                        companyAndMemoryPrompt += `\n\n[📄 ÚLTIMOS INFORMES OFICIALES PUBLICADOS EN TU PROPIO CHAT DE TENSHI (DEL MÁS RECIENTE AL MÁS ANTIGUO)]:
-(REGLA CRÍTICA: Cuando el usuario te diga "revisa nuestro chat", "el informe que generaste en el chat", "envíame el último informe del chat a mi correo" o pregunte por el último informe, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado a continuación. Conoces su título y contenido completo. NUNCA menciones temas viejos de otros agentes como burnout o simulacros a menos que estén en este informe):`;
-                        recentTenshiReports.forEach((r, idx) => {
+                        companyAndMemoryPrompt += `\n\n[📄 ÚLTIMO INFORME OFICIAL PUBLICADO EN TU CHAT DE TENSHI]:`;
+                        recentTenshiReports.slice(0, 1).forEach((r, idx) => {
                             const title = r.file?.title || 'Informe Oficial SG-SST';
                             const rawHtml = r.file?.content || r.htmlReport || '';
                             const cleanExtract = rawHtml
@@ -3481,9 +3280,9 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                                 .replace(/<[^>]+>/g, ' ')
                                 .replace(/\s+/g, ' ')
                                 .trim()
-                                .substring(0, 1500);
+                                .substring(0, 500);
                             const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Reciente';
-                            companyAndMemoryPrompt += `\n- ${idx === 0 ? '🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI]' : `[Informe #${idx + 1}]`} Título: "${title}" (${dateStr}) -> Resumen/Contenido: ${cleanExtract}`;
+                            companyAndMemoryPrompt += `\n- ${idx === 0 ? '🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI]' : `[Informe #${idx + 1}]`} Título: "${title}" (${dateStr}) -> Resumen: ${cleanExtract}`;
                         });
                     }
 
@@ -3493,118 +3292,9 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                     let tomorrowList = 'Ningún evento o tarea vence mañana';
                     let overdueList = '';
                     let todoList = '';
-                    try {
-                        const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
-                        const { Conversation } = require('~/db/models');
-                        const { getCalendarClient } = require('~/server/services/googleCalendar');
-                        const activeCompId = companyInfo?._id ? String(companyInfo._id) : null;
-                        const activeCompMatch = activeCompId
-                            ? (mongoose.Types.ObjectId.isValid(activeCompId)
-                                ? { $in: [activeCompId, new mongoose.Types.ObjectId(activeCompId)] }
-                                : activeCompId)
-                            : { $in: [null, ''] };
-                        const taskScope = {
-                            user: targetUserId,
-                            companyId: activeCompMatch,
-                        };
-
-                        const now = new Date();
-                        const colNowStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
-                        const startOfToday = new Date(`${colNowStr}T00:00:00-05:00`);
-                        const endOfToday = new Date(`${colNowStr}T23:59:59.999-05:00`);
-                        const startOfTomorrow = new Date(endOfToday.getTime() + 1);
-                        const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
-
-                        // Consultar Google Calendar con caché compartida por empresa activa y timeout de 600ms
-                        const fetchGoogleCalendarEvents = async () => {
-                            try {
-                                global.__wappyGcalBriefingCache = global.__wappyGcalBriefingCache || new Map();
-                                const cacheKey = `${String(targetUserId)}:${activeCompId || 'default'}:${colNowStr}`;
-                                const cached = global.__wappyGcalBriefingCache.get(cacheKey);
-                                if (cached && Date.now() - cached.ts < 90000) {
-                                    return cached.items;
-                                }
-                                const cal = await getCalendarClient(String(targetUserId), activeCompId);
-                                if (!cal) return [];
-                                const resCal = await cal.events.list({
-                                    calendarId: 'primary',
-                                    timeMin: startOfToday.toISOString(),
-                                    timeMax: endOfTomorrow.toISOString(),
-                                    singleEvents: true,
-                                    orderBy: 'startTime',
-                                    maxResults: 15,
-                                });
-                                const items = resCal?.data?.items || [];
-                                global.__wappyGcalBriefingCache.set(cacheKey, { ts: Date.now(), items });
-                                return items;
-                            } catch (_calErr) {
-                                return [];
-                            }
-                        };
-
-                        const calendarPromiseWithTimeout = Promise.race([
-                            fetchGoogleCalendarEvents(),
-                            new Promise((resolve) => setTimeout(() => resolve([]), 600)),
-                        ]);
-
-                        const [
-                            todayTasks,
-                            tomorrowTasks,
-                            overdueTasks,
-                            todoTasks,
-                            lastDoneTask,
-                            latestSgsstReport,
-                            gcalEvents,
-                        ] = await Promise.all([
-                            KanbanTask.find({
-                                ...taskScope,
-                                type: { $ne: 'antigravity_delegation' },
-                                status: { $nin: ['done', 'dismissed'] },
-                                dueDate: { $gte: startOfToday, $lte: endOfToday },
-                            }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
-                            KanbanTask.find({
-                                ...taskScope,
-                                type: { $ne: 'antigravity_delegation' },
-                                status: { $nin: ['done', 'dismissed'] },
-                                dueDate: { $gte: startOfTomorrow, $lte: endOfTomorrow },
-                            }).sort({ dueDate: 1 }).limit(5).select('title dueDate priority').lean().catch(() => []),
-                            KanbanTask.find({
-                                ...taskScope,
-                                type: { $ne: 'antigravity_delegation' },
-                                status: { $nin: ['done', 'dismissed'] },
-                                $or: [
-                                    { status: 'overdue' },
-                                    { dueDate: { $lt: startOfToday } },
-                                ],
-                            }).sort({ dueDate: -1 }).limit(5).select('title dueDate').lean().catch(() => []),
-                            KanbanTask.find({
-                                ...taskScope,
-                                type: { $ne: 'antigravity_delegation' },
-                                status: { $in: ['todo', 'in_progress', 'due_soon'] },
-                            }).sort({ updatedAt: -1 }).limit(5).select('title status dueDate').lean().catch(() => []),
-                            KanbanTask.findOne({
-                                ...taskScope,
-                                type: { $ne: 'antigravity_delegation' },
-                                status: { $in: ['done', 'in_progress'] },
-                            }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
-                            Conversation.findOne({
-                                user: String(targetUserId),
-                                title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
-                                ...(activeCompId
-                                    ? {
-                                        $and: [
-                                            { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                                            { tags: { $in: [`company-${activeCompId}`, `company:${activeCompId}`] } },
-                                        ],
-                                    }
-                                    : { tags: { $elemMatch: { $regex: /^sgsst-/i } } }),
-                            }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
-                            calendarPromiseWithTimeout,
-                        ]);
-
+                    if (briefingResults) {
+                        const { todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents } = briefingResults;
                         const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-
-                        // Separar eventos de Google Calendar entre Hoy y Mañana (en hora Colombia)
                         const gcalToday = [];
                         const gcalTomorrow = [];
                         for (const ev of (gcalEvents || [])) {
@@ -3614,51 +3304,35 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
                             const evDateStr = evDate.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
                             const timeLabel = ev.start?.dateTime ? fmtTime(evDate) : 'Todo el día';
                             const label = `${ev.summary || 'Evento sin título'} (${timeLabel})`;
-                            if (evDateStr === colNowStr) {
-                                gcalToday.push(label);
-                            } else {
-                                gcalTomorrow.push(label);
-                            }
+                            if (evDateStr === colNowStr) gcalToday.push(label);
+                            else gcalTomorrow.push(label);
                         }
 
-                        // Determinar el último informe o gestión real (NUNCA "New Chat")
                         const recentReportCandidate = recentTenshiReports?.[0];
                         const candidates = [];
                         if (recentReportCandidate?.file?.title && !/^new chat$/i.test(recentReportCandidate.file.title.trim())) {
-                            candidates.push({
-                                title: recentReportCandidate.file.title.trim(),
-                                time: new Date(recentReportCandidate.createdAt || 0).getTime(),
-                            });
+                            candidates.push({ title: recentReportCandidate.file.title.trim(), time: new Date(recentReportCandidate.createdAt || 0).getTime() });
                         }
                         if (lastDoneTask?.title && !/^new chat$/i.test(lastDoneTask.title.trim())) {
-                            candidates.push({
-                                title: lastDoneTask.title.trim(),
-                                time: new Date(lastDoneTask.updatedAt || 0).getTime(),
-                            });
+                            candidates.push({ title: lastDoneTask.title.trim(), time: new Date(lastDoneTask.updatedAt || 0).getTime() });
                         }
                         if (latestSgsstReport?.title) {
                             const cleaned = latestSgsstReport.title.replace(/^\[.*?\]\s*/, '').trim();
                             if (cleaned && !/^(new chat|nueva conversaci[oó]n|nuevo chat)$/i.test(cleaned)) {
-                                candidates.push({
-                                    title: cleaned,
-                                    time: new Date(latestSgsstReport.updatedAt || 0).getTime(),
-                                });
+                                candidates.push({ title: cleaned, time: new Date(latestSgsstReport.updatedAt || 0).getTime() });
                             }
                         }
                         candidates.sort((a, b) => b.time - a.time);
                         lastTitle = candidates[0]?.title || null;
 
-                        const combinedToday = [
+                        todayList = [
                             ...gcalToday.map(e => `[Google Calendar] ${e}`),
                             ...(todayTasks || []).map(t => `[Centro de Control] ${t.title} (${fmtTime(t.dueDate)})`),
-                        ];
-                        const combinedTomorrow = [
+                        ].join('; ') || 'Sin reuniones en Google Calendar para hoy';
+                        tomorrowList = [
                             ...gcalTomorrow.map(e => `[Google Calendar] ${e}`),
                             ...(tomorrowTasks || []).map(t => `[Centro de Control] ${t.title} (${fmtTime(t.dueDate)})`),
-                        ];
-
-                        todayList = combinedToday.join('; ') || 'Sin reuniones en Google Calendar para hoy';
-                        tomorrowList = combinedTomorrow.join('; ') || 'Ninguna reunión o tarea programada para mañana';
+                        ].join('; ') || 'Ninguna reunión o tarea programada para mañana';
                         overdueList = (overdueTasks || []).map(t => t.title).join(', ');
                         todoList = (todoTasks || []).map(t => t.title).join(', ');
 
@@ -3669,34 +3343,22 @@ Tenshi DEBE mantener memoria perfecta de estos turnos, recordar los informes gen
 - Agenda REAL de MAÑANA: ${tomorrowList}.${todoList ? `\n- Tareas por hacer / en curso en Centro de Control ACPM: ${todoList}.` : ''}${overdueList ? `\n- Tareas vencidas que requieren atención en Centro de Control ACPM (${overdueTasks.length} recientes): ${overdueList}.` : ''}
 - REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT CON DATOS REALES — CERO TOOL CALLS EN EL SALUDO):
   En tu PRIMERA respuesta de la llamada (cuando el usuario saluda o inicia la conversación):
-  * PROHIBICIÓN ESTRICTA DE INVOCAR HERRAMIENTAS EN EL SALUDO: NO invoques NINGUNA herramienta ('google_calendar', 'wappy_consultar_trabajadores', 'somos_sst', etc.) durante el saludo inicial ni ante ruido de micrófono ("Sim.", "Dios te bendiga", etc.), porque todos los datos reales del briefing ya están inyectados aquí arriba en tu memoria. Invocar 'wappy_consultar_trabajadores' sin que el usuario lo pida inyecta por error la lista/censo de trabajadores en el chat del usuario.
+  * PROHIBICIÓN ESTRICTA DE INVOCAR HERRAMIENTAS EN EL SALUDO: NO invoques NINGUNA herramienta ('google_calendar', 'wappy_consultar_trabajadores', 'somos_sst', etc.) durante el saludo inicial ni ante ruido de micrófono, porque todos los datos reales del briefing ya están inyectados aquí.
   1) Saluda cálidamente al usuario por su nombre y menciona su empresa activa (${companyInfo?.companyName || 'su empresa'}).
   2) Pregúntale cómo le fue con su última gestión real (${lastTitle ? `"${lastTitle}"` : 'su gestión reciente en el SG-SST'}). ESTÁ TERMINANTEMENTE PROHIBIDO decir "New Chat".
-  3) Infórmale con precisión lo que REALMENTE tiene hoy en Google Calendar (${todayList}) y recuérdale brevemente si tiene tareas por hacer o vencidas en su Centro de Control ACPM (${todoList || overdueList || 'sin pendientes'}). NUNCA digas que "no tiene tareas pendientes ni nada programado" si arriba aparecen eventos en Google Calendar o tareas por hacer/vencidas.`;
-                    } catch (briefErr) {
-                        logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
+  3) Infórmale con precisión lo que REALMENTE tiene hoy en Google Calendar (${todayList}) y recuérdale brevemente si tiene tareas por hacer o vencidas en su Centro de Control ACPM (${todoList || overdueList || 'sin pendientes'}). NUNCA digas que "no tiene tareas pendientes" si arriba aparecen datos.`;
                     }
 
                     // ─── MODO DE PERSONALIDAD ADAPTATIVA DE TENSHI (1 CLIC) + AVATAR WAPPY DEL USUARIO ───
-                    let effectiveAvatar = null;
-                    try {
-                        const resolvedAvatar = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
-                            this.userId,
-                            null,
-                            companyInfo?._id ? String(companyInfo._id) : null
-                        );
-                        effectiveAvatar = resolvedAvatar?.effective || null;
-                        if (effectiveAvatar) {
-                            this.config.voice = effectiveAvatar.voice || this.config?.voice || 'Puck';
-                            this.liveConfig.voice = this.config.voice;
-                            companyAndMemoryPrompt += `\n\n[IDENTIDAD, NOMBRE, SEXO, PERSONALIDAD Y VOCABLO REGIONAL DEL AVATAR WAPPY DE ESTE USUARIO]:
+                    let effectiveAvatar = resolvedAvatar?.effective || null;
+                    if (effectiveAvatar) {
+                        this.config.voice = effectiveAvatar.voice || this.config?.voice || 'Puck';
+                        this.liveConfig.voice = this.config.voice;
+                        companyAndMemoryPrompt += `\n\n[IDENTIDAD, NOMBRE, SEXO, PERSONALIDAD Y VOCABLO REGIONAL DEL AVATAR WAPPY DE ESTE USUARIO]:
 - Tu nombre oficial y único es "${effectiveAvatar.name}" (sin títulos adicionales ni sufijos). Preséntate y responde siempre bajo el nombre de "${effectiveAvatar.name}".
 - Tu sexo/género es "${effectiveAvatar.gender}". Habla siempre de ti mismo/a con concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina ("lista", "encantada")' : effectiveAvatar.gender === 'neutro' ? 'neutra' : 'masculina ("listo", "encantado")'}.
 - Personalidad y vocablo regional asignado por el usuario: ${effectiveAvatar.personality}
 - REGLA OBLIGATORIA DE VOCABLO Y ENTONACIÓN REGIONAL COLOMBIANA EN VOZ: Si la personalidad del usuario especifica un vocablo o acento regional de Colombia (como Paisa, Costeño, Caleño/Valluno, Rolo/Bogotano, Santandereano, Llanero o Pastuso), habla durante toda la llamada usando naturalmente la cadencia, el entusiasmo y las expresiones típicas de esa región colombiana.`;
-                        }
-                    } catch (avErr) {
-                        logger.warn('[VoiceSession] Could not load TenshiUserAvatar:', avErr.message);
                     }
 
                     const initialPersonality = (this.config?.personality || effectiveAvatar?.personalityPreset || 'consultor').toLowerCase();
@@ -3771,9 +3433,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 // para que use preferentemente la última clave (ej. Key 3) mientras que los
                 // agentes del chat (AgentClient) usan la primera clave (Key 1).
                 // Esto previene al 100% la colisión de cuotas y desconexión de streams por concurrencia.
-                const voiceKeys = this.apiKeys.length > 1 ? [...this.apiKeys].reverse() : this.apiKeys;
+                const voiceKeys = orderVoiceKeysByCooldown(this.apiKeys);
                 for (let i = 0; i < voiceKeys.length; i++) {
                     const key = voiceKeys[i];
+                    this.lastUsedLiveKey = key;
                     logger.info(`[VoiceSession] Intentando conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}/${voiceKeys.length}`);
                     
                     try {
@@ -3787,6 +3450,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         break; // ✅ Éxito en la conexión con la clave actual
                     } catch (error) {
                         logger.warn(`[VoiceSession] Falló conexión con Modelo "${currentLiveModel}" y API Key ${i + 1}: ${error.message}`);
+                        markVoiceKeyCooldown(key, error.message);
                         lastError = error;
                         if (this.geminiClient && typeof this.geminiClient.disconnect === 'function') {
                             this.geminiClient.disconnect();
@@ -6555,13 +6219,24 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             this.sendToClient({ type: 'interrupted', data: {} });
         });
 
+        this.receivedGoAway = false;
+        this.geminiClient.on('goAway', () => {
+            this.receivedGoAway = true;
+        });
+
         // Handle Gemini connection close/error to avoid zombie state
         this.geminiClient.on('close', async (code, reason) => {
             const reasonStr = reason ? reason.toString() : '';
             logger.warn(`[VoiceSession] Gemini connection closed: Code ${code}, Reason: ${reasonStr}`);
+            if (code === 1011) {
+                markVoiceKeyCooldown(this.lastUsedLiveKey, reasonStr || '1011');
+            }
             if (this.isActive) {
-                // Si la desconexión fue inesperada (1011, 1007, 1006, etc.) y el cliente sigue conectado, reintentar con el siguiente modelo/clave
-                if ((code === 1011 || code === 1007 || code === 1006 || code === 1001 || !code) && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+                // Si la desconexión fue inesperada (1011, 1008/GoAway, 1007, 1006, etc.) y el cliente sigue conectado, reintentar con el siguiente modelo/clave
+                const shouldReconnect =
+                    this.receivedGoAway ||
+                    code === 1011 || code === 1008 || code === 1007 || code === 1006 || code === 1001 || !code;
+                if (shouldReconnect && this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
                     const reconnected = await this.reconnectGemini(`Code ${code}: ${reasonStr}`);
                     if (reconnected) {
                         return;
@@ -6640,12 +6315,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             logger.info(`[VoiceSession] Rotando modelo Live para reconexión: de "${currentModel}" a "${this.liveConfig.model}"`);
         }
 
-        // Probar claves API disponibles
-        const voiceKeys = this.apiKeys && this.apiKeys.length > 1 ? [...this.apiKeys].reverse() : (this.apiKeys || []);
+        // Probar claves API disponibles priorizando claves sin cooldown 1011
+        const voiceKeys = orderVoiceKeysByCooldown(this.apiKeys || []);
         let connected = false;
 
         for (let i = 0; i < voiceKeys.length; i++) {
             const key = voiceKeys[i];
+            this.lastUsedLiveKey = key;
             try {
                 logger.info(`[VoiceSession] Intento de reconexión con Modelo "${this.liveConfig.model}" y Clave ${i + 1}/${voiceKeys.length}`);
                 this.geminiClient = new GeminiLiveClient(key, this.liveConfig);
@@ -6654,6 +6330,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 break;
             } catch (err) {
                 logger.warn(`[VoiceSession] Falló reconexión con Clave ${i + 1}: ${err.message}`);
+                markVoiceKeyCooldown(key, err.message);
                 if (this.geminiClient) {
                     try { this.geminiClient.disconnect(); } catch {}
                     this.geminiClient = null;
@@ -7234,52 +6911,23 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
      */
     async refineTranscription(text) {
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-preview-02-05:generateContent?key=${this.apiKey}`;
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `Please format the following transcription to be more readable, correcting punctuation and capitalization, but keeping the original meaning and words as much as possible. Do not add any conversational filler. Text: "${text}"`
-                        }]
-                    }]
-                })
-            });
-
-            const keyName = (this.config?.mode === 'tenshi_voice' || this.agentObj?.id === 'tenshi') ? 'tenshi_google' : EModelEndpoint.google;
-            let apiKey = null;
-            try {
-                apiKey = await getUserKey({ userId: this.userId, name: keyName });
-            } catch (e) {
-                try {
-                    apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
-                } catch (e2) {}
+            if (!text || !String(text).trim()) {
+                return;
             }
-            if (apiKey) {
-                apiKey = geminiPoolManager.extractCleanApiKey(apiKey);
-            }
-            logger.debug(`[VoiceSession] Retrieved API Key for refinement (${keyName}): ${apiKey ? 'Success' : 'Failed'}`);
+            const prompt = `Please format the following transcription to be more readable, correcting punctuation and capitalization, but keeping the original meaning and words as much as possible. Do not add any conversational filler. Text: "${text}"`;
+            const result = await generateWithKeyRotation(
+                'gemini-3.5-flash-lite',
+                this.userId,
+                prompt,
+                {
+                    fastFallback: true,
+                    timeoutMs: 3600,
+                    generationConfig: { maxOutputTokens: 256, temperature: 0.1 },
+                }
+            );
+            const refinedText = (result?.response?.text?.() || '').trim();
 
-            if (!apiKey) {
-                // Handle case where API key is not found, e.g., by sending original text
-                this.sendToClient({
-                    type: 'text',
-                    data: {
-                        text: text,
-                        isRefined: false
-                    }
-                });
-                return; // Exit early if no API key
-            }
-
-            const data = await response.json();
-
-            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                const refinedText = data.candidates[0].content.parts[0].text;
+            if (refinedText) {
 
                 this.sendToClient({
                     type: 'text',
@@ -7479,15 +7127,33 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         const pcmBytesSnapshot = this.currentTurnPcmBytes || 0;
         const hasRealSpeechAudio = this.currentTurnSpeechDetected && pcmBytesSnapshot >= 9600;
 
-        if ((!rawSnapshot || rawSnapshot.length < 2) && (!hasRealSpeechAudio || reason === 'user_pause')) {
+        // Omitir llamadas por ruido breve o silencios en pausa
+        if (reason === 'user_pause' && (!hasRealSpeechAudio || pcmBytesSnapshot < 16000)) {
+            return;
+        }
+        if ((!rawSnapshot || rawSnapshot.length < 2) && !hasRealSpeechAudio) {
             return;
         }
 
+        // Deduplicar llamadas concurrentes en el mismo turno para evitar cascada sobre el pool
+        if (this.earlyCorrectionPromise) {
+            return this.earlyCorrectionPromise;
+        }
+
+        // Si ya tenemos una corrección reciente para casi el mismo buffer de audio/texto del turno, reutilizarla
+        if (
+            this.earlyCorrectedSnapshot &&
+            this.earlyCorrectedSnapshot.raw === rawSnapshot &&
+            Math.abs(pcmBytesSnapshot - (this.earlyCorrectedSnapshot.pcmBytes || 0)) < 16000
+        ) {
+            return Promise.resolve(this.earlyCorrectedSnapshot.corrected);
+        }
+
         const toolCallsSnapshot = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
-        const roundedPcmKb = Math.floor(pcmBytesSnapshot / 4096);
-        const cacheKey = `${rawSnapshot}::${toolCallsSnapshot.map(t => t.name).join(',')}::${roundedPcmKb}`;
+        const bucketPcmKb = Math.floor(pcmBytesSnapshot / 16000);
+        const cacheKey = `${rawSnapshot}::${bucketPcmKb}`;
         if (this.earlyCorrectedSnapshot && this.earlyCorrectedSnapshot.cacheKey === cacheKey) {
-            return;
+            return Promise.resolve(this.earlyCorrectedSnapshot.corrected);
         }
         if (this.earlyCorrectionInFlightKey === cacheKey) {
             return;
@@ -7654,7 +7320,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         multimodalParts,
                         {
                             systemInstruction,
-                            generationConfig: { maxOutputTokens: 320, temperature: 0.1 },
+                            fastFallback: true,
+                            timeoutMs: 3600,
+                            generationConfig: { maxOutputTokens: 256, temperature: 0.1 },
                         }
                     );
                     const result = await Promise.race([correctionPromise, timeoutPromise]);
@@ -7702,7 +7370,7 @@ Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación 
                     correctionModelName,
                     this.userId,
                     prompt,
-                    { generationConfig: { maxOutputTokens: 256, temperature: 0.1 } }
+                    { fastFallback: true, timeoutMs: 2400, generationConfig: { maxOutputTokens: 256, temperature: 0.1 } }
                 );
                 const result = await Promise.race([correctionPromise, timeoutPromise]);
                 const rawOut = (result?.response?.text?.() || '').replace(/^["'«»]+|["'«»]+$/g, '').trim();

@@ -1680,13 +1680,24 @@ export default function TenshiChat() {
   } | null>(null);
   const [isBriefingDismissed, setIsBriefingDismissed] = useState(false);
 
+  const lastBriefingFetchRef = useRef<{ key: string; ts: number }>({ key: '', ts: 0 });
   const fetchDailyBriefing = useCallback(async (overrideCompanyId?: string) => {
     if (!token) return;
     try {
       const compId = overrideCompanyId ?? localStorage.getItem('wappy_active_company_id') ?? '';
+      const now = Date.now();
+      const cacheKey = `${token}:${compId}`;
+      if (
+        overrideCompanyId === undefined &&
+        lastBriefingFetchRef.current.key === cacheKey &&
+        now - lastBriefingFetchRef.current.ts < 4000
+      ) {
+        return;
+      }
+      lastBriefingFetchRef.current = { key: cacheKey, ts: now };
       const query = compId
-        ? `?companyId=${encodeURIComponent(compId)}&_t=${Date.now()}`
-        : `?_t=${Date.now()}`;
+        ? `?companyId=${encodeURIComponent(compId)}&_t=${now}`
+        : `?_t=${now}`;
       const res = await axios.get(`/api/mcp-bridge/briefing${query}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

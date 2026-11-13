@@ -889,7 +889,8 @@ async function searchInstantHistory(args = {}, userId, companyId = null) {
 
 let _normativeChunksCache = null;
 let _normativeCacheBuiltAt = 0;
-const NORMATIVE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
+let _normativeBuildPromise = null;
+const NORMATIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 60 minutos
 
 function normalizeForSearch(str = '') {
   return String(str || '')
@@ -898,13 +899,8 @@ function normalizeForSearch(str = '') {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-function buildNormativeIndexSync() {
-  const now = Date.now();
-  if (_normativeChunksCache && now - _normativeCacheBuiltAt < NORMATIVE_CACHE_TTL_MS) {
-    return _normativeChunksCache;
-  }
-
-  const fs = require('fs');
+async function buildNormativeIndexAsync() {
+  const fs = require('fs').promises;
   const path = require('path');
   const candidateRoots = [
     '/app/uploads',
@@ -916,77 +912,106 @@ function buildNormativeIndexSync() {
   const visitedFiles = new Set();
 
   for (const rootDir of candidateRoots) {
-    if (!fs.existsSync(rootDir)) continue;
     let subdirs = [];
     try {
-      subdirs = fs.readdirSync(rootDir, { withFileTypes: true });
+      subdirs = await fs.readdir(rootDir, { withFileTypes: true });
     } catch (_e) {
       continue;
     }
 
     for (const entry of subdirs) {
+      if (!entry.isDirectory()) continue;
       const fullSubPath = path.join(rootDir, entry.name);
-      if (entry.isDirectory()) {
-        let files = [];
+      let files = [];
+      try {
+        files = await fs.readdir(fullSubPath);
+      } catch (_e) {
+        continue;
+      }
+      for (const f of files) {
+        if (!f.toLowerCase().endsWith('.md')) continue;
+        const fileAbs = path.join(fullSubPath, f);
+        if (visitedFiles.has(fileAbs)) continue;
+        visitedFiles.add(fileAbs);
+
         try {
-          files = fs.readdirSync(fullSubPath);
-        } catch (_e) {
-          continue;
-        }
-        for (const f of files) {
-          if (!f.toLowerCase().endsWith('.md')) continue;
-          const fileAbs = path.join(fullSubPath, f);
-          if (visitedFiles.has(fileAbs)) continue;
-          visitedFiles.add(fileAbs);
+          const rawText = await fs.readFile(fileAbs, 'utf8');
+          if (!rawText || rawText.length < 40) continue;
 
-          try {
-            const rawText = fs.readFileSync(fileAbs, 'utf8');
-            if (!rawText || rawText.length < 40) continue;
+          // Clean readable document name (strip UUID__ prefix)
+          const cleanDocName = f
+            .replace(/^[0-9a-f-]{36}__/i, '')
+            .replace(/\.md$/i, '')
+            .replace(/_/g, ' ')
+            .trim();
+          const normDocName = normalizeForSearch(cleanDocName);
 
-            // Clean readable document name (strip UUID__ prefix)
-            const cleanDocName = f
-              .replace(/^[0-9a-f-]{36}__/i, '')
-              .replace(/\.md$/i, '')
-              .replace(/_/g, ' ')
-              .trim();
-            const normDocName = normalizeForSearch(cleanDocName);
-
-            // Split by headings or ~1400 char blocks
-            const sections = rawText.split(/\n(?=#{1,3}\s|ART[ÍI]CULO\s+\d+|CAP[ÍI]TULO\s+)/i);
-            let buffer = '';
-            for (const sec of sections) {
-              if ((buffer + '\n' + sec).length > 1500 && buffer.length >= 250) {
-                chunks.push({
-                  docName: cleanDocName,
-                  normDocName,
-                  text: buffer.trim(),
-                  normText: normalizeForSearch(buffer),
-                });
-                buffer = sec;
-              } else {
-                buffer = buffer ? `${buffer}\n${sec}` : sec;
-              }
-            }
-            if (buffer.trim().length > 40) {
+          // Split by headings or ~1400 char blocks
+          const sections = rawText.split(/\n(?=#{1,3}\s|ART[ÍI]CULO\s+\d+|CAP[ÍI]TULO\s+)/i);
+          let buffer = '';
+          for (const sec of sections) {
+            if ((buffer + '\n' + sec).length > 1500 && buffer.length >= 250) {
               chunks.push({
                 docName: cleanDocName,
                 normDocName,
-                text: buffer.trim().slice(0, 2200),
-                normText: normalizeForSearch(buffer.slice(0, 2200)),
+                text: buffer.trim(),
+                normText: normalizeForSearch(buffer),
               });
+              buffer = sec;
+            } else {
+              buffer = buffer ? `${buffer}\n${sec}` : sec;
             }
-          } catch (_readErr) {
-            // Ignore unreadable file
           }
+          if (buffer.trim().length > 40) {
+            chunks.push({
+              docName: cleanDocName,
+              normDocName,
+              text: buffer.trim().slice(0, 2200),
+              normText: normalizeForSearch(buffer.slice(0, 2200)),
+            });
+          }
+        } catch (_readErr) {
+          // Ignore unreadable file
         }
       }
     }
   }
 
   _normativeChunksCache = chunks;
-  _normativeCacheBuiltAt = now;
+  _normativeCacheBuiltAt = Date.now();
   logger.info(`[Tenshi Normative RAG] Indexed ${chunks.length} sections from ${visitedFiles.size} Markdown normative/technical files.`);
   return chunks;
+}
+
+async function getNormativeIndexAsync() {
+  const now = Date.now();
+  if (_normativeChunksCache) {
+    if (now - _normativeCacheBuiltAt < NORMATIVE_CACHE_TTL_MS) {
+      return _normativeChunksCache;
+    }
+    if (!_normativeBuildPromise) {
+      _normativeBuildPromise = buildNormativeIndexAsync()
+        .catch(() => _normativeChunksCache || [])
+        .finally(() => {
+          _normativeBuildPromise = null;
+        });
+    }
+    return _normativeChunksCache;
+  }
+
+  if (!_normativeBuildPromise) {
+    _normativeBuildPromise = buildNormativeIndexAsync().finally(() => {
+      _normativeBuildPromise = null;
+    });
+  }
+  return _normativeBuildPromise;
+}
+
+const normativeWarmupTimer = setTimeout(() => {
+  getNormativeIndexAsync().catch(() => {});
+}, 8000);
+if (typeof normativeWarmupTimer.unref === 'function') {
+  normativeWarmupTimer.unref();
 }
 
 /**
@@ -998,7 +1023,7 @@ async function searchNormativeKnowledgeBase(query, maxResults = 5) {
   }
 
   try {
-    const chunks = buildNormativeIndexSync();
+    const chunks = await getNormativeIndexAsync();
     if (!chunks || chunks.length === 0) {
       return { exito: false, resultados: [], textoFormateado: '' };
     }

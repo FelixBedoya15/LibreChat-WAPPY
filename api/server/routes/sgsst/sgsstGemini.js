@@ -34,10 +34,9 @@ const SGSST_FALLBACK_MODELS = [
 ];
 
 /**
- * Translates WAPPY UI/preset model aliases (e.g. 'gemini-3.8-flash') to their real
- * Google Generative Language API text model IDs BEFORE issuing network requests,
- * matching api/server/controllers/agents/client.js (L1768-1782) so 'gemini-3.8-flash'
- * never triggers 404 or 5x35s key-rotation timeouts.
+ * Translates WAPPY UI/preset legacy/non-text model IDs (e.g. 'gemini-3.7-flash', live/tts)
+ * to real Google Generative Language API text model IDs BEFORE issuing network requests.
+ * Preserves '.env' GOOGLE_MODELS text IDs ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash').
  *
  * @param {string} rawModel
  * @param {string} [defaultModel='gemini-3.6-flash']
@@ -49,9 +48,7 @@ function mapToGoogleApiTextModel(rawModel, defaultModel = 'gemini-3.6-flash') {
     return defaultModel;
   }
   if (
-    clean === 'gemini-3.8-flash' ||
     clean === 'gemini-3.7-flash' ||
-    clean.includes('gemini-3.8') ||
     clean.includes('gemini-3.7') ||
     clean.includes('live') ||
     clean.includes('native-audio') ||
@@ -395,7 +392,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         const perAttemptTimeoutMs =
-          Number(safeOpts.timeoutMs) > 0 ? Number(safeOpts.timeoutMs) : 35000;
+          Number(safeOpts.timeoutMs) > 0 ? Number(safeOpts.timeoutMs) : 15000;
         const abortCtrl = new AbortController();
         let attemptTimer = null;
         let result;

@@ -77,7 +77,7 @@ class GeminiLiveClient extends EventEmitter {
     async connect() {
         return new Promise((resolve, reject) => {
             let connectionTimeout = setTimeout(() => {
-                logger.error('[GeminiLive] Connection timeout (4s) before setupComplete');
+                logger.error('[GeminiLive] Connection timeout (6.5s) before setupComplete');
                 cleanup();
                 if (this.ws) {
                     try {
@@ -88,7 +88,7 @@ class GeminiLiveClient extends EventEmitter {
                     this.ws = null;
                 }
                 reject(new Error('Connection timeout to Gemini Live API'));
-            }, 4000);
+            }, 6500);
 
             const cleanup = () => {
                 if (connectionTimeout) {
@@ -200,6 +200,12 @@ class GeminiLiveClient extends EventEmitter {
                             this.emit('toolCall', response.toolCall);
                         }
 
+                        // Handle GoAway notice before server-side WebSocket closure
+                        if (response.goAway) {
+                            logger.warn('[GeminiLive] GoAway received from Gemini API:', JSON.stringify(response.goAway));
+                            this.emit('goAway', response.goAway);
+                        }
+
                         // Handle setup complete
                         if (response.setupComplete) {
                             logger.info('[GeminiLive] Setup complete');
@@ -303,8 +309,12 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
             },
         };
 
-        logger.info('[GeminiLive] Sending setup message:', JSON.stringify(setupMessage, null, 2));
+        const toolsCount = Array.isArray(setupMessage.setup?.tools?.[0]?.functionDeclarations)
+            ? setupMessage.setup.tools[0].functionDeclarations.length
+            : 0;
+        const sysChars = String(setupMessage.setup?.systemInstruction?.parts?.[0]?.text || '').length;
         this.send(setupMessage);
+        logger.info(`[GeminiLive] Sent setup message (model=${setupMessage.setup?.model}, tools=${toolsCount}, systemInstructionChars=${sysChars})`);
     }
 
     /**

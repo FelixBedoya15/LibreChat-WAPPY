@@ -106,9 +106,31 @@ async function findMatchingBlogPost(query) {
     return null;
 }
 
+function withGeminiTimeout(promise, timeoutMs = 15000, label = 'Gemini generateContent') {
+    let timer = null;
+    const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+            const err = new Error(`[Tenshi Timeout] ${label} superó ${timeoutMs}ms`);
+            err.status = 504;
+            reject(err);
+        }, timeoutMs);
+    });
+    return Promise.race([
+        Promise.resolve(promise).finally(() => clearTimeout(timer)),
+        timeoutPromise,
+    ]);
+}
+
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
-    if (!userQuery || userQuery.length < 4) return '';
+    const trimmedQuery = (userQuery || '').trim();
+    if (!trimmedQuery || trimmedQuery.length < 4) return '';
+    if (
+        trimmedQuery.length <= 28 &&
+        /^(hola|buenos|buenas|gracias|muchas\s+gracias|ok|okay|listo|vale|perfecto|claro)(\s+(d[ií]as|tardes|noches|tenshi|suri|wappy|por\s+todo|equip[oa]))?[!.\s,?¡¿]*$/i.test(trimmedQuery)
+    ) {
+        return '';
+    }
     let context = '';
 
     // 1. Consultar Base de Datos Normativa y Técnica interna de WAPPY (99+ archivos .md: Vademécum 2026, Res 1843/2025, Batería Psicosocial, etc.)
@@ -1191,12 +1213,24 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
-        // Fetch dynamic knowledge concurrently via Promise.all for maximum response speed
-        const [latestBlogs, latestCourses, ticketContext, rawMemories, recentTenshiReports] = await Promise.all([
+        const isMemoryEnabled = req.user?.personalization?.memories !== false;
+
+        // Fetch dynamic knowledge & user context concurrently via Promise.all for maximum response speed
+        const [
+            latestBlogs,
+            latestCourses,
+            ticketContext,
+            rawMemories,
+            recentTenshiReports,
+            liveWorkerCountResult,
+            proceduralBlock,
+            nbSess,
+            avatarProfileResult,
+        ] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
             getRelevantTickets(req, userQuery).catch(() => ''),
-            getAllUserMemories(targetUserId).catch(() => []),
+            isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
             (async () => {
                 try {
                     const userFilter = [String(req.user.id), targetUserId].filter(Boolean);
@@ -1215,44 +1249,64 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 } catch (e) {
                     return [];
                 }
-            })()
+            })(),
+            (isMemoryEnabled && companyInfo)
+                ? (async () => {
+                      try {
+                          const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
+                          const socioDoc = companyInfo._id
+                              ? await PerfilSocioModel.findOne({ user: targetUserId, companyId: companyInfo._id }).lean()
+                              : await PerfilSocioModel.findOne({ user: targetUserId }).lean();
+
+                          if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
+                              const activeWorkers = socioDoc.trabajadores.filter(w => {
+                                  const estado = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
+                                  return estado !== 'retirado' && estado !== 'inactivo';
+                              });
+                              return activeWorkers.length;
+                          }
+                      } catch (e) {
+                          try {
+                              const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
+                              const count = await SgsstWorker.countDocuments({
+                                  user: targetUserId,
+                                  ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
+                                  estadoLaboral: { $ne: 'Retirado' }
+                              });
+                              if (count > 0) return count;
+                          } catch (_) {}
+                      }
+                      return null;
+                  })()
+                : Promise.resolve(null),
+            isMemoryEnabled
+                ? getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 12).catch(() => '')
+                : Promise.resolve(''),
+            isMemoryEnabled
+                ? (async () => {
+                      try {
+                          const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
+                          return await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+                      } catch (_) {
+                          return null;
+                      }
+                  })()
+                : Promise.resolve(null),
+            TenshiUserAvatar.resolveEffectiveAvatarProfile(
+                targetUserId,
+                config,
+                companyInfo?._id ? String(companyInfo._id) : null
+            ),
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
         const manualContent = getPlatformManual();
 
-        const isMemoryEnabled = req.user?.personalization?.memories !== false;
-
         let fullCompanyAndMemoryBlock = '';
         if (isMemoryEnabled) {
             if (companyInfo) {
-                let liveWorkerCount = null;
-                try {
-                    const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData || require('./sgsst/perfilSociodemografico');
-                    const socioDoc = companyInfo._id
-                        ? await PerfilSocioModel.findOne({ user: targetUserId, companyId: companyInfo._id }).lean()
-                        : await PerfilSocioModel.findOne({ user: targetUserId }).lean();
-
-                    if (socioDoc && Array.isArray(socioDoc.trabajadores)) {
-                        const activeWorkers = socioDoc.trabajadores.filter(w => {
-                            const estado = (w.estadoLaboral || w.estado || '').toLowerCase().trim();
-                            return estado !== 'retirado' && estado !== 'inactivo';
-                        });
-                        liveWorkerCount = activeWorkers.length;
-                    }
-                } catch (e) {
-                    try {
-                        const SgsstWorker = mongoose.models.SgsstWorker || require('~/models/SgsstWorker');
-                        const count = await SgsstWorker.countDocuments({
-                            user: targetUserId,
-                            ...(companyInfo._id ? { companyId: companyInfo._id } : {}),
-                            estadoLaboral: { $ne: 'Retirado' }
-                        });
-                        if (count > 0) liveWorkerCount = count;
-                    } catch (_) {}
-                }
-
+                const liveWorkerCount = liveWorkerCountResult;
                 const finalWorkerCount = liveWorkerCount !== null ? liveWorkerCount : (companyInfo.workerCount ?? 'N/A');
 
                 if (liveWorkerCount !== null && companyInfo.workerCount !== liveWorkerCount) {
@@ -1305,26 +1359,21 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 }
             }
 
-            const proceduralBlock = await getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 12);
             if (proceduralBlock) {
                 fullCompanyAndMemoryBlock += `${proceduralBlock}\n`;
             }
 
-            try {
-                const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
-                const nbSess = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
-                if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
-                    const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
-                    fullCompanyAndMemoryBlock += `### 📓 [ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n`;
-                    fullCompanyAndMemoryBlock += `- Como Tenshi (Orquestadora Universal), tienes acceso TOTAL e irrestricto a TODOS los cuadernos de Google NotebookLM del usuario (usando \`notebooklm_listar_cuadernos\`, \`notebooklm_consultar\` y \`notebooklm_generar_studio\`).\n`;
-                    if (cachedNbs.length > 0) {
-                        fullCompanyAndMemoryBlock += `- Cuadernos disponibles en su cuenta (${cachedNbs.length}):\n` +
-                            cachedNbs.map((nb) => `  * ${nb.emoji || '📓'} "${nb.title}" (ID: \`${nb.id}\`, ${nb.sources_count || 0} fuentes)`).join('\n') + '\n\n';
-                    } else {
-                        fullCompanyAndMemoryBlock += `- Cuenta vinculada activa (${nbSess.email || 'Google NotebookLM'}). Si el usuario pregunta por sus cuadernos, invoca \`notebooklm_listar_cuadernos\`.\n\n`;
-                    }
+            if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
+                const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
+                fullCompanyAndMemoryBlock += `### 📓 [ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n`;
+                fullCompanyAndMemoryBlock += `- Como Tenshi (Orquestadora Universal), tienes acceso TOTAL e irrestricto a TODOS los cuadernos de Google NotebookLM del usuario (usando \`notebooklm_listar_cuadernos\`, \`notebooklm_consultar\` y \`notebooklm_generar_studio\`).\n`;
+                if (cachedNbs.length > 0) {
+                    fullCompanyAndMemoryBlock += `- Cuadernos disponibles en su cuenta (${cachedNbs.length}):\n` +
+                        cachedNbs.map((nb) => `  * ${nb.emoji || '📓'} "${nb.title}" (ID: \`${nb.id}\`, ${nb.sources_count || 0} fuentes)`).join('\n') + '\n\n';
+                } else {
+                    fullCompanyAndMemoryBlock += `- Cuenta vinculada activa (${nbSess.email || 'Google NotebookLM'}). Si el usuario pregunta por sus cuadernos, invoca \`notebooklm_listar_cuadernos\`.\n\n`;
                 }
-            } catch (_) {}
+            }
 
             fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
 - TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa y a la memoria del usuario descritas arriba.
@@ -1332,11 +1381,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 - NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
         }
 
-        const { effective: effectiveAvatar } = await TenshiUserAvatar.resolveEffectiveAvatarProfile(
-            targetUserId,
-            config,
-            companyInfo?._id ? String(companyInfo._id) : null
-        );
+        const { effective: effectiveAvatar } = avatarProfileResult;
         fullCompanyAndMemoryBlock += `\n\n[IDENTIDAD, NOMBRE, SEXO, PERSONALIDAD Y VOCABLO REGIONAL DE TU AVATAR WAPPY CONFIGURADO POR EL USUARIO]:
 - Tu nombre oficial y único para este usuario es: "${effectiveAvatar.name}" (sin títulos adicionales ni apellidos después del nombre). Cuando te presentes o te pregunten cómo te llamas, responde únicamente con tu nombre "${effectiveAvatar.name}".
 - Tu género/sexo configurado es: "${effectiveAvatar.gender}". Usa concordancia gramatical ${effectiveAvatar.gender === 'femenino' ? 'femenina (ej. "estoy lista", "encantada")' : effectiveAvatar.gender === 'neutro' ? 'neutra e inclusiva' : 'masculina (ej. "estoy listo", "encantado")'} al referirte a ti mismo/a.
@@ -1697,7 +1742,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const candidateModels = [
                 'gemini-3.5-flash-lite',
                 ...validEnvModels.filter(m => m !== 'gemini-3.5-flash-lite'),
-                'gemini-3.6-flash'
+                'gemini-3.6-flash',
+                'gemini-3.8-flash'
             ].filter(Boolean);
             const modelFallbacks = [...new Set(candidateModels)];
 
@@ -3445,7 +3491,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             { role: 'user', parts: userParts }
                         ];
 
-                        let responseResult = await geminiModel.generateContent({ contents: currentContents });
+                        let responseResult = await withGeminiTimeout(
+                            geminiModel.generateContent({ contents: currentContents }),
+                            15000,
+                            `Tenshi Chat (${currentModel}) initial`
+                        );
                         let candidate = responseResult.response.candidates && responseResult.response.candidates[0];
                         let calls = responseResult.response.functionCalls();
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
@@ -4153,7 +4203,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             });
 
                             try {
-                                responseResult = await geminiModel.generateContent({ contents: currentContents });
+                                responseResult = await withGeminiTimeout(
+                                    geminiModel.generateContent({ contents: currentContents }),
+                                    15000,
+                                    `Tenshi Chat (${currentModel}) synthesis`
+                                );
                                 candidate = responseResult.response.candidates && responseResult.response.candidates[0];
                                 calls = responseResult.response.functionCalls();
                                 if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
@@ -4305,11 +4359,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         const is404 = status === 404 || msg.includes('404') || msg.includes('not found') || msg.includes('is not found for api version');
 
                         if (is503) {
-                            if (i < apiKeys.length - 1) {
-                                logger.warn(`[Tenshi] Modelo "${currentModel}" recibió 503 con clave #${i + 1}. Reintentando con clave #${i + 2}...`);
-                                continue;
-                            }
-                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible tras probar todas las claves (${status || '503'} - ${geminiError.message}). Cambiando a modelo fallback...`);
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" recibió 503 (${status || '503'} - ${geminiError.message}). Cambiando de inmediato a modelo fallback...`);
                             break;
                         }
 

@@ -333,11 +333,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                 }
 
-                // Cola acústica continua de 900ms para NO cortar pausas entre palabras dentro de una misma oración,
-                // seguida de 450ms de silencio digital limpio para que el VAD nativo de Google cierre el turno sin recortar sílabas.
+                // Cola acústica continua de 550ms para NO cortar pausas entre palabras dentro de una misma oración,
+                // seguida de 250ms de silencio digital limpio (550–800ms) para que el VAD nativo de Google cierre el turno rápido sin recortar sílabas.
                 const timeSinceLastVoice = now - lastVoiceTimeRef.current;
-                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 900;
-                const isInSilenceFlushWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 900 && timeSinceLastVoice < 1350;
+                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 550;
+                const isInSilenceFlushWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 550 && timeSinceLastVoice < 800;
                 const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
 
                 if (!shouldTransmitAudio) {
