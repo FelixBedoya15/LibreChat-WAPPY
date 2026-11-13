@@ -2563,23 +2563,58 @@
          =========================================================== -->
     <section class="deck-section" id="presentacion" aria-labelledby="deck-title">
       <div class="deck-container">
-        <div class="deck-header">
-          <div>
-            <span class="slide-badge lime">DIAPOSITIVAS OFICIALES · CLASE 4</span>
-            <h2 class="deck-title" id="deck-title">Fundamentos de Flujos DAG, Lienzo WAPPY &amp; Subagentes</h2>
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">✨ Presentación Oficial · Síntesis Estructurada Clase 4</span>
+          <h2 class="sec-big-title">Diapositivas Dinámicas de la Clase 4 (10 Slides)</h2>
+        </div>
+        <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
+          💡 Usa las flechas del teclado <code>←</code> <code>→</code>, desliza en el celular o activa <strong>Pantalla Completa</strong>
+        </div>
+      </div>
+
+      <div class="deck-stage" id="deck-stage">
+        <canvas id="deck-canvas"></canvas>
+
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
+
+        <div class="deck-topbar">
+          <div class="deck-telemetry">
+            <span class="telemetry-dot"></span>
+            <span>WAPPY.CLUB // CLASE_04 // AUTOMATIZACIONES_DAG_LIENZO_WAPPY_SUBAGENTES</span>
           </div>
-          <div class="deck-controls">
-            <button type="button" class="ctrl-btn" onclick="prevSlide()" aria-label="Diapositiva anterior">◀ Anterior</button>
-            <span class="slide-counter" id="slide-indicator">Slide 1 de 10</span>
-            <button type="button" class="ctrl-btn" onclick="nextSlide()" aria-label="Siguiente diapositiva">Siguiente ▶</button>
+          <div class="deck-controls-top">
+            <span class="deck-counter-badge" id="deck-counter">SLIDE 01 / 10</span>
+            <button class="btn-fullscreen" onclick="toggleDeckFullscreen()">
+              ⛶ Pantalla Completa
+            </button>
           </div>
         </div>
 
-        <div class="deck-stage" id="deck-stage">
-          <canvas id="deck-canvas"></canvas>
+        <div class="deck-progress-track">
+          <div class="deck-progress-fill" id="slide-progress"></div>
+        </div>
+
+        <div class="slide-pills-strip" id="slide-pills-strip">
+          <button class="slide-num-pill active" onclick="showSlide(1)">01 Era Flujos DAG</button>
+          <button class="slide-num-pill" onclick="showSlide(2)">02 Causalidad Estricta</button>
+          <button class="slide-num-pill" onclick="showSlide(3)">03 Cuotas y Tokens</button>
+          <button class="slide-num-pill" onclick="showSlide(4)">04 API vs Scraping</button>
+          <button class="slide-num-pill" onclick="showSlide(5)">05 Caso Real EPP</button>
+          <button class="slide-num-pill" onclick="showSlide(6)">06 Pre-IA (0 Tokens)</button>
+          <button class="slide-num-pill" onclick="showSlide(7)">07 Subagentes PDFs</button>
+          <button class="slide-num-pill" onclick="showSlide(8)">08 Exámenes Médicos</button>
+          <button class="slide-num-pill" onclick="showSlide(9)">09 8 Compromisos</button>
+          <button class="slide-num-pill" onclick="showSlide(10)">10 Clase 5 en Vivo</button>
+        </div>
+
+        <div class="slide-viewport" id="slide-viewport">
 
           <!-- SLIDE 1: La Era de los Flujos DAG vs Texto Libre -->
-          <article class="deck-slide active" id="slide-1">
+          <div class="slide active" id="slide-1">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">ARQUITECTURA DE PROCESOS · CLASE 4</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">SESIÓN 04 · MIÉRCOLES 11 NOV</span>
@@ -2605,10 +2640,10 @@
                 <p>WAPPY incluye 55 plantillas empresariales listas para usar: inspecciones, matriz legal, entrega de EPP, aptitud médica, comités y contratistas.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 2: Anatomía de un Flujo: Causalidad Estricta -->
-          <article class="deck-slide" id="slide-2">
+          <div class="slide" id="slide-2">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">DISEÑO Y LÓGICA DE PROCESOS</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">ESTRUCTURA DE IZQUIERDA A DERECHA</span>
@@ -2639,10 +2674,10 @@
                 <p>Cierra el ciclo: Centro de Control Kanban, Bitácora a Gmail, Alerta en WAPPY o reporte en Word/PDF.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 3: Gestión de Cuotas de Tokens en Antigravity -->
-          <article class="deck-slide" id="slide-3">
+          <div class="slide" id="slide-3">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">OPTIMIZACIÓN TÉCNICA · ANTIGRAVITY</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASO GLORIA AMPARO QUINTERO</span>
@@ -2668,10 +2703,10 @@
                 <p>Para proyectos intensivos, cambiar de perfil de Google o correo electrónico permite continuar la ejecución sin interrupciones ni tiempos muertos.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 4: Integraciones en Colombia: API vs Web Scraping -->
-          <article class="deck-slide" id="slide-4">
+          <div class="slide" id="slide-4">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">CONECTORES EMPRESARIALES COLOMBIA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASOS SURA, SIGO, ASOPAGOS Y APORTES</span>
@@ -2698,10 +2733,10 @@
                 </div>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 5: Disección del Caso Real: Flujo EPP & Perfiles de Cargo -->
-          <article class="deck-slide" id="slide-5">
+          <div class="slide" id="slide-5">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">CASO PRÁCTICO EN VIVO · LIENZO WAPPY</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">DIAGRAMA OFICIAL DE LA CLASE</span>
@@ -2723,10 +2758,10 @@
                 <span style="background:rgba(255,255,255,0.08); padding:4px 10px; border-radius:6px;">Paso 12: Notificar WAPPY</span>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 6: La Regla de Oro Pre-IA: 0 Tokens en Casos Negativos -->
-          <article class="deck-slide" id="slide-6">
+          <div class="slide" id="slide-6">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">EFICIENCIA &amp; AHORRO DE COSTOS</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">FILTRADO DETERMINISTA INTELIGENTE</span>
@@ -2752,10 +2787,10 @@
                 <p>El nodo de memoria bitácora evita enviar la misma alerta dos veces al colaborador en un lapso de 7 días, garantizando una comunicación sobria y profesional.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 7: Subagentes en Paralelo para Lotes de PDFs -->
-          <article class="deck-slide" id="slide-7">
+          <div class="slide" id="slide-7">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">ESCALABILIDAD EN ANTIGRAVITY</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASO XIOMARA ARDILA (CONTRATOS)</span>
@@ -2781,10 +2816,10 @@
                 <p>El agente orquestador recibe las respuestas parciales y genera un informe ejecutivo en Excel o Markdown con alertas de vencimiento próximas a 30 días.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 8: Seguimiento Médico Ocupacional a 100 Trabajadores -->
-          <article class="deck-slide" id="slide-8">
+          <div class="slide" id="slide-8">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">SALUD OCUPACIONAL AUTOMATIZADA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASO GLORIA AMPARO QUINTERO</span>
@@ -2810,10 +2845,10 @@
                 <p>Envío automático de cartas de recomendaciones a los jefes directos, protegiendo el secreto profesional del diagnóstico médico (Resolución 2346).</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 9: Compromisos Oficiales del Grupo -->
-          <article class="deck-slide" id="slide-9">
+          <div class="slide" id="slide-9">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">PLAN DE ACCIÓN OFICIAL</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">8 COMPROMISOS ACORDADOS EN CLASE 4</span>
@@ -2842,10 +2877,10 @@
                 </ul>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 10: Próxima Sesión: Clase 5 en Vivo -->
-          <article class="deck-slide" id="slide-10">
+          <div class="slide" id="slide-10">
             <div class="slide-header-row">
               <span class="slide-badge coral s-kicker">🔴 PRÓXIMA SESIÓN EN VIVO · CLASE 5</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#fecaca;">MARTES 17 DE NOVIEMBRE · 7:00 PM</span>
@@ -2876,11 +2911,27 @@
                 <span>🔴 Ver Sala y Temario de la Clase 5 →</span>
               </a>
             </div>
-          </article>
+          </div>
 
         </div>
+
+        <div class="deck-footer">
+          <div class="deck-nav-group">
+            <button class="btn-slide-ctrl" id="btn-prev" onclick="prevSlide()" disabled>← Anterior</button>
+            <button class="btn-slide-ctrl primary-next" id="btn-next" onclick="nextSlide()">Siguiente Diapositiva →</button>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="#video-clase" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              🎥 Ver Grabación ↑
+            </a>
+            <a href="#prompts" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              💬 Ir a los 5 Prompts ↓
+            </a>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
+  </section>
 
     <!-- ===========================================================
          SIMULADOR DE TOKENS EN TIEMPO REAL
@@ -2939,7 +2990,7 @@ Diseña la arquitectura en 4 etapas:
 3. Condición Si/No (Pre-IA): Formula la compuerta determinista que evalúe si existen elementos fuera de norma. Si la respuesta es NO, finaliza con alerta pasiva consumiendo 0 tokens de IA.
 4. Agente IA y Salidas: Si la respuesta es SÍ, activa al agente consultor con Gemini 3.5 Lite, memoria de empresa (NIT) y memoria bitácora anti-duplicados de 7 días. Genera salidas para Centro de Control Kanban, Bitácora Gmail y Alerta WAPPY.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p1', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 2 -->
           <article class="p-card">
@@ -2956,7 +3007,7 @@ Para cada registro:
 3. Estructura una matriz en Markdown con las columnas: Cédula, Cargo, Sede, Concepto de Aptitud, Fecha de Examen, Próximo Vencimiento y Recomendación Principal.
 4. Redacta el borrador de correo formal para el jefe inmediato indicando las adecuaciones requeridas en el puesto de trabajo.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p2', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 3 -->
           <article class="p-card">
@@ -2973,7 +3024,7 @@ Ejecuta el protocolo multi-agente en paralelo:
 3. Cada subagente debe retornar exclusivamente un archivo JSON o tabla Markdown limpia.
 4. Como orquestador, consolida todos los lotes en una única matriz maestra y genera una sección de "Alertas Críticas" con los contratos que vencen en los próximos 30 días calendario.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p3', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 4 -->
           <article class="p-card">
@@ -2989,7 +3040,7 @@ Analiza los datos y realiza lo siguiente:
 2. Genera una tabla comparativa con: Nombre del Colaborador, Cédula, Valor Planilla, Valor Nómina, Diferencia y Causa Raíz.
 3. Redacta una respuesta pedagógica, clara y respetuosa para resolver la inquietud del colaborador, citando la normativa colombiana aplicable (Decreto 1072 y Ley 100).</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p4', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 5 -->
           <article class="p-card">
@@ -3005,7 +3056,7 @@ Instrucciones de auditoría:
 2. Comprueba que la licencia corresponda a Médico Especialista en Seguridad y Salud en el Trabajo (Resolución 754 de 2021).
 3. Redacta el checklist de verificación para la carpeta del proveedor en el Sistema de Gestión, indicando si el prestador se encuentra habilitado para expedir conceptos de aptitud laboral.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p5', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
         </div>
       </div>
     </section>

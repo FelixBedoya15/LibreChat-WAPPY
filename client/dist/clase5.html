@@ -2549,23 +2549,58 @@
          =========================================================== -->
     <section class="deck-section" id="presentacion" aria-labelledby="deck-title">
       <div class="deck-container">
-        <div class="deck-header">
-          <div>
-            <span class="slide-badge lime">TEMARIO MAESTRO · CLASE 5</span>
-            <h2 class="deck-title" id="deck-title">Puesta en Marcha de Flujos, NotebookLM &amp; Google Flow</h2>
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">✨ Temario Maestro · Síntesis Estructurada Clase 5</span>
+          <h2 class="sec-big-title">Diapositivas Dinámicas de la Clase 5 (10 Slides)</h2>
+        </div>
+        <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
+          💡 Usa las flechas del teclado <code>←</code> <code>→</code>, desliza en el celular o activa <strong>Pantalla Completa</strong>
+        </div>
+      </div>
+
+      <div class="deck-stage" id="deck-stage">
+        <canvas id="deck-canvas"></canvas>
+
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
+
+        <div class="deck-topbar">
+          <div class="deck-telemetry">
+            <span class="telemetry-dot"></span>
+            <span>WAPPY.CLUB // CLASE_05 // PUESTA_EN_MARCHA_FLUJOS_NOTEBOOKLM_GOOGLE_FLOW</span>
           </div>
-          <div class="deck-controls">
-            <button type="button" class="ctrl-btn" onclick="prevSlide()" aria-label="Diapositiva anterior">◀ Anterior</button>
-            <span class="slide-counter" id="slide-indicator">Slide 1 de 10</span>
-            <button type="button" class="ctrl-btn" onclick="nextSlide()" aria-label="Siguiente diapositiva">Siguiente ▶</button>
+          <div class="deck-controls-top">
+            <span class="deck-counter-badge" id="deck-counter">SLIDE 01 / 10</span>
+            <button class="btn-fullscreen" onclick="toggleDeckFullscreen()">
+              ⛶ Pantalla Completa
+            </button>
           </div>
         </div>
 
-        <div class="deck-stage" id="deck-stage">
-          <canvas id="deck-canvas"></canvas>
+        <div class="deck-progress-track">
+          <div class="deck-progress-fill" id="slide-progress"></div>
+        </div>
+
+        <div class="slide-pills-strip" id="slide-pills-strip">
+          <button class="slide-num-pill active" onclick="showSlide(1)">01 En Vivo Martes 17</button>
+          <button class="slide-num-pill" onclick="showSlide(2)">02 Flujos Alumnos</button>
+          <button class="slide-num-pill" onclick="showSlide(3)">03 NotebookLM Cero Alucinación</button>
+          <button class="slide-num-pill" onclick="showSlide(4)">04 Podcasts 2 Voces</button>
+          <button class="slide-num-pill" onclick="showSlide(5)">05 Google Flow 3.5m</button>
+          <button class="slide-num-pill" onclick="showSlide(6)">06 Claves API Únicas</button>
+          <button class="slide-num-pill" onclick="showSlide(7)">07 Conectores Workspace</button>
+          <button class="slide-num-pill" onclick="showSlide(8)">08 Centro Control Kanban</button>
+          <button class="slide-num-pill" onclick="showSlide(9)">09 Checklist Previo</button>
+          <button class="slide-num-pill" onclick="showSlide(10)">10 Sala Google Meet</button>
+        </div>
+
+        <div class="slide-viewport" id="slide-viewport">
 
           <!-- SLIDE 1: Portada y Convocatoria en Vivo -->
-          <article class="deck-slide active" id="slide-1">
+          <div class="slide active" id="slide-1">
             <div class="slide-header-row">
               <span class="slide-badge coral s-kicker">🔴 SESIÓN EN VIVO · MARTES 17 NOV</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#fca5a5;">7:00 – 9:00 PM (HORA COLOMBIA)</span>
@@ -2591,10 +2626,10 @@
                 <p>Automatización de videos cortos y piezas gráficas para divulgar lecciones aprendidas y pausas activas en la empresa.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 2: Puesta en Producción de Flujos Alumnos -->
-          <article class="deck-slide" id="slide-2">
+          <div class="slide" id="slide-2">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">PUESTA EN MARCHA EN VIVO</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASOS POR EMPRESA</span>
@@ -2620,10 +2655,10 @@
                 <p>Seguimiento al Plan Estratégico de Seguridad Vial (PESV), SOAT, tecnomecánica y mantenimiento preventivo.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 3: Google NotebookLM: El Cerebro Normativo -->
-          <article class="deck-slide" id="slide-3">
+          <div class="slide" id="slide-3">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">INTELIGENCIA NORMATIVA SEGURA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">GROUNDING CONTEXTUAL</span>
@@ -2649,10 +2684,10 @@
                 <p>Aislamiento total de información entre empresas: las políticas y actas de una compañía nunca se mezclan con las de otra.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 4: Generación de Podcasts SST a 2 Voces -->
-          <article class="deck-slide" id="slide-4">
+          <div class="slide" id="slide-4">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">DIVULGACIÓN PEDAGÓGICA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">AUDIO DE ALTO IMPACTO</span>
@@ -2678,10 +2713,10 @@
                 <p>NotebookLM extrae simultáneamente un resumen de 1 página con indicadores clave para la Alta Dirección.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 5: Google Flow: Producción Audiovisual -->
-          <article class="deck-slide" id="slide-5">
+          <div class="slide" id="slide-5">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">MULTIMEDIA EN TIEMPO RÉCORD</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">GOOGLE FLOW &amp; ESTUDIO AUDIOVISUAL</span>
@@ -2707,10 +2742,10 @@
                 <p>Generación de archivos de video listos para proyectar en pantallas corporativas o compartir en estados de redes sociales.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 6: Claves API Independientes y Paralelismo -->
-          <article class="deck-slide" id="slide-6">
+          <div class="slide" id="slide-6">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">INFRAESTRUCTURA &amp; ROBUSTEZ</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">COMPROMISO FÉLIX BEDOYA</span>
@@ -2736,10 +2771,10 @@
                 <p>Monitoreo exacto de cuántos tokens y llamadas consume cada departamento de la organización para control presupuestal.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 7: Conectores Workspace: Drive, Gmail & Calendar -->
-          <article class="deck-slide" id="slide-7">
+          <div class="slide" id="slide-7">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">INTEGRACIÓN CON GOOGLE WORKSPACE</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">ECOSISTEMA NATIVO WAPPY</span>
@@ -2765,10 +2800,10 @@
                 <p>Programación automática de auditorías periódicas, vencimientos de licencias y reuniones de COPASST con recordatorios.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 8: Auditoría y Mitigación de Riesgos en Tiempo Real -->
-          <article class="deck-slide" id="slide-8">
+          <div class="slide" id="slide-8">
             <div class="slide-header-row">
               <span class="slide-badge teal s-kicker">CONTROL OPERATIVO RIGUROSO</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">ESTÁNDARES MÍNIMOS RESOLUCIÓN 0312</span>
@@ -2794,10 +2829,10 @@
                 <p>Cálculo automático de tasas de accidentalidad, porcentaje de cumplimiento de capacitaciones y cobertura de EPP.</p>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 9: Checklist para la Sesión en Vivo -->
-          <article class="deck-slide" id="slide-9">
+          <div class="slide" id="slide-9">
             <div class="slide-header-row">
               <span class="slide-badge lime s-kicker">PREPARACIÓN OBLIGATORIA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">REQUISITOS PARA APROVECHAR AL 100%</span>
@@ -2826,10 +2861,10 @@
                 </ul>
               </div>
             </div>
-          </article>
+          </div>
 
           <!-- SLIDE 10: Espacio de Preguntas y Retroalimentación -->
-          <article class="deck-slide" id="slide-10">
+          <div class="slide" id="slide-10">
             <div class="slide-header-row">
               <span class="slide-badge coral s-kicker">🔴 EN VIVO AHORA</span>
               <span style="font-family:var(--font-mono); font-size:12px; color:#fecaca;">SALA DE CONFERENCIA ABIERTA</span>
@@ -2851,11 +2886,27 @@
                 <span>⬅️ Repasar Grabación Clase 4</span>
               </a>
             </div>
-          </article>
+          </div>
 
         </div>
+
+        <div class="deck-footer">
+          <div class="deck-nav-group">
+            <button class="btn-slide-ctrl" id="btn-prev" onclick="prevSlide()" disabled>← Anterior</button>
+            <button class="btn-slide-ctrl primary-next" id="btn-next" onclick="nextSlide()">Siguiente Diapositiva →</button>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="#video-clase" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              🔴 Sala en Vivo ↑
+            </a>
+            <a href="#prompts" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              💬 Ir a los 5 Prompts ↓
+            </a>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
+  </section>
 
     <!-- ===========================================================
          SIMULADOR DE TOKENS EN TIEMPO REAL
@@ -2911,7 +2962,7 @@ Tu tarea es preparar las fuentes de información:
 2. Asegúrate de incluir encabezados claros con fecha de emisión, entidad emisora y ámbito de aplicación para facilitar las citas textuales de NotebookLM.
 3. Formula 5 preguntas de prueba de alta complejidad técnica para verificar que el cuaderno responda con 0% de alucinación citando los números de página exactos.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p1', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 2 -->
           <article class="p-card">
@@ -2929,7 +2980,7 @@ Estructura de la conversación:
 - Minuto 1 a 4: Diálogo ágil donde el técnico explica los límites de carga permitidos en Colombia (Resolución 2400) y el supervisor comparte trucos prácticos para usar ayudas mecánicas.
 - Minuto 4 a 6: Reflexión final con 3 reglas de oro inolvidables y llamado a reportar condiciones inseguras en WAPPY.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p2', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 3 -->
           <article class="p-card">
@@ -2947,7 +2998,7 @@ Genera los prompts visuales para cada escena:
 2. Escena 2 (20s-2m): Cortina oscura a pantalla completa con esquema de 5 pasos numerados que se iluminan en verde lima (#c7f303) al nombrarse.
 3. Escena 3 (2m-3.5m): Regreso de Tenshi 3D con aureola dorada, resumen de las 3 compuertas de seguridad y botón animado hacia wappy.club.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p3', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 4 -->
           <article class="p-card">
@@ -2962,7 +3013,7 @@ Genera los prompts visuales para cada escena:
 2. Si la severidad es ALTA: Redacta un correo urgente con asunto "[URGENTE SG-SST] Incidente Crítico Reportado", marca con etiqueta roja y programa una reunión en Google Calendar para los brigadistas en los próximos 15 minutos.
 3. Si la severidad es BAJA: Registra el caso en la matriz de actos y condiciones inseguras y responde al colaborador agradeciendo su reporte con un mensaje cordial de retroalimentación.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p4', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
 
           <!-- Prompt 5 -->
           <article class="p-card">
@@ -2980,7 +3031,7 @@ Configura la arquitectura técnica:
 2. Establece límites de concurrencia y políticas de reintento automático ante fallas de red.
 3. Diseña el webhook de salida unificado para consolidar las métricas de ambos flujos en el panel de control de WAPPY.</div>
             <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p5', this)">📋 Copiar Prompt al Portapapeles</button>
-          </article>
+          </div>
         </div>
       </div>
     </section>
