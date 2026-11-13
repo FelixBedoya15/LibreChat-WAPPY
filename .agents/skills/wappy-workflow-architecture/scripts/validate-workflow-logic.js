@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 
 const EXPECTED_CATALOG_COUNT = 30;
-const EXPECTED_CATALOG_VERSION = '2026.11.12-v59-n8n-curated-30';
+const EXPECTED_CATALOG_VERSION = '2026.11.13-v60-n8n-curated-30';
 const EXPECTED_CATEGORY_COUNTS = {
   salud_vencimientos: 5,
   drive_sincronizacion: 5,
@@ -31,8 +31,48 @@ const ALLOWED_PRESET_CATEGORIES = new Set([
   'gerencia_auditoria',
 ]);
 
-// Aplicativos habilitados explícitamente en el backend (MatrizLegalData en ~/server/routes/sgsst/matriz)
-const BACKEND_ENABLED_HITO_IDS = new Set(['hito1_matriz_legal']);
+// Aplicativos Hito deshabilitados en producción (solo exención legacy en #10 preset_vigilancia_matriz_legal_sst)
+const PROD_DISABLED_HITO_IDS = new Set([
+  'hito1_matriz_legal',
+  'hito3_comite_pesv',
+  'hito3_brigada_emergencias',
+  'hito5_compras_sst',
+  'hito5_contratistas',
+  'hito5_gestion_cambio',
+  'hito5_equipos_emergencia',
+  'hito6_comunicaciones_sst',
+  'hito6_simulacros_emergencia',
+  'hito6_app_builder',
+  'hito7_investigacion_profunda',
+]);
+
+const ALLOWED_SCHEDULE_TYPES = new Set(['daily', 'weekly', 'monthly', 'hourly']);
+
+const VERIFIED_DB_AGENT_NAMES = new Set([
+  'Consultor SG-SST',
+  'Simulador de Accidentes SST',
+  'Abogado Laboral',
+  'Médico Laboral',
+  'Fisioterapeuta Laboral',
+  'Psicólogo SST',
+  'Terapeuta en Salud Mental',
+  'Nutricionista Laboral',
+  'Primer Respondiente',
+  'Coordinador de Emergencias',
+  'Especialista en Bioseguridad',
+  'Ingeniero Electricista SST',
+  'Ingeniero Químico SST',
+  'Coordinador de Seguridad Vial',
+  'Coordinador de Tareas Críticas',
+  'Ingeniero de Minas SST',
+  'Auditor SG-SST',
+  'Ingeniero Ambiental',
+  'Redactor Creativo',
+  'Profesional SST',
+  'Coordinador de Capacitaciones',
+  'Especialista en Riesgo Climático',
+  'Tenshi',
+]);
 
 // Mapa estático de respaldo de los 8 Hitos reales (en caso de lectura sin TS)
 const FALLBACK_HITO_MAP = {
@@ -104,7 +144,7 @@ function loadRealCatalogMetadata() {
     for (const objMatch of tsSource.matchAll(/\{\s*id:\s*'([^']+)'([\s\S]*?)\n  \},/g)) {
       const nodeId = objMatch[1];
       const body = objMatch[2] || '';
-      if (/defaultConstruction:\s*true/.test(body) && !BACKEND_ENABLED_HITO_IDS.has(nodeId)) {
+      if (/defaultConstruction:\s*true/.test(body)) {
         constructionNodeIds.add(nodeId);
       }
     }
@@ -120,8 +160,7 @@ function loadRealCatalogMetadata() {
         const hitoNumber = Number(m[2]);
         const rest = m[3] || '';
         const labelMatch = rest.match(/label:\s*'([^']+)'/);
-        const defaultConstruction =
-          /defaultConstruction:\s*true/.test(m[0]) && !BACKEND_ENABLED_HITO_IDS.has(id);
+        const defaultConstruction = /defaultConstruction:\s*true/.test(m[0]);
         if (defaultConstruction) {
           constructionNodeIds.add(id);
         }
@@ -238,6 +277,10 @@ const MUTUAL_EXCLUSION_GROUPS = [
     domain: 'Web Scraping Genérico en Vivo (Stage 2 vs Herramienta +)',
     nodes: ['extract_web_scraping_agy', 'tool_web_scraping_agy'],
   },
+  {
+    domain: 'Google NotebookLM / Memoria RAG Documental (Icono Único en Lienzo)',
+    nodes: ['notebooklm', 'wappy_rag_documental'],
+  },
 ];
 
 // Extractores genéricos obsoletos de tablas locales prohibidos en `inputs[]` (se debe usar el aplicativo Hito en `agent_tool` o `source_read`)
@@ -249,26 +292,41 @@ const FORBIDDEN_GENERIC_LOCAL_TOOLS = new Set([
 ]);
 
 const VALID_NOTEBOOKLM_ACTIONS = new Set([
-  'query',
-  'add_source',
-  'generate_infographic',
-  'generate_slides',
-  'generate_report',
-  'generate_audio',
-  'generate_video',
-  'generate_mind_map',
-  'generate_study_guide',
+  'consultar',
+  'agregar_fuente',
+  'generar_estudio',
 ]);
-const VALID_FLOW_ACTIONS = new Set(['generate_image', 'generate_video']);
-const VALID_FLOW_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:5', '3:4']);
+const VALID_NOTEBOOKLM_ARTIFACT_TYPES = new Set([
+  'infographic',
+  'slide_deck',
+  'report',
+  'audio',
+  'video',
+  'mind_map',
+  'data_table',
+]);
+const VALID_FLOW_ACTIONS = new Set(['generar_imagen', 'generar_video']);
+const VALID_FLOW_ASPECT_RATIOS = new Set(['9:16', '16:9', '1:1']);
+const VALID_FLOW_STYLES = new Set([
+  'corporativo_sst',
+  'infografia_editorial',
+  'fotorealista',
+  'isometrico_3d',
+  'minimalista',
+]);
+const VALID_FLOW_CAMERA_MOTIONS = new Set([
+  'estatico',
+  'paneo_suave',
+  'zoom_acercamiento',
+  'orbital',
+]);
 const VALID_SCRAPER_ENGINES = new Set([
-  'auto',
-  'cheerio',
-  'playwright',
+  'auto_chrome_dom',
+  'fetch_cheerio',
   'chrome_mcp',
-  'chrome_devtools_mcp',
-  'python',
-  'node',
+  'python_bs4',
+  'node_cheerio',
+  'custom_script',
 ]);
 
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
@@ -296,10 +354,13 @@ function resolveHitoRole(nodeConfigs, hitoId) {
   return null;
 }
 
-function validateSingleWorkflow(preset, index = 0) {
+function validateSingleWorkflow(preset, index = 0, options = {}) {
   const errors = [];
   const warnings = [];
   const key = preset.presetKey || preset.name || `workflow_${index + 1}`;
+  const isCustomFile = Boolean(options?.isCustomFile);
+  const isLegacyMatrizLegalPreset =
+    !isCustomFile && index < 15 && preset.presetKey === 'preset_vigilancia_matriz_legal_sst';
   const wf = preset.workflowNodes || {};
   const nodeConfigs = wf?.canvasLayout?.nodeConfigs || {};
   const logicNodes = Array.isArray(wf?.canvasLayout?.logicNodes) ? wf.canvasLayout.logicNodes : [];
@@ -316,6 +377,51 @@ function validateSingleWorkflow(preset, index = 0) {
     errors.push(
       `[Inv-00] Categoría inválida "${preset.presetCategory}". Permitidas: ${Array.from(ALLOWED_PRESET_CATEGORIES).join(', ')}.`,
     );
+  }
+
+  // Invariante 00 / META: Validar agente real, programación, trigger y motor IA
+  const agentTargetNameStr = String(preset.agentTargetName || '').trim();
+  const agentNameStr = String(preset.agentName || '').trim();
+  if (!agentTargetNameStr) {
+    errors.push('[Inv-00 / META] Falta `agentTargetName` no vacío en el preset.');
+  }
+  if (!agentNameStr) {
+    errors.push('[Inv-00 / META] Falta `agentName` no vacío en el preset.');
+  }
+  if (index >= 15 || isCustomFile) {
+    if (agentTargetNameStr && agentNameStr && agentTargetNameStr !== agentNameStr) {
+      errors.push(
+        `[Inv-00 / META] \`agentTargetName\` ("${agentTargetNameStr}") y \`agentName\` ("${agentNameStr}") deben ser idénticos en presets #16–#30 y flujos custom.`,
+      );
+    }
+    if (agentTargetNameStr && !VERIFIED_DB_AGENT_NAMES.has(agentTargetNameStr)) {
+      errors.push(
+        `[Inv-00 / META] \`agentTargetName\` ("${agentTargetNameStr}") no existe en los 23 agentes verificados de BD (evita fallback a Consultor SG-SST).`,
+      );
+    }
+  }
+  if (!ALLOWED_SCHEDULE_TYPES.has(preset.scheduleType)) {
+    errors.push(
+      `[Inv-00 / META] \`scheduleType\` inválido ("${preset.scheduleType}"). Permitidos: ${Array.from(ALLOWED_SCHEDULE_TYPES).join(', ')}.`,
+    );
+  }
+  if (
+    !preset.scheduleConfig ||
+    typeof preset.scheduleConfig !== 'object' ||
+    Array.isArray(preset.scheduleConfig)
+  ) {
+    errors.push('[Inv-00 / META] Falta objeto válido `scheduleConfig`.');
+  }
+  if (!preset.cronExpression || typeof preset.cronExpression !== 'string' || !preset.cronExpression.trim()) {
+    errors.push('[Inv-00 / META] Falta `cronExpression` no vacío.');
+  }
+  if (triggers.length > 0 && wf.trigger !== triggers[0]) {
+    errors.push(
+      `[Inv-00 / META] \`workflowNodes.trigger\` ("${wf.trigger}") debe coincidir con \`triggers[0]\` ("${triggers[0]}").`,
+    );
+  }
+  if (wf.aiEngine !== 'wappy') {
+    errors.push(`[Inv-00 / META] \`workflowNodes.aiEngine\` debe ser "wappy" (actual: "${wf.aiEngine}").`);
   }
 
   // Invariante 1: Disparadores válidos
@@ -344,7 +450,17 @@ function validateSingleWorkflow(preset, index = 0) {
     }
   }
 
-  // Invariante 3: Cero nodos en construcción / bloqueados
+  // Invariante 3: Cero nodos en construcción / bloqueados / deshabilitados en producción
+  for (const hId of hitos) {
+    if (PROD_DISABLED_HITO_IDS.has(hId)) {
+      const exemptLegacy = isLegacyMatrizLegalPreset && hId === 'hito1_matriz_legal';
+      if (!exemptLegacy) {
+        errors.push(
+          `[Inv-03 / PROD_DISABLED_HITO] El aplicativo Hito "${hId}" está deshabilitado en producción y está prohibido en presets #16–#30 y flujos personalizados.`,
+        );
+      }
+    }
+  }
   const allReferencedIds = [
     ...triggers,
     ...extractors,
@@ -359,9 +475,12 @@ function validateSingleWorkflow(preset, index = 0) {
       errors.push(`[Inv-03] Nodo bloqueado/en construcción detectado: "${nid}".`);
     }
     if (REAL_CONSTRUCTION_NODE_IDS.has(nid)) {
-      errors.push(
-        `[Inv-03 / DOMAIN_CONSTRUCTION_APP_BLOCKED] El flujo usa el nodo "${nid}" marcado con \`defaultConstruction: true\`.`,
-      );
+      const exemptLegacy = isLegacyMatrizLegalPreset && nid === 'hito1_matriz_legal';
+      if (!exemptLegacy) {
+        errors.push(
+          `[Inv-03 / DOMAIN_CONSTRUCTION_APP_BLOCKED] El flujo usa el nodo "${nid}" marcado con \`defaultConstruction: true\`.`,
+        );
+      }
     }
   }
 
@@ -532,14 +651,12 @@ function validateSingleWorkflow(preset, index = 0) {
   }
 
   // Invariante 8, 9 & 10: Compuerta Condicional `Condición Sí/No` (`pre_agent` vs `post_agent`) y Ramas `yes` / `no`
-  const hasScrapers = customNodes.some((cn) =>
-    String(cn?.id || cn?.key || cn?.nodeType || '').includes('scraper_agy'),
+  const activeStage2SourceHitos = sourceHitos.filter(
+    (h) => !PROD_DISABLED_HITO_IDS.has(h) || (isLegacyMatrizLegalPreset && h === 'hito1_matriz_legal'),
   );
-  // Fuentes paralelas independientes en Etapa 2 (`extract_ai_doc_ocr` va en serie detrás de Drive/Gmail/PC)
+  // Fuentes paralelas independientes que realmente renderizan en Etapa 2 (`extract_ai_doc_ocr` va en serie detrás de Drive/Gmail/PC; customNodes se renderizan bajo agent_root)
   const parallelStage2SourcesCount =
-    extractors.filter((e) => e !== 'extract_ai_doc_ocr').length +
-    sourceHitos.length +
-    (hasScrapers ? 1 : 0);
+    extractors.filter((e) => e !== 'extract_ai_doc_ocr').length + activeStage2SourceHitos.length;
 
   if (wf.includeIfNode) {
     const ifCfg = nodeConfigs.if_router || nodeConfigs.if_condition || {};
@@ -646,7 +763,7 @@ function validateSingleWorkflow(preset, index = 0) {
   const hasLoop = logicNodes.some((ln) => ln?.logicType === 'loop');
   if (parallelStage2SourcesCount >= 2 && !hasMerge) {
     errors.push(
-      `[Inv-12] Existen ${parallelStage2SourcesCount} fuentes paralelas en Etapa 2 ([${[...extractors.filter((e) => e !== 'extract_ai_doc_ocr'), ...sourceHitos].join(', ')}]) pero falta \`logicType: "merge"\` en \`canvasLayout.logicNodes\`.`,
+      `[Inv-12] Existen ${parallelStage2SourcesCount} fuentes paralelas en Etapa 2 ([${[...extractors.filter((e) => e !== 'extract_ai_doc_ocr'), ...activeStage2SourceHitos].join(', ')}]) pero falta \`logicType: "merge"\` en \`canvasLayout.logicNodes\`.`,
     );
   }
   if (hasMerge && parallelStage2SourcesCount < 2) {
@@ -677,14 +794,17 @@ function validateSingleWorkflow(preset, index = 0) {
         `[Inv-17] El nodo \`notebooklm\` debe declarar \`notebookAction\` válido (${Array.from(VALID_NOTEBOOKLM_ACTIONS).join(', ')}).`,
       );
     }
+    if (
+      nbCfg.notebookAction === 'generar_estudio' &&
+      !VALID_NOTEBOOKLM_ARTIFACT_TYPES.has(nbCfg.notebookArtifactType)
+    ) {
+      errors.push(
+        `[Inv-17] Cuando \`notebookAction === "generar_estudio"\`, el nodo \`notebooklm\` debe declarar \`notebookArtifactType\` válido (${Array.from(VALID_NOTEBOOKLM_ARTIFACT_TYPES).join(', ')}).`,
+      );
+    }
     if (!nbCfg.notebookPrompt || String(nbCfg.notebookPrompt).trim().length < 10) {
       errors.push(
         '[Inv-17] El nodo `notebooklm` debe definir `notebookPrompt` descriptivo (>= 10 caracteres).',
-      );
-    }
-    if (!memories.includes('wappy_rag_documental')) {
-      errors.push(
-        '[Inv-17] Todo flujo que conecta `notebooklm` en Herramienta + debe activar la memoria `wappy_rag_documental`.',
       );
     }
   }
@@ -693,12 +813,25 @@ function validateSingleWorkflow(preset, index = 0) {
     const flowCfg = nodeConfigs.tool_inputs_google_flow || nodeConfigs.google_flow || {};
     if (!VALID_FLOW_ACTIONS.has(flowCfg.flowAction)) {
       errors.push(
-        `[Inv-18] El nodo \`google_flow\` debe declarar \`flowAction\` ("generate_image" o "generate_video").`,
+        `[Inv-18] El nodo \`google_flow\` debe declarar \`flowAction\` válido (${Array.from(VALID_FLOW_ACTIONS).join(', ')}).`,
       );
     }
     if (!VALID_FLOW_ASPECT_RATIOS.has(flowCfg.flowAspectRatio)) {
       errors.push(
         `[Inv-18] El nodo \`google_flow\` debe declarar \`flowAspectRatio\` válido (${Array.from(VALID_FLOW_ASPECT_RATIOS).join(', ')}).`,
+      );
+    }
+    if (!VALID_FLOW_STYLES.has(flowCfg.flowStyle)) {
+      errors.push(
+        `[Inv-18] El nodo \`google_flow\` debe declarar \`flowStyle\` válido (${Array.from(VALID_FLOW_STYLES).join(', ')}).`,
+      );
+    }
+    if (
+      flowCfg.flowAction === 'generar_video' &&
+      !VALID_FLOW_CAMERA_MOTIONS.has(flowCfg.flowCameraMotion)
+    ) {
+      errors.push(
+        `[Inv-18] Cuando \`flowAction === "generar_video"\`, el nodo \`google_flow\` debe declarar \`flowCameraMotion\` válido (${Array.from(VALID_FLOW_CAMERA_MOTIONS).join(', ')}).`,
       );
     }
     if (!flowCfg.flowPrompt || String(flowCfg.flowPrompt).trim().length < 10) {
@@ -730,6 +863,14 @@ function validateSingleWorkflow(preset, index = 0) {
           '[Inv-19] Un flujo con `extract_web_scraping_agy` + `pre_agent` debe incluir `wappy_memory_antiduplicate` para control SHA-256.',
         );
       }
+    }
+  }
+  for (const agyWsId of extractors.filter((e) => String(e).startsWith('scraper_agy_'))) {
+    const wsCfg = nodeConfigs[`extractor_${agyWsId}`] || nodeConfigs[agyWsId] || {};
+    if (!VALID_SCRAPER_ENGINES.has(String(wsCfg.scriptEngine || ''))) {
+      errors.push(
+        `[Inv-19] El scraper especializado "${agyWsId}" debe declarar \`scriptEngine\` válido (${Array.from(VALID_SCRAPER_ENGINES).join(', ')}).`,
+      );
     }
   }
 
@@ -796,6 +937,27 @@ function validateSingleWorkflow(preset, index = 0) {
     }
   }
 
+  if (index >= 15 || isCustomFile) {
+    const titleAndDesc = `${preset.name || ''} ${preset.presetDescription || preset.description || ''}`;
+    const forbiddenMentionChecks = [
+      { regex: /\bMatriz\s+Legal\b/i, requiredHito: 'hito1_matriz_legal', label: 'Matriz Legal' },
+      { regex: /\bContratistas?\b/i, requiredHito: 'hito5_contratistas', label: 'Contratistas' },
+      { regex: /\bCompras\b/i, requiredHito: 'hito5_compras_sst', label: 'Compras' },
+      {
+        regex: /\bGesti[oó]n\s+del\s+Cambio\b/i,
+        requiredHito: 'hito5_gestion_cambio',
+        label: 'Gestión del Cambio',
+      },
+    ];
+    for (const chk of forbiddenMentionChecks) {
+      if (chk.regex.test(titleAndDesc) && !hitos.includes(chk.requiredHito)) {
+        errors.push(
+          `[Inv-15 / DOMAIN_MISLEADING_MENTION] El título o descripción menciona "${chk.label}", pero ese aplicativo Hito no está conectado en \`hitos[]\`.`,
+        );
+      }
+    }
+  }
+
   // Invariante 16: Prohibido usar `hito3_alturas` (Permiso diario en campo) para auditar cursos/certificados anuales de formación
   if (hitos.includes('hito3_alturas') && !hitos.includes('hito2_perfil_socio')) {
     const combinedDomainText = `${preset.name || ''} ${preset.presetDescription || ''} ${promptStr}`;
@@ -851,13 +1013,14 @@ function main() {
     catalogVersion = mod.SYSTEM_WORKFLOW_PRESETS_VERSION || null;
   }
 
-  if (presetFilter) {
-    workflows = workflows.filter(
-      (w) => w.presetKey === presetFilter || w.name?.includes(presetFilter),
-    );
-  }
+  const annotatedWorkflows = workflows.map((w, origIdx) => ({ preset: w, origIdx }));
+  const filteredWorkflows = presetFilter
+    ? annotatedWorkflows.filter(
+        ({ preset: w }) => w.presetKey === presetFilter || w.name?.includes(presetFilter),
+      )
+    : annotatedWorkflows;
 
-  if (workflows.length === 0) {
+  if (filteredWorkflows.length === 0) {
     console.error('❌ No se encontraron flujos para validar.');
     process.exit(1);
   }
@@ -910,7 +1073,7 @@ function main() {
   const categoryStats = {};
 
   console.log(
-    `\n🔍 VALIDACIÓN DETERMINISTA N8N DE FLUJOS MAESTROS WAPPY (${workflows.length} flujo(s)${catalogVersion ? ` · v=${catalogVersion}` : ''})\n` +
+    `\n🔍 VALIDACIÓN DETERMINISTA N8N DE FLUJOS MAESTROS WAPPY (${filteredWorkflows.length} flujo(s)${catalogVersion ? ` · v=${catalogVersion}` : ''})\n` +
       '═'.repeat(96),
   );
 
@@ -920,8 +1083,8 @@ function main() {
     }
   }
 
-  for (let i = 0; i < workflows.length; i++) {
-    const report = validateSingleWorkflow(workflows[i], i);
+  for (const { preset, origIdx } of filteredWorkflows) {
+    const report = validateSingleWorkflow(preset, origIdx, { isCustomFile: Boolean(jsonFile) });
     archetypeStats[report.ifPlacement] = (archetypeStats[report.ifPlacement] || 0) + 1;
     categoryStats[report.presetCategory] = (categoryStats[report.presetCategory] || 0) + 1;
     totalWarnings += report.warnings.length;
@@ -929,14 +1092,14 @@ function main() {
     if (report.valid) {
       validCount++;
       console.log(
-        `✅ ${String(i + 1).padStart(2, '0')}. [${report.presetKey}] ${report.name}\n` +
+        `✅ ${String(origIdx + 1).padStart(2, '0')}. [${report.presetKey}] ${report.name}\n` +
           `   • Cat: ${report.presetCategory} | IF: ${report.ifPlacement} | Etapa2(Read): [${[...report.extractors, ...report.sourceHitos].join(', ') || 'Evento directo'}] | Herramienta+: [${[...report.inputs, ...report.agentToolHitos].join(', ')}]`,
       );
     } else {
       invalidCount++;
       totalErrors += report.errors.length;
       console.log(
-        `❌ ${String(i + 1).padStart(2, '0')}. [${report.presetKey}] ${report.name} (${report.errors.length} error(es)):`,
+        `❌ ${String(origIdx + 1).padStart(2, '0')}. [${report.presetKey}] ${report.name} (${report.errors.length} error(es)):`,
       );
       for (const err of report.errors) {
         console.log(`   ↳ ${err}`);
@@ -951,7 +1114,7 @@ function main() {
 
   console.log('═'.repeat(96));
   console.log(
-    `📊 RESUMEN: ${validCount}/${workflows.length} PASS · ${totalErrors} errores · ${totalWarnings} advertencias`,
+    `📊 RESUMEN: ${validCount}/${filteredWorkflows.length} PASS · ${totalErrors} errores · ${totalWarnings} advertencias`,
   );
   console.log(
     `🧭 DISTRIBUCIÓN IF: pre_agent=${archetypeStats.pre_agent || 0} | post_agent=${archetypeStats.post_agent || 0} | direct=${archetypeStats.direct || 0}`,
@@ -973,4 +1136,6 @@ module.exports = {
   validateSingleWorkflow,
   resolveHitoRole,
   MUTUAL_EXCLUSION_GROUPS,
+  PROD_DISABLED_HITO_IDS,
+  VERIFIED_DB_AGENT_NAMES,
 };

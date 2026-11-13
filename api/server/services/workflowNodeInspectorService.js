@@ -72,6 +72,222 @@ function formatDriveMimeTypeLabel(mimeType = '') {
   return 'Archivo';
 }
 
+const NOTEBOOK_ARTIFACT_TYPE_MAP = {
+  infographic: 'infographic',
+  infografia: 'infographic',
+  slide_deck: 'slide_deck',
+  slides: 'slide_deck',
+  slide: 'slide_deck',
+  diapositivas: 'slide_deck',
+  presentacion: 'slide_deck',
+  report: 'report',
+  informe: 'report',
+  reporte: 'report',
+  documento: 'report',
+  audio: 'audio',
+  podcast: 'audio',
+  video: 'video',
+  mind_map: 'mind_map',
+  mindmap: 'mind_map',
+  mapa_mental: 'mind_map',
+  data_table: 'data_table',
+  datatable: 'data_table',
+  tabla_datos: 'data_table',
+  tabla: 'data_table',
+};
+
+const NOTEBOOK_LEGACY_STUDIO_ACTION_MAP = {
+  generate_infographic: 'infographic',
+  infographic: 'infographic',
+  generate_slides: 'slide_deck',
+  generate_slide_deck: 'slide_deck',
+  slides: 'slide_deck',
+  slide_deck: 'slide_deck',
+  generate_report: 'report',
+  report: 'report',
+  generate_audio: 'audio',
+  audio: 'audio',
+  generate_video: 'video',
+  video: 'video',
+  generate_mind_map: 'mind_map',
+  mind_map: 'mind_map',
+  generate_data_table: 'data_table',
+  data_table: 'data_table',
+};
+
+function normalizeNotebookArtifactType(rawArtifactType, defaultArtifact = 'infographic') {
+  const clean = String(rawArtifactType || '')
+    .toLowerCase()
+    .trim();
+  if (!clean) return defaultArtifact;
+  return NOTEBOOK_ARTIFACT_TYPE_MAP[clean] || defaultArtifact;
+}
+
+function normalizeNotebookActionAndArtifact(rawAction, rawArtifactType) {
+  const cleanAction = String(rawAction || '')
+    .toLowerCase()
+    .trim();
+  const cleanArtifact = String(rawArtifactType || '')
+    .toLowerCase()
+    .trim();
+
+  if (NOTEBOOK_LEGACY_STUDIO_ACTION_MAP[cleanAction]) {
+    const inferredArtifact = NOTEBOOK_LEGACY_STUDIO_ACTION_MAP[cleanAction];
+    return {
+      notebookAction: 'generar_estudio',
+      notebookArtifactType: cleanArtifact
+        ? normalizeNotebookArtifactType(cleanArtifact, inferredArtifact)
+        : inferredArtifact,
+    };
+  }
+
+  if (['agregar_fuente', 'add_source', 'source_add', 'indexar', 'index_source'].includes(cleanAction)) {
+    return {
+      notebookAction: 'agregar_fuente',
+      notebookArtifactType: normalizeNotebookArtifactType(cleanArtifact, 'infographic'),
+    };
+  }
+
+  if (['listar_cuadernos', 'list_notebooks', 'listar'].includes(cleanAction)) {
+    return {
+      notebookAction: 'listar_cuadernos',
+      notebookArtifactType: normalizeNotebookArtifactType(cleanArtifact, 'infographic'),
+    };
+  }
+
+  if (['generar_estudio', 'generate_studio', 'studio', 'studio_create', 'studio_generate'].includes(cleanAction)) {
+    return {
+      notebookAction: 'generar_estudio',
+      notebookArtifactType: normalizeNotebookArtifactType(cleanArtifact, 'infographic'),
+    };
+  }
+
+  return {
+    notebookAction: 'consultar',
+    notebookArtifactType: normalizeNotebookArtifactType(cleanArtifact, 'infographic'),
+  };
+}
+
+function normalizeFlowAction(rawAction, defaultAction = 'generar_imagen') {
+  const clean = String(rawAction || '')
+    .toLowerCase()
+    .trim();
+  if (!clean) return defaultAction;
+  if (['generar_video', 'generate_video', 'video', 'veo'].includes(clean)) {
+    return 'generar_video';
+  }
+  if (['listar_recursos', 'list_resources', 'listar', 'list'].includes(clean)) {
+    return 'listar_recursos';
+  }
+  if (['generar_imagen', 'generate_image', 'image', 'imagen', 'imagen3'].includes(clean)) {
+    return 'generar_imagen';
+  }
+  return defaultAction;
+}
+
+const FLOW_STYLE_TOOL_MAP = {
+  corporativo_sst: 'afiche_seguridad',
+  'corporativo sst realista': 'afiche_seguridad',
+  infografia_editorial: 'ilustracion_tecnica',
+  fotorealista: 'fotorrealista',
+  fotorrealista: 'fotorrealista',
+  isometrico_3d: '3d_render',
+  '3d_render': '3d_render',
+  minimalista: 'ilustracion_tecnica',
+  ilustracion_tecnica: 'ilustracion_tecnica',
+  afiche_seguridad: 'afiche_seguridad',
+};
+
+const FLOW_MOTION_TOOL_MAP = {
+  estatico: 'zoom_in',
+  'suave / estático': 'pan_right',
+  'suave / estatico': 'pan_right',
+  paneo_suave: 'pan_right',
+  pan_right: 'pan_right',
+  pan_left: 'pan_left',
+  zoom_acercamiento: 'zoom_in',
+  zoom_in: 'zoom_in',
+  zoom_out: 'zoom_out',
+  orbital: 'orbit',
+  orbit: 'orbit',
+};
+
+function normalizeFlowConfig(nodeCfg = {}, fallbackOptions = {}) {
+  const cfg = nodeCfg && typeof nodeCfg === 'object' ? nodeCfg : {};
+  const opt = fallbackOptions && typeof fallbackOptions === 'object' ? fallbackOptions : {};
+  const flowAction = normalizeFlowAction(cfg.flowAction || opt.flowAction, 'generar_imagen');
+
+  const rawAspect = String(cfg.flowAspectRatio || opt.flowAspectRatio || '').trim();
+  const flowAspectRatio = ['9:16', '16:9', '1:1'].includes(rawAspect) ? rawAspect : '9:16';
+
+  const rawStyle = String(cfg.flowStyle || opt.flowStyle || '').trim();
+  const lowerStyle = rawStyle.toLowerCase();
+  const flowStyle = !rawStyle
+    ? 'corporativo_sst'
+    : lowerStyle === 'corporativo sst realista'
+      ? 'corporativo_sst'
+      : rawStyle;
+  const flowToolStyle = FLOW_STYLE_TOOL_MAP[flowStyle.toLowerCase()] || 'fotorrealista';
+
+  const rawMotion = String(cfg.flowCameraMotion || opt.flowCameraMotion || '').trim();
+  const lowerMotion = rawMotion.toLowerCase();
+  const flowCameraMotion = !rawMotion
+    ? 'paneo_suave'
+    : lowerMotion === 'suave / estático' || lowerMotion === 'suave / estatico'
+      ? 'paneo_suave'
+      : rawMotion;
+  const flowToolCameraMotion = FLOW_MOTION_TOOL_MAP[flowCameraMotion.toLowerCase()] || 'zoom_in';
+
+  const flowDuration = String(cfg.flowDuration || opt.flowDuration || '').trim();
+  const flowPrompt = String(
+    cfg.flowPrompt ||
+      opt.flowPrompt ||
+      'Pieza visual preventiva de Seguridad y Salud en el Trabajo acorde al contexto empresarial.',
+  ).trim();
+
+  return {
+    flowAction,
+    flowAspectRatio,
+    flowStyle,
+    flowToolStyle,
+    flowCameraMotion,
+    flowToolCameraMotion,
+    ...(flowDuration ? { flowDuration } : {}),
+    flowPrompt,
+  };
+}
+
+const SCRAPER_ENGINE_ALIASES = {
+  auto: 'auto_chrome_dom',
+  auto_chrome: 'auto_chrome_dom',
+  auto_chrome_dom: 'auto_chrome_dom',
+  fetch_cheerio: 'fetch_cheerio',
+  fetch_only: 'fetch_cheerio',
+  fetch: 'fetch_cheerio',
+  chrome_mcp: 'chrome_mcp',
+  chrome_devtools_mcp: 'chrome_mcp',
+  chrome_devtools: 'chrome_mcp',
+  python_bs4: 'python_bs4',
+  python_bs4_playwright: 'python_bs4',
+  playwright: 'python_bs4',
+  bs4: 'python_bs4',
+  node_cheerio: 'node_cheerio',
+  node_cheerio_puppeteer: 'node_cheerio',
+  puppeteer: 'node_cheerio',
+  cheerio: 'node_cheerio',
+  custom_script: 'custom_script',
+  custom: 'custom_script',
+  antigravity_local: 'antigravity_local',
+};
+
+function normalizeScraperEngine(rawEngine, defaultEngine = 'auto_chrome_dom') {
+  const clean = String(rawEngine || '')
+    .toLowerCase()
+    .trim();
+  if (!clean) return defaultEngine;
+  return SCRAPER_ENGINE_ALIASES[clean] || clean;
+}
+
 async function resolveDriveTargetFolder(
   drive,
   { driveFolderId = '', driveFolderUrl = '', driveFolderName = '' } = {},
@@ -5465,7 +5681,20 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
 
     const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
     const configuredNotebookId = String(nodeCfg.notebookId || ctx?.options?.notebookId || '').trim();
-    const configuredNotebookAction = String(nodeCfg.notebookAction || ctx?.options?.notebookAction || 'query').trim();
+    const {
+      notebookAction: configuredNotebookAction,
+      notebookArtifactType: configuredNotebookArtifactType,
+    } = normalizeNotebookActionAndArtifact(
+      nodeCfg.notebookAction || ctx?.options?.notebookAction,
+      nodeCfg.notebookArtifactType ||
+        nodeCfg.notebookFormat ||
+        ctx?.options?.notebookArtifactType ||
+        ctx?.options?.notebookFormat,
+    );
+    const configuredNotebookActionLabel =
+      configuredNotebookAction === 'generar_estudio'
+        ? `${configuredNotebookAction} (${configuredNotebookArtifactType})`
+        : configuredNotebookAction;
     const configuredNotebookPrompt = String(
       nodeCfg.notebookPrompt ||
         ctx?.options?.notebookPrompt ||
@@ -5496,7 +5725,10 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
               'ID de Cuaderno': String(cn.id || 'N/A'),
               'Cuenta Google NotebookLM': nb.email || 'Conectada',
               'Fuentes Indexadas': String(cn.sources_count ?? 0),
-              'Acción Configurada en el Flujo': configuredNotebookAction,
+              'Acción Configurada en el Flujo': configuredNotebookActionLabel,
+              ...(configuredNotebookAction === 'generar_estudio'
+                ? { 'Artefacto Studio Configurado': configuredNotebookArtifactType }
+                : {}),
               'Consulta Configurada': configuredNotebookPrompt,
               'Extracto / Contenido RAG': `Cuaderno RAG "${cn.title || 'SG-SST'}" con ${cn.sources_count ?? 0} fuente(s) normativas y técnicas vinculadas.`,
               'Fecha de Última Actualización': cn.updated_at || (nb.updatedAt ? new Date(nb.updatedAt).toLocaleDateString('es-CO') : 'Reciente'),
@@ -5513,7 +5745,10 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
           isCritical: false,
           fields: {
             'Título del Documento Vivo / Protocolo Interno': nb.title || nb.notebookTitle || `NotebookLM (${nb.email || 'Activo'})`,
-            'Acción Configurada en el Flujo': configuredNotebookAction,
+            'Acción Configurada en el Flujo': configuredNotebookActionLabel,
+            ...(configuredNotebookAction === 'generar_estudio'
+              ? { 'Artefacto Studio Configurado': configuredNotebookArtifactType }
+              : {}),
             'Consulta Configurada': configuredNotebookPrompt,
             'Extracto / Contenido RAG': nb.summary || nb.lastResponse || `Sesión Google NotebookLM activa (${nb.cookieCount || 0} cookies verificadas)`,
           },
@@ -5537,7 +5772,10 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
           fields: {
             'Estado de Conexión': 'Desconectado — Sin sesión Google NotebookLM activa para esta empresa',
             'Cuaderno Configurado': configuredNotebookId || 'Sin ID seleccionado en nodo',
-            'Acción Configurada': configuredNotebookAction,
+            'Acción Configurada': configuredNotebookActionLabel,
+            ...(configuredNotebookAction === 'generar_estudio'
+              ? { 'Artefacto Studio Configurado': configuredNotebookArtifactType }
+              : {}),
             'Diagnóstico': 'No se encontraron cookies activas en NotebookSession. El flujo continuará usando Documentos Vivos SG-SST cuando falte conexión.',
           },
         });
@@ -5552,6 +5790,7 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
           isCritical: false,
           fields: {
             'Estado de Conexión': `Conectado (${firstValidSession.email || 'Sesión activa'})`,
+            'Acción Configurada': configuredNotebookActionLabel,
             'Diagnóstico': 'Selecciona un Cuaderno NotebookLM en el inspector del nodo para ejecutar consultas en vivo (`notebook_query`).',
           },
         });
@@ -5609,16 +5848,23 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
           liveQueryRecords.push({
             id: `nlm_live_query_${targetNbId}`,
             label: `⚡ [Consulta en Vivo NotebookLM] Cuaderno ${targetNbId}`,
-            sublabel: `Cuenta: ${firstValidSession.email || 'Activa'} • Acción: ${configuredNotebookAction}`,
+            sublabel: `Cuenta: ${firstValidSession.email || 'Activa'} • Acción: ${configuredNotebookActionLabel}`,
             badge: 'RESPUESTA EN VIVO',
             badgeTone: 'emerald',
             isCritical: false,
             fields: {
               'Estado de Conexión': `Conectado (${firstValidSession.email || 'Sesión activa'})`,
               'Cuaderno Consultado': targetNbId,
+              'Acción Configurada en el Flujo': configuredNotebookActionLabel,
+              ...(configuredNotebookAction === 'generar_estudio'
+                ? { 'Artefacto Studio Configurado': configuredNotebookArtifactType }
+                : {}),
               'Pregunta Ejecutada': configuredNotebookPrompt,
               'Respuesta en Vivo': String(rawAnswer || '').trim().slice(0, 1800) || 'Consulta completada sin texto adicional.',
-              'Motor': 'notebooklm-mcp (notebook_query)',
+              'Motor':
+                configuredNotebookAction === 'consultar'
+                  ? 'notebooklm-mcp (notebook_query)'
+                  : `notebooklm-mcp (previsualización notebook_query · ejecución real: ${configuredNotebookActionLabel})`,
             },
           });
         } else {
@@ -5633,6 +5879,7 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
             fields: {
               'Estado de Conexión': `Sesión guardada (${firstValidSession.email || 'Activa'}), pero el servicio MCP no respondió`,
               'Cuaderno Objetivo': targetNbId,
+              'Acción Configurada': configuredNotebookActionLabel,
               'Diagnóstico': String(mcpErrorMsg || 'Motor NotebookLM desconectado'),
               'Pregunta Configurada': configuredNotebookPrompt,
             },
@@ -6689,7 +6936,10 @@ async function inspectOtherNodeTeams(ctx) {
           .map((u) => u.trim())
           .filter(Boolean);
     const effectiveUrls = urlsList.length > 0 ? urlsList : [rawTargetUrl];
-    const scriptEngine = String(nodeCfg.scriptEngine || ctx?.options?.scriptEngine || 'auto').trim();
+    const scriptEngine = normalizeScraperEngine(
+      nodeCfg.scriptEngine || ctx?.options?.scriptEngine,
+      'auto_chrome_dom',
+    );
     const scriptCode = String(nodeCfg.scriptCode || ctx?.options?.scriptCode || '').trim();
     const onlyOnContentChange = nodeCfg.onlyOnContentChange !== false;
 
@@ -7428,13 +7678,13 @@ async function inspectOtherNodeTeams(ctx) {
       activeSession && activeSession.isValid !== false && (Number(activeSession.cookieCount || 0) > 0 || Boolean(activeSession.apiKey)),
     );
     const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
-    const flowAction = String(nodeCfg.flowAction || 'generate_image').trim();
-    const flowAspectRatio = String(nodeCfg.flowAspectRatio || '16:9').trim();
-    const flowStyle = String(nodeCfg.flowStyle || 'Corporativo SST realista').trim();
-    const flowCameraMotion = String(nodeCfg.flowCameraMotion || 'Suave / Estático').trim();
-    const flowPrompt = String(
-      nodeCfg.flowPrompt || 'Pieza visual preventiva de Seguridad y Salud en el Trabajo acorde al contexto empresarial.',
-    ).trim();
+    const {
+      flowAction,
+      flowAspectRatio,
+      flowStyle,
+      flowCameraMotion,
+      flowPrompt,
+    } = normalizeFlowConfig(nodeCfg, ctx?.options);
 
     // Escanear generaciones recientes locales (/images/flow_*) e historial de ToolCall si existen
     const recentFlowArtifacts = [];
@@ -8438,9 +8688,11 @@ async function inspectNodeLiveData(params = {}) {
     'scriptEngine',
     'scriptCode',
     'onlyOnContentChange',
+    'antigravityMode',
     'notebookId',
     'notebookTitle',
     'notebookAction',
+    'notebookArtifactType',
     'notebookPrompt',
     'notebookFormat',
     'flowAction',
@@ -8448,6 +8700,9 @@ async function inspectNodeLiveData(params = {}) {
     'flowAspectRatio',
     'flowStyle',
     'flowCameraMotion',
+    'flowDuration',
+    'attachArtifact',
+    'attachMedia',
   ]) {
     if (params && params[extraKey] !== undefined) {
       topLevelQueryOverrides[extraKey] = params[extraKey];
@@ -9446,5 +9701,10 @@ module.exports = {
   resolveWorkflowHitoRole,
   extractWorkflowEntityDedupKey,
   normalizeInspectorNodeId,
+  normalizeNotebookArtifactType,
+  normalizeNotebookActionAndArtifact,
+  normalizeFlowAction,
+  normalizeFlowConfig,
+  normalizeScraperEngine,
   BLOCKED_CONSTRUCTION_NODE_SPECS,
 };

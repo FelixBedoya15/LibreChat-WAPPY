@@ -23,6 +23,9 @@ const {
   resolveWorkflowHitoRole,
   extractWorkflowEntityDedupKey,
   normalizeInspectorNodeId,
+  normalizeNotebookActionAndArtifact,
+  normalizeFlowConfig,
+  normalizeScraperEngine,
 } = require('~/server/services/workflowNodeInspectorService');
 const { normalizeAnyDateYmd } = require('~/server/routes/sgsst/birthDateHelper');
 const {
@@ -1062,9 +1065,9 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
         .map((cn) => ({ ...(cn || {}), ...(cn?.config || {}) })),
     ].filter((c) => c && typeof c === 'object');
     const needsAntigravityBridge = scraperConfigCandidates.some((c) => {
-      const eng = String(c.scriptEngine || '').toLowerCase().trim();
+      const eng = normalizeScraperEngine(c.scriptEngine, '');
       const agyMode = String(c.antigravityMode || c.mode || '').toLowerCase().trim();
-      return eng === 'chrome_mcp' || eng === 'chrome_devtools_mcp' || agyMode === 'local';
+      return eng === 'chrome_mcp' || eng === 'antigravity_local' || agyMode === 'local';
     });
     if (needsAntigravityBridge) {
       requiredTools.add('google_antigravity');
@@ -4961,7 +4964,14 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         const isNotebookLmConfigNode =
           nKeyLower.includes('notebooklm') ||
           nKeyLower.includes('wappy_rag_documental') ||
-          Boolean(cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt);
+          Boolean(
+            cfg.notebookId ||
+              cfg.notebookTitle ||
+              cfg.notebookAction ||
+              cfg.notebookArtifactType ||
+              cfg.notebookFormat ||
+              cfg.notebookPrompt,
+          );
         const isGoogleFlowConfigNode =
           nKeyLower.includes('google_flow') ||
           Boolean(
@@ -4969,7 +4979,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               cfg.flowPrompt ||
               cfg.flowAspectRatio ||
               cfg.flowStyle ||
-              cfg.flowCameraMotion,
+              cfg.flowCameraMotion ||
+              cfg.flowDuration,
           );
         const isHitoReportPipelineActive =
           hasDocumentaryOutput &&
@@ -4986,29 +4997,51 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ) {
           parts.push(`📂 Carpeta Google Drive Objetivo: "${String(cfg.driveFolderName).trim()}"`);
         }
-        if (cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt || isNotebookLmConfigNode) {
+        if (
+          isNotebookLmConfigNode ||
+          cfg.notebookId ||
+          cfg.notebookAction ||
+          cfg.notebookArtifactType ||
+          cfg.notebookFormat ||
+          cfg.notebookPrompt
+        ) {
+          const {
+            notebookAction: normalizedNbAction,
+            notebookArtifactType: normalizedNbArtifactType,
+          } = normalizeNotebookActionAndArtifact(
+            cfg.notebookAction,
+            cfg.notebookArtifactType || cfg.notebookFormat,
+          );
           const nbParts = [
             `📓 NotebookLM Cuaderno: ${cfg.notebookTitle ? `"${String(cfg.notebookTitle).trim()}" ` : ''}${cfg.notebookId ? `(ID: ${String(cfg.notebookId).trim()})` : 'Empresa Activa'}`,
-            cfg.notebookAction ? `Accion: ${String(cfg.notebookAction).trim()}` : null,
-            cfg.notebookFormat ? `Formato: ${String(cfg.notebookFormat).trim()}` : null,
+            `Accion: ${normalizedNbAction}`,
+            normalizedNbAction === 'generar_estudio' || cfg.notebookArtifactType || cfg.notebookFormat
+              ? `Tipo Artefacto Studio: ${normalizedNbArtifactType}`
+              : null,
             cfg.notebookPrompt ? `Consulta: "${String(cfg.notebookPrompt).trim()}"` : null,
           ].filter(Boolean);
-          if (nbParts.length > 0 && (cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt)) {
+          if (nbParts.length > 0) {
             parts.push(nbParts.join(' | '));
           }
         }
         if (
+          isGoogleFlowConfigNode ||
           cfg.flowAction ||
           cfg.flowPrompt ||
           cfg.flowAspectRatio ||
           cfg.flowStyle ||
-          cfg.flowCameraMotion
+          cfg.flowCameraMotion ||
+          cfg.flowDuration
         ) {
+          const normalizedFlow = normalizeFlowConfig(cfg);
           const flowParts = [
-            `🎬 Google Flow Studio: Accion: ${String(cfg.flowAction || 'generate_image').trim()}`,
-            cfg.flowAspectRatio ? `Aspecto: ${String(cfg.flowAspectRatio).trim()}` : null,
-            cfg.flowStyle ? `Estilo: ${String(cfg.flowStyle).trim()}` : null,
-            cfg.flowCameraMotion ? `Movimiento Camara: ${String(cfg.flowCameraMotion).trim()}` : null,
+            `🎬 Google Flow Studio: Accion: ${normalizedFlow.flowAction}`,
+            `Aspecto: ${normalizedFlow.flowAspectRatio}`,
+            `Estilo: ${normalizedFlow.flowStyle} (param estilo: ${normalizedFlow.flowToolStyle})`,
+            normalizedFlow.flowAction === 'generar_video' || cfg.flowCameraMotion
+              ? `Movimiento Camara: ${normalizedFlow.flowCameraMotion} (param movimiento_camara: ${normalizedFlow.flowToolCameraMotion})`
+              : null,
+            normalizedFlow.flowDuration ? `Duracion: ${normalizedFlow.flowDuration}` : null,
             cfg.flowPrompt ? `Prompt: "${String(cfg.flowPrompt).trim()}"` : null,
           ].filter(Boolean);
           parts.push(flowParts.join(' | '));
@@ -5105,7 +5138,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           parts.push(`URL(s) / Consulta Objetivo: "${String(cfg.targetUrl).trim()}"`);
         }
         if (cfg.scriptEngine) {
-          parts.push(`Motor Script Antigravity: ${cfg.scriptEngine}`);
+          parts.push(`Motor Script Antigravity: ${normalizeScraperEngine(cfg.scriptEngine, 'auto_chrome_dom')}`);
         }
         if (cfg.scriptCode && String(cfg.scriptCode).trim()) {
           parts.push(`Script de Extracción / Selectores: "${String(cfg.scriptCode).trim()}"`);
@@ -5175,7 +5208,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           cnParts.push(`URL Objetivo: "${String(cn.targetUrl).trim()}"`);
         }
         if (cn.scriptEngine) {
-          cnParts.push(`Motor Script Antigravity: ${cn.scriptEngine}`);
+          cnParts.push(`Motor Script Antigravity: ${normalizeScraperEngine(cn.scriptEngine, 'auto_chrome_dom')}`);
         }
         if (cn.scriptCode && String(cn.scriptCode).trim()) {
           cnParts.push(`Script: "${String(cn.scriptCode).trim()}"`);
@@ -5442,6 +5475,10 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           }
 
           const stepStatus = scrapeRes?.error ? 'error' : 'done';
+          const resolvedScraperEngine = normalizeScraperEngine(
+            scrapeRes?.scriptEngine || mergedNodeCfg?.scriptEngine,
+            'auto_chrome_dom',
+          );
           const scraperStepObj = {
             nodeKey: sc.nodeKey || `extractor_${sc.nodeId}`,
             nodeId: sc.nodeId,
@@ -5452,7 +5489,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             inputCount: Number(scrapeRes?.urlsProcessed || 1),
             outputCount: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.length : 1,
             outputPreview: isGenericScraperResult
-              ? `${scrapeRes?.urlsProcessed || 1} URL(s) procesada(s) · Motor: ${scrapeRes?.scriptEngine || 'auto'} · SHA-256: ${scrapeRes?.contentHash ? String(scrapeRes.contentHash).slice(0, 12) : 'N/A'}`
+              ? `${scrapeRes?.urlsProcessed || 1} URL(s) procesada(s) · Motor: ${resolvedScraperEngine} · SHA-256: ${scrapeRes?.contentHash ? String(scrapeRes.contentHash).slice(0, 12) : 'N/A'}`
               : String(scrapeRes?.inputSummary || scrapeRes?.portalLabel || 'Verificación completada'),
             outputItems: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.slice(0, 15) : [],
             ...(scrapeRes?.error ? { error: String(scrapeRes.error) } : {}),
@@ -5462,7 +5499,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             meta: {
               ...(scrapeRes?.targetUrl ? { targetUrl: scrapeRes.targetUrl } : {}),
               ...(scrapeRes?.contentHash ? { contentHash: scrapeRes.contentHash } : {}),
-              ...(scrapeRes?.scriptEngine ? { scriptEngine: scrapeRes.scriptEngine } : {}),
+              ...(scrapeRes?.scriptEngine ? { scriptEngine: resolvedScraperEngine } : {}),
               ...(scrapeRes?.urlsProcessed ? { urlsProcessed: scrapeRes.urlsProcessed } : {}),
             },
           };
@@ -5474,7 +5511,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             targetUrl: scrapeRes?.targetUrl || mergedNodeCfg?.targetUrl || null,
             urlsProcessed: scrapeRes?.urlsProcessed || 1,
             contentHash: scrapeRes?.contentHash || null,
-            scriptEngine: scrapeRes?.scriptEngine || mergedNodeCfg?.scriptEngine || 'auto',
+            scriptEngine: resolvedScraperEngine,
             durationMs: scraperStepObj.durationMs,
             error: scrapeRes?.error || null,
           });
@@ -8024,9 +8061,10 @@ async function executeRealAntigravityScraperVerification({
           .filter(Boolean);
     const effectiveUrls = urlsList.length > 0 ? urlsList : [targetUrl];
     const primaryTargetUrl = effectiveUrls[0] || targetUrl;
-    const scriptEngine = String(
-      nodeCfg?.scriptEngine || customNodeObj?.scriptEngine || 'auto',
-    ).trim();
+    const scriptEngine = normalizeScraperEngine(
+      nodeCfg?.scriptEngine || customNodeObj?.scriptEngine,
+      'auto_chrome_dom',
+    );
     const scriptCode = String(
       nodeCfg?.scriptCode || customNodeObj?.scriptCode || '',
     ).trim();
@@ -8752,7 +8790,10 @@ async function executeRealAntigravityScraperVerification({
     nodeCfg?.targetUrl ||
     customNodeObj?.targetUrl ||
     'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx, https://certificados.sena.edu.co/CertificadoDigital/com.sena.consultacer';
-  const scriptEngineStr = nodeCfg?.scriptEngine || customNodeObj?.scriptEngine || 'chrome_mcp';
+  const scriptEngineStr = normalizeScraperEngine(
+    nodeCfg?.scriptEngine || customNodeObj?.scriptEngine,
+    'chrome_mcp',
+  );
   const scriptCodeStr = nodeCfg?.scriptCode || customNodeObj?.scriptCode || '';
 
   // 4. Ejecutar consultas reales en lotes de 10 en paralelo a través del daemon Antigravity
@@ -11499,7 +11540,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '',
         cn.content || cn.subtitle || cnCfg.customInstruction || '',
         cn.targetUrl || cnCfg.targetUrl ? `🌐 URL: ${cn.targetUrl || cnCfg.targetUrl}` : '',
-        cn.scriptEngine || cnCfg.scriptEngine ? `⚙️ Motor: ${cn.scriptEngine || cnCfg.scriptEngine}` : '',
+        cn.scriptEngine || cnCfg.scriptEngine
+          ? `⚙️ Motor: ${normalizeScraperEngine(cn.scriptEngine || cnCfg.scriptEngine, 'auto_chrome_dom')}`
+          : '',
         cn.scriptCode || cnCfg.scriptCode
           ? `💻 Script: ${String(cn.scriptCode || cnCfg.scriptCode).slice(0, 260)}`
           : '',

@@ -104,3 +104,28 @@ node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.j
 | **B5.B** | **`preset_qr_actos_condiciones_cierre_acpm` — Peligro grave en excavación (`[VEREDICTO_IF: SI]`)** | `post_agent` -> `Rama SÍ`, abre ACPM urgente | `activeBranch='yes'`, `kanban +1`, `outputs=['acpm_task']` | ✅ PASS |
 | **B5.C** | **Arquetipo 4 — Compuerta `logic_human_approval` en `Rama SÍ`** | Retiene salidas en `status: 'awaiting_approval'` | `log.status='awaiting_approval'`, `pendingApprovalPayload.outputsToExecute=['acpm_task']`, no despacha antes del aval | ✅ PASS |
 | **CLEAN.1** | Limpieza atómica de documentos efímeros en MongoDB tras finalizar | `0` documentos residuales | `0` documentos residuales verificados en todas las colecciones | ✅ PASS |
+
+---
+
+## 📋 Registro de Auditoría #003 — Endurecimiento del Validador DAG, Curación `#16–#30` (`v60`) y Alineación UI
+
+- **Fecha:** `2026-11-13`
+- **Catálogo auditado:** `api/server/services/systemWorkflowPresetsCatalog.js` (`SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.13-v60-n8n-curated-30'`)
+- **Validador endurecido:** `.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`
+- **Suite E2E actualizada:** `.agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js` (`BLOQUE 1` y `BLOQUE 8.4`)
+
+### 1. Cambios Auditados y Verificados
+1. **Cero Hitos deshabilitados en producción (`PROD_DISABLED_HITO_IDS`):** Prohibido el uso de los 11 aplicativos deshabilitados (`hito1_matriz_legal`, `hito3_comite_pesv`, `hito3_brigada_emergencias`, `hito5_compras_sst`, `hito5_contratistas`, `hito5_gestion_cambio`, `hito5_equipos_emergencia`, `hito6_comunicaciones_sst`, `hito6_simulacros_emergencia`, `hito6_app_builder`, `hito7_investigacion_profunda`) en `#16–#30` y flujos `--file` custom (`[Inv-03 / PROD_DISABLED_HITO]`), manteniendo únicamente la exención legacy histórica en `#10` (`preset_vigilancia_matriz_legal_sst`).
+2. **Alineación 100 % con `WappyNodeCustomEditors.tsx`:** Validación estricta de `notebookAction` (`consultar | agregar_fuente | generar_estudio` + `notebookArtifactType`), `flowAction` (`generar_imagen | generar_video` + `flowStyle` + `flowCameraMotion`), `flowAspectRatio` (`9:16 | 16:9 | 1:1`), `scriptEngine` (`auto_chrome_dom | fetch_cheerio | chrome_mcp | python_bs4 | node_cheerio | custom_script`) y exclusión mutua `notebooklm` vs `wappy_rag_documental`.
+3. **Coherencia Etapa 2 y Metadatos Reales (`[Inv-00 / META]`, `[Inv-12]`, `[Inv-15]`):** Conteo exacto de fuentes paralelas de Etapa 2 sin `customNodes`, verificación estricta de los 23 agentes exactos de BD (`agentTargetName === agentName`), `scheduleType`, `scheduleConfig`, `cronExpression`, `trigger === triggers[0]`, `aiEngine: 'wappy'` y prohibición de menciones engañosas (*Matriz Legal*, *Contratistas*, *Compras*, *Gestión del Cambio*) en `#16–#30`.
+4. **Reemplazo íntegro de `#16–#30`:** Los 15 presets nuevos mantienen `#1–#15` intactos y pasan con esquemas OCR completos (`>= 5` campos), configuraciones espejo y trazabilidad causal exacta.
+
+### 2. Resultados Medidos Tras las Ediciones Finales
+- **Validación estática y topológica (`node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`):**
+  - Resultado: **`30/30 PASS · 0 errores · 0 advertencias`** (`v=2026.11.13-v60-n8n-curated-30`)
+  - Distribución IF: **`pre_agent=25 | post_agent=3 | direct=2`**
+  - Categorías: **`salud_vencimientos=5 | drive_sincronizacion=5 | atel_inspecciones=6 | legal_cumplimiento=5 | riesgos_vial_quimico=5 | gerencia_auditoria=4`**
+  - Validación por filtro `--preset preset_scraping_arl_afiliacion_ruaf`: **`1/1 PASS · 0 errores · 0 advertencias`** (preserva índice original `16 >= 15`).
+  - Pruebas negativas de regresión (5 aserciones): bloquea `hito1_matriz_legal` en `#16–#30` y `--file`, bloquea coexistencia `notebooklm + wappy_rag_documental`, bloquea `logic_merge` con `< 2` fuentes reales en Etapa 2, bloquea agente fuera de BD en `#16–#30` y bloquea mención engañosa (`Matriz Legal`).
+- **Suite lógica E2E contra MongoDB (`node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js`):**
+  - Resultado: **`25/25 PRUEBAS LÓGICAS SUPERADAS AL 100% (4.53s)`** (`BLOQUE 1`..`BLOQUE 8`, incluyendo `CLEAN.1`: `0` documentos residuales en MongoDB).

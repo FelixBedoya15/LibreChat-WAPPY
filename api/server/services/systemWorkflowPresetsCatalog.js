@@ -10,7 +10,7 @@
  * - Textos visibles en español técnico impecable (cero variables internas de código en nombres, descripciones o prompts)
  */
 
-const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.12-v59-n8n-curated-30';
+const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.13-v60-n8n-curated-30';
 
 function buildHitoDualConfigs(hitoId, config) {
   return {
@@ -1438,51 +1438,66 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     prompt:
       'Actúa como Director Ejecutivo SG-SST en cumplimiento del artículo 2.2.4.6.31 del Decreto 1072 de 2015 y el artículo 30 de la Resolución 0312 de 2019. Consolida los datos gerenciales del periodo extraídos desde Diagnóstico Inicial Estándares Mínimos Res. 0312 (Hito 1), Gestión Integral de Ausentismo y ATEL (Hito 7) y Tablero Kanban ACPM (Hito 7).\n\n1) Evalúa el desempeño integral en tres tableros ejecutivos: Cumplimiento de Estándares Mínimos por ciclo PHVA, Indicadores Mínimos de Siniestralidad y Ausentismo Laboral (frecuencia, severidad, lesiones incapacitantes y ausentismo por causa médica) y Tasa de Cierre Efectivo de Acciones Correctivas, Preventivas y de Mejora.\n2) Registra las conclusiones estratégicas, necesidades de recursos y genera el informe oficial en Revisión por la Alta Dirección (Hito 7).\n3) Entrega el Acta Ejecutiva Mensual lista para Visto Bueno de Gerencia, exportación formal en el Editor en Vivo WAPPY y distribución directiva en la Bitácora por Correo.',
   },
-  // 16. [salud_vencimientos] ARL Scraping por Cédula -> Perfil Sociodemográfico + Contratistas
+  // 16. [salud_vencimientos] Scraping Mensual ARL y RUAF + Sociodemográfico (Hito 2) -> ACPM (Hito 7) + Sheets
   {
-    presetKey: 'preset_scraping_arl_afiliacion_cedulas',
-    name: '🛡️ Verificación ARL por Cédula vía Web Scraping y Control de Afiliación',
+    presetKey: 'preset_scraping_arl_afiliacion_ruaf',
+    name: '🛡️ Verificación Mensual de Afiliación ARL y Certificados vía Web Scraping',
     presetCategory: 'salud_vencimientos',
     presetDescription:
-      'Consulta en línea los certificados de afiliación ARL por cédula mediante Google Antigravity, cruza la nómina del Perfil Sociodemográfico (Hito 2) y actualiza novedades en Control y Gestión de Contratistas (Hito 5), escalando tareas en el Tablero Kanban ACPM y Bitácora por Correo solo cuando existan trabajadores o contratistas sin cobertura vigente.',
-    agentName: 'Auditor de Afiliación ARL y Seguridad Social',
-    schedule: 'weekly_monday',
-    cronExpression: '0 7 * * 1',
+      'Consulta automáticamente los portales oficiales de ARL y certificados de afiliación vía Web Scraping con Google Antigravity, consolida los resultados con la nómina activa del Perfil Sociodemográfico (Hito 2) y, únicamente cuando detecta trabajadores sin cobertura vigente o con novedad no reportada, invoca el Tablero Kanban ACPM (Hito 7) y Google Sheets para escalamiento operativo y Bitácora por Correo.',
+    agentTargetName: 'Médico Laboral',
+    agentName: 'Médico Laboral',
+    scheduleType: 'monthly',
+    scheduleConfig: {
+      hour: 7,
+      minute: 0,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 3,
+      intervalHours: 24,
+    },
+    cronExpression: '0 7 3 * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_antigravity'],
       extractors: ['scraper_agy_arl_directo'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: [],
+      inputs: ['google_sheets'],
       includeIfNode: true,
-      hitos: ['hito2_perfil_socio', 'hito5_contratistas'],
+      hitos: ['hito2_perfil_socio', 'hito7_acpm'],
       outputs: ['acpm_task', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildExtractorDualConfigs('scraper_agy_arl_directo', {
             antigravityMode: 'auto',
-            scriptEngine: 'chrome_devtools_mcp',
+            scriptEngine: 'chrome_mcp',
             customInstruction:
-              'Consulta en los portales oficiales de ARL la afiliación vigente y descarga la constancia oficial para cada cédula evaluada.',
+              'Consulta en línea las constancias de afiliación y estado de cobertura en los portales ARL oficiales para las cédulas activas de la empresa.',
           }),
           ...buildHitoDualConfigs('hito2_perfil_socio', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Extrae la nómina activa con cédula, cargo y administradora de riesgos declarada en el Perfil Sociodemográfico (Hito 2).',
+              'Extrae únicamente los trabajadores activos con cédula, cargo y ARL declarada desde Perfil Sociodemográfico (Hito 2).',
           }),
-          ...buildHitoDualConfigs('hito5_contratistas', {
+          ...buildHitoDualConfigs('hito7_acpm', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
             appActionMode: 'write_and_update',
             customInstruction:
-              'Actualiza el estado de verificación ARL en Control y Gestión de Contratistas (Hito 5) cuando se detecten novedades o ingresos sin cobertura activa.',
+              'Registra acciones correctivas y preventivas en Control de ACPM (Hito 7) para cada trabajador sin cobertura ARL vigente.',
+          }),
+          ...buildInputDualConfigs('google_sheets', {
+            customInstruction:
+              'Consolida en Google Sheets la sábana mensual auditable con cédula, cargo, ARL consultada y estado de afiliación verificado.',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
@@ -1493,7 +1508,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Existen trabajadores o contratistas sin certificado ARL activo o con cobertura vencida sin gestionar?',
+              '¿Existen trabajadores activos sin afiliación ARL vigente o novedades nuevas?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -1510,185 +1525,231 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Auditor de Afiliaciones y Seguridad Social SG-SST bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015. Analiza únicamente las constancias reales extraídas de los portales oficiales ARL cruzadas contra el Perfil Sociodemográfico (Hito 2).\n\n1) Presenta una tabla ejecutiva con Trabajador, Cédula, Cargo, ARL consultada, Estado de Cobertura y Soporte en bandeja sin incluir enlaces ni código interno.\n2) Invoca la herramienta de Control y Gestión de Contratistas (Hito 5) para actualizar el cumplimiento documental de contratistas o personal con novedad.\n3) Genera acciones correctivas en el Tablero Kanban ACPM para subsanar la afiliación antes del inicio o continuación de labores y resume los hallazgos para la Bitácora por Correo.',
+      'Actúa como Médico Laboral SG-SST bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015. Analiza únicamente las constancias reales extraídas de los portales ARL cruzadas contra la nómina activa del Perfil Sociodemográfico (Hito 2).\n\n1) Presenta una tabla ejecutiva con Trabajador, Cédula, Cargo, ARL consultada, Estado de Cobertura y Novedad Detectada sin inventar datos.\n2) Invoca la herramienta de Control de ACPM (Hito 7) para crear acciones correctivas urgentes ante cualquier cobertura inactiva o inconsistencia.\n3) Registra el consolidado mensual en Google Sheets y resume las acciones prioritarias para la Bitácora por Correo.',
   },
-  // 17. [salud_vencimientos] Campaña Audiovisual Salud + Ergonomía con NotebookLM + Google Flow
+  // 17. [salud_vencimientos] Campaña Preventiva Osteomuscular: Condiciones Salud (Hito 2) + OWAS (Hito 4) -> Estudio Puesto (Hito 4) + NotebookLM + Google Flow
   {
-    presetKey: 'preset_campana_audiovisual_salud_ergonomia',
-    name: '🎬 Campaña Audiovisual de Salud Ocupacional y Ergonomía con NotebookLM y Google Flow',
+    presetKey: 'preset_campana_ergonomia_condiciones_salud_flow',
+    name: '🎬 Campaña Preventiva Osteomuscular desde Condiciones de Salud con NotebookLM y Google Flow',
     presetCategory: 'salud_vencimientos',
     presetDescription:
-      'Consolida los hallazgos del Informe de Condiciones de Salud (Hito 2) y evaluaciones del Método OWAS (Hito 4), genera material pedagógico en Google NotebookLM y produce un video o pieza visual preventiva en Google Flow Studio lista para el Editor en Vivo WAPPY y distribución por Correo.',
-    agentName: 'Director de Promoción, Prevención y Campañas SST',
-    schedule: 'monthly',
-    cronExpression: '0 9 1 * *',
+      'Consolida los hallazgos reales de Condiciones de Salud (Hito 2) y las evaluaciones posturales OWAS (Hito 4) mediante la unión de ramas en Etapa 2. Si existen hallazgos osteomusculares críticos sin campaña reciente, el Fisioterapeuta Laboral consulta guías en Google NotebookLM, actualiza recomendaciones en Estudios de Puesto de Trabajo (Hito 4), genera una pieza visual preventiva 9:16 en Google Flow Studio y la entrega en el Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Fisioterapeuta Laboral',
+    agentName: 'Fisioterapeuta Laboral',
+    scheduleType: 'monthly',
+    scheduleConfig: {
+      hour: 8,
+      minute: 0,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 5,
+      intervalHours: 24,
+    },
+    cronExpression: '0 8 5 * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: [],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_rag_documental'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: ['notebooklm', 'google_flow'],
-      includeIfNode: false,
-      hitos: ['hito2_condiciones_salud', 'hito3_owas'],
-      outputs: ['canvas_doc', 'email_report'],
+      includeIfNode: true,
+      hitos: ['hito2_condiciones_salud', 'hito3_owas', 'hito3_estudio_puesto'],
+      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildHitoDualConfigs('hito2_condiciones_salud', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee los diagnósticos agregados, morbilidad sentida y prioridades de vigilancia epidemiológica en el Informe de Condiciones de Salud (Hito 2).',
+              'Extrae morbilidad osteomuscular sentida, diagnósticos ergonómicos y alertas activas desde Condiciones de Salud (Hito 2).',
           }),
           ...buildHitoDualConfigs('hito3_owas', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee las posturas críticas y categorías de acción ergonómica registradas en el Método OWAS (Hito 4).',
+              'Extrae puestos y tareas con categorías de acción OWAS críticas desde Evaluación Ergonómica OWAS (Hito 4).',
+          }),
+          ...buildHitoDualConfigs('hito3_estudio_puesto', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Actualiza medidas de control ergonómico, rediseño postural y seguimiento en Estudios de Puesto de Trabajo (Hito 4).',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'generate_infographic',
-            notebookFormat: 'detailed',
+            notebookAction: 'consultar',
             notebookPrompt:
-              'Sintetiza en recomendaciones prácticas de higiene postural, pausas activas y autocuidado osteomuscular según la normativa colombiana vigente.',
+              'Consulta recomendaciones técnicas de higiene postural, pausas activas y prevención de desórdenes musculoesqueléticos en GATISO para los cargos afectados.',
           }),
           ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_video',
+            flowAction: 'generar_imagen',
             flowAspectRatio: '9:16',
-            flowStyle: 'Video corporativo preventivo moderno y luminoso',
-            flowCameraMotion: 'Paneo suave estable',
+            flowStyle: 'infografia_editorial',
             flowPrompt:
-              'Trabajadores industriales y administrativos realizando pausas activas saludables, levantamiento seguro de cargas con espalda recta y ajuste ergonómico de estación de trabajo, estilo cinematográfico limpio y educativo',
+              'Infografía vertical preventiva de ergonomía laboral e higiene postural en oficina y planta industrial, estética editorial corporativa limpia, alta legibilidad visual',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Consolida las prioridades osteomusculares del Informe de Condiciones de Salud (Hito 2) y del Método OWAS (Hito 4) en un único guion preventivo.',
+              'Unifica los hallazgos de Condiciones de Salud (Hito 2) y las evaluaciones posturales OWAS (Hito 4) antes de evaluar el umbral.',
           },
+          if_router: {
+            ifPlacement: 'pre_agent',
+            ifConditionType: 'critical_findings',
+            ifConditionLabel:
+              '¿Existen alertas osteomusculares críticas en Hito 2 o Hito 4 sin campaña reciente?',
+          },
+          out_canvas_doc: { ifBranch: 'yes' },
+          out_email_report: { ifBranch: 'yes' },
+          out_wappy_notification: { ifBranch: 'no' },
         },
         logicNodes: [
           {
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'Salud + Ergonomía OWAS',
+            subtitle: 'Salud + OWAS',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Especialista en Medicina del Trabajo y Ergonomía bajo la Resolución 1843 de 2025 y el Decreto 1072 de 2015. Analiza los hallazgos consolidados desde el Informe de Condiciones de Salud (Hito 2) y las evaluaciones posturales del Método OWAS (Hito 4).\n\n1) Define los 3 mensajes preventivos prioritarios para disminuir desórdenes musculoesqueléticos en los puestos críticos de la empresa.\n2) Utiliza Google NotebookLM para estructurar una guía o infografía técnica de higiene postural alineada con la documentación empresarial.\n3) Invoca Google Flow Studio en formato vertical 9:16 para producir la cápsula visual preventiva de campaña y adjunta el guion completo listo para difusión en el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Fisioterapeuta Laboral especialista en ergonomía y vigilancia epidemiológica osteomuscular. Analiza los hallazgos unificados de Condiciones de Salud (Hito 2) y Evaluación Ergonómica OWAS (Hito 4).\n\n1) Consulta Google NotebookLM para fundamentar ejercicios compensatorios y controles biomecánicos según las áreas críticas detectadas.\n2) Actualiza los controles prioritarios en Estudios de Puesto de Trabajo (Hito 4).\n3) Invoca Google Flow Studio en formato vertical 9:16 estilo infografía editorial para generar la pieza visual de campaña preventiva y redacta la guía de despliegue para el Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 18. [drive_sincronizacion] Carpeta Local PC -> Extractor OCR -> NotebookLM + Gestión del Cambio
+  // 18. [drive_sincronizacion] Carpeta PC Local -> Extractor IA Docs -> NotebookLM + ACPM (Hito 7)
   {
-    presetKey: 'preset_carpeta_pc_notebooklm_gestion_cambio',
-    name: '💻 Carpeta Local del PC hacia Cuaderno NotebookLM y Gestión del Cambio (MOC)',
+    presetKey: 'preset_carpeta_pc_actas_notebooklm_acpm',
+    name: '💻 Indexación de Actas SST desde Carpeta PC Local a Google NotebookLM y Tablero ACPM',
     presetCategory: 'drive_sincronizacion',
     presetDescription:
-      'Vigila una carpeta local del computador vía Google Antigravity, extrae cambios técnicos y procesos mediante el Extractor IA de Documentos, nutre el cuaderno RAG de Google NotebookLM y documenta los impactos en Gestión del Cambio en SST (Hito 5), activando tareas en el Tablero Kanban ACPM cuando ingresen archivos nuevos.',
-    agentName: 'Ingeniero de Gestión del Cambio y Control Documental',
-    schedule: 'daily',
-    cronExpression: '0 8 * * 1-5',
+      'Vigila diariamente la carpeta local del equipo donde el responsable SST archiva actas de inspección, comités o auditorías internas. Cuando aparecen archivos nuevos sin indexar, el Extractor IA de Documentos captura sus campos clave por OCR, el Consultor SG-SST agrega las actas como fuente en Google NotebookLM, crea los compromisos pendientes en Control de ACPM (Hito 7) y entrega el resumen en el Tablero Kanban ACPM, Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Consultor SG-SST',
+    agentName: 'Consultor SG-SST',
+    scheduleType: 'daily',
+    scheduleConfig: {
+      hour: 18,
+      minute: 30,
+      dayOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '30 18 * * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_antigravity'],
       extractors: ['extract_pc_folder', 'extract_ai_doc_ocr'],
-      aiModel: 'gemini-3.8-flash',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate', 'wappy_rag_documental'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: ['notebooklm'],
       includeIfNode: true,
-      hitos: ['hito5_gestion_cambio'],
+      hitos: ['hito7_acpm'],
       outputs: ['acpm_task', 'canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: 'all' },
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
           ...buildExtractorDualConfigs('extract_pc_folder', {
             antigravityMode: 'local',
             includeSubfolders: true,
-            fileTypeFilter: 'pdf,docx,xlsx',
+            fileTypeFilter: 'pdf,docx',
             maxItems: 10,
             customInstruction:
-              'Vigila la carpeta local de cambios de ingeniería, maquinaria o procedimientos nuevos en el computador del responsable SST.',
+              'Vigila la carpeta local de actas de comités, inspecciones y hallazgos SST para detectar documentos nuevos pendientes de indexación.',
           }),
           ...buildExtractorDualConfigs('extract_ai_doc_ocr', {
-            aiModel: 'gemini-3.8-flash',
-            aiExtractionRowMode: 'per_document',
+            aiModel: 'gemini-3.6-flash',
+            upstreamSourceType: 'pc',
+            aiExtractionRowMode: 'single_row',
             aiExtractionSchema: [
               {
-                key: 'titulo_documento',
-                label: 'Título del Documento o Proyecto',
-                name: 'Título del Documento o Proyecto',
+                key: 'codigo_acta',
+                label: 'Código o Consecutivo del Acta',
+                name: 'Código o Consecutivo del Acta',
                 type: 'string',
                 required: true,
-                hint: 'Nombre exacto del documento técnico, plano o ficha de cambio leído',
-                description: 'Nombre exacto del documento técnico, plano o ficha de cambio leído',
+                hint: 'Identificador numérico o consecutivo oficial del acta SST',
+                description: 'Identificador numérico o consecutivo oficial del acta SST',
               },
               {
-                key: 'proceso_afectado',
-                label: 'Área o Proceso Afectado',
-                name: 'Área o Proceso Afectado',
+                key: 'fecha_acta',
+                label: 'Fecha del Acta',
+                name: 'Fecha del Acta',
+                type: 'date',
+                required: true,
+                hint: 'Fecha de suscripción o reunión registrada en el acta (AAAA-MM-DD)',
+                description: 'Fecha de suscripción o reunión registrada en el acta (AAAA-MM-DD)',
+              },
+              {
+                key: 'comite_o_proceso',
+                label: 'Comité o Proceso Origen',
+                name: 'Comité o Proceso Origen',
                 type: 'string',
                 required: true,
-                hint: 'Área operativa, línea productiva o cargo impactado por el cambio',
-                description: 'Área operativa, línea productiva o cargo impactado por el cambio',
+                hint: 'Origen del documento: COPASST, CCL, Inspección de Seguridad o Auditoría Interna',
+                description: 'Origen del documento: COPASST, CCL, Inspección de Seguridad o Auditoría Interna',
               },
               {
-                key: 'tipo_cambio',
-                label: 'Clasificación del Cambio',
-                name: 'Clasificación del Cambio',
+                key: 'compromiso_hallazgo',
+                label: 'Compromiso o Hallazgo Principal',
+                name: 'Compromiso o Hallazgo Principal',
                 type: 'string',
                 required: true,
-                hint: 'Cambio interno (tecnología, proceso, infraestructura, personal) o externo (norma, proveedor)',
-                description: 'Cambio interno o externo identificado en el archivo local',
+                hint: 'Descripción concreta del compromiso o hallazgo que requiere plan de acción',
+                description: 'Descripción concreta del compromiso o hallazgo que requiere plan de acción',
               },
               {
-                key: 'peligros_asociados',
-                label: 'Peligros y Riesgos Nuevos',
-                name: 'Peligros y Riesgos Nuevos',
+                key: 'responsable_cierre',
+                label: 'Responsable de Cierre',
+                name: 'Responsable de Cierre',
                 type: 'string',
                 required: true,
-                hint: 'Peligros físicos, químicos, mecánicos, locativos o psicosociales derivados del cambio',
-                description: 'Peligros derivados del cambio técnico o administrativo',
+                hint: 'Cargo o persona asignada para ejecutar el compromiso',
+                description: 'Cargo o persona asignada para ejecutar el compromiso',
               },
               {
-                key: 'fecha_emision',
-                label: 'Fecha del Documento',
-                name: 'Fecha del Documento',
+                key: 'fecha_limite',
+                label: 'Fecha Límite de Cierre',
+                name: 'Fecha Límite de Cierre',
                 type: 'date',
                 required: false,
-                hint: 'Fecha registrada en el documento en formato AAAA-MM-DD',
-                description: 'Fecha registrada en el documento en formato AAAA-MM-DD',
+                hint: 'Fecha comprometida para el cierre efectivo del hallazgo (AAAA-MM-DD)',
+                description: 'Fecha comprometida para el cierre efectivo del hallazgo (AAAA-MM-DD)',
               },
             ],
             customInstruction:
-              'Extrae los metadatos estructurales de cada cambio organizacional, tecnológico o locativo detectado en la carpeta local.',
+              'Extrae por OCR el consecutivo del acta, fecha, proceso origen, compromiso principal, responsable y fecha límite desde cada archivo nuevo.',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'add_source',
+            notebookAction: 'agregar_fuente',
             notebookPrompt:
-              'Analiza los peligros potenciales, requisitos de capacitación y actualizaciones a la matriz de riesgos antes de implementar el cambio.',
+              'Agrega el contenido y resumen estructurado de las nuevas actas SST al cuaderno corporativo para mantener la base documental de auditoría actualizada.',
           }),
-          ...buildHitoDualConfigs('hito5_gestion_cambio', {
+          ...buildHitoDualConfigs('hito7_acpm', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
-            appActionMode: 'write_and_report',
-            generateAppReport: true,
+            appActionMode: 'write_and_update',
             customInstruction:
-              'Registra la evaluación previa del cambio y emite el informe oficial en Gestión del Cambio en SST (Hito 5) conforme al artículo 2.2.4.6.26 del Decreto 1072 de 2015.',
+              'Registra cada compromiso abierto identificado en las actas nuevas dentro de Control de ACPM (Hito 7).',
           }),
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'new_external_items',
             ifConditionLabel:
-              '¿Ingresaron archivos técnicos nuevos en la carpeta local del equipo pendientes de análisis?',
+              '¿Existen actas SST nuevas en la carpeta local sin indexar aún?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_canvas_doc: { ifBranch: 'yes' },
@@ -1699,47 +1760,63 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Líder de Ingeniería y Gestión del Cambio SG-SST conforme al artículo 2.2.4.6.26 del Decreto 1072 de 2015. Procesa únicamente los documentos recién detectados en la carpeta local y estructurados por el Extractor IA de Documentos.\n\n1) Indexa y contrasta la información técnica mediante Google NotebookLM para verificar impactos sobre peligros existentes y controles requeridos antes de autorizar la puesta en marcha.\n2) Registra cada cambio evaluado y genera el informe oficial en Gestión del Cambio en SST (Hito 5) con el detalle exacto de áreas afectadas, peligros identificados y controles previos.\n3) Crea las tareas previas obligatorias en el Tablero Kanban ACPM y entrega el documento final al Editor en Vivo WAPPY y a la Bitácora por Correo.',
+      'Actúa como Consultor SG-SST responsable del control documental bajo el Decreto 1072 de 2015 (Art. 2.2.4.6.12). Analiza únicamente los datos estructurados extraídos por el Extractor IA de Documentos desde las actas nuevas detectadas en la carpeta local.\n\n1) Agrega los hallazgos y acuerdos relevantes como fuente consolidada en Google NotebookLM.\n2) Invoca Control de ACPM (Hito 7) para registrar los compromisos pendientes con responsable y fecha límite.\n3) Consolida la tabla ejecutiva de actas indexadas y tareas asignadas para el Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 19. [drive_sincronizacion] Manuales en Google Drive -> NotebookLM + Google Flow + Rutas LMS
+  // 19. [drive_sincronizacion] Drive Procedimientos -> Extractor IA Docs -> NotebookLM + Google Flow + Rutas LMS (Hito 6)
   {
-    presetKey: 'preset_drive_manuales_notebooklm_flow_lms',
-    name: '📚 Manuales en Google Drive hacia Material Visual Google Flow y Rutas LMS',
+    presetKey: 'preset_drive_procedimientos_notebooklm_lms',
+    name: '📚 Sincronización de Procedimientos Seguros (Drive) a NotebookLM, Afiche Flow y Rutas LMS',
     presetCategory: 'drive_sincronizacion',
     presetDescription:
-      'Monitorea manuales y procedimientos seguros cargados en Google Drive, extrae objetivos pedagógicos mediante el Extractor IA de Documentos, sintetiza el contenido en Google NotebookLM, diseña un afiche visual en Google Flow Studio y actualiza las Rutas de Aprendizaje LMS (Hito 6).',
-    agentName: 'Diseñador Instruccional y Multimedia SG-SST',
-    schedule: 'daily',
-    cronExpression: '0 9 * * 1-5',
+      'Monitorea diariamente la carpeta de procedimientos y estándares seguros en Google Drive. Cuando detecta documentos nuevos, el Extractor IA de Documentos captura código, alcance, riesgos y requisitos por OCR; el Coordinador de Capacitaciones genera una infografía de estudio en Google NotebookLM, produce un afiche cuadrado 1:1 en Google Flow Studio, actualiza Rutas de Aprendizaje y Cronograma de Capacitaciones (Hito 6) y publica el material en Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Coordinador de Capacitaciones',
+    agentName: 'Coordinador de Capacitaciones',
+    scheduleType: 'daily',
+    scheduleConfig: {
+      hour: 17,
+      minute: 30,
+      dayOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '30 17 * * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: ['extract_drive', 'extract_ai_doc_ocr'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate', 'wappy_rag_documental'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: ['notebooklm', 'google_flow'],
       includeIfNode: true,
-      hitos: ['hito6_ruta_aprendizaje'],
+      hitos: ['hito6_ruta_aprendizaje', 'hito5_capacitaciones'],
       outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: 'all' },
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
           ...buildExtractorDualConfigs('extract_drive', {
-            driveFolderName: 'Manuales y Procedimientos Seguros SG-SST',
-            fileTypeFilter: 'pdf,doc,docx',
-            maxItems: 8,
+            driveFolderQuery: 'Procedimientos Seguros SST',
+            driveFolderName: 'Procedimientos Seguros SST',
+            fileTypeFilter: 'pdf',
+            onlyNewFiles: true,
+            maxItems: 10,
+            customInstruction:
+              'Inspecciona la carpeta de Procedimientos Seguros SST en Google Drive e identifica únicamente documentos recién cargados o actualizados.',
           }),
           ...buildExtractorDualConfigs('extract_ai_doc_ocr', {
             aiModel: 'gemini-3.6-flash',
-            aiExtractionRowMode: 'per_document',
+            upstreamSourceType: 'drive',
+            aiExtractionRowMode: 'single_row',
             aiExtractionSchema: [
               {
-                key: 'codigo_manual',
-                label: 'Código del Manual o Instructivo',
-                name: 'Código del Manual o Instructivo',
+                key: 'codigo_procedimiento',
+                label: 'Código del Procedimiento',
+                name: 'Código del Procedimiento',
                 type: 'string',
                 required: true,
                 hint: 'Código documental o versión del procedimiento operativo seguro',
@@ -1751,56 +1828,81 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
                 name: 'Título del Procedimiento',
                 type: 'string',
                 required: true,
-                hint: 'Nombre exacto del manual, instructivo o estándar operativo leído',
-                description: 'Nombre exacto del manual, instructivo o estándar operativo leído',
+                hint: 'Nombre oficial de la tarea crítica o estándar de trabajo seguro',
+                description: 'Nombre oficial de la tarea crítica o estándar de trabajo seguro',
               },
               {
-                key: 'publico_objetivo',
-                label: 'Cargos o Áreas Destinatarias',
-                name: 'Cargos o Áreas Destinatarias',
+                key: 'cargos_objetivo',
+                label: 'Cargos Objetivo',
+                name: 'Cargos Objetivo',
                 type: 'string',
                 required: true,
-                hint: 'Cargos operativos o procesos obligados a aprobar esta formación',
-                description: 'Cargos operativos o procesos obligados a aprobar esta formación',
+                hint: 'Perfiles o áreas operativas obligadas a entrenarse en este procedimiento',
+                description: 'Perfiles o áreas operativas obligadas a entrenarse en este procedimiento',
               },
               {
-                key: 'reglas_criticas',
-                label: 'Reglas Críticas de Seguridad',
-                name: 'Reglas Críticas de Seguridad',
+                key: 'peligros_criticos',
+                label: 'Peligros Críticos Asociados',
+                name: 'Peligros Críticos Asociados',
                 type: 'string',
                 required: true,
-                hint: 'Pasos obligatorios de bloqueo, EPP o prevención descritos en el manual',
-                description: 'Pasos obligatorios de bloqueo, EPP o prevención descritos en el manual',
+                hint: 'Principales peligros mecánicos, eléctricos, químicos, locativos o de alturas',
+                description: 'Principales peligros mecánicos, eléctricos, químicos, locativos o de alturas',
+              },
+              {
+                key: 'epp_obligatorios',
+                label: 'EPP y Controles Clave',
+                name: 'EPP y Controles Clave',
+                type: 'string',
+                required: true,
+                hint: 'Elementos de protección personal y barreras críticas exigidas durante la labor',
+                description: 'Elementos de protección personal y barreras críticas exigidas durante la labor',
+              },
+              {
+                key: 'fecha_vigencia',
+                label: 'Fecha de Vigencia',
+                name: 'Fecha de Vigencia',
+                type: 'date',
+                required: false,
+                hint: 'Fecha de aprobación o actualización del estándar (AAAA-MM-DD)',
+                description: 'Fecha de aprobación o actualización del estándar (AAAA-MM-DD)',
               },
             ],
             customInstruction:
-              'Extrae los puntos pedagógicos y reglas críticas de seguridad desde cada manual nuevo en Google Drive.',
+              'Extrae por OCR el código, título, cargos objetivo, peligros críticos, EPP obligatorios y fecha de vigencia de cada procedimiento nuevo.',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'generate_slides',
+            notebookAction: 'generar_estudio',
+            notebookArtifactType: 'infographic',
             notebookPrompt:
-              'Convierte el procedimiento operativo extraído en una secuencia didáctica clara de 5 pasos con preguntas clave de verificación para operarios.',
+              'Genera una guía de estudio e infografía instruccional paso a paso sobre los procedimientos seguros actualizados para formación rápida del personal operativo.',
           }),
           ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_image',
-            flowAspectRatio: '16:9',
-            flowStyle: 'Infografía técnica corporativa clara en español',
-            flowCameraMotion: 'Estático',
+            flowAction: 'generar_imagen',
+            flowAspectRatio: '1:1',
+            flowStyle: 'infografia_editorial',
             flowPrompt:
-              'Banner educativo corporativo de seguridad industrial ilustrando procedimiento operativo seguro, señalización clara y uso obligatorio de elementos de protección personal',
+              'Afiche cuadrado corporativo SST de trabajo seguro paso a paso con equipo de protección personal obligatorio, diagramación limpia estilo editorial',
           }),
           ...buildHitoDualConfigs('hito6_ruta_aprendizaje', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
             appActionMode: 'write_and_update',
             customInstruction:
-              'Crea o actualiza la lección y evaluación del manual en Rutas de Aprendizaje LMS (Hito 6) para los cargos destinatarios.',
+              'Actualiza la malla formativa y módulos obligatorios por cargo en Rutas de Aprendizaje LMS (Hito 6).',
+          }),
+          ...buildHitoDualConfigs('hito5_capacitaciones', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Programa la divulgación y evaluación de entendimiento del procedimiento en Cronograma de Capacitaciones (Hito 6).',
           }),
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'new_external_items',
             ifConditionLabel:
-              '¿Se detectaron manuales o instructivos nuevos en Google Drive sin convertir en material LMS?',
+              '¿Existen procedimientos seguros nuevos en Google Drive sin sincronizar?',
           },
           out_canvas_doc: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -1810,29 +1912,40 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Diseñador Instruccional Senior en Seguridad y Salud en el Trabajo bajo la Resolución 0312 de 2019. Toma los manuales recién extraídos desde Google Drive y procesados por el Extractor IA de Documentos.\n\n1) Genera el guion didáctico y presentación estructurada en Google NotebookLM destacando las reglas críticas que salvan vidas.\n2) Invoca Google Flow Studio para generar la imagen o portada pedagógica del módulo formativo.\n3) Publica y asigna la nueva cápsula formativa en Rutas de Aprendizaje LMS (Hito 6) y entrega el resumen en el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Coordinador de Capacitaciones SG-SST conforme al artículo 2.2.4.6.11 del Decreto 1072 de 2015. Procesa únicamente los procedimientos nuevos extraídos por el Extractor IA de Documentos.\n\n1) Invoca Google NotebookLM para generar el recurso de estudio tipo infografía dirigido a los cargos objetivo.\n2) Invoca Google Flow Studio en relación 1:1 para diseñar el afiche visual de divulgación operativa.\n3) Actualiza los contenidos y sesiones en Rutas de Aprendizaje LMS y Cronograma de Capacitaciones (Hito 6) y entrega el paquete didáctico en Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 20. [atel_inspecciones] Auditoría Alturas MinTrabajo/SENA Web Scraper
+  // 20. [atel_inspecciones] Scraping Alturas/SENA + Equipos Alturas (Hito 5) -> Bloqueo ATS (Hito 5)
   {
-    presetKey: 'preset_scraping_alturas_mintrabajo_sena',
-    name: '🧗 Auditoría de Certificados de Alturas en MinTrabajo y SENA vía Web Scraping',
+    presetKey: 'preset_scraping_alturas_sena_equipos',
+    name: '🪜 Validación de Certificados de Alturas y SENA con Equipos de Alturas y Bloqueo ATS',
     presetCategory: 'atel_inspecciones',
     presetDescription:
-      'Consulta automáticamente los certificados de trabajo en alturas en MinTrabajo y SENA vía Google Antigravity, los cruza con el personal expuesto en el Perfil Sociodemográfico (Hito 2) y valida la disponibilidad operativa en Hoja de Vida de Equipos de Alturas (Hito 5), escalando brechas al Tablero Kanban ACPM.',
-    agentName: 'Inspector Especialista en Trabajo en Alturas Res. 4272',
-    schedule: 'weekly_monday',
+      'Verifica semanalmente certificados de trabajo seguro en alturas y formación SENA mediante Web Scraping con Google Antigravity, los consolida con el Inventario y Vigencia de Equipos de Alturas (Hito 5) y, cuando detecta certificados o equipos próximos a vencer o en estado no apto, actualiza controles preventivos en Análisis de Trabajo Seguro ATS (Hito 5), crea tareas en Tablero Kanban ACPM, agenda recertificaciones en Google Calendar y notifica por Correo.',
+    agentTargetName: 'Coordinador de Tareas Críticas',
+    agentName: 'Coordinador de Tareas Críticas',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 6,
+      minute: 30,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
     cronExpression: '30 6 * * 1',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_antigravity'],
       extractors: ['scraper_agy_alto_riesgo'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: [],
       includeIfNode: true,
-      hitos: ['hito2_perfil_socio', 'hito5_equipos_alturas'],
-      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
+      hitos: ['hito5_equipos_alturas', 'hito3_ats'],
+      outputs: ['acpm_task', 'google_calendar', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
@@ -1840,36 +1953,38 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
           ...buildExtractorDualConfigs('scraper_agy_alto_riesgo', {
             antigravityMode: 'auto',
-            scriptEngine: 'chrome_devtools_mcp',
+            scriptEngine: 'chrome_mcp',
             customInstruction:
-              'Consulta por cédula en el registro oficial de MinTrabajo (Centros de Entrenamiento Res. 4272) y certificados digitales SENA.',
+              'Consulta los registros de certificación SENA y validaciones de trabajo en alturas en portales oficiales para el personal expuesto.',
           }),
-          ...buildHitoDualConfigs('hito2_perfil_socio', {
+          ...buildHitoDualConfigs('hito5_equipos_alturas', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Identifica los trabajadores con exposición a trabajo en alturas y sus fechas registradas en Perfil Sociodemográfico (Hito 2).',
+              'Extrae únicamente arneses, eslingas, líneas de vida y conectores con inspección anual vencida o defecto estructural desde Equipos de Alturas (Hito 5).',
           }),
-          ...buildHitoDualConfigs('hito5_equipos_alturas', {
+          ...buildHitoDualConfigs('hito3_ats', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
-            appActionMode: 'write_and_update',
+            appActionMode: 'write_and_report',
+            generateAppReport: true,
             customInstruction:
-              'Verifica y actualiza observaciones sobre inspección anual y restricción de asignación de arneses o eslingas en Hoja de Vida de Equipos de Alturas (Hito 5).',
+              'Registra restricciones de bloqueo preventivo para tareas críticas y emite el reporte de seguridad en Análisis de Trabajo Seguro ATS (Hito 5).',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Cruza en un único tablero los certificados verificados en MinTrabajo/SENA con los trabajadores expuestos del Perfil Sociodemográfico (Hito 2).',
+              'Unifica los resultados de certificados de alturas SENA consultados vía Web Scraping con el inventario de Equipos de Alturas (Hito 5).',
           },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Se detectaron trabajadores sin certificado de alturas vigente en MinTrabajo/SENA o novedades sin gestionar?',
+              '¿Existen certificados SENA de alturas vencidos o equipos contra caídas no aptos en Hito 5?',
           },
           out_acpm_task: { ifBranch: 'yes' },
+          out_google_calendar: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
         },
@@ -1878,35 +1993,46 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'MinTrabajo/SENA + Nómina',
+            subtitle: 'SENA Alturas + Equipos',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Coordinador de Trabajo Seguro en Alturas conforme a la Resolución 4272 de 2021. Analiza exclusivamente los resultados reales consultados en MinTrabajo y SENA frente al personal del Perfil Sociodemográfico (Hito 2).\n\n1) Presenta la tabla de cumplimiento por trabajador indicando Cédula, Cargo, Estado Oficial del Certificado de Alturas y Evidencia en bandeja (sin URLs crudas).\n2) Consulta y actualiza observaciones operativas en Hoja de Vida de Equipos de Alturas (Hito 5) para suspender la asignación de equipos a personal sin reentrenamiento vigente.\n3) Crea acciones inmediatas de reentrenamiento en el Tablero Kanban ACPM y remite el reporte ejecutivo a la Bitácora por Correo.',
+      'Actúa como Coordinador de Tareas Críticas bajo la Resolución 4272 de 2021. Analiza exclusivamente los resultados consolidados de certificados de alturas SENA y el estado de los sistemas de protección contra caídas en Equipos de Alturas (Hito 5).\n\n1) Invoca Análisis de Trabajo Seguro ATS (Hito 5) para registrar el bloqueo preventivo de autorización en campo sobre equipos no aptos o personal sin reentrenamiento vigente y generar el informe oficial de seguridad.\n2) Crea acciones inmediatas de recertificación o reemplazo en Tablero Kanban ACPM.\n3) Agenda fechas de inspección o recertificación en Google Calendar y consolida la alerta para Bitácora por Correo.',
   },
-  // 21. [atel_inspecciones] Antecedentes Judiciales Contratistas Críticos
+  // 21. [atel_inspecciones] Scraping Antecedentes + Sociodemográfico (Hito 2) -> ACPM (Hito 7)
   {
-    presetKey: 'preset_scraping_antecedentes_contratistas',
-    name: '⚖️ Debida Diligencia Judicial y Antecedentes de Contratistas vía Web Scraping',
+    presetKey: 'preset_scraping_antecedentes_personal_critico',
+    name: '⚖️ Verificación de Antecedentes y Procesos Judiciales de Personal Crítico vía Web Scraping',
     presetCategory: 'atel_inspecciones',
     presetDescription:
-      'Ejecuta consultas automatizadas en Rama Judicial, Contraloría, Procuraduría y Policía para personal contratista crítico leído en Control y Gestión de Contratistas (Hito 5), actualiza el registro de Compras y Adquisiciones en SST (Hito 5) y escala novedades al Tablero Kanban ACPM.',
-    agentName: 'Auditor de Debida Diligencia y Contratistas SST',
-    schedule: 'weekly_monday',
-    cronExpression: '0 8 * * 1',
+      'Verifica semanalmente antecedentes, inhabilidades o medidas disciplinarias públicas de conductores, escoltas y personal en roles críticos mediante Google Antigravity, consolida la información con el Perfil Sociodemográfico (Hito 2) y, solo cuando halla novedades nuevas sin auditar, registra acciones de control en Control de ACPM (Hito 7), emite soporte documental en Google Docs, abre seguimiento en Tablero Kanban ACPM y reporta por Correo.',
+    agentTargetName: 'Abogado Laboral',
+    agentName: 'Abogado Laboral',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 7,
+      minute: 30,
+      dayOfWeek: [3],
+      daysOfWeek: [3],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '30 7 * * 3',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_antigravity'],
       extractors: ['scraper_agy_antecedentes'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: [],
       includeIfNode: true,
-      hitos: ['hito5_contratistas', 'hito5_compras_sst'],
-      outputs: ['acpm_task', 'email_report', 'wappy_notification'],
+      hitos: ['hito2_perfil_socio', 'hito7_acpm'],
+      outputs: ['google_docs', 'acpm_task', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
@@ -1914,35 +2040,36 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildExtractorDualConfigs('scraper_agy_antecedentes', {
             antigravityMode: 'auto',
-            scriptEngine: 'chrome_devtools_mcp',
+            scriptEngine: 'chrome_mcp',
             customInstruction:
-              'Consulta antecedentes fiscales, disciplinarios, judiciales y medidas correctivas en portales oficiales colombianos por cédula.',
+              'Consulta en portales públicos oficiales las validaciones de antecedentes e inhabilidades aplicables a roles críticos y conducción.',
           }),
-          ...buildHitoDualConfigs('hito5_contratistas', {
+          ...buildHitoDualConfigs('hito2_perfil_socio', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Extrae los contratistas activos y su personal crítico asignado desde Control y Gestión de Contratistas (Hito 5).',
+              'Extrae la nómina de trabajadores activos en cargos críticos o de seguridad física/vial desde Perfil Sociodemográfico (Hito 2).',
           }),
-          ...buildHitoDualConfigs('hito5_compras_sst', {
+          ...buildHitoDualConfigs('hito7_acpm', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
             appActionMode: 'write_and_update',
             customInstruction:
-              'Registra hallazgos de habilitación y criterios de selección de proveedores en Compras y Adquisiciones en SST (Hito 5).',
+              'Registra acciones preventivas de verificación jurídica y habilitación de cargo en Control de ACPM (Hito 7).',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Consolida las respuestas reales de los portales judiciales y fiscales con el padrón activo en Control y Gestión de Contratistas (Hito 5).',
+              'Unifica las validaciones consultadas en fuentes públicas oficiales con el listado de cargos críticos del Perfil Sociodemográfico (Hito 2).',
           },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Se detectaron procesos activos, sanciones fiscales/disciplinarias o alertas legales en contratistas sin gestionar?',
+              '¿Se detectaron novedades o registros pendientes de revisión jurídica en cargos críticos?',
           },
+          out_google_docs: { ifBranch: 'yes' },
           out_acpm_task: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
@@ -1952,64 +2079,83 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'Portales Judiciales + Contratistas',
+            subtitle: 'Antecedentes + Nómina',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Auditor de Cumplimiento y Gestión de Terceros SG-SST bajo el estándar de selección y evaluación de contratistas del Decreto 1072 de 2015 y la Resolución 0312 de 2019.\n\n1) Analiza objetivamente los hallazgos verificados en los portales oficiales consultados frente a la base de Control y Gestión de Contratistas (Hito 5), sin inferir ni inventar anotaciones no observadas.\n2) Actualiza el estado de habilitación y criterios de evaluación en Compras y Adquisiciones en SST (Hito 5) cuando exista una restricción o hallazgo confirmado.\n3) Abre las acciones de control documental en el Tablero Kanban ACPM y remite el informe confidencial a la Bitácora por Correo.',
+      'Actúa como Abogado Laboral en cumplimiento de la Ley 1581 de 2012 sobre tratamiento proporcional y confidencial de datos personales y seguridad en cargos críticos. Analiza únicamente las novedades consolidadas frente al Perfil Sociodemográfico (Hito 2).\n\n1) Documenta el concepto jurídico laboral reservado y las verificaciones pertinentes sin divulgar información sensible innecesaria.\n2) Invoca Control de ACPM (Hito 7) para abrir el seguimiento de cumplimiento documental o reasignación preventiva según corresponda.\n3) Genera el memorando formal para Google Docs, registra tareas en Tablero Kanban ACPM y resume el resultado para Bitácora por Correo.',
   },
-  // 22. [atel_inspecciones] Lección Aprendida Ilustrada ATEL con NotebookLM + Google Flow (post_agent)
+  // 22. [atel_inspecciones] Investigación ATEL (Hito 7) -> NotebookLM + Google Flow + Actos/Condiciones (Hito 6)
   {
     presetKey: 'preset_leccion_aprendida_atel_notebooklm_flow',
-    name: '🩹 Lección Aprendida Ilustrada ATEL con Google NotebookLM y Google Flow',
+    name: '🚨 Lección Aprendida de Accidentes ATEL con NotebookLM y Afiche Visual Google Flow',
     presetCategory: 'atel_inspecciones',
     presetDescription:
-      'Lee expedientes cerrados en Investigación ATEL (Hito 7), contrasta causas básicas con el historial en Google NotebookLM, diseña una lámina ilustrativa preventiva con Google Flow Studio y decide semánticamente si el caso amerita difusión general en el Editor en Vivo WAPPY y Bitácora por Correo.',
-    agentName: 'Especialista en Investigación ATEL y Cultura Preventiva',
-    schedule: 'daily',
-    cronExpression: '0 10 * * 1-5',
+      'Revisa semanalmente eventos cerrados o en curso dentro de Investigación de Accidentes ATEL (Hito 7). Cuando encuentra investigaciones nuevas sin lección aprendida divulgada, el Simulador de Accidentes SST consulta análisis de causalidad en Google NotebookLM, produce un afiche vertical 9:16 en Google Flow Studio, publica la lección y reporte preventivo en Actos y Condiciones Inseguras (Hito 6) y entrega la pieza en Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Simulador de Accidentes SST',
+    agentName: 'Simulador de Accidentes SST',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 9,
+      minute: 0,
+      dayOfWeek: [2],
+      daysOfWeek: [2],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '0 9 * * 2',
     isSystemPreset: true,
     workflowNodes: {
-      triggers: ['trigger_agent', 'trigger_tenshi'],
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: [],
-      aiModel: 'gemini-3.8-flash',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_rag_documental'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: ['notebooklm', 'google_flow'],
       includeIfNode: true,
-      hitos: ['hito7_investigacion_atel'],
+      hitos: ['hito7_investigacion_atel', 'hito4_actos_condiciones'],
       outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildHitoDualConfigs('hito7_investigacion_atel', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee los expedientes recientes con causas inmediatas, causas básicas y plan de acción definidos en Investigación ATEL (Hito 7).',
+              'Extrae únicamente eventos e investigaciones reales registradas en Investigación de Accidentes ATEL (Hito 7) pendientes de lección aprendida.',
+          }),
+          ...buildHitoDualConfigs('hito4_actos_condiciones', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_report',
+            generateAppReport: true,
+            customInstruction:
+              'Registra recomendaciones de alerta temprana y genera el reporte preventivo en Actos y Condiciones Inseguras (Hito 6).',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'generate_infographic',
+            notebookAction: 'consultar',
             notebookPrompt:
-              'Redacta una Lección Aprendida clara bajo la Resolución 1401 de 2007 enfocada en causas técnicas, barreras preventivas y cero culpabilización al trabajador.',
+              'Analiza causas básicas e inmediatas (NTC 3701) y barreras de ingeniería recomendadas para estructurar una lección aprendida anonimizada de alto impacto.',
           }),
           ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_image',
-            flowAspectRatio: '1:1',
-            flowStyle: 'Ilustración educativa de seguridad industrial limpia sin escenas explícitas',
-            flowCameraMotion: 'Estático',
+            flowAction: 'generar_imagen',
+            flowAspectRatio: '9:16',
+            flowStyle: 'infografia_editorial',
             flowPrompt:
-              'Afiche preventivo de lección aprendida en seguridad laboral mostrando las medidas correctivas seguras, bloqueo de energías y señalización protectora en planta industrial',
+              'Afiche vertical de lección aprendida en seguridad industrial sin datos sensibles, ilustrando causa raíz, barrera preventiva y conducta segura, estilo infografía editorial limpia',
           }),
           if_router: {
-            ifPlacement: 'post_agent',
-            ifConditionType: 'semantic_verdict',
+            ifPlacement: 'pre_agent',
+            ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Existe un evento investigado con causas verificadas apto para publicar como Lección Aprendida preventiva?',
+              '¿Existen investigaciones ATEL nuevas en Hito 7 pendientes de lección aprendida?',
           },
           out_canvas_doc: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -2019,60 +2165,77 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Investigador Líder de Accidentes Laborales bajo la Resolución 1401 de 2007 y el artículo 2.2.4.6.32 del Decreto 1072 de 2015. Revisa los expedientes disponibles en Investigación ATEL (Hito 7).\n\n1) Si existe al menos un expediente con descripción de evento, causas básicas y controles definidos, utiliza Google NotebookLM para estructurar la Lección Aprendida educativa (sin nombres propios sensibles ni tono punitivo) y genera con Google Flow Studio una ilustración preventiva clara mostrando la práctica segura correcta.\n2) Evalúa y concluye obligatoriamente al inicio de tu veredicto con [VEREDICTO_IF: SI] si se produjo una Lección Aprendida válida lista para difusión, o con [VEREDICTO_IF: NO] si no hay expedientes completos disponibles para publicar.\n3) Cuando el veredicto sea positivo, entrega el boletín completo para el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Simulador de Accidentes SST especialista en metodología causal NTC 3701 y Resolución 1401 de 2007. Trabaja únicamente con los eventos reales de Investigación de Accidentes ATEL (Hito 7) manteniendo estricto anonimato del trabajador.\n\n1) Consulta en Google NotebookLM patrones de recurrencia y controles de ingeniería aplicables al mecanismo de lesión detectado.\n2) Invoca Google Flow Studio en relación 9:16 estilo infografía editorial para crear el afiche visual de Lección Aprendida.\n3) Registra las acciones preventivas en campo y emite el reporte dentro de Actos y Condiciones Inseguras (Hito 6), preparando la ficha de divulgación para Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 23. [legal_cumplimiento] Monitor Web Scraping MinTrabajo/Diario Oficial SHA-256 -> Matriz Legal + NotebookLM
+  // 23. [legal_cumplimiento] Web Scraping MinTrabajo/SUIN (pre_agent SHA-256) -> NotebookLM + Diagnóstico 0312 (Hito 1) + ACPM (Hito 7)
   {
-    presetKey: 'preset_web_scraping_mintrabajo_diario_matriz_legal',
-    name: '📜 Monitor Web Scraping de MinTrabajo y Diario Oficial hacia Matriz Legal',
+    presetKey: 'preset_scraping_mintrabajo_cambio_normativo_0312',
+    name: '🏛️ Vigilancia Web MinTrabajo y SUIN-Juriscol con Evaluación de Estándares Mínimos (Res. 0312)',
     presetCategory: 'legal_cumplimiento',
     presetDescription:
-      'Monitorea periódicamente los portales de normatividad del Ministerio del Trabajo y SUIN-Juriscol con detección de cambios SHA-256; cuando detecta contenido nuevo, contrasta obligaciones en Google NotebookLM, actualiza la Matriz Legal (Hito 1) y escala planes en el Tablero Kanban ACPM.',
-    agentName: 'Abogado Laboralista y Auditor Normativo SG-SST',
-    schedule: 'weekly_monday',
-    cronExpression: '0 7 * * 1',
+      'Monitorea semanalmente las páginas normativas del Ministerio del Trabajo y SUIN-Juriscol mediante Web Scraping con control SHA-256 en Etapa 2. Solo cuando detecta cambios reales en normas laborales o de riesgos laborales, el Abogado Laboral agrega la novedad como fuente en Google NotebookLM, evalúa el impacto en Estándares Mínimos Res. 0312 (Hito 1) y Control de ACPM (Hito 7), generando tareas Kanban ACPM, boletín en Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Abogado Laboral',
+    agentName: 'Abogado Laboral',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 7,
+      minute: 0,
+      dayOfWeek: [3],
+      daysOfWeek: [3],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '0 7 * * 3',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: ['extract_web_scraping_agy'],
-      aiModel: 'gemini-3.8-flash',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate', 'wappy_rag_documental'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: ['notebooklm'],
       includeIfNode: true,
-      hitos: ['hito1_matriz_legal'],
+      hitos: ['hito1_diagnostico_0312', 'hito7_acpm'],
       outputs: ['acpm_task', 'canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: 'all' },
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildExtractorDualConfigs('extract_web_scraping_agy', {
             targetUrl:
-              'https://www.mintrabajo.gov.co/normatividad, https://www.suin-juriscol.gov.co',
-            scriptEngine: 'auto',
+              'https://www.mintrabajo.gov.co/normatividad\nhttps://www.suin-juriscol.gov.co',
+            scriptEngine: 'auto_chrome_dom',
             onlyOnContentChange: true,
             customInstruction:
-              'Extrae resoluciones, decretos y circulares recientes de seguridad laboral calculando huella SHA-256 para evitar reprocesar si no hubo cambios.',
+              'Extrae publicaciones, decretos o resoluciones recientes en MinTrabajo y SUIN-Juriscol disparando únicamente cuando cambie la huella SHA-256.',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'query',
+            notebookAction: 'agregar_fuente',
             notebookPrompt:
-              'Identifica qué artículos de las nuevas normas extraídas aplican a la actividad económica y nivel de riesgo de la empresa.',
+              'Incorpora el texto o síntesis normativa detectada en MinTrabajo y SUIN-Juriscol al cuaderno jurídico SG-SST para análisis histórico comparativo.',
           }),
-          ...buildHitoDualConfigs('hito1_matriz_legal', {
+          ...buildHitoDualConfigs('hito1_diagnostico_0312', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
-            appActionMode: 'write_and_report',
-            generateAppReport: true,
+            appActionMode: 'write_and_update',
             customInstruction:
-              'Incorpora los nuevos requisitos legales aplicables en la Matriz Legal (Hito 1) y genera su informe normativo actualizado.',
+              'Evalúa e incorpora notas técnicas de adecuación sobre los ítems impactados de Estándares Mínimos Res. 0312 (Hito 1).',
+          }),
+          ...buildHitoDualConfigs('hito7_acpm', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Registra acciones preventivas de actualización documental y cumplimiento en Control de ACPM (Hito 7).',
           }),
           if_router: {
             ifPlacement: 'pre_agent',
-            ifConditionType: 'critical_findings',
+            ifConditionType: 'new_external_items',
             ifConditionLabel:
-              '¿Se detectaron cambios nuevos (SHA-256 distinto) en los portales normativos de MinTrabajo o SUIN-Juriscol?',
+              '¿Se detectaron cambios normativos nuevos (SHA-256 actualizado) en MinTrabajo o SUIN-Juriscol?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_canvas_doc: { ifBranch: 'yes' },
@@ -2083,77 +2246,110 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Abogado Especialista en Derecho Laboral y SG-SST bajo el artículo 2.2.4.6.8 numeral 5 del Decreto 1072 de 2015. Analiza los cambios normativos detectados en la extracción web del Ministerio del Trabajo y SUIN-Juriscol.\n\n1) Consulta en Google NotebookLM el alcance técnico de las disposiciones nuevas frente al sector económico y riesgo de la empresa.\n2) Registra únicamente las normas aplicables reales en la Matriz Legal (Hito 1) y genera el informe oficial del aplicativo.\n3) Crea tareas de adecuación normativa en el Tablero Kanban ACPM cuando existan plazos o requisitos inmediatos y remite el resumen al Editor en Vivo WAPPY y a la Bitácora por Correo.',
+      'Actúa como Abogado Laboral especialista en regulación colombiana de Seguridad y Salud en el Trabajo. Analiza exclusivamente los cambios normativos nuevos verificados por SHA-256 en las fuentes de MinTrabajo y SUIN-Juriscol.\n\n1) Agrega la referencia normativa como nueva fuente en Google NotebookLM.\n2) Invoca Estándares Mínimos Res. 0312 (Hito 1) para registrar el impacto técnico sobre los estándares de cumplimiento aplicables.\n3) Registra planes preventivos de adecuación en Control de ACPM (Hito 7) y entrega la nota ejecutiva para Tablero Kanban ACPM, Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 24. [legal_cumplimiento] Scraping Jurisprudencia SST -> NotebookLM
+  // 24. [legal_cumplimiento] Web Scraping Cortes (pre_agent SHA-256) -> NotebookLM + ACPM (Hito 7)
   {
-    presetKey: 'preset_web_scraping_jurisprudencia_sst_notebooklm',
-    name: '⚖️ Scraping en Vivo de Jurisprudencia SST y Análisis en Google NotebookLM',
+    presetKey: 'preset_scraping_jurisprudencia_sst_notebooklm',
+    name: '⚖️ Monitor de Jurisprudencia Laboral en Altas Cortes vía Web Scraping y Google NotebookLM',
     presetCategory: 'legal_cumplimiento',
     presetDescription:
-      'Consulta las obligaciones vigentes en la Matriz Legal (Hito 1), busca jurisprudencia reciente mediante la herramienta de Web Scraping en Vivo sobre altas cortes colombianas, contrasta precedentes en Google NotebookLM y consolida un boletín jurídico en Google Docs y Editor en Vivo WAPPY.',
-    agentName: 'Consultor Jurídico en Jurisprudencia Laboral y SST',
-    schedule: 'monthly',
-    cronExpression: '0 8 15 * *',
+      'Vigila semanalmente las relatorías de la Corte Suprema de Justicia y el Consejo de Estado mediante Web Scraping inteligente con detección de cambios SHA-256. Únicamente cuando aparecen sentencias o criterios jurisprudenciales nuevos sobre culpa patronal o estabilidad reforzada, el Abogado Laboral los contrasta en Google NotebookLM, crea acciones preventivas en Control de ACPM (Hito 7) y entrega el análisis jurídico en Google Docs, Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Abogado Laboral',
+    agentName: 'Abogado Laboral',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 10,
+      minute: 0,
+      dayOfWeek: [5],
+      daysOfWeek: [5],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '0 10 * * 5',
     isSystemPreset: true,
     workflowNodes: {
-      triggers: ['schedule_cron', 'trigger_antigravity_cloud'],
-      extractors: [],
-      aiModel: 'gemini-3.8-flash',
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
+      extractors: ['extract_web_scraping_agy'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_rag_documental'],
-      inputs: ['tool_web_scraping_agy', 'notebooklm'],
-      includeIfNode: false,
-      hitos: ['hito1_matriz_legal'],
-      outputs: ['google_docs', 'canvas_doc', 'email_report'],
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
+      inputs: ['notebooklm'],
+      includeIfNode: true,
+      hitos: ['hito7_acpm'],
+      outputs: ['google_docs', 'canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          ...buildHitoDualConfigs('hito1_matriz_legal', {
-            hitoRole: 'source_read',
-            hitoOperationMode: 'read_only',
-            appActionMode: 'read_only',
-            customInstruction:
-              'Extrae los requisitos legales y frentes críticos vigentes en la Matriz Legal (Hito 1) para enfocar la búsqueda jurisprudencial.',
-          }),
-          ...buildInputDualConfigs('tool_web_scraping_agy', {
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
+          ...buildExtractorDualConfigs('extract_web_scraping_agy', {
             targetUrl:
-              'https://www.corteconstitucional.gov.co, https://cortesuprema.gov.co',
-            scriptEngine: 'auto',
-            onlyOnContentChange: false,
+              'https://www.cortesuprema.gov.co/corte/index.php/relatoria-laboral/\nhttps://www.consejodeestado.gov.co',
+            scriptEngine: 'auto_chrome_dom',
+            onlyOnContentChange: true,
             customInstruction:
-              'Extrae comunicados y relatorías públicas recientes sobre estabilidad laboral reforzada, culpa patronal y riesgos laborales.',
+              'Monitorea las relatorías laborales de la Corte Suprema de Justicia y Consejo de Estado disparando solo cuando cambie la huella SHA-256.',
           }),
           ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'generate_report',
+            notebookAction: 'consultar',
             notebookPrompt:
-              'Elabora un memorando jurídico práctico relacionando los fallos extraídos con las medidas de prevención documental de la empresa.',
+              'Contrasta precedentes sobre culpa patronal, estabilidad laboral reforzada, fueros de salud y carga probatoria en accidentes de trabajo frente a las sentencias consultadas.',
           }),
+          ...buildHitoDualConfigs('hito7_acpm', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Registra acciones preventivas de blindaje probatorio o actualización contractual en Control de ACPM (Hito 7).',
+          }),
+          if_router: {
+            ifPlacement: 'pre_agent',
+            ifConditionType: 'new_external_items',
+            ifConditionLabel:
+              '¿Se publicaron providencias nuevas relevantes (SHA-256 actualizado) en Altas Cortes?',
+          },
+          out_google_docs: { ifBranch: 'yes' },
+          out_canvas_doc: { ifBranch: 'yes' },
+          out_email_report: { ifBranch: 'yes' },
+          out_wappy_notification: { ifBranch: 'no' },
         },
         logicNodes: [],
       },
     },
     prompt:
-      'Actúa como Consultor Jurídico Senior en Riesgos Laborales en Colombia. Toma como línea base las obligaciones activas de la Matriz Legal (Hito 1).\n\n1) Invoca la herramienta de Web Scraping en Vivo para consultar los comunicados y boletines recientes de la Corte Constitucional y Corte Suprema sobre culpa patronal, fuero de salud y reubicación laboral.\n2) Contrasta los criterios extraídos en Google NotebookLM para traducirlos en recomendaciones probatorias y preventivas concretas para el empleador.\n3) Estructura el Boletín Jurisprudencial Mensual para archivarlo en Google Docs, el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Abogado Laboral litigante experto en riesgos laborales y responsabilidad civil/laboral patronal. Analiza exclusivamente los fallos o publicaciones nuevas extraídas por Web Scraping en Corte Suprema y Consejo de Estado.\n\n1) Consulta en Google NotebookLM las implicaciones probatorias frente a las prácticas internas de prevención.\n2) Invoca Control de ACPM (Hito 7) para abrir acciones preventivas de fortalecimiento probatorio cuando el criterio jurisprudencial lo amerite.\n3) Redacta el boletín jurisprudencial estructurado para Google Docs, Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 25. [legal_cumplimiento] Auditoría Cruzada Política + Emergencias con NotebookLM
+  // 25. [legal_cumplimiento] Auditoría Cruzada Política + Plan Emergencias (Hito 1) -> post_agent -> ACPM (Hito 7) + NotebookLM
   {
     presetKey: 'preset_auditoria_cruzada_politica_emergencias_notebooklm',
-    name: '🏛️ Auditoría Cruzada de Política SST y Plan de Emergencias con Google NotebookLM',
+    name: '🛡️ Auditoría Documental Cruzada de Política SST y Plan de Emergencias con NotebookLM',
     presetCategory: 'legal_cumplimiento',
     presetDescription:
-      'Cruza la Política de SST (Hito 1) y el Plan de Emergencias y Contingencias (Hito 1) frente al acervo documental en Google NotebookLM; si el agente detecta brechas normativas o desactualizaciones, registra planes de cierre en el Tablero Kanban ACPM (Hito 7).',
-    agentName: 'Auditor Líder de Sistemas de Gestión SG-SST',
-    schedule: 'monthly',
-    cronExpression: '0 9 5 * *',
+      'Lee en Etapa 2 la Política y Objetivos SST (Hito 1) y el Plan de Emergencias (Hito 1), unifica ambos expedientes mediante unión de ramas y solicita al Auditor SG-SST contrastar su coherencia frente a Google NotebookLM. Con compuerta semántica posterior al Agente, si emite veredicto de brecha abre acciones en Control de ACPM (Hito 7), Tablero Kanban ACPM, Editor en Vivo WAPPY y Bitácora por Correo; si todo es conforme, registra trazabilidad silenciosa.',
+    agentTargetName: 'Auditor SG-SST',
+    agentName: 'Auditor SG-SST',
+    scheduleType: 'monthly',
+    scheduleConfig: {
+      hour: 8,
+      minute: 0,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 15,
+      intervalHours: 24,
+    },
+    cronExpression: '0 8 15 * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: [],
-      aiModel: 'gemini-3.8-flash',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_rag_documental', 'wappy_memory_procedural'],
+      memories: ['wappy_memory_company'],
       inputs: ['notebooklm'],
       includeIfNode: true,
       hitos: ['hito1_politica_objetivos', 'hito1_plan_emergencias', 'hito7_acpm'],
@@ -2167,37 +2363,38 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee el texto vigente, firma y vigencia anual de la Política de SST (Hito 1).',
+              'Extrae la Política de SST vigente, compromisos firmados y vigencia anual desde Política y Objetivos SST (Hito 1).',
           }),
           ...buildHitoDualConfigs('hito1_plan_emergencias', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee amenazas prioritarias, brigadas y procedimientos operativos normalizados del Plan de Emergencias y Contingencias (Hito 1).',
-          }),
-          ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'query',
-            notebookPrompt:
-              'Verifica si la Política de SST y el Plan de Emergencias cubren las amenazas críticas reales de las sedes y cumplen el Decreto 1072 de 2015.',
+              'Extrae análisis de vulnerabilidad, amenazas priorizadas, brigada y planes de acción desde Plan de Emergencias (Hito 1).',
           }),
           ...buildHitoDualConfigs('hito7_acpm', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
             appActionMode: 'write_and_update',
             customInstruction:
-              'Registra hallazgos y planes de acción cuando existan inconsistencias entre Política SST, Plan de Emergencias y el cuaderno en Tablero Kanban ACPM (Hito 7).',
+              'Registra no conformidades o mejoras documentales detectadas durante la auditoría cruzada en Control de ACPM (Hito 7).',
+          }),
+          ...buildInputDualConfigs('notebooklm', {
+            notebookAction: 'consultar',
+            notebookPrompt:
+              'Verifica criterios obligatorios del Decreto 1072 de 2015 (Arts. 2.2.4.6.5, 2.2.4.6.6 y 2.2.4.6.25) para Política de SST y Plan de Prevención, Preparación y Respuesta ante Emergencias.',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Unifica los registros de Política de SST (Hito 1) y Plan de Emergencias (Hito 1) para su auditoría cruzada.',
+              'Consolida los registros de Política y Objetivos SST (Hito 1) y Plan de Emergencias (Hito 1) antes de la evaluación del Auditor SG-SST.',
           },
           if_router: {
             ifPlacement: 'post_agent',
-            ifConditionType: 'semantic_verdict',
+            ifConditionType: 'ai_verdict',
+            ifRuleExpression: '[VEREDICTO_IF: SI]',
             ifConditionLabel:
-              '¿Se identificaron vacíos, inconsistencias o desactualizaciones entre Política SST y Plan de Emergencias?',
+              '¿El Auditor SG-SST dictamina brechas documentales o vigencia vencida entre Política y Emergencias?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_canvas_doc: { ifBranch: 'yes' },
@@ -2209,28 +2406,39 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'Política + Plan Emergencias',
+            subtitle: 'Política + Emergencias',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Auditor Interno ISO 45001 y Decreto 1072 de 2015 (artículos 2.2.4.6.5 y 2.2.4.6.25). Evalúa en conjunto los documentos leídos desde Política de SST (Hito 1) y Plan de Emergencias y Contingencias (Hito 1) contrastados contra Google NotebookLM.\n\n1) Revisa vigencia anual, compromisos obligatorios de la política, cobertura de amenazas, roles de respuesta y coherencia con los documentos indexados.\n2) Inicia obligatoriamente tu conclusión con [VEREDICTO_IF: SI] si encuentras brechas documentales o inconsistencias que requieran corrección en el Tablero Kanban ACPM (Hito 7), o con [VEREDICTO_IF: NO] si ambos documentos están íntegros y coherentes.\n3) Cuando exista hallazgo, registra la acción en el Tablero Kanban ACPM (Hito 7) y entrega el informe de auditoría al Editor en Vivo WAPPY y Bitácora por Correo.',
+      'Actúa como Auditor SG-SST evaluando consistencia documental conforme al Decreto 1072 de 2015 (Arts. 2.2.4.6.5, 2.2.4.6.6 y 2.2.4.6.25). Contrasta los expedientes reales consolidados de Política SST (Hito 1) y Plan de Emergencias (Hito 1) usando Google NotebookLM.\n\n1) Revisa vigencia, firma gerencial, alcance a todas las sedes y alineación con las amenazas priorizadas.\n2) Si identificas brechas, desactualización o inconsistencias entre ambos documentos, invoca Control de ACPM (Hito 7) para abrir hallazgo formal y concluye tu informe con la etiqueta exacta [VEREDICTO_IF: SI].\n3) Si ambos documentos están vigentes, completos y plenamente coherentes sin brechas, cierra obligatoriamente con la etiqueta exacta [VEREDICTO_IF: NO].',
   },
-  // 26. [riesgos_vial_quimico] Scraper Vial SIMIT/RUNT PESV
+  // 26. [riesgos_vial_quimico] Scraping SIMIT/RUNT + Vehículos (Hito 5) -> Matriz PESV (Hito 1)
   {
-    presetKey: 'preset_scraping_simit_runt_conductores_pesv',
-    name: '🚓 Verificación SIMIT y RUNT de Conductores y Vehículos PESV vía Web Scraping',
+    presetKey: 'preset_scraping_simit_runt_flota_pesv',
+    name: '🚗 Vigilancia Semanal SIMIT y RUNT de Conductores y Vehículos en Hoja de Vida PESV',
     presetCategory: 'riesgos_vial_quimico',
     presetDescription:
-      'Consulta en línea comparendos SIMIT, licencias de conducción y vigencias SOAT/Técnico-Mecánica en RUNT mediante Google Antigravity, los consolida con la Hoja de Vida Automotores (Hito 5) y actualiza la Matriz de Riesgos Viales PESV (Hito 1), escalando infracciones o vencimientos al Tablero Kanban ACPM.',
-    agentName: 'Auditor de Seguridad Vial PESV (Res. 40595)',
-    schedule: 'weekly_monday',
-    cronExpression: '0 6 * * 1',
+      'Consulta semanalmente comparendos en SIMIT y vigencias RUNT mediante Web Scraping con Google Antigravity, los unifica en Etapa 2 con la Hoja de Vida de Vehículos (Hito 5) y, solo cuando detecta multas pendientes, licencias vencidas o bloqueos documentales, actualiza controles de riesgo vial en Matriz PESV (Hito 1) y escala acciones en Tablero Kanban ACPM y Bitácora por Correo.',
+    agentTargetName: 'Coordinador de Seguridad Vial',
+    agentName: 'Coordinador de Seguridad Vial',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 6,
+      minute: 45,
+      dayOfWeek: [2],
+      daysOfWeek: [2],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '45 6 * * 2',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_antigravity'],
       extractors: ['scraper_agy_vial_pesv'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
@@ -2245,34 +2453,34 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
           ...buildExtractorDualConfigs('scraper_agy_vial_pesv', {
             antigravityMode: 'auto',
-            scriptEngine: 'chrome_devtools_mcp',
+            scriptEngine: 'chrome_mcp',
             customInstruction:
-              'Consulta comparendos en SIMIT y estado de licencias/SOAT/RTM en RUNT para conductores y placas activas.',
+              'Consulta en línea comparendos SIMIT y estado documental RUNT para las placas y conductores activos de la flota.',
           }),
           ...buildHitoDualConfigs('hito3_vehiculos', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Extrae el parque automotor activo, placas y cédulas de conductores desde Hoja de Vida Automotores (Hito 5).',
+              'Extrae placas activas, SOAT, revisión técnico-mecánica y conductores asignados desde Hoja de Vida de Vehículos (Hito 5).',
           }),
           ...buildHitoDualConfigs('hito3_matriz_pesv', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
             appActionMode: 'write_and_update',
             customInstruction:
-              'Registra y recalifica riesgos viales críticos cuando existan comparendos o documentos vencidos en la Matriz de Riesgos Viales PESV (Hito 1).',
+              'Actualiza controles preventivos, nivel de riesgo vial y seguimiento operativo en Matriz PESV (Hito 1).',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Consolida las consultas en tiempo real de SIMIT y RUNT junto con los registros de Hoja de Vida Automotores (Hito 5).',
+              'Unifica los resultados SIMIT y RUNT extraídos por Web Scraping con la Hoja de Vida de Vehículos (Hito 5) antes de evaluar alertas.',
           },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Se detectaron comparendos en SIMIT, licencias suspendidas o SOAT/Técnico-Mecánica vencidos sin gestionar?',
+              '¿Existen comparendos SIMIT pendientes o documentos vehiculares vencidos en Hito 5?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -2283,82 +2491,94 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'SIMIT/RUNT + Flota Automotores',
+            subtitle: 'SIMIT/RUNT + Vehículos',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Líder del Plan Estratégico de Seguridad Vial bajo la Resolución 20223040040595 de 2022. Evalúa únicamente los resultados verificados en SIMIT y RUNT cruzados con Hoja de Vida Automotores (Hito 5).\n\n1) Detalla en tabla clara cada vehículo o conductor con novedad (Placa/Cédula, Estado SOAT/Técnico-Mecánica/Licencia y Comparendos SIMIT) dejando la columna Soporte limpia sin enlaces crudos.\n2) Actualiza los factores de riesgo y controles del conductor o vehículo en la Matriz de Riesgos Viales PESV (Hito 1).\n3) Crea órdenes inmediatas de restricción de despacho y subsanación en el Tablero Kanban ACPM y envía el reporte a la Bitácora por Correo.',
+      'Actúa como Coordinador de Seguridad Vial conforme a la Resolución 20223040040595 de 2022 (PESV). Analiza únicamente las novedades reales consolidadas entre SIMIT/RUNT y la Hoja de Vida de Vehículos (Hito 5).\n\n1) Presenta la tabla de vehículos y conductores con comparendos sin acuerdo de pago, licencias vencidas o SOAT/RTM por caducar.\n2) Invoca Matriz PESV (Hito 1) para registrar o reforzar los controles viales sobre el individuo y el vehículo.\n3) Genera tareas correctivas en Tablero Kanban ACPM y resume las alertas críticas de despacho para Bitácora por Correo.',
   },
-  // 27. [riesgos_vial_quimico] Scraping Fichas SGA + Afiche Pictogramas Google Flow
+  // 27. [riesgos_vial_quimico] Scraping PubChem + Inventario Químico (Hito 5) -> Matriz SGA (Hito 1) + PubChem API + Google Flow
   {
-    presetKey: 'preset_scraping_fichas_sga_afiche_pictogramas_flow',
-    name: '☣️ Scraping de Fichas Químicas SGA y Afiche Visual de Pictogramas con Google Flow',
+    presetKey: 'preset_scraping_fichas_sga_afiche_google_flow',
+    name: '☣️ Auditoría SGA de Sustancias Químicas con Web Scraping PubChem y Afiche Visual Google Flow',
     presetCategory: 'riesgos_vial_quimico',
     presetDescription:
-      'Monitorea fichas internacionales de seguridad química con detección de cambios SHA-256, las cruza con el Registro y Rótulo de Productos Químicos (Hito 5), actualiza la Matriz de Compatibilidad Química SGA (Hito 1) y genera un afiche de pictogramas con Google Flow Studio.',
-    agentName: 'Ingeniero Químico Especialista en SGA (Dec. 1496)',
-    schedule: 'weekly_monday',
-    cronExpression: '0 9 * * 3',
+      'Cruza semanalmente la información técnica de PubChem obtenida por Web Scraping con el Registro e Inventario Químico (Hito 5). Cuando detecta sustancias sin FDS vigente, rótulo SGA incompleto o incompatibilidades químicas, el Ingeniero Químico SST consulta propiedades GHS en PubChem, actualiza reglas de segregación en Compatibilidad Química SGA (Hito 1), genera un afiche vertical 9:16 en Google Flow Studio y entrega resultados en Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Ingeniero Químico SST',
+    agentName: 'Ingeniero Químico SST',
+    scheduleType: 'weekly',
+    scheduleConfig: {
+      hour: 8,
+      minute: 30,
+      dayOfWeek: [3],
+      daysOfWeek: [3],
+      dayOfMonth: 1,
+      intervalHours: 24,
+    },
+    cronExpression: '30 8 * * 3',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: ['extract_web_scraping_agy'],
+      aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: ['google_flow'],
+      inputs: ['consultar_pubchem_quimico', 'google_flow'],
       includeIfNode: true,
       hitos: ['hito5_registro_quimico', 'hito3_quimicos_sga'],
-      outputs: ['acpm_task', 'canvas_doc', 'email_report', 'wappy_notification'],
+      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
           sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
           ...buildExtractorDualConfigs('extract_web_scraping_agy', {
-            targetUrl: 'https://pubchem.ncbi.nlm.nih.gov, https://www.ilo.org/dyn/icsc',
-            scriptEngine: 'auto',
-            onlyOnContentChange: true,
+            targetUrl: 'https://pubchem.ncbi.nlm.nih.gov',
+            scriptEngine: 'auto_chrome_dom',
+            onlyOnContentChange: false,
             customInstruction:
-              'Verifica actualizaciones en fichas internacionales ICSC y PubChem sobre sustancias peligrosas manipuladas por la empresa.',
+              'Consulta información pública de fichas GHS y advertencias de almacenamiento seguro en PubChem para las sustancias priorizadas.',
           }),
           ...buildHitoDualConfigs('hito5_registro_quimico', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee el inventario, clasificación ONU, ubicación de bodega y vigencia FDS en Registro y Rótulo de Productos Químicos (Hito 5).',
-          }),
-          ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_image',
-            flowAspectRatio: '4:5',
-            flowStyle: 'Afiche técnico industrial de señalización SGA de alta legibilidad',
-            flowCameraMotion: 'Estático',
-            flowPrompt:
-              'Afiche de seguridad química industrial en bodega moderna mostrando pictogramas del Sistema Globalmente Armonizado (inflamable, corrosivo, tóxico), separación de ácidos y bases, ducha de emergencia y kit antiderrames',
+              'Extrae sustancias almacenadas sin FDS vigente (< 5 años), sin rótulo SGA o en zonas de riesgo desde Registro Químico (Hito 5).',
           }),
           ...buildHitoDualConfigs('hito3_quimicos_sga', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'audit_and_update',
-            appActionMode: 'write_and_report',
-            generateAppReport: true,
+            appActionMode: 'write_and_update',
             customInstruction:
-              'Actualiza reglas de incompatibilidad y emite el informe oficial de la Matriz de Compatibilidad Química SGA (Hito 1).',
+              'Actualiza pictogramas SGA, incompatibilidades entre clases ONU y requisitos de segregación en Compatibilidad Química SGA (Hito 1).',
+          }),
+          ...buildInputDualConfigs('consultar_pubchem_quimico', {
+            customInstruction:
+              'Consulta pictogramas GHS, frases H/P y clases de peligro oficiales en PubChem para validar la clasificación química exacta.',
+          }),
+          ...buildInputDualConfigs('google_flow', {
+            flowAction: 'generar_imagen',
+            flowAspectRatio: '9:16',
+            flowStyle: 'infografia_editorial',
+            flowPrompt:
+              'Afiche vertical de seguridad química bajo Sistema Globalmente Armonizado con segregación de sustancias corrosivas e inflamables y pictogramas claros, estilo infografía editorial',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Consolida las fichas extraídas de portales internacionales junto con el inventario real de Registro y Rótulo de Productos Químicos (Hito 5).',
+              'Unifica los hallazgos de referencia consultados en PubChem con las alertas del Registro Químico (Hito 5).',
           },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Se detectaron cambios en fichas químicas internacionales o brechas de compatibilidad y rotulado SGA sin gestionar?',
+              '¿Existen sustancias en Hito 5 sin FDS vigente, sin rótulo SGA o con riesgo de incompatibilidad?',
           },
-          out_acpm_task: { ifBranch: 'yes' },
           out_canvas_doc: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
@@ -2368,95 +2588,122 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'Fichas Web + Inventario Químico',
+            subtitle: 'PubChem Web + Químicos',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Ingeniero Químico Especialista en el Sistema Globalmente Armonizado bajo el Decreto 1496 de 2018 y la Resolución 0773 de 2021. Analiza la información consolidada entre el monitoreo de fichas web internacionales y el Registro y Rótulo de Productos Químicos (Hito 5).\n\n1) Verifica segregación de clases incompatibles (especialmente ácidos vs bases, líquidos inflamables vs comburentes) y vigencia de etiquetas y hojas de datos.\n2) Actualiza los criterios e informe oficial en la Matriz de Compatibilidad Química SGA (Hito 1).\n3) Invoca Google Flow Studio para producir un afiche visual actualizado para la bodega química, crea las tareas de reubicación o rotulado en el Tablero Kanban ACPM y distribuye en el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Ingeniero Químico SST en cumplimiento del Decreto 1496 de 2018 (SGA) y la Resolución 773 de 2021. Analiza únicamente los productos químicos críticos detectados en Registro Químico (Hito 5) junto con las consultas técnicas de PubChem.\n\n1) Invoca la herramienta de consulta química PubChem para corroborar pictogramas SGA, indicaciones de peligro H y segregación requerida.\n2) Actualiza la matriz de segregación y controles de bodega en Compatibilidad Química SGA (Hito 1).\n3) Invoca Google Flow Studio en relación 9:16 estilo infografía editorial para generar el afiche visual de prevención química y entrega la síntesis en Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 28. [riesgos_vial_quimico] Campaña Vial Ruta + Clima Google Flow
+  // 28. [riesgos_vial_quimico] Clima Vial cada 6h: Matriz PESV (Hito 1) -> post_agent -> Clima + Emergencias + Google Flow Video
   {
     presetKey: 'preset_campana_seguridad_vial_clima_flow',
-    name: '🌦️ Alerta Preventiva de Seguridad Vial según Clima en Ruta con Google Flow',
+    name: '⛈️ Alerta Climática Vial en Tiempo Real con Cápsula Audiovisual Google Flow Veo',
     presetCategory: 'riesgos_vial_quimico',
     presetDescription:
-      'Lee la flota activa en Hoja de Vida Automotores (Hito 5), consulta el pronóstico meteorológico en ruta en tiempo real y, cuando detecte lluvias intensas, tormentas o baja visibilidad, produce una pieza móvil 9:16 con Google Flow Studio y alerta por Correo.',
-    agentName: 'Coordinador de Despacho Seguro y Riesgo Vial',
-    schedule: 'daily',
-    cronExpression: '30 5 * * 1-6',
+      'Consulta cada 6 horas las rutas, corredores y factores viales críticos registrados en Matriz PESV (Hito 1). El Especialista en Riesgo Climático evalúa el pronóstico meteorológico en ruta y ubica centros de atención cercanos; mediante compuerta semántica posterior al Agente, si detecta amenaza climática severa genera una cápsula audiovisual vertical 9:16 en Google Flow Veo y despacha alertas por Correo y Google Sheets.',
+    agentTargetName: 'Especialista en Riesgo Climático',
+    agentName: 'Especialista en Riesgo Climático',
+    scheduleType: 'hourly',
+    scheduleConfig: {
+      hour: 6,
+      minute: 0,
+      dayOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      dayOfMonth: 1,
+      intervalHours: 6,
+    },
+    cronExpression: '0 */6 * * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: [],
-      aiModel: 'gemini-3.5-flash-lite',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: ['pronostico_clima_sst', 'google_flow'],
+      memories: ['wappy_memory_company'],
+      inputs: ['pronostico_clima_sst', 'buscar_centros_emergencia', 'google_flow'],
       includeIfNode: true,
-      hitos: ['hito3_vehiculos'],
-      outputs: ['email_report', 'wappy_notification'],
+      hitos: ['hito3_matriz_pesv'],
+      outputs: ['email_report', 'google_sheets', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
         nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '24h' },
-          ...buildHitoDualConfigs('hito3_vehiculos', {
+          ...buildHitoDualConfigs('hito3_matriz_pesv', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Lee los vehículos activos, tipo de operación y zonas asignadas desde Hoja de Vida Automotores (Hito 5).',
+              'Extrae corredores viales, desplazamientos críticos y factores de riesgo de conducción desde Matriz PESV (Hito 1).',
           }),
           ...buildInputDualConfigs('pronostico_clima_sst', {
             customInstruction:
-              'Consulta el pronóstico climático horario para la ciudad y corredores de operación de la flota.',
+              'Consulta tormentas, lluvias intensas, baja visibilidad o vientos fuertes en los corredores viales activos.',
+          }),
+          ...buildInputDualConfigs('buscar_centros_emergencia', {
+            customInstruction:
+              'Ubica IPS, estaciones de bomberos y centros asistenciales cercanos a los tramos viales con alerta climática severa.',
           }),
           ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_image',
+            flowAction: 'generar_video',
             flowAspectRatio: '9:16',
-            flowStyle: 'Alerta visual móvil clara para conductores de flota',
-            flowCameraMotion: 'Estático',
+            flowStyle: 'corporativo_sst',
+            flowCameraMotion: 'paneo_suave',
             flowPrompt:
-              'Infografía vertical preventiva para conductores profesionales bajo lluvia intensa y neblina en carretera destacando reducción de velocidad, distancia de frenado y luces encendidas',
+              'Cápsula vertical corporativa de prevención vial ante lluvia intensa y baja visibilidad con señalización de seguridad y conducción defensiva en carretera',
           }),
           if_router: {
             ifPlacement: 'post_agent',
-            ifConditionType: 'semantic_verdict',
+            ifConditionType: 'ai_verdict',
+            ifRuleExpression: '[VEREDICTO_IF: SI]',
             ifConditionLabel:
-              '¿El pronóstico climático presenta alertas de lluvia fuerte, tormenta o visibilidad crítica para la flota activa?',
+              '¿Existe amenaza climática severa en los corredores viales monitoreados de Hito 1?',
           },
           out_email_report: { ifBranch: 'yes' },
+          out_google_sheets: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
         },
         logicNodes: [],
       },
     },
     prompt:
-      'Actúa como Coordinador de Seguridad Vial Operativa PESV (Resolución 20223040040595). Revisa los vehículos activos en Hoja de Vida Automotores (Hito 5) y consulta inmediatamente el pronóstico meteorológico para las zonas de operación.\n\n1) Determina con datos reales si existen condiciones climáticas adversas (lluvia moderada/fuerte, tormenta eléctrica, viento intenso o neblina) que exijan protocolo de conducción segura.\n2) Inicia obligatoriamente tu respuesta con [VEREDICTO_IF: SI] cuando exista alerta climática activa, o con [VEREDICTO_IF: NO] cuando las condiciones estén despejadas sin riesgo meteorológico.\n3) Únicamente cuando el veredicto sea positivo, genera con Google Flow Studio la pieza visual móvil 9:16 con recomendaciones de distancia de frenado y remite el boletín a la Bitácora por Correo.',
+      'Actúa como Especialista en Riesgo Climático coordinando seguridad en desplazamientos sobre los corredores de Matriz PESV (Hito 1).\n\n1) Invoca el pronóstico climático SST sobre las zonas operativas activas para verificar lluvia torrencial, tormenta eléctrica, neblina densa o deslizamientos.\n2) Si existe amenaza climática relevante: consulta los centros de emergencia cercanos, produce una cápsula de video 9:16 con paneo suave en Google Flow Veo dirigida a los conductores, consolida los datos para Bitácora por Correo y Google Sheets, y termina obligatoriamente con [VEREDICTO_IF: SI].\n3) Si el clima en los corredores está estable y sin amenaza operacional, omite la generación audiovisual y termina obligatoriamente con [VEREDICTO_IF: NO].',
   },
-  // 29. [gerencia_auditoria] Consultor Gerencial NotebookLM sobre 0312 + OWAS + Psicosocial en Slides
+  // 29. [gerencia_auditoria] Flujo Directo Mensual: 0312 (Hito 1) + ACPM (Hito 7) -> Alta Dirección (Hito 7) + NotebookLM + Google Slides
   {
-    presetKey: 'preset_consultor_gerencial_notebooklm_slides',
-    name: '📊 Consultor Gerencial NotebookLM sobre 0312, Ergonomía y Psicosocial en Google Slides',
+    presetKey: 'preset_notebooklm_presentacion_copasst_gerencia',
+    name: '📊 Presentación Gerencial Mensual SG-SST en Google NotebookLM (0312 + ACPM)',
     presetCategory: 'gerencia_auditoria',
     presetDescription:
-      'Unifica los resultados de Estándares Mínimos Res. 0312 (Hito 1), Método OWAS (Hito 4) y Termómetro Psicosocial (Hito 4), genera un análisis estratégico con citas en Google NotebookLM, registra hallazgos en Auditoría SG-SST (Hito 7) y entrega presentación ejecutiva en Google Slides y Correo.',
-    agentName: 'Director Estratégico y Auditor Gerencial SG-SST',
-    schedule: 'monthly',
-    cronExpression: '0 8 28 * *',
+      'Consolida el día 28 de cada mes los indicadores de Estándares Mínimos Res. 0312 (Hito 1) y el estado de cierres en Control de ACPM (Hito 7) mediante unión de ramas. El Auditor SG-SST genera una presentación ejecutiva en Google NotebookLM y Google Slides, registra las conclusiones oficiales en Revisión por la Alta Dirección (Hito 7) y distribuye el paquete en Editor en Vivo WAPPY, Google Calendar y Bitácora por Correo.',
+    agentTargetName: 'Auditor SG-SST',
+    agentName: 'Auditor SG-SST',
+    scheduleType: 'monthly',
+    scheduleConfig: {
+      hour: 15,
+      minute: 0,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 28,
+      intervalHours: 24,
+    },
+    cronExpression: '0 15 28 * *',
     isSystemPreset: true,
     workflowNodes: {
+      trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
       extractors: [],
-      aiModel: 'gemini-3.8-flash',
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_rag_documental'],
-      inputs: ['notebooklm'],
+      memories: ['wappy_memory_company'],
+      inputs: ['notebooklm', 'google_slides'],
       includeIfNode: false,
-      hitos: ['hito1_diagnostico_0312', 'hito3_owas', 'hito4_psicosocial', 'hito7_auditoria'],
-      outputs: ['google_slides', 'canvas_doc', 'email_report'],
+      hitos: ['hito1_diagnostico_0312', 'hito7_acpm', 'hito7_alta_direccion'],
+      outputs: ['canvas_doc', 'google_calendar', 'email_report'],
       canvasLayout: {
         positions: {},
         edges: [],
@@ -2466,100 +2713,14 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Extrae la calificación consolidada y estándares pendientes desde Diagnóstico Inicial Estándares Mínimos Res. 0312 (Hito 1).',
+              'Extrae puntaje global de Estándares Mínimos Res. 0312, brechas por ciclo PHVA y cumplimiento porcentual desde Hito 1.',
           }),
-          ...buildHitoDualConfigs('hito3_owas', {
+          ...buildHitoDualConfigs('hito7_acpm', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Extrae las evaluaciones ergonómicas y puestos con nivel de riesgo postural en Método OWAS (Hito 4).',
-          }),
-          ...buildHitoDualConfigs('hito4_psicosocial', {
-            hitoRole: 'source_read',
-            hitoOperationMode: 'read_only',
-            appActionMode: 'read_only',
-            customInstruction:
-              'Extrae tendencias de clima organizacional y factores psicosociales agregados del Termómetro Psicosocial (Hito 4) respetando la reserva clínica.',
-          }),
-          ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'generate_slides',
-            notebookPrompt:
-              'Genera una síntesis ejecutiva de comité gerencial correlacionando cumplimiento Res. 0312, carga ergonómica y bienestar psicosocial con presupuesto sugerido.',
-          }),
-          ...buildHitoDualConfigs('hito7_auditoria', {
-            hitoRole: 'agent_tool',
-            hitoOperationMode: 'audit_and_update',
-            appActionMode: 'write_and_report',
-            generateAppReport: true,
-            customInstruction:
-              'Documenta los hallazgos transversales y genera el informe oficial en Informe de Auditoría SG-SST (Hito 7).',
-          }),
-          logic_merge_1: {
-            mergeStrategy: 'append_all',
-            customInstruction:
-              'Consolida en un tablero único Estándares Mínimos Res. 0312 (Hito 1), Método OWAS (Hito 4) y Termómetro Psicosocial (Hito 4).',
-          },
-        },
-        logicNodes: [
-          {
-            key: 'logic_merge_1',
-            logicType: 'merge',
-            title: 'Unir Ramas',
-            subtitle: '0312 + OWAS + Psicosocial',
-          },
-        ],
-      },
-    },
-    prompt:
-      'Actúa como Director Consultor SG-SST en cumplimiento de la Resolución 0312 de 2019 y la Resolución 2764 de 2022. Analiza en conjunto los datos reales consolidados desde Diagnóstico Inicial Estándares Mínimos (Hito 1), Método OWAS (Hito 4) y Termómetro Psicosocial (Hito 4).\n\n1) Correlaciona las brechas administrativas con los riesgos ergonómicos y tendencias psicosociales de forma agregada (sin exponer datos médicos ni individuales sensibles).\n2) Utiliza Google NotebookLM para generar la estructura de presentación directiva con recomendaciones priorizadas por retorno preventivo.\n3) Registra las conclusiones de revisión y emite el informe oficial en Informe de Auditoría SG-SST (Hito 7), preparando el contenido para Google Slides, Editor en Vivo WAPPY y Bitácora por Correo.',
-  },
-  // 30. [gerencia_auditoria] Radar Web Scraping Licitaciones/Circulares ARL + Portada Google Flow
-  {
-    presetKey: 'preset_radar_licitaciones_circulares_arl_flow',
-    name: '📡 Radar Web Scraping de Licitaciones y Circulares ARL con Portada Google Flow',
-    presetCategory: 'gerencia_auditoria',
-    presetDescription:
-      'Monitorea convocatorias y circulares técnicas ARL vía Web Scraping inteligente con detección de cambios SHA-256; cuando hay novedades reales, valida requisitos en Google NotebookLM, diseña una portada ejecutiva en Google Flow Studio y actualiza Revisión por la Alta Dirección (Hito 7).',
-    agentName: 'Estratega de Licitaciones y Cumplimiento ARL SST',
-    schedule: 'weekly_monday',
-    cronExpression: '0 8 * * 1',
-    isSystemPreset: true,
-    workflowNodes: {
-      triggers: ['schedule_cron', 'trigger_antigravity_cloud'],
-      extractors: ['extract_web_scraping_agy'],
-      aiModel: 'gemini-3.8-flash',
-      memoryNode: 'wappy_memory_company',
-      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate', 'wappy_rag_documental'],
-      inputs: ['google_flow', 'notebooklm'],
-      includeIfNode: true,
-      hitos: ['hito7_alta_direccion'],
-      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
-      canvasLayout: {
-        positions: {},
-        edges: [],
-        nodeConfigs: {
-          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '7d' },
-          ...buildExtractorDualConfigs('extract_web_scraping_agy', {
-            targetUrl:
-              'https://www.colombiacompra.gov.co, https://www.arlsura.com/index.php/noticias',
-            scriptEngine: 'auto',
-            onlyOnContentChange: true,
-            customInstruction:
-              'Vigila cambios SHA-256 en portales de contratación pública y circulares técnicas de ARL relevantes para requisitos habilitantes SST.',
-          }),
-          ...buildInputDualConfigs('notebooklm', {
-            notebookAction: 'query',
-            notebookPrompt:
-              'Compara las circulares técnicas o requisitos habilitantes extraídos frente a las evidencias actuales del SG-SST de la empresa.',
-          }),
-          ...buildInputDualConfigs('google_flow', {
-            flowAction: 'generate_image',
-            flowAspectRatio: '16:9',
-            flowStyle: 'Portada editorial ejecutiva de informe estratégico SST',
-            flowCameraMotion: 'Estático',
-            flowPrompt:
-              'Portada corporativa limpia y minimalista para boletín ejecutivo de gerencia en seguridad industrial, cumplimiento normativo y licitaciones empresariales, iluminación profesional',
+              'Extrae tasa de cierre oportuno, tareas vencidas y acciones preventivas activas desde Control de ACPM (Hito 7).',
           }),
           ...buildHitoDualConfigs('hito7_alta_direccion', {
             hitoRole: 'agent_tool',
@@ -2567,13 +2728,99 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             appActionMode: 'write_and_report',
             generateAppReport: true,
             customInstruction:
-              'Registra las alertas estratégicas, oportunidades de habilitación SST y emite el informe oficial en Revisión por la Alta Dirección (Hito 7).',
+              'Registra el balance gerencial del periodo y emite el informe oficial de Revisión por la Alta Dirección (Hito 7).',
+          }),
+          ...buildInputDualConfigs('notebooklm', {
+            notebookAction: 'generar_estudio',
+            notebookArtifactType: 'slide_deck',
+            notebookPrompt:
+              'Estructura un mazo ejecutivo mensual para comité gerencial con avance Res. 0312, eficacia de ACPM, prioridades de inversión SST y decisiones solicitadas.',
+          }),
+          ...buildInputDualConfigs('google_slides', {
+            customInstruction:
+              'Prepara la estructura de diapositivas ejecutivas con indicadores Res. 0312, cierre de ACPM y compromisos gerenciales del próximo mes.',
+          }),
+          logic_merge_1: {
+            mergeStrategy: 'append_all',
+            customInstruction:
+              'Unifica las métricas de Estándares Mínimos (Hito 1) y Control de ACPM (Hito 7) antes de generar la presentación gerencial.',
+          },
+        },
+        logicNodes: [
+          {
+            key: 'logic_merge_1',
+            logicType: 'merge',
+            title: 'Unir Ramas',
+            subtitle: '0312 + ACPM',
+          },
+        ],
+      },
+    },
+    prompt:
+      'Actúa como Auditor SG-SST preparando la sesión ejecutiva conforme al artículo 2.2.4.6.31 del Decreto 1072 de 2015. Analiza los datos reales consolidados de Estándares Mínimos Res. 0312 (Hito 1) y Control de ACPM (Hito 7).\n\n1) Invoca Google NotebookLM para generar el guion de presentación (deck) orientado a la gerencia y prepara el esquema en Google Slides.\n2) Registra los hallazgos, decisiones requeridas y genera el informe oficial dentro de Revisión por la Alta Dirección (Hito 7).\n3) Redacta el resumen ejecutivo para Editor en Vivo WAPPY, sugiere el agendamiento de sesión en Google Calendar y despacha por Bitácora por Correo.',
+  },
+  // 30. [gerencia_auditoria] Monitor Quincenal MinTrabajo Riesgos / Fasecolda (SHA-256) -> NotebookLM + Oportunidades SST (Hito 1)
+  {
+    presetKey: 'preset_scraping_boletines_arl_oportunidades_sst',
+    name: '📡 Monitor Quincenal de Circulares Técnicas ARL y Oportunidades de Mejora SG-SST',
+    presetCategory: 'gerencia_auditoria',
+    presetDescription:
+      'Vigila quincenalmente los boletines de Riesgos Laborales del Ministerio del Trabajo y Fasecolda mediante Web Scraping con huella SHA-256 en Etapa 2. Cuando detecta circulares técnicas o guías preventivas nuevas, el Consultor SG-SST las contrasta en Google NotebookLM, registra iniciativas de mejora en Oportunidades de Mejora SST (Hito 1) y entrega el boletín en Editor en Vivo WAPPY y Bitácora por Correo.',
+    agentTargetName: 'Consultor SG-SST',
+    agentName: 'Consultor SG-SST',
+    scheduleType: 'monthly',
+    scheduleConfig: {
+      hour: 7,
+      minute: 45,
+      dayOfWeek: [1],
+      daysOfWeek: [1],
+      dayOfMonth: 15,
+      intervalHours: 24,
+    },
+    cronExpression: '45 7 1,15 * *',
+    isSystemPreset: true,
+    workflowNodes: {
+      trigger: 'schedule_cron',
+      triggers: ['schedule_cron', 'trigger_tenshi'],
+      extractors: ['extract_web_scraping_agy'],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memoryNode: 'wappy_memory_company',
+      memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
+      inputs: ['notebooklm'],
+      includeIfNode: true,
+      hitos: ['hito1_oportunidades_sst'],
+      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
+      canvasLayout: {
+        positions: {},
+        edges: [],
+        nodeConfigs: {
+          sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
+          ...buildExtractorDualConfigs('extract_web_scraping_agy', {
+            targetUrl:
+              'https://www.mintrabajo.gov.co/web/guest/empleo-y-pensiones/riesgos-laborales\nhttps://www.fasecolda.com',
+            scriptEngine: 'auto_chrome_dom',
+            onlyOnContentChange: true,
+            customInstruction:
+              'Vigila circulares de Riesgos Laborales de MinTrabajo y boletines técnicos de Fasecolda disparando solo ante cambios reales SHA-256.',
+          }),
+          ...buildInputDualConfigs('notebooklm', {
+            notebookAction: 'consultar',
+            notebookPrompt:
+              'Evalúa cómo traducir las nuevas circulares técnicas sectoriales y guías de prevención ARL en oportunidades concretas de mejora continua para el SG-SST de la empresa.',
+          }),
+          ...buildHitoDualConfigs('hito1_oportunidades_sst', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'audit_and_update',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Registra iniciativas prácticas, buenas prácticas preventivas y mejoras continuas identificadas dentro de Oportunidades de Mejora SST (Hito 1).',
           }),
           if_router: {
             ifPlacement: 'pre_agent',
-            ifConditionType: 'critical_findings',
+            ifConditionType: 'new_external_items',
             ifConditionLabel:
-              '¿Cambiaron las publicaciones de licitaciones o circulares técnicas ARL respecto al monitoreo previo (SHA-256)?',
+              '¿Se detectaron circulares técnicas o boletines sectoriales nuevos (SHA-256 actualizado)?',
           },
           out_canvas_doc: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -2583,7 +2830,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Estratega Ejecutivo SG-SST en cumplimiento del artículo 2.2.4.6.31 del Decreto 1072 de 2015. Analiza únicamente las publicaciones o circulares nuevas detectadas en la extracción web con huella SHA-256 actualizada.\n\n1) Consulta en Google NotebookLM las brechas frente a requisitos habilitantes (puntaje 0312, licencias, seguros y certificaciones técnicas exigidas).\n2) Registra los hallazgos estratégicos y emite el informe en Revisión por la Alta Dirección (Hito 7).\n3) Invoca Google Flow Studio en relación 16:9 para generar la portada visual del boletín gerencial y prepara la entrega final para el Editor en Vivo WAPPY y la Bitácora por Correo.',
+      'Actúa como Consultor SG-SST enfocado en mejora continua PHVA conforme al artículo 2.2.4.6.34 del Decreto 1072 de 2015. Analiza únicamente los boletines o circulares técnicas nuevas extraídas de MinTrabajo Riesgos Laborales y Fasecolda.\n\n1) Consulta en Google NotebookLM buenas prácticas sectoriales aplicables al contexto operativo de la empresa.\n2) Invoca Oportunidades de Mejora SST (Hito 1) para registrar las iniciativas priorizadas con beneficio preventivo y factibilidad.\n3) Consolida el boletín de innovación y mejora para Editor en Vivo WAPPY y Bitácora por Correo.',
   },
 ];
 

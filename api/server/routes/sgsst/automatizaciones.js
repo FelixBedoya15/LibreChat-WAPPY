@@ -314,18 +314,59 @@ async function ensureDefaultSystemPresets() {
         if (!allAgents || allAgents.length === 0) {
           return { id: 'agent_consultor_sg_sst', name: targetName || 'Consultor SG-SST' };
         }
-        const cleanTarget = String(targetName || '').toLowerCase();
-        const exact = allAgents.find((a) => a.name && a.name.toLowerCase() === cleanTarget);
-        if (exact) return { id: exact.id, name: exact.name };
-        const partial = allAgents.find((a) => a.name && a.name.toLowerCase().includes(cleanTarget));
-        if (partial) return { id: partial.id, name: partial.name };
+        const cleanTarget = String(targetName || '').trim().toLowerCase();
+        if (cleanTarget) {
+          const exact = allAgents.find((a) => a.name && a.name.toLowerCase() === cleanTarget);
+          if (exact) return { id: exact.id, name: exact.name };
+          const partial = allAgents.find((a) => a.name && a.name.toLowerCase().includes(cleanTarget));
+          if (partial) return { id: partial.id, name: partial.name };
+        }
         const consultor = allAgents.find((a) => /Consultor SG-SST/i.test(a.name));
         if (consultor) return { id: consultor.id, name: consultor.name };
         return { id: allAgents[0].id, name: allAgents[0].name };
       };
 
+      const resolvePresetSchedule = (preset) => {
+        if (preset.scheduleType && preset.scheduleConfig) {
+          return {
+            scheduleType: preset.scheduleType,
+            scheduleConfig: preset.scheduleConfig,
+          };
+        }
+        const cronParts = String(preset.cronExpression || '').trim().split(/\s+/);
+        const parsedMinute = Number.parseInt(cronParts[0], 10);
+        const parsedHour = Number.parseInt(cronParts[1], 10);
+        const parsedDom = Number.parseInt(cronParts[2], 10);
+        const parsedDow = cronParts[4] && cronParts[4] !== '*'
+          ? cronParts[4]
+              .split(',')
+              .map((d) => Number.parseInt(d, 10))
+              .filter((d) => Number.isFinite(d) && d >= 0 && d <= 6)
+          : [];
+        const rawSchedule = String(preset.schedule || preset.scheduleType || 'daily').toLowerCase().trim();
+        let scheduleType = 'daily';
+        if (rawSchedule === 'hourly') scheduleType = 'hourly';
+        else if (rawSchedule === 'monthly') scheduleType = 'monthly';
+        else if (rawSchedule === 'weekly' || rawSchedule.startsWith('weekly_') || parsedDow.length > 0) {
+          scheduleType = 'weekly';
+        }
+        const days = parsedDow.length > 0 ? parsedDow : [1];
+        return {
+          scheduleType,
+          scheduleConfig: preset.scheduleConfig || {
+            hour: Number.isFinite(parsedHour) ? parsedHour : 8,
+            minute: Number.isFinite(parsedMinute) ? parsedMinute : 0,
+            dayOfWeek: days,
+            daysOfWeek: days,
+            dayOfMonth: Number.isFinite(parsedDom) ? parsedDom : 1,
+            intervalHours: 4,
+          },
+        };
+      };
+
       const ops = DEFAULT_SYSTEM_PRESETS.map((preset) => {
-        const ag = resolveAgentForPreset(preset.agentTargetName);
+        const ag = resolveAgentForPreset(preset.agentTargetName || preset.agentName);
+        const resolvedSchedule = resolvePresetSchedule(preset);
         return {
           updateOne: {
             filter: { isSystemPreset: true, presetKey: preset.presetKey },
@@ -337,8 +378,8 @@ async function ensureDefaultSystemPresets() {
                 agentId: ag.id,
                 agentName: ag.name,
                 prompt: preset.prompt,
-                scheduleType: preset.scheduleType,
-                scheduleConfig: preset.scheduleConfig,
+                scheduleType: resolvedSchedule.scheduleType,
+                scheduleConfig: resolvedSchedule.scheduleConfig,
                 workflowNodes: preset.workflowNodes,
               },
               $setOnInsert: {

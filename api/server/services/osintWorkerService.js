@@ -4675,7 +4675,25 @@ async function ejecutarWebScrapeConEvidencia({
     };
   }
 
-  const engine = String(scriptEngine || 'auto_chrome_dom').toLowerCase().trim();
+  const rawEngine = String(scriptEngine || 'auto_chrome_dom').toLowerCase().trim();
+  const engineAliasMap = {
+    auto: 'auto_chrome_dom',
+    auto_chrome: 'auto_chrome_dom',
+    auto_chrome_dom: 'auto_chrome_dom',
+    fetch_only: 'fetch_cheerio',
+    fetch: 'fetch_cheerio',
+    fetch_cheerio: 'fetch_cheerio',
+    chrome_devtools_mcp: 'chrome_mcp',
+    chrome_devtools: 'chrome_mcp',
+    chrome_mcp: 'chrome_mcp',
+    node_cheerio_puppeteer: 'node_cheerio',
+    node_cheerio: 'node_cheerio',
+    python_bs4_playwright: 'python_bs4',
+    python_bs4: 'python_bs4',
+    custom_script: 'custom_script',
+    antigravity_local: 'antigravity_local',
+  };
+  const engine = engineAliasMap[rawEngine] || rawEngine || 'auto_chrome_dom';
   const selectors = parseCssSelectorsFromScriptCode(scriptCode);
   const todayISO = new Date().toISOString().split('T')[0];
   let browserUnavailable = false;

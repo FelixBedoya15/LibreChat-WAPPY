@@ -139,7 +139,7 @@ async function runFullLogicalTestSuite() {
   );
   assert.strictEqual(
     SYSTEM_WORKFLOW_PRESETS_VERSION,
-    '2026.11.12-v59-n8n-curated-30',
+    '2026.11.13-v60-n8n-curated-30',
     `Versión inesperada del catálogo: ${SYSTEM_WORKFLOW_PRESETS_VERSION}`,
   );
 
@@ -166,8 +166,9 @@ async function runFullLogicalTestSuite() {
   let totalHitoParityChecks = 0;
   const allowedEnvModels = new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']);
 
-  for (const preset of SYSTEM_WORKFLOW_PRESETS) {
-    const val = validateSingleWorkflow(preset);
+  for (let idx = 0; idx < SYSTEM_WORKFLOW_PRESETS.length; idx++) {
+    const preset = SYSTEM_WORKFLOW_PRESETS[idx];
+    const val = validateSingleWorkflow(preset, idx);
     if (val.errors.length > 0) {
       totalPresetErrors += val.errors.length;
       console.error(`  ❌ Fallo en ${preset.presetKey}:`, val.errors);
@@ -1539,47 +1540,138 @@ async function runFullLogicalTestSuite() {
 
   // 8.4 Presets #16-#30 activos y resolución end-to-end de sus herramientas
   const expectedNewKeys = [
-    'preset_scraping_arl_afiliacion_cedulas',
-    'preset_campana_audiovisual_salud_ergonomia',
-    'preset_carpeta_pc_notebooklm_gestion_cambio',
-    'preset_drive_manuales_notebooklm_flow_lms',
-    'preset_scraping_alturas_mintrabajo_sena',
-    'preset_scraping_antecedentes_contratistas',
+    'preset_scraping_arl_afiliacion_ruaf',
+    'preset_campana_ergonomia_condiciones_salud_flow',
+    'preset_carpeta_pc_actas_notebooklm_acpm',
+    'preset_drive_procedimientos_notebooklm_lms',
+    'preset_scraping_alturas_sena_equipos',
+    'preset_scraping_antecedentes_personal_critico',
     'preset_leccion_aprendida_atel_notebooklm_flow',
-    'preset_web_scraping_mintrabajo_diario_matriz_legal',
-    'preset_web_scraping_jurisprudencia_sst_notebooklm',
+    'preset_scraping_mintrabajo_cambio_normativo_0312',
+    'preset_scraping_jurisprudencia_sst_notebooklm',
     'preset_auditoria_cruzada_politica_emergencias_notebooklm',
-    'preset_scraping_simit_runt_conductores_pesv',
-    'preset_scraping_fichas_sga_afiche_pictogramas_flow',
+    'preset_scraping_simit_runt_flota_pesv',
+    'preset_scraping_fichas_sga_afiche_google_flow',
     'preset_campana_seguridad_vial_clima_flow',
-    'preset_consultor_gerencial_notebooklm_slides',
-    'preset_radar_licitaciones_circulares_arl_flow',
+    'preset_notebooklm_presentacion_copasst_gerencia',
+    'preset_scraping_boletines_arl_oportunidades_sst',
   ];
+  const validNotebookActions = new Set(['consultar', 'agregar_fuente', 'generar_estudio']);
+  const validNotebookArtifacts = new Set([
+    'infographic',
+    'slide_deck',
+    'report',
+    'audio',
+    'video',
+    'mind_map',
+    'data_table',
+  ]);
+  const validFlowActions = new Set(['generar_imagen', 'generar_video']);
+  const validFlowAspectRatios = new Set(['9:16', '16:9', '1:1']);
+  const validFlowStyles = new Set([
+    'corporativo_sst',
+    'infografia_editorial',
+    'fotorealista',
+    'isometrico_3d',
+    'minimalista',
+  ]);
+  const validFlowMotions = new Set(['estatico', 'paneo_suave', 'zoom_acercamiento', 'orbital']);
+  const validScraperEngines = new Set([
+    'auto_chrome_dom',
+    'fetch_cheerio',
+    'chrome_mcp',
+    'python_bs4',
+    'node_cheerio',
+    'custom_script',
+  ]);
+
   for (const key of expectedNewKeys) {
     const p = SYSTEM_WORKFLOW_PRESETS.find((item) => item.presetKey === key);
     assert.ok(p, `Falta el preset curado ${key}`);
+    const wfNodes = p.workflowNodes || {};
+    const nodeCfgs = wfNodes?.canvasLayout?.nodeConfigs || {};
     const resolved = resolveRequiredToolsForWorkflow({
-      ...(p.workflowNodes || {}),
-      nodeConfigs: p.workflowNodes?.canvasLayout?.nodeConfigs || {},
+      ...wfNodes,
+      nodeConfigs: nodeCfgs,
     });
     assert.ok(resolved.length >= 1, `Preset ${key} debe resolver al menos 1 herramienta real`);
+
+    if ((wfNodes.inputs || []).includes('notebooklm')) {
+      assert.ok(
+        !(wfNodes.memories || []).includes('wappy_rag_documental'),
+        `Preset ${key} no debe duplicar wappy_rag_documental junto con notebooklm`,
+      );
+      const nbCfg = nodeCfgs.tool_inputs_notebooklm || nodeCfgs.notebooklm || {};
+      assert.ok(
+        validNotebookActions.has(nbCfg.notebookAction),
+        `Preset ${key} tiene notebookAction inválido: ${nbCfg.notebookAction}`,
+      );
+      if (nbCfg.notebookAction === 'generar_estudio') {
+        assert.ok(
+          validNotebookArtifacts.has(nbCfg.notebookArtifactType),
+          `Preset ${key} tiene notebookArtifactType inválido: ${nbCfg.notebookArtifactType}`,
+        );
+      }
+    }
+
+    if ((wfNodes.inputs || []).includes('google_flow')) {
+      const flowCfg = nodeCfgs.tool_inputs_google_flow || nodeCfgs.google_flow || {};
+      assert.ok(
+        validFlowActions.has(flowCfg.flowAction),
+        `Preset ${key} tiene flowAction inválido: ${flowCfg.flowAction}`,
+      );
+      assert.ok(
+        validFlowAspectRatios.has(flowCfg.flowAspectRatio),
+        `Preset ${key} tiene flowAspectRatio inválido: ${flowCfg.flowAspectRatio}`,
+      );
+      assert.ok(
+        validFlowStyles.has(flowCfg.flowStyle),
+        `Preset ${key} tiene flowStyle inválido: ${flowCfg.flowStyle}`,
+      );
+      if (flowCfg.flowAction === 'generar_video') {
+        assert.ok(
+          validFlowMotions.has(flowCfg.flowCameraMotion),
+          `Preset ${key} tiene flowCameraMotion inválido: ${flowCfg.flowCameraMotion}`,
+        );
+      }
+    }
+
+    for (const extId of wfNodes.extractors || []) {
+      if (extId === 'extract_web_scraping_agy' || extId.startsWith('scraper_agy_')) {
+        const wsCfg = nodeCfgs[`extractor_${extId}`] || nodeCfgs[extId] || {};
+        assert.ok(
+          validScraperEngines.has(wsCfg.scriptEngine),
+          `Preset ${key} tiene scriptEngine inválido en ${extId}: ${wsCfg.scriptEngine}`,
+        );
+      }
+    }
   }
-  const webLegalPreset = SYSTEM_WORKFLOW_PRESETS.find(
-    (p) => p.presetKey === 'preset_web_scraping_mintrabajo_diario_matriz_legal',
+
+  const mintrabajoNormPreset = SYSTEM_WORKFLOW_PRESETS.find(
+    (p) => p.presetKey === 'preset_scraping_mintrabajo_cambio_normativo_0312',
   );
   assert.strictEqual(
-    webLegalPreset?.workflowNodes?.canvasLayout?.nodeConfigs?.extract_web_scraping_agy?.onlyOnContentChange,
+    mintrabajoNormPreset?.workflowNodes?.canvasLayout?.nodeConfigs?.extract_web_scraping_agy?.onlyOnContentChange,
     true,
-    'preset_web_scraping_mintrabajo_diario_matriz_legal debe tener onlyOnContentChange=true para SHA-256 pre_agent',
+    'preset_scraping_mintrabajo_cambio_normativo_0312 debe tener onlyOnContentChange=true para SHA-256 pre_agent',
   );
   assert.strictEqual(
-    resolveWorkflowHitoRole(webLegalPreset?.workflowNodes?.canvasLayout?.nodeConfigs, 'hito1_matriz_legal'),
+    mintrabajoNormPreset?.workflowNodes?.canvasLayout?.nodeConfigs?.extract_web_scraping_agy?.scriptEngine,
+    'auto_chrome_dom',
+    'preset_scraping_mintrabajo_cambio_normativo_0312 debe usar scriptEngine=auto_chrome_dom',
+  );
+  assert.strictEqual(
+    resolveWorkflowHitoRole(mintrabajoNormPreset?.workflowNodes?.canvasLayout?.nodeConfigs, 'hito1_diagnostico_0312'),
+    'agent_tool',
+  );
+  assert.strictEqual(
+    resolveWorkflowHitoRole(mintrabajoNormPreset?.workflowNodes?.canvasLayout?.nodeConfigs, 'hito7_acpm'),
     'agent_tool',
   );
   recordAssertion(
     'BLOQUE_8',
     'B8.4',
-    'Presets curados #16–#30 presentes, validados estructuralmente y resolviendo sus herramientas reales (Web Scraping, NotebookLM, Google Flow)',
+    'Presets curados #16–#30 presentes, validados estructuralmente, alineados 100% con WappyNodeCustomEditors.tsx y resolviendo sus herramientas reales (Web Scraping, NotebookLM, Google Flow)',
   );
 
   const totalDurationMs = Date.now() - startSuiteMs;

@@ -1331,10 +1331,28 @@ export default function WappyWorkflowCanvas({
         : []
     ).filter((cn) => cn?.key && !isNodeIdBlockedInWorkflow(cn.key, disabledSgsstApps));
 
+    const hasAiDocExtractor =
+      activeExtractors.includes('extract_ai_doc_ocr') &&
+      !isNodeIdBlockedInWorkflow('extract_ai_doc_ocr', disabledSgsstApps);
+    const rawStage2Extractors = activeExtractors.filter(
+      (id) => id !== 'extract_ai_doc_ocr' && !isNodeIdBlockedInWorkflow(id, disabledSgsstApps),
+    );
+    const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
+    const hasStage2Sources =
+      stage2Total > 0 ||
+      hasAiDocExtractor ||
+      customNodesList.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
+
     const logicNodesList = Array.isArray(workflowNodes?.canvasLayout?.logicNodes)
       ? workflowNodes.canvasLayout!.logicNodes!
       : [];
-    const preIfLogicNodes = logicNodesList.filter((ln) => ln?.logicType !== 'human_approval');
+    // Guarda defensiva: "Unir Ramas" (merge) solo aplica con >= 2 fuentes en Etapa 2.
+    // Con 0 o 1 fuente activa se omite visualmente para evitar entradas/cables huérfanos.
+    const preIfLogicNodes = logicNodesList.filter((ln) => {
+      if (!ln || ln.logicType === 'human_approval') return false;
+      if (ln.logicType === 'merge' && stage2Total < 2) return false;
+      return true;
+    });
     const postIfApprovalNodes = logicNodesList.filter((ln) => ln?.logicType === 'human_approval');
     const extraAgentsList = Array.isArray(workflowNodes?.canvasLayout?.extraAgents)
       ? workflowNodes.canvasLayout!.extraAgents!
@@ -1346,13 +1364,6 @@ export default function WappyWorkflowCanvas({
       ...(nodeConfigsMap?.['if_router'] || {}),
     } as Record<string, any>;
     const rawIfPlacement = mergedIfCfg?.ifPlacement;
-    const hasAiDocExtractor = activeExtractors.includes('extract_ai_doc_ocr');
-    const rawStage2Extractors = activeExtractors.filter((id) => id !== 'extract_ai_doc_ocr');
-    const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
-    const hasStage2Sources =
-      stage2Total > 0 ||
-      hasAiDocExtractor ||
-      customNodesList.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
     const isPreAgentIf = includeIfNode && rawIfPlacement === 'pre_agent' && hasStage2Sources;
 
     // Coordenadas limpias por columnas causales de izquierda a derecha (estilo n8n, 0 superposiciones)
