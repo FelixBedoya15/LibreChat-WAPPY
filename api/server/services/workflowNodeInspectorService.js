@@ -4282,20 +4282,28 @@ async function inspectHito3To5(canonicalId, userId, company) {
       }
     }
 
-    for (const inv of invDocs) {
-      const low = Number(inv.stockActual) <= Number(inv.stockMinimo);
-      records.push({
-        id: inv.id || inv.codigo || String(inv._id),
-        label: `[Bodega EPP] ${inv.nombre || ''} (${inv.categoria || ''}) — Talla ${inv.talla || 'Única'}`,
-        sublabel: `Stock Actual: ${inv.stockActual ?? 0} / Mínimo: ${inv.stockMinimo ?? 0} • Bodega: ${inv.ubicacionBodega || 'Principal'}`,
-        badge: low ? `STOCK BAJO (${inv.stockActual})` : `Stock OK (${inv.stockActual})`,
-        badgeTone: low ? 'rose' : 'indigo',
-        isCritical: low,
-        fields: {
-          'Elemento de Protección Personal Entregado y Norma Técnica': `${inv.nombre || ''} (${inv.categoria || ''} - Norma: ${inv.normaTecnica || 'ANSI/NTC'})`,
-          'Estado de Stock e Inventario Mínimo por Referencia': `Stock Actual: ${inv.stockActual ?? 0} | Mínimo: ${inv.stockMinimo ?? 0} (${inv.ubicacionBodega || ''})`,
-        },
-      });
+    for (const invDoc of invDocs) {
+      const invItems =
+        Array.isArray(invDoc?.items) && invDoc.items.length > 0
+          ? invDoc.items
+          : invDoc?.nombre
+            ? [invDoc]
+            : [];
+      for (const inv of invItems) {
+        const low = Number(inv.stockActual ?? 0) <= Number(inv.stockMinimo ?? 5);
+        records.push({
+          id: inv.id || inv.codigo || String(inv._id || invDoc._id || ''),
+          label: `[Bodega EPP] ${inv.nombre || ''} (${inv.categoria || 'EPP'}) — Talla ${inv.talla || 'Única'}`,
+          sublabel: `Stock Actual: ${inv.stockActual ?? 0} / Mínimo: ${inv.stockMinimo ?? 5} • Bodega: ${inv.ubicacionBodega || 'Principal'}`,
+          badge: low ? `STOCK BAJO (${inv.stockActual ?? 0})` : `Stock OK (${inv.stockActual ?? 0})`,
+          badgeTone: low ? 'rose' : 'indigo',
+          isCritical: low,
+          fields: {
+            'Elemento de Protección Personal Entregado y Norma Técnica': `${inv.nombre || ''} (${inv.categoria || 'EPP'} - Ref: ${inv.referencia || inv.normaTecnica || 'ANSI/NTC'})`,
+            'Estado de Stock e Inventario Mínimo por Referencia': `Stock Actual: ${inv.stockActual ?? 0} | Mínimo: ${inv.stockMinimo ?? 5} (${inv.ubicacionBodega || 'Almacén Principal'})`,
+          },
+        });
+      }
     }
 
     for (let sIdx = 0; sIdx < solDocs.length; sIdx++) {

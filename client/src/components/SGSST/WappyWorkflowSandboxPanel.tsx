@@ -900,6 +900,8 @@ export interface WorkflowHtmlRenderOptions {
   subtitle?: string;
   badge?: string;
   modelLabel?: string;
+  isRealExecution?: boolean;
+  footerLabel?: string;
 }
 
 function buildCanvaDocumentBannerHtml(
@@ -911,8 +913,9 @@ function buildCanvaDocumentBannerHtml(
     opts?.subtitle || 'Sistema de Gestión de la Seguridad y Salud en el Trabajo · WAPPY IA',
   );
   const safeBadge = escapeHtmlAttr(opts?.badge || 'Informe IA Verificado');
+  const isDetLabel = String(opts?.modelLabel || '').toLowerCase().includes('determin');
   const modelPill = opts?.modelLabel
-    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;background:rgba(15,23,42,0.32);border:1px solid rgba(255,255,255,0.22);color:#e2e8f0;font-size:10px;font-weight:700;">✨ ${escapeHtmlAttr(opts.modelLabel)}</span>`
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;background:rgba(15,23,42,0.32);border:1px solid rgba(255,255,255,0.22);color:#e2e8f0;font-size:10px;font-weight:700;">${isDetLabel ? '⚡' : '✨'} ${escapeHtmlAttr(opts.modelLabel)}</span>`
     : '';
 
   return `<div data-wappy-canva-banner="1" style="background:linear-gradient(135deg,#0f766e 0%,#0d9488 52%,#0ea5e9 100%);border-radius:18px;padding:18px 20px;color:#ffffff;box-shadow:0 12px 28px -10px rgba(13,148,136,0.38);margin-bottom:18px;position:relative;overflow:hidden;">
@@ -1157,8 +1160,13 @@ export function renderWorkflowMarkdownToInteractiveHtml(
     .replace(/`/g, '')
     .trim();
   const topBannerHtml = buildCanvaDocumentBannerHtml(effectiveBannerTitle, opts);
+  const effectiveFooterLabel =
+    opts?.footerLabel ||
+    (opts?.isRealExecution
+      ? '⚡ Ejecución Real Autónoma · WAPPY IA SG-SST'
+      : '🛡️ Documento generado en Escenario de Desarrollo · WAPPY IA SG-SST');
   const footerHtml = `<div style="margin-top:20px;padding-top:12px;border-top:1px dashed rgba(13,148,136,0.28);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;font-size:10.5px;" class="text-slate-500 dark:text-slate-400">
-  <span style="font-weight:700;">🛡️ Documento generado en Escenario de Desarrollo · WAPPY IA SG-SST</span>
+  <span style="font-weight:700;">${escapeHtmlAttr(effectiveFooterLabel)}</span>
   <span style="padding:2px 8px;border-radius:9999px;background:rgba(13,148,136,0.1);color:#0f766e;font-weight:800;" class="dark:text-teal-300">Formato Estilizado HTML</span>
 </div>`;
 
@@ -1592,6 +1600,22 @@ export default function WappyWorkflowSandboxPanel({
     );
   }, [isRealMode, selectedRealRun, result, agentOutputs]);
 
+  const realTraceMeta = useMemo(
+    () =>
+      selectedRealRun?.executionTrace && !Array.isArray(selectedRealRun.executionTrace)
+        ? (selectedRealRun.executionTrace as Record<string, any>)
+        : null,
+    [selectedRealRun],
+  );
+
+  const isZeroTokenRealRun = Boolean(
+    realTraceMeta?.llmSkippedByPreIf ||
+      (selectedRealRun &&
+        !selectedRealRun.modelUsed &&
+        selectedRealRun.status === 'success' &&
+        realTraceMeta?.activeBranch === 'no'),
+  );
+
   const htmlBannerOpts = useMemo<WorkflowHtmlRenderOptions>(
     () =>
       isRealMode
@@ -1610,7 +1634,10 @@ export default function WappyWorkflowSandboxPanel({
                   : selectedRealRun?.status === 'failed'
                     ? 'Ejecución con Error'
                     : 'Ejecución Real Verificada',
-            modelLabel: selectedRealRun?.modelUsed || undefined,
+            isRealExecution: true,
+            modelLabel: isZeroTokenRealRun
+              ? 'Verificación Determinista (0 Tokens IA)'
+              : selectedRealRun?.modelUsed || undefined,
           }
         : {
             title:
@@ -1976,11 +2003,18 @@ export default function WappyWorkflowSandboxPanel({
                 <Zap className="w-3.5 h-3.5" />
                 ⚡ Origen: <strong>{formatTriggerSourceLabel(selectedRealRun.triggerSource)}</strong>
               </span>
-              {selectedRealRun.modelUsed && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-                  <Cpu className="w-3.5 h-3.5" />
-                  🧠 Modelo: <strong>{selectedRealRun.modelUsed}</strong>
+              {isZeroTokenRealRun ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                  <Zap className="w-3.5 h-3.5" />
+                  ⚡ Motor: <strong>Verificación Determinista (0 Tokens IA)</strong>
                 </span>
+              ) : (
+                selectedRealRun.modelUsed && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                    <Cpu className="w-3.5 h-3.5" />
+                    🧠 Modelo: <strong>{selectedRealRun.modelUsed}</strong>
+                  </span>
+                )
               )}
               {selectedRealRun.companyName && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">

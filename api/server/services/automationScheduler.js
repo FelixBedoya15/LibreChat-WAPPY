@@ -399,10 +399,17 @@ function evaluatePreAgentDeterministicIf({
       reason = `Hallazgos nuevos verificados (${parts.join(' + ')}) -> Se activa la Rama SÍ.`;
     } else {
       const totalDedup = dedupSkippedCount + extDedupCount;
-      reason =
-        totalDedup > 0
-          ? `0 brechas nuevas pendientes (${totalDedup} caso(s) ya gestionados omitidos por ventana anti-duplicados) -> Se activa la Rama NO (0 tokens LLM).`
-          : `100 % al día: 0 brechas críticas nuevas${watchesExternal ? ' y 0 elementos externos nuevos' : ''} -> Se activa la Rama NO (0 tokens LLM).`;
+      const totalSrcRecords = Array.isArray(structuredSourceRes?.allRecords)
+        ? structuredSourceRes.allRecords.length
+        : 0;
+      if (totalDedup > 0) {
+        reason = `Sin brechas nuevas pendientes (${totalDedup} caso(s) ya gestionados fueron omitidos por control anti-duplicados).`;
+      } else if (totalSrcRecords === 0 && !watchesExternal) {
+        reason =
+          'No se encontraron registros cargados aún en los módulos fuente consultados (0 registros verificados). Carga entregas, inventario o solicitudes en el módulo SG-SST correspondiente o verifica la empresa activa.';
+      } else {
+        reason = `Cumplimiento verificado en ${totalSrcRecords} registro(s): 0 novedades críticas pendientes${watchesExternal ? ' y 0 elementos externos nuevos' : ''}.`;
+      }
     }
   }
 
@@ -2973,16 +2980,23 @@ async function buildLivePreExtractionAndLogicBlocks({
     try {
       const SgsstEppInventory = require('~/models/SgsstEppInventory');
       const SgsstEppSolicitud = require('~/models/SgsstEppSolicitud');
-      const [invItems, pendingReqs] = await Promise.all([
+      const [invDocs, pendingReqs] = await Promise.all([
         SgsstEppInventory.find({ companyId: targetCompanyIdStr }).limit(40).lean(),
         SgsstEppSolicitud.find({ companyId: targetCompanyIdStr }).sort({ createdAt: -1 }).limit(15).lean(),
       ]);
-      const lowStock = (invItems || []).filter(
-        (it) => Number(it.stockActual || 0) <= Number(it.stockMinimo || 3),
+      const invItems = (invDocs || []).flatMap((doc) =>
+        Array.isArray(doc?.items) && doc.items.length > 0
+          ? doc.items
+          : doc?.nombre
+            ? [doc]
+            : [],
+      );
+      const lowStock = invItems.filter(
+        (it) => Number(it.stockActual ?? 0) <= Number(it.stockMinimo ?? 5),
       );
       const pendingOnly = (pendingReqs || []).filter((r) => r.estado === 'pendiente');
       const eppLines = [
-        `  • Inventario EPP: ${(invItems || []).length} referencia(s) registradas | En stock crítico/agotado: ${lowStock.length}`,
+        `  • Inventario EPP: ${invItems.length} referencia(s) registradas | En stock crítico/agotado: ${lowStock.length}`,
         `  • Solicitudes QR de EPP recientes: ${(pendingReqs || []).length} (${pendingOnly.length} pendiente(s) de entrega)`,
       ];
       for (const reqItem of pendingOnly.slice(0, 8)) {
@@ -5272,19 +5286,30 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         }
 
         const compDisplay = automationCompany?.companyName || 'Somos SST';
+        const isEmptySourceAudit =
+          totalAuditedRecordsCount === 0 && totalDedupSkipped === 0;
+        const preStatusTitle = isEmptySourceAudit
+          ? `### ⚠️ Sin Registros Cargados para Auditar — ${automation.name || 'Control SG-SST'}`
+          : `### ✅ Control SG-SST Sin Novedades Críticas — ${automation.name || 'Verificación Automática'}`;
+        const preExecutiveSummary = isEmptySourceAudit
+          ? `Se consultó la base de datos activa de **${compDisplay}**${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''} y **no se encontraron registros cargados aún** en los módulos consultados. Para detectar vencimientos, reposiciones o brechas reales, registra primero los datos en **Somos SST** (o verifica que la empresa activa corresponda a la que tiene la información).`
+          : totalDedupSkipped > 0 && totalAuditedRecordsCount === 0
+            ? `Los **${totalDedupSkipped} registro(s)** con novedad en **${compDisplay}** ya habían sido gestionados recientemente dentro de la ventana anti-duplicados (**${dedupLedger.dedupWindow || '7d'}**), por lo que no se generaron nuevas alertas repetidas.`
+            : `Se verificaron **${totalAuditedRecordsCount} registro(s)** en **${compDisplay}**${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''} y **no se detectaron novedades críticas ni vencimientos pendientes por escalar**.`;
         let preNoResultText =
-          `### ✅ Constancia de Verificación Automática SG-SST — Rama NO Activa (0 Tokens IA)\n\n` +
-          `- **Empresa Auditada:** ${compDisplay}${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''}\n` +
-          `- **Compuerta Evaluada (Pre-Agente):** ${ifConditionLabelStr || 'Detección determinista de brechas nuevas'}\n` +
-          `- **Total de Registros Verificados:** ${totalAuditedRecordsCount}\n` +
-          `- **Brechas Críticas Nuevas Detectadas:** 0\n` +
+          `${preStatusTitle}\n\n` +
+          `${preExecutiveSummary}\n\n` +
+          `- **Empresa Activa:** ${compDisplay}${automationCompany?.nit ? ` (NIT: ${automationCompany.nit})` : ''}\n` +
+          `- **Criterio Verificado:** ${ifConditionLabelStr || 'Detección automática de hallazgos críticos o vencimientos'}\n` +
+          `- **Registros Evaluados:** ${totalAuditedRecordsCount}\n` +
+          `- **Novedades Críticas Pendientes:** 0\n` +
           (totalDedupSkipped > 0
-            ? `- **Filtro Anti-Duplicados Activo (${dedupLedger.dedupWindow || '7d'}):** ${totalDedupSkipped} registro(s)/archivo(s) previamente gestionados fueron omitidos para evitar alertas repetidas.\n`
+            ? `- **Omitidos por Gestión Previa (${dedupLedger.dedupWindow || '7d'}):** ${totalDedupSkipped} registro(s) ya atendidos recientemente\n`
             : '') +
-          `- **Dictamen Determinista:** ${preIfRes.reason}\n` +
-          `- **Acción Ejecutada:** Se activó limpiamente la **Rama NO** sin invocar al modelo LLM ni generar reportes/escalamientos innecesarios.\n` +
+          `- **Resultado de la Revisión:** ${preIfRes.reason}\n` +
+          `- **Acción Tomada:** No fue necesario escalar alertas, generar planes ACPM ni activar salidas de emergencia.\n` +
           (sourceBulletLines.length > 0
-            ? `\n#### 📊 Fuentes de Lectura Revisadas\n${sourceBulletLines.join('\n')}\n`
+            ? `\n#### 📊 Módulos Consultados\n${sourceBulletLines.join('\n')}\n`
             : '');
 
         const configuredOutputsPre = Array.isArray(automation.workflowNodes?.outputs)
@@ -5318,13 +5343,34 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           ...outputsBlockedYes.map((o) => `out_${o}`),
         ]);
         liveTracker.upsertStep({
+          nodeKey: 'sub_model',
+          nodeId: effectiveAiModel || 'gemini-3.6-flash',
+          title: `Modelo IA (${effectiveAiModel || 'gemini-3.6-flash'})`,
+          category: 'model',
+          status: 'skipped',
+          durationMs: 0,
+          outputPreview: 'No requerido en esta corrida (verificación determinista sin consumo de IA).',
+        });
+        activeMemories.forEach((memId, mIdx) => {
+          const memKey = mIdx === 0 ? 'sub_memory' : `sub_memory_${memId}`;
+          liveTracker.upsertStep({
+            nodeKey: memKey,
+            nodeId: memId,
+            title: formatHumanWorkflowNodeTitle(memId),
+            category: 'memory',
+            status: 'skipped',
+            durationMs: 0,
+            outputPreview: 'No requerida al cerrarse el flujo en la verificación previa.',
+          });
+        });
+        liveTracker.upsertStep({
           nodeKey: 'agent_root',
           nodeId: automation.agentId || 'ai_agent_root',
           title: 'Agente IA',
           category: 'agent',
           status: 'skipped',
           durationMs: 0,
-          outputPreview: 'Omitido limpiamente por Condición Si/No (Pre-IA = Rama NO · 0 tokens IA).',
+          outputPreview: 'Omitido limpiamente por Condición Si/No (sin novedades críticas por analizar).',
         });
         for (const yesOutId of outputsBlockedYes) {
           liveTracker.upsertStep({
@@ -5419,7 +5465,12 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               }
             : {};
 
-        liveTracker.setActiveStage(null, 'Completado (Rama NO · 0 tokens IA)');
+        liveTracker.setActiveStage(
+          null,
+          isEmptySourceAudit
+            ? 'Completado · Sin registros en módulos fuente'
+            : 'Completado · Sin novedades críticas',
+        );
         const preSnap = liveTracker.getSnapshot();
 
         await Promise.all([
@@ -5433,7 +5484,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
                 evidenceFiles: cleanPreEvidenceFiles,
                 evidences: cleanPreEvidenceFiles,
                 dedupWindowUsed: dedupLedger.dedupWindow || '',
-                modelUsed: effectiveAiModel,
+                modelUsed: '',
                 companyName: compDisplay,
                 ...preSnap,
                 executionTrace: {
@@ -11064,7 +11115,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           branchTaken: passedPreSim ? 'SI' : 'NO',
           reason: passedPreSim
             ? `Se detectaron ${effectiveCrit > 0 ? `${effectiveCrit} hallazgo(s)/elemento(s) nuevo(s) en brecha` : 'novedades en la entrada simulada'} (${totalExtractedRecords} registros inspeccionados) -> Se activa la Rama SÍ.`
-            : `100 % al día: 0 brechas críticas nuevas de ${totalExtractedRecords} registro(s) verificado(s)${totalDeduplicatedRecords > 0 ? ` (${totalDeduplicatedRecords} ya gestionado(s) omitido(s) por anti-duplicados)` : ''} -> Se activa la Rama NO (0 tokens IA).`,
+            : totalExtractedRecords === 0 && totalDeduplicatedRecords === 0 && !watchesExternalSim
+              ? 'No se encontraron registros cargados aún en los módulos fuente consultados (0 registros verificados) -> No aplica escalamiento.'
+              : `Cumplimiento verificado en ${totalExtractedRecords} registro(s): 0 brechas críticas nuevas${totalDeduplicatedRecords > 0 ? ` (${totalDeduplicatedRecords} ya gestionado(s) omitido(s) por anti-duplicados)` : ''} -> Rama NO (sin escalamiento ni consumo IA).`,
         };
       }
       ifHasEvaluated = true;
@@ -11714,13 +11767,35 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     }
   }
 
-  // Si el flujo conectado no incluyó ningún nodo Agente IA, sintetizar la respuesta desde los pasos conectados ejecutados
+  // Si el flujo conectado no ejecutó un Agente IA (ej. Rama NO sin novedades o flujo determinista), sintetizar respuesta ejecutiva clara
   if (!finalResponse) {
-    finalResponse =
-      `### 🧪 Resultado de Ejecución Consecutiva (${nodeTrace.length} Pasos Conectados) — ${companyName}\n\n` +
-      nodeTrace
-        .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
-        .join('\n\n');
+    if (ifHasEvaluated && ifEvaluation.branchTaken === 'NO') {
+      const isEmptySandboxAudit =
+        totalExtractedRecords === 0 && totalDeduplicatedRecords === 0;
+      const sandboxNoHeader = isEmptySandboxAudit
+        ? `### ⚠️ Sin Registros Cargados para Auditar — ${flowName}`
+        : `### ✅ Control SG-SST Sin Novedades Críticas — ${flowName}`;
+      const sandboxNoSummary = isEmptySandboxAudit
+        ? `Se consultó la base de datos de **${companyName}** y **no se encontraron registros cargados aún** en los módulos consultados (0 registros). Registra datos reales en **Somos SST** o verifica la empresa activa para validar hallazgos.`
+        : `Se revisaron **${totalExtractedRecords} registro(s)** en **${companyName}** y **no se detectaron novedades críticas ni vencimientos pendientes por escalar**.`;
+      finalResponse =
+        `${sandboxNoHeader}\n\n` +
+        `${sandboxNoSummary}\n\n` +
+        `- **Empresa Activa:** ${companyName}\n` +
+        `- **Registros Evaluados:** ${totalExtractedRecords}\n` +
+        `- **Novedades Críticas Pendientes:** 0\n` +
+        (totalDeduplicatedRecords > 0
+          ? `- **Omitidos por Gestión Previa:** ${totalDeduplicatedRecords} registro(s) ya atendidos\n`
+          : '') +
+        `- **Resultado de la Revisión:** ${ifEvaluation.reason}\n` +
+        `- **Acción Tomada:** Flujo cerrado sin alertas ni escalamientos innecesarios.`;
+    } else {
+      finalResponse =
+        `### 🧪 Resultado de Ejecución Consecutiva (${nodeTrace.length} Pasos Conectados) — ${companyName}\n\n` +
+        nodeTrace
+          .map((n) => `#### 🔹 Paso #${n.stepIndex}: ${n.title}\n${n.outputPreview}`)
+          .join('\n\n');
+    }
   }
 
   const allSimulationEvidences = sanitizePublicEvidenceList(
