@@ -38,6 +38,8 @@ const WebSearch = require('./structured/WebSearch');
 const GenerarImagenSST = require('./structured/GenerarImagenSST');
 const GoogleFlow = require('./structured/GoogleFlow');
 const GoogleAntigravity = require('./structured/GoogleAntigravity');
+const WappyNotebookLM = require('./structured/WappyNotebookLM');
+const WebScraperLive = require('./structured/WebScraperLive');
 const PubChem = require('./structured/PubChem');
 const {
   WidgetInteractivoSST,
@@ -65,6 +67,8 @@ module.exports = {
   GenerarImagenSST,
   GoogleFlow,
   GoogleAntigravity,
+  WappyNotebookLM,
+  WebScraperLive,
   n8nWebhook,
   MatrizIPEVAR,
   MatrizPESV,

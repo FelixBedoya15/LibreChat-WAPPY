@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const CompanyInfo = require('~/models/CompanyInfo');
 
@@ -716,6 +717,44 @@ async function findManyCompanyDocs(Model, userId, company, sortObj = { updatedAt
     return Array.isArray(docs) ? docs : [];
   } catch (_) {
     return [];
+  }
+}
+
+/**
+ * Busca la sesión activa por empresa (`{ user, companyId }`) con respaldo limpio a sesión personal sin `companyId`.
+ */
+async function findSessionForCompany(Model, userId, company) {
+  if (!Model || !userId) return null;
+  try {
+    const userStr = String(userId);
+    const userVariants = [userStr];
+    if (mongoose.Types.ObjectId.isValid(userStr)) {
+      userVariants.push(new mongoose.Types.ObjectId(userStr));
+    }
+    const compIdStr = company?._id ? String(company._id) : company ? String(company) : null;
+    if (compIdStr) {
+      const compVariants = [compIdStr];
+      if (mongoose.Types.ObjectId.isValid(compIdStr)) {
+        compVariants.push(new mongoose.Types.ObjectId(compIdStr));
+      }
+      const companySess = await Model.findOne({
+        user: { $in: userVariants },
+        companyId: { $in: compVariants },
+      })
+        .sort({ updatedAt: -1 })
+        .lean()
+        .catch(() => null);
+      if (companySess) return companySess;
+    }
+    return await Model.findOne({
+      user: { $in: userVariants },
+      $or: [{ companyId: null }, { companyId: { $exists: false } }],
+    })
+      .sort({ updatedAt: -1 })
+      .lean()
+      .catch(() => null);
+  } catch (_) {
+    return null;
   }
 }
 
@@ -5275,7 +5314,8 @@ async function inspectHito6To8(canonicalId, userId, company) {
  * INSPECTORES EN VIVO DE EQUIPOS 1 Y 4 (DISPARADORES & MEMORIAS DEL AGENTE)
  * ═══════════════════════════════════════════════════════════════════════════
  */
-async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
+async function inspectTriggersAndMemoryTeams(ctx = {}) {
+  const { canonicalId, userId, company } = ctx;
   const companyIdStr = company?._id ? String(company._id) : null;
   const Automation = getSafeModel('Automation', null, '~/models/Automation');
   const AutomationLog = getSafeModel('AutomationLog', null, '~/models/AutomationLog');
@@ -5406,28 +5446,58 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
     const LiveDocument = getSafeModel('LiveDocument', null, '~/models/LiveDocument');
     const LiveEditorSession = getSafeModel('LiveEditorSession', null, '~/models/LiveEditorSession');
     const NotebookSession = getSafeModel('NotebookSession', null, '~/models/NotebookSession');
-    const [liveDocs, editorSessions, notebooks] = await Promise.all([
+    const [liveDocs, editorSessions, notebooksScoped, primaryNotebookSession] = await Promise.all([
       findManyCompanyDocs(LiveDocument, userId, company, { updatedAt: -1 }, 40),
       findManyCompanyDocs(LiveEditorSession, userId, company, { updatedAt: -1 }, 40),
       findManyCompanyDocs(NotebookSession, userId, company, { updatedAt: -1 }, 20),
+      findSessionForCompany(NotebookSession, userId, company),
     ]);
 
+    const notebooks = [];
+    const seenNbDocIds = new Set();
+    for (const s of [...notebooksScoped, ...(primaryNotebookSession ? [primaryNotebookSession] : [])]) {
+      if (!s) continue;
+      const sid = String(s._id || s.email || notebooks.length);
+      if (seenNbDocIds.has(sid)) continue;
+      seenNbDocIds.add(sid);
+      notebooks.push(s);
+    }
+
+    const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
+    const configuredNotebookId = String(nodeCfg.notebookId || ctx?.options?.notebookId || '').trim();
+    const configuredNotebookAction = String(nodeCfg.notebookAction || ctx?.options?.notebookAction || 'query').trim();
+    const configuredNotebookPrompt = String(
+      nodeCfg.notebookPrompt ||
+        ctx?.options?.notebookPrompt ||
+        'Resume los hallazgos, obligaciones normativas y acciones clave de este cuaderno para el SG-SST.',
+    ).trim();
+
     const notebookItems = [];
+    let firstValidSession = null;
     for (const nb of notebooks) {
+      if (!firstValidSession && nb.isValid !== false && Array.isArray(nb.cookies) && nb.cookies.length > 0) {
+        firstValidSession = nb;
+      }
       const cached = Array.isArray(nb.cachedNotebooks) ? nb.cachedNotebooks : [];
       if (cached.length > 0) {
         for (const cn of cached) {
+          const isConfiguredMatch = configuredNotebookId && String(cn.id || '') === configuredNotebookId;
           notebookItems.push({
             id: String(cn.id || `nb_cached_${notebookItems.length}`),
-            label: `📓 [Cuaderno NotebookLM] ${cn.emoji ? `${cn.emoji} ` : ''}${cn.title || 'Cuaderno RAG SST'}`,
+            label: `📓 [Cuaderno NotebookLM${isConfiguredMatch ? ' · Seleccionado' : ''}] ${cn.emoji ? `${cn.emoji} ` : ''}${cn.title || 'Cuaderno RAG SST'}`,
             sublabel: `Cuenta: ${nb.email || 'Google NotebookLM'} • Fuentes indexadas: ${cn.sources_count ?? 0} • Estado: ${nb.isValid !== false ? 'Activo' : 'Por renovar'}`,
-            badge: `NOTEBOOKLM (${cn.sources_count ?? 0} fuentes)`,
-            badgeTone: 'purple',
+            badge: isConfiguredMatch
+              ? `SELECCIONADO (${cn.sources_count ?? 0} fuentes)`
+              : `NOTEBOOKLM (${cn.sources_count ?? 0} fuentes)`,
+            badgeTone: isConfiguredMatch ? 'emerald' : 'purple',
             isCritical: false,
             fields: {
               'Título del Documento Vivo / Protocolo Interno': cn.title || 'Cuaderno NotebookLM',
+              'ID de Cuaderno': String(cn.id || 'N/A'),
               'Cuenta Google NotebookLM': nb.email || 'Conectada',
               'Fuentes Indexadas': String(cn.sources_count ?? 0),
+              'Acción Configurada en el Flujo': configuredNotebookAction,
+              'Consulta Configurada': configuredNotebookPrompt,
               'Extracto / Contenido RAG': `Cuaderno RAG "${cn.title || 'SG-SST'}" con ${cn.sources_count ?? 0} fuente(s) normativas y técnicas vinculadas.`,
               'Fecha de Última Actualización': cn.updated_at || (nb.updatedAt ? new Date(nb.updatedAt).toLocaleDateString('es-CO') : 'Reciente'),
             },
@@ -5443,14 +5513,137 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
           isCritical: false,
           fields: {
             'Título del Documento Vivo / Protocolo Interno': nb.title || nb.notebookTitle || `NotebookLM (${nb.email || 'Activo'})`,
+            'Acción Configurada en el Flujo': configuredNotebookAction,
+            'Consulta Configurada': configuredNotebookPrompt,
             'Extracto / Contenido RAG': nb.summary || nb.lastResponse || `Sesión Google NotebookLM activa (${nb.cookieCount || 0} cookies verificadas)`,
           },
         });
       }
     }
 
+    const liveQueryRecords = [];
+    let liveQueryStatusLabel = firstValidSession ? 'SESIÓN ACTIVA' : 'SIN SESIÓN ACTIVA';
+    if (ctx?.executeLive === true) {
+      const targetNbId = configuredNotebookId || (notebookItems[0]?.id && !notebookItems[0].id.startsWith('nb_') ? notebookItems[0].id : '');
+      if (!firstValidSession) {
+        liveQueryStatusLabel = 'DESCONECTADO';
+        liveQueryRecords.push({
+          id: 'nlm_live_diagnostic_no_session',
+          label: '🔌 [Diagnóstico NotebookLM] Sesión de Google NotebookLM pendiente por vincular',
+          sublabel: 'Conecta tu cuenta en NotebookLM o vincula cookies de Google Flow para consultas RAG en vivo.',
+          badge: 'SESIÓN NO VINCULADA',
+          badgeTone: 'amber',
+          isCritical: false,
+          fields: {
+            'Estado de Conexión': 'Desconectado — Sin sesión Google NotebookLM activa para esta empresa',
+            'Cuaderno Configurado': configuredNotebookId || 'Sin ID seleccionado en nodo',
+            'Acción Configurada': configuredNotebookAction,
+            'Diagnóstico': 'No se encontraron cookies activas en NotebookSession. El flujo continuará usando Documentos Vivos SG-SST cuando falte conexión.',
+          },
+        });
+      } else if (!targetNbId) {
+        liveQueryStatusLabel = 'FALTA CUADERNO';
+        liveQueryRecords.push({
+          id: 'nlm_live_diagnostic_no_notebook',
+          label: '📓 [Diagnóstico NotebookLM] Sesión activa, selecciona un cuaderno objetivo',
+          sublabel: `Cuenta: ${firstValidSession.email || 'Conectada'} • Indica un Cuaderno en la configuración del nodo.`,
+          badge: 'SIN CUADERNO ID',
+          badgeTone: 'amber',
+          isCritical: false,
+          fields: {
+            'Estado de Conexión': `Conectado (${firstValidSession.email || 'Sesión activa'})`,
+            'Diagnóstico': 'Selecciona un Cuaderno NotebookLM en el inspector del nodo para ejecutar consultas en vivo (`notebook_query`).',
+          },
+        });
+      } else {
+        const primaryMcpUrl = String(process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420').replace(/\/+$/, '');
+        const candidateMcpUrls = [primaryMcpUrl];
+        if (primaryMcpUrl.includes('notebooklm-mcp')) {
+          candidateMcpUrls.push('http://127.0.0.1:9420');
+        }
+        const mcpHeaders = {
+          'Content-Type': 'application/json',
+          'x-user-id': String(userId || ''),
+          'x-user-email': String(firstValidSession.email || ''),
+          'x-notebooklm-auth': JSON.stringify(firstValidSession.cookies || []),
+        };
+        let mcpQueryResult = null;
+        let mcpErrorMsg = null;
+        for (const baseUrl of candidateMcpUrls) {
+          try {
+            const resp = await fetch(`${baseUrl}/api/direct-tool`, {
+              method: 'POST',
+              headers: mcpHeaders,
+              signal: AbortSignal.timeout(15000),
+              body: JSON.stringify({
+                name: 'notebook_query',
+                arguments: {
+                  notebook_id: targetNbId,
+                  query: configuredNotebookPrompt,
+                },
+                user_id: String(userId || ''),
+                user_email: String(firstValidSession.email || ''),
+              }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && !data?.error) {
+              mcpQueryResult = data?.result !== undefined ? data.result : data;
+              mcpErrorMsg = null;
+              break;
+            }
+            mcpErrorMsg = data?.error || `HTTP ${resp.status} desde ${baseUrl}`;
+          } catch (err) {
+            mcpErrorMsg = err?.message || `Motor NotebookLM MCP inaccesible en ${baseUrl}`;
+          }
+        }
+
+        if (mcpQueryResult) {
+          liveQueryStatusLabel = 'CONSULTA EN VIVO OK';
+          const rawAnswer =
+            typeof mcpQueryResult === 'string'
+              ? mcpQueryResult
+              : mcpQueryResult?.answer ||
+                mcpQueryResult?.response ||
+                mcpQueryResult?.text ||
+                JSON.stringify(mcpQueryResult);
+          liveQueryRecords.push({
+            id: `nlm_live_query_${targetNbId}`,
+            label: `⚡ [Consulta en Vivo NotebookLM] Cuaderno ${targetNbId}`,
+            sublabel: `Cuenta: ${firstValidSession.email || 'Activa'} • Acción: ${configuredNotebookAction}`,
+            badge: 'RESPUESTA EN VIVO',
+            badgeTone: 'emerald',
+            isCritical: false,
+            fields: {
+              'Estado de Conexión': `Conectado (${firstValidSession.email || 'Sesión activa'})`,
+              'Cuaderno Consultado': targetNbId,
+              'Pregunta Ejecutada': configuredNotebookPrompt,
+              'Respuesta en Vivo': String(rawAnswer || '').trim().slice(0, 1800) || 'Consulta completada sin texto adicional.',
+              'Motor': 'notebooklm-mcp (notebook_query)',
+            },
+          });
+        } else {
+          liveQueryStatusLabel = 'MOTOR DESCONECTADO';
+          liveQueryRecords.push({
+            id: `nlm_live_diagnostic_err_${targetNbId}`,
+            label: '⚠️ [Diagnóstico NotebookLM] Motor NotebookLM MCP no disponible en este momento',
+            sublabel: `Cuaderno: ${targetNbId} • ${mcpErrorMsg || 'Sin respuesta'}`,
+            badge: 'DIAGNÓSTICO CONEXIÓN',
+            badgeTone: 'amber',
+            isCritical: false,
+            fields: {
+              'Estado de Conexión': `Sesión guardada (${firstValidSession.email || 'Activa'}), pero el servicio MCP no respondió`,
+              'Cuaderno Objetivo': targetNbId,
+              'Diagnóstico': String(mcpErrorMsg || 'Motor NotebookLM desconectado'),
+              'Pregunta Configurada': configuredNotebookPrompt,
+            },
+          });
+        }
+      }
+    }
+
     const totalLiveDocsCount = liveDocs.length + editorSessions.length;
     const records = [
+      ...liveQueryRecords,
       ...(canonicalId === 'notebooklm' ? notebookItems : []),
       ...liveDocs.map((d, i) => ({
         id: String(d._id || `livedoc_${i}`),
@@ -5490,9 +5683,10 @@ async function inspectTriggersAndMemoryTeams({ canonicalId, userId, company }) {
           : 'Equipo 4 · Memoria Documental RAG (Documentos Vivos + NotebookLM)',
       sourceCollection: 'LiveDocument + LiveEditorSession + NotebookSession',
       kpis: [
+        { label: 'Estado NotebookLM', value: liveQueryStatusLabel, tone: firstValidSession ? 'emerald' : 'amber' },
         { label: 'Documentos Vivos RAG', value: totalLiveDocsCount, tone: 'teal' },
         { label: 'Cuadernos NotebookLM', value: notebookItems.length, tone: 'purple' },
-        { label: 'Total Fuentes RAG', value: records.length, tone: 'emerald' },
+        { label: 'Total Fuentes RAG', value: records.length, tone: 'indigo' },
       ],
       records,
     };
@@ -6475,12 +6669,205 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 7. Equipo 2, 5 y 8: Web Scraping con Google Antigravity y Portales Oficiales (ARL, RUNT/SIMIT, Alto Riesgo, Antecedentes)
+  // 7A. Equipo 2 y 5: Web Scraping Genérico en Vivo (URLs + Selectores + Motor + Huella SHA-256)
   if (
     [
       'extract_web_scraping_agy',
       'tool_web_scraping_agy',
       'scraper_node_antigravity',
+      'web_scraper',
+    ].includes(canonicalId)
+  ) {
+    const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
+    const rawTargetUrl = String(
+      nodeCfg.targetUrl || nodeCfg.url || ctx?.options?.targetUrl || 'https://www.mintrabajo.gov.co',
+    ).trim();
+    const urlsList = Array.isArray(nodeCfg.urls)
+      ? nodeCfg.urls.map((u) => String(u || '').trim()).filter(Boolean)
+      : rawTargetUrl
+          .split(/[\n,;]+/)
+          .map((u) => u.trim())
+          .filter(Boolean);
+    const effectiveUrls = urlsList.length > 0 ? urlsList : [rawTargetUrl];
+    const scriptEngine = String(nodeCfg.scriptEngine || ctx?.options?.scriptEngine || 'auto').trim();
+    const scriptCode = String(nodeCfg.scriptCode || ctx?.options?.scriptCode || '').trim();
+    const onlyOnContentChange = nodeCfg.onlyOnContentChange !== false;
+
+    let evidenceFiles = scanCompanyScraperEvidenceFiles({
+      workerRecords: [],
+      portalHint: 'Web_Scraper',
+    });
+
+    const records = [];
+    let executedLiveStatus = 'LISTO (PREVISUALIZACIÓN)';
+    let primaryContentHash = 'Pendiente (ejecutar en vivo)';
+
+    if (ctx?.executeLive === true) {
+      let liveScrape = null;
+      try {
+        const osint = require('~/server/services/osintWorkerService');
+        if (typeof osint.ejecutarWebScrapeConEvidencia === 'function') {
+          liveScrape = await osint
+            .ejecutarWebScrapeConEvidencia({
+              targetUrl: rawTargetUrl,
+              urls: effectiveUrls,
+              url: effectiveUrls[0] || rawTargetUrl,
+              scriptEngine,
+              scriptCode,
+              includeEvidence: true,
+              userId: userId ? String(userId) : undefined,
+              companyId: company?._id ? String(company._id) : undefined,
+            })
+            .catch(() => null);
+        }
+        if (!liveScrape || liveScrape?.ok === false) {
+          if (typeof osint.consultarPortalEspecíficoAntigravity === 'function') {
+            const fallbackScrape = await osint
+              .consultarPortalEspecíficoAntigravity({
+                action: 'web_scrape',
+                targetUrl: rawTargetUrl,
+                urls: effectiveUrls,
+                url: effectiveUrls[0] || rawTargetUrl,
+                scriptEngine,
+                scriptCode,
+                includeEvidence: true,
+              })
+              .catch(() => null);
+            if (fallbackScrape && (fallbackScrape.textExcerpt || Array.isArray(fallbackScrape.results))) {
+              liveScrape = fallbackScrape;
+            }
+          }
+        }
+      } catch (scrapeErr) {
+        liveScrape = {
+          ok: false,
+          status: 'error',
+          url: effectiveUrls[0] || rawTargetUrl,
+          error: scrapeErr?.message || 'Error consultando el motor de Web Scraping.',
+        };
+      }
+
+      if (liveScrape && (liveScrape.pdfBase64 || liveScrape.imageBase64 || liveScrape.screenshotBase64)) {
+        const savedLive = persistInspectorEvidenceToDisk({
+          pdfBase64: liveScrape.pdfBase64 || null,
+          pdfFileName: liveScrape.pdfFileName || null,
+          imageBase64: liveScrape.imageBase64 || liveScrape.screenshotBase64 || null,
+          imageFileName: liveScrape.imageFileName || null,
+          cedula: 'WEB',
+          workerName: liveScrape.title || 'Captura_Web',
+          cargo: 'Web Scraping Genérico',
+          portalLabel: 'Web Scraper',
+          title: `Captura Web (${liveScrape.title || effectiveUrls[0]})`,
+        });
+        if (savedLive.length > 0) {
+          evidenceFiles = [...savedLive, ...evidenceFiles];
+        }
+      }
+
+      const rawItems =
+        Array.isArray(liveScrape?.results) && liveScrape.results.length > 0
+          ? liveScrape.results
+          : Array.isArray(liveScrape?.items) && liveScrape.items.length > 0
+            ? liveScrape.items
+            : [liveScrape || { url: effectiveUrls[0], status: 'sin_respuesta', error: 'Sin respuesta del motor.' }];
+
+      primaryContentHash =
+        liveScrape?.contentHash ||
+        (liveScrape?.textExcerpt
+          ? crypto.createHash('sha256').update(String(liveScrape.textExcerpt)).digest('hex')
+          : 'Sin huella');
+      executedLiveStatus =
+        liveScrape?.ok === false || liveScrape?.error
+          ? 'CON OBSERVACIÓN'
+          : `EXTRAÍDO (${rawItems.length} URL)`;
+
+      rawItems.forEach((item, idx) => {
+        const itemUrl = String(item?.url || effectiveUrls[idx] || rawTargetUrl).trim();
+        const itemTitle = String(item?.title || liveScrape?.title || itemUrl).trim();
+        const itemExcerpt = String(
+          item?.textExcerpt || item?.excerpt || liveScrape?.textExcerpt || item?.error || 'Sin extracto textual.',
+        ).trim();
+        const itemHash =
+          item?.contentHash ||
+          (item?.textExcerpt
+            ? crypto.createHash('sha256').update(String(item.textExcerpt)).digest('hex')
+            : primaryContentHash);
+        const itemHasError = Boolean(item?.error || liveScrape?.ok === false);
+        if (item?.screenshotBase64 || item?.imageBase64 || item?.pdfBase64) {
+          const itemEv = persistInspectorEvidenceToDisk({
+            pdfBase64: item.pdfBase64 || null,
+            imageBase64: item.imageBase64 || item.screenshotBase64 || null,
+            cedula: 'WEB',
+            workerName: itemTitle.slice(0, 28) || `URL_${idx + 1}`,
+            cargo: 'Web Scraping',
+            portalLabel: 'Web Scraper',
+            title: `Captura ${itemTitle}`,
+          });
+          if (itemEv.length > 0) {
+            evidenceFiles.push(...itemEv);
+          }
+        }
+        records.push({
+          id: `web_scrape_live_${idx + 1}`,
+          label: `🌐 [${idx + 1}/${rawItems.length}] ${itemTitle}`,
+          sublabel: `URL: ${itemUrl} • Motor: ${scriptEngine} • SHA-256: ${String(itemHash).slice(0, 14)}...`,
+          badge: itemHasError ? 'ERROR / BLOQUEO' : 'EXTRACCIÓN EN VIVO',
+          badgeTone: itemHasError ? 'amber' : 'emerald',
+          isCritical: itemHasError,
+          fields: {
+            'URL Analizada': itemUrl,
+            'Título': itemTitle,
+            'Extracto Real': itemExcerpt.slice(0, 1200),
+            'Hash SHA-256': String(itemHash || 'N/A'),
+            'Selectores Aplicados': scriptCode ? scriptCode.slice(0, 240) : 'Extracción automática de texto y metadatos',
+            'Motor': String(item?.motor || liveScrape?.fuente || scriptEngine),
+            'Control Anti-Duplicados': onlyOnContentChange ? 'Solo notificar si cambia el SHA-256' : 'Procesar en cada ejecución',
+          },
+        });
+      });
+    } else {
+      effectiveUrls.forEach((u, idx) => {
+        records.push({
+          id: `web_scrape_preview_${idx + 1}`,
+          label: `🌐 [URL ${idx + 1}/${effectiveUrls.length}] ${u}`,
+          sublabel: `Motor: ${scriptEngine} • ${scriptCode ? 'Script/Selectores personalizados' : 'Extracción automática'} • ${onlyOnContentChange ? 'Anti-duplicado SHA-256 activo' : 'Cada corrida'}`,
+          badge: 'URL CONFIGURADA',
+          badgeTone: 'teal',
+          isCritical: false,
+          fields: {
+            'URL Analizada': u,
+            'Título': 'Pendiente (ejecutar prueba en vivo)',
+            'Extracto Real': 'Haz clic en "Probar Extracción en Vivo" para consultar esta URL, calcular su Hash SHA-256 y capturar evidencia real.',
+            'Hash SHA-256': 'Se calcula al extraer contenido en vivo',
+            'Selectores Aplicados': scriptCode ? scriptCode.slice(0, 240) : 'Extracción automática estándar',
+            'Motor': scriptEngine,
+            'Control Anti-Duplicados': onlyOnContentChange ? 'Solo si cambia SHA-256' : 'Cada ejecución',
+          },
+        });
+      });
+    }
+
+    return {
+      moduleTitle: 'Equipo 2/5 · Extractor y Herramienta Web Scraping Genérico (URLs + SHA-256)',
+      sourceCollection: 'AntigravityWebScraperLive',
+      evidenceFiles,
+      kpis: [
+        { label: 'URLs Analizadas', value: effectiveUrls.length, tone: 'teal' },
+        { label: 'Estado Scraping', value: executedLiveStatus, tone: executedLiveStatus.startsWith('EXTRAÍDO') ? 'emerald' : 'indigo' },
+        { label: 'Motor Activo', value: scriptEngine.toUpperCase(), tone: 'purple' },
+        {
+          label: 'Huella SHA-256',
+          value: primaryContentHash.length > 16 ? `${primaryContentHash.slice(0, 12)}...` : primaryContentHash,
+          tone: evidenceFiles.length > 0 ? 'emerald' : 'teal',
+        },
+      ],
+      records,
+    };
+  }
+
+  // 7B. Equipo 2, 5 y 8: Web Scraping Especializado en Portales Oficiales SST por Cédula (ARL, RUNT/SIMIT, Alto Riesgo, Antecedentes)
+  if (
+    [
       'scraper_agy_alto_riesgo',
       'scraper_agy_arl_directo',
       'scraper_agy_vial_pesv',
@@ -7019,39 +7406,137 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 9.5. Equipo 5: Conector Google Flow (Veo & Imagen 4 — Campañas Visuales SST)
+  // 9.5. Equipo 5: Conector Google Flow (Veo & Imagen — Campañas Visuales SST)
   if (canonicalId === 'google_flow') {
     const GoogleFlowSession = getSafeModel('GoogleFlowSession', null, '~/models/GoogleFlowSession');
-    const flowSessions = await findManyCompanyDocs(GoogleFlowSession, userId, company, { updatedAt: -1 }, 10);
+    const [flowSessionsScoped, primaryFlowSession] = await Promise.all([
+      findManyCompanyDocs(GoogleFlowSession, userId, company, { updatedAt: -1 }, 10),
+      findSessionForCompany(GoogleFlowSession, userId, company),
+    ]);
+    const flowSessions = [];
+    const seenFlowIds = new Set();
+    for (const s of [...(primaryFlowSession ? [primaryFlowSession] : []), ...flowSessionsScoped]) {
+      if (!s) continue;
+      const sid = String(s._id || s.email || flowSessions.length);
+      if (seenFlowIds.has(sid)) continue;
+      seenFlowIds.add(sid);
+      flowSessions.push(s);
+    }
+
     const activeSession = flowSessions.find((s) => s.isValid !== false) || flowSessions[0] || null;
-    const isConnected = Boolean(activeSession && activeSession.isValid !== false);
+    const isConnected = Boolean(
+      activeSession && activeSession.isValid !== false && (Number(activeSession.cookieCount || 0) > 0 || Boolean(activeSession.apiKey)),
+    );
+    const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
+    const flowAction = String(nodeCfg.flowAction || 'generate_image').trim();
+    const flowAspectRatio = String(nodeCfg.flowAspectRatio || '16:9').trim();
+    const flowStyle = String(nodeCfg.flowStyle || 'Corporativo SST realista').trim();
+    const flowCameraMotion = String(nodeCfg.flowCameraMotion || 'Suave / Estático').trim();
+    const flowPrompt = String(
+      nodeCfg.flowPrompt || 'Pieza visual preventiva de Seguridad y Salud en el Trabajo acorde al contexto empresarial.',
+    ).trim();
+
+    // Escanear generaciones recientes locales (/images/flow_*) e historial de ToolCall si existen
+    const recentFlowArtifacts = [];
+    const recentFlowEvidences = [];
+    const seenFlowFiles = new Set();
+    const imgDirs = [
+      path.resolve(process.cwd(), 'client', 'public', 'images'),
+      path.resolve(process.cwd(), 'client', 'dist', 'images'),
+    ];
+    for (const dirPath of imgDirs) {
+      try {
+        if (!fs.existsSync(dirPath)) continue;
+        const entries = fs.readdirSync(dirPath).filter((f) => /^flow_/i.test(f));
+        const withStats = entries
+          .map((name) => {
+            try {
+              const st = fs.statSync(path.join(dirPath, name));
+              return st.isFile() ? { name, mtimeMs: st.mtimeMs, size: st.size } : null;
+            } catch (_) {
+              return null;
+            }
+          })
+          .filter(Boolean)
+          .sort((a, b) => b.mtimeMs - a.mtimeMs)
+          .slice(0, 6);
+        for (const f of withStats) {
+          if (seenFlowFiles.has(f.name)) continue;
+          seenFlowFiles.add(f.name);
+          const relUrl = `/images/${f.name}`;
+          const absUrl = `https://wappy.club${relUrl}`;
+          const ext = path.extname(f.name).toLowerCase();
+          recentFlowArtifacts.push({
+            id: `flow_art_${f.name}`,
+            label: `🎨 [Artefacto Google Flow] ${f.name}`,
+            sublabel: `Archivo generado (${Math.max(1, Math.round(f.size / 1024))} KB) • ${new Date(f.mtimeMs).toLocaleDateString('es-CO')}`,
+            badge: ext === '.mp4' ? 'VIDEO VEO' : 'IMAGEN FLOW',
+            badgeTone: 'indigo',
+            isCritical: false,
+            fields: {
+              'Archivo Generado': f.name,
+              'URL Pública': absUrl,
+              'Fecha de Generación': new Date(f.mtimeMs).toLocaleString('es-CO'),
+              'Tamaño': `${Math.max(1, Math.round(f.size / 1024))} KB`,
+            },
+          });
+          if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+            recentFlowEvidences.push({
+              id: `flow_${f.name}`,
+              fileName: f.name,
+              url: relUrl,
+              downloadUrl: `${relUrl}?download=1`,
+              absoluteUrl: absUrl,
+              mimeType: ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg',
+              type: 'image',
+              sizeBytes: f.size,
+              workerName: f.name,
+              cedula: 'FLOW',
+              cargo: 'Google Flow Studio',
+              portal: 'Google Flow Studio',
+              title: `Artefacto Visual (${f.name})`,
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
+    const records = [
+      {
+        id: `gflow_${activeSession?._id || companyIdStr || '1'}`,
+        label: isConnected
+          ? `🎬 Google Flow Conectado (${activeSession?.email || 'Sesión / API Activa'}) — Listo para Veo / Imagen`
+          : `🎬 Google Flow Studio Configurado para ${company?.companyName || 'Empresa Activa'}`,
+        sublabel: `Acción: ${flowAction} • Aspecto: ${flowAspectRatio} • Estilo: ${flowStyle} • Cookies: ${activeSession?.cookieCount ?? 0}`,
+        badge: isConnected ? 'FLOW ACTIVO' : 'LISTO / POR VINCULAR',
+        badgeTone: isConnected ? 'emerald' : 'amber',
+        isCritical: false,
+        fields: {
+          'Estado de Sesión Google Flow': isConnected ? 'Conectada y Válida' : 'Sin sesión o API Key vinculada (vincular en Google Flow Studio)',
+          'Cuenta Google Flow': activeSession?.email || (activeSession?.apiKey ? 'API Key configurada' : 'No vinculada'),
+          'Cookies Activas': String(activeSession?.cookieCount ?? 0),
+          'Acción Configurada (flowAction)': flowAction,
+          'Relación de Aspecto (flowAspectRatio)': flowAspectRatio,
+          'Estilo Visual (flowStyle)': flowStyle,
+          'Movimiento de Cámara (flowCameraMotion)': flowCameraMotion,
+          'Prompt Configurado (flowPrompt)': flowPrompt,
+          'Empresa Activa': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
+        },
+      },
+      ...recentFlowArtifacts,
+    ];
 
     return {
       moduleTitle: 'Equipo 5 · Conector Google Flow (Veo & Imagen — Campañas Audiovisuales SG-SST)',
-      sourceCollection: 'GoogleFlowSession + CompanyInfo',
+      sourceCollection: 'GoogleFlowSession + CompanyInfo + FlowMedia',
+      ...(recentFlowEvidences.length > 0 ? { evidenceFiles: recentFlowEvidences } : {}),
       kpis: [
-        { label: 'Sesión Google Flow', value: isConnected ? 'CONECTADA' : 'DISPONIBLE', tone: isConnected ? 'emerald' : 'amber' },
-        { label: 'Cuenta Vinculada', value: activeSession?.email || company?.email || 'Por vincular', tone: 'teal' },
-        { label: 'Cookies Verificadas', value: activeSession?.cookieCount ?? 0, tone: 'indigo' },
+        { label: 'Sesión Google Flow', value: isConnected ? 'CONECTADA' : 'POR VINCULAR', tone: isConnected ? 'emerald' : 'amber' },
+        { label: 'Acción del Nodo', value: flowAction, tone: 'purple' },
+        { label: 'Aspecto / Estilo', value: flowAspectRatio, tone: 'teal' },
+        { label: 'Artefactos Recientes', value: recentFlowArtifacts.length, tone: 'indigo' },
       ],
-      records: [
-        {
-          id: `gflow_${activeSession?._id || companyIdStr || '1'}`,
-          label: isConnected
-            ? `🎬 Google Flow Conectado (${activeSession.email || 'Cuenta Activa'}) — Listo para Veo / Imagen`
-            : `🎬 Conector Google Flow Disponible para ${company?.companyName || 'Empresa Activa'}`,
-          sublabel: `Generación de piezas preventivas SST, videos de inducción y afiches de seguridad • Cookies: ${activeSession?.cookieCount ?? 0}`,
-          badge: isConnected ? 'FLOW ACTIVO' : 'POR VINCULAR',
-          badgeTone: isConnected ? 'emerald' : 'amber',
-          isCritical: !isConnected,
-          fields: {
-            'Estado de Sesión Google Flow': isConnected ? 'Conectada y Válida' : 'Pendiente de vinculación',
-            'Cuenta Google Flow': activeSession?.email || 'No vinculada',
-            'Cookies Activas': String(activeSession?.cookieCount ?? 0),
-            'Empresa Activa': `${company?.companyName || 'Empresa Activa'} (NIT ${company?.nit || 'N/A'})`,
-          },
-        },
-      ],
+      records,
     };
   }
 
@@ -7946,6 +8431,28 @@ async function inspectNodeLiveData(params = {}) {
   if (customInstruction !== undefined) topLevelQueryOverrides.customInstruction = customInstruction;
   if (upstreamSourceType !== undefined) topLevelQueryOverrides.upstreamSourceType = upstreamSourceType;
   if (runAiExtraction !== undefined) topLevelQueryOverrides.runAiExtraction = runAiExtraction;
+  for (const extraKey of [
+    'targetUrl',
+    'urls',
+    'url',
+    'scriptEngine',
+    'scriptCode',
+    'onlyOnContentChange',
+    'notebookId',
+    'notebookTitle',
+    'notebookAction',
+    'notebookPrompt',
+    'notebookFormat',
+    'flowAction',
+    'flowPrompt',
+    'flowAspectRatio',
+    'flowStyle',
+    'flowCameraMotion',
+  ]) {
+    if (params && params[extraKey] !== undefined) {
+      topLevelQueryOverrides[extraKey] = params[extraKey];
+    }
+  }
 
   const effectiveNodeConfig = {
     ...(options && typeof options === 'object' ? options : {}),

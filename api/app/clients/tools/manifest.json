@@ -382,5 +382,19 @@
     "description": "Conexión bidireccional en tiempo real con Google Antigravity en el computador del usuario para consultas, revisión de carpetas locales, envío de archivos originales al chat y creación de documentos en Canvas.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
     "authConfig": []
+  },
+  {
+    "name": "Google NotebookLM (Segundo Cerebro)",
+    "pluginKey": "wappy_notebooklm",
+    "description": "Lista cuadernos de NotebookLM, realiza consultas RAG con citas, agrega fuentes y genera artefactos de Studio (infografías, presentaciones, reportes, audios, videos, tablas y mapas mentales) aislados por empresa.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+    "authConfig": []
+  },
+  {
+    "name": "Web Scraper Live (DOM & Cheerio)",
+    "pluginKey": "web_scraper_live",
+    "description": "Extrae datos en vivo desde hasta 5 URLs usando Playwright/Chromium headless o fetch + cheerio, con selectores CSS personalizados, huella SHA-256 y evidencia PDF/PNG.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/1006/1006771.png",
+    "authConfig": []
   }
 ]

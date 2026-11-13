@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const https = require('https');
 const zlib = require('zlib');
 const { execFile, spawn } = require('child_process');
@@ -4095,7 +4096,12 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
     ) {
       return await ejecutarWebScrapeConEvidencia({
         targetUrl: targetUrl || url || 'https://www.mintrabajo.gov.co',
+        urls: opts.urls,
+        scriptEngine: opts.scriptEngine,
+        scriptCode: opts.scriptCode,
         includeEvidence,
+        userId: opts.userId || null,
+        companyId: opts.companyId || null,
       });
     }
 
@@ -4207,253 +4213,874 @@ function isSameOrSubdomain(hostA = '', hostB = '') {
   return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
 }
 
+const MAX_SCRAPE_URLS = 5;
+const MAX_SCRAPE_CHARS_PER_URL = 6000;
+const MAX_SCRAPE_CHARS_TOTAL = 12000;
+
+function computeNormalizedSha256(text) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
+}
+
+function parseScrapeUrlsList({ urls, targetUrl, url }) {
+  let rawEntries = [];
+  if (Array.isArray(urls)) {
+    rawEntries = urls.flatMap((entry) => String(entry || '').split(/[,\r\n]+/));
+  } else {
+    const rawStr = String(urls || targetUrl || url || '').trim();
+    if (rawStr) {
+      rawEntries = rawStr.split(/[,\r\n]+/);
+    }
+  }
+
+  const hasExplicitInput = rawEntries.some((entry) => String(entry || '').trim().length > 0);
+  if (!hasExplicitInput) {
+    return ['https://www.mintrabajo.gov.co'];
+  }
+
+  const valid = [];
+  const seen = new Set();
+  for (const item of rawEntries) {
+    const trimmed = String(item || '').trim();
+    if (!trimmed) continue;
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const parsed = new URL(withProtocol);
+      if (!/^https?:$/i.test(parsed.protocol)) continue;
+      if (!parsed.hostname || !parsed.hostname.includes('.')) continue;
+      if (seen.has(parsed.href)) continue;
+      seen.add(parsed.href);
+      valid.push(parsed.href);
+      if (valid.length >= MAX_SCRAPE_URLS) break;
+    } catch (_) {}
+  }
+  return valid;
+}
+
+function parseCssSelectorsFromScriptCode(scriptCode = '') {
+  const raw = String(scriptCode || '').trim();
+  if (!raw) return [];
+
+  const selectors = [];
+  const pushSel = (cand) => {
+    const clean = String(cand || '')
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .trim();
+    if (!clean || clean.length > 160) return;
+    if (/^(?:\/\/|\/\*|return\b|const\b|let\b|var\b|function\b|if\b|for\b)/i.test(clean)) return;
+    if (!selectors.includes(clean)) {
+      selectors.push(clean);
+    }
+  };
+
+  if (raw.startsWith('[') || raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.selectors)
+          ? parsed.selectors
+          : typeof parsed?.css === 'string'
+            ? parsed.css.split(/[,\r\n]+/)
+            : [];
+      for (const s of list) pushSel(s);
+      if (selectors.length > 0) return selectors.slice(0, 15);
+    } catch (_) {}
+  }
+
+  const queryMatches = Array.from(
+    raw.matchAll(/(?:querySelectorAll|querySelector|\$\$|\$)\(\s*(['"`])([^'"`]+)\1\s*\)/g),
+  );
+  if (queryMatches.length > 0) {
+    for (const m of queryMatches) pushSel(m[2]);
+    return selectors.slice(0, 15);
+  }
+
+  for (const part of raw.split(/[\r\n,;]+/)) {
+    pushSel(part);
+    if (selectors.length >= 15) break;
+  }
+  return selectors;
+}
+
+function looksLikeDynamicSpaHtml(html = '', extractedText = '') {
+  if (extractedText.length < 180) return true;
+  const lower = String(html || '').slice(0, 20000).toLowerCase();
+  return (
+    /(?:<div[^>]+id=["'](?:root|app|__next)["'][^>]*>\s*<\/div>|window\.__next_data__|enable javascript)/i.test(
+      lower,
+    ) && extractedText.length < 700
+  );
+}
+
+function extractHtmlStructuredContent(html = '', pageUrl = '', selectors = [], precomputedMatches = []) {
+  const htmlStr = String(html || '');
+  let cheerioMod = null;
+  try {
+    cheerioMod = require('cheerio');
+  } catch (_) {}
+
+  const pdfCandidates = [];
+  const seenPdfUrls = new Set();
+  const pushPdfCandidate = (rawHref, labelText = '', isEmbedded = false) => {
+    if (!rawHref) return;
+    try {
+      const resolved = new URL(decodeHtmlEntities(rawHref).trim(), pageUrl);
+      if (!/^https?:$/i.test(resolved.protocol)) return;
+      const hrefLower = `${resolved.pathname}${resolved.search}`.toLowerCase();
+      if (!hrefLower.includes('.pdf')) return;
+      if (seenPdfUrls.has(resolved.href)) return;
+      seenPdfUrls.add(resolved.href);
+      pdfCandidates.push({
+        url: resolved.href,
+        hostname: resolved.hostname,
+        pathname: resolved.pathname,
+        text: decodeHtmlEntities(String(labelText || '').replace(/<[^>]+>/g, ' ')).trim(),
+        isEmbedded,
+      });
+    } catch (_) {}
+  };
+
+  if (cheerioMod && typeof cheerioMod.load === 'function') {
+    try {
+      const $ = cheerioMod.load(htmlStr);
+      const title =
+        $('title').first().text().replace(/\s+/g, ' ').trim() ||
+        $('meta[property="og:title"]').attr('content')?.trim() ||
+        pageUrl;
+
+      const headings = [];
+      $('h1, h2, h3').each((_, el) => {
+        if (headings.length >= 12) return;
+        const txt = $(el).text().replace(/\s+/g, ' ').trim();
+        if (txt && !headings.includes(txt)) headings.push(txt);
+      });
+
+      const selectorMatches = Array.isArray(precomputedMatches) && precomputedMatches.length > 0
+        ? precomputedMatches
+        : [];
+      if (selectorMatches.length === 0 && Array.isArray(selectors) && selectors.length > 0) {
+        for (const sel of selectors) {
+          try {
+            const matchedTexts = [];
+            $(sel).each((_, el) => {
+              if (matchedTexts.length >= 25) return;
+              const txt = $(el).text().replace(/\s+/g, ' ').trim();
+              if (txt && !matchedTexts.includes(txt)) {
+                matchedTexts.push(txt.slice(0, 600));
+              }
+            });
+            if (matchedTexts.length > 0) {
+              selectorMatches.push({ selector: sel, count: matchedTexts.length, matches: matchedTexts });
+            }
+          } catch (_) {}
+        }
+      }
+
+      const links = [];
+      const seenLinks = new Set();
+      $('iframe[src], embed[src], object[data]').each((_, el) => {
+        const src = $(el).attr('src') || $(el).attr('data');
+        pushPdfCandidate(src, 'embedded_pdf', true);
+      });
+      $('a[href]').each((_, el) => {
+        const href = $(el).attr('href');
+        const linkText = $(el).text().replace(/\s+/g, ' ').trim();
+        pushPdfCandidate(href, linkText, false);
+        if (!href || links.length >= 25) return;
+        try {
+          const resolved = new URL(href.trim(), pageUrl);
+          if (!/^https?:$/i.test(resolved.protocol)) return;
+          if (seenLinks.has(resolved.href)) return;
+          seenLinks.add(resolved.href);
+          if (linkText || resolved.href.toLowerCase().includes('.pdf')) {
+            links.push({ href: resolved.href, text: linkText.slice(0, 140) || resolved.pathname });
+          }
+        } catch (_) {}
+      });
+
+      $('script, style, noscript, svg, template').remove();
+      const rawBodyText = ($('body').text() || $.root().text() || '').replace(/\s+/g, ' ').trim();
+      const selectorPrefix =
+        selectorMatches.length > 0
+          ? `${selectorMatches
+              .map((m) => `[${m.selector}] ${m.matches.join(' | ')}`)
+              .join('\n')}\n\n`
+          : '';
+      const textExcerpt = `${selectorPrefix}${rawBodyText}`.trim().slice(0, MAX_SCRAPE_CHARS_PER_URL);
+
+      return {
+        title,
+        headings,
+        selectorMatches,
+        links,
+        pdfCandidates: pdfCandidates.slice(0, 15),
+        textExcerpt,
+      };
+    } catch (_) {}
+  }
+
+  const titleMatch = htmlStr.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = titleMatch
+    ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, ' ').trim())
+    : pageUrl;
+  const headings = Array.from(htmlStr.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi))
+    .slice(0, 12)
+    .map((m) => decodeHtmlEntities(m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()))
+    .filter(Boolean);
+
+  for (const m of htmlStr.matchAll(/<(?:iframe|embed|object)[^>]+(?:src|data)=["']([^"']+)["'][^>]*>/gi)) {
+    pushPdfCandidate(m[1], 'embedded_pdf', true);
+  }
+  const links = [];
+  const seenLinks = new Set();
+  for (const m of htmlStr.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    pushPdfCandidate(m[1], m[2], false);
+    if (links.length < 25) {
+      try {
+        const resolved = new URL(decodeHtmlEntities(m[1]).trim(), pageUrl);
+        if (/^https?:$/i.test(resolved.protocol) && !seenLinks.has(resolved.href)) {
+          seenLinks.add(resolved.href);
+          const text = decodeHtmlEntities(String(m[2] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+          links.push({ href: resolved.href, text: text.slice(0, 140) || resolved.pathname });
+        }
+      } catch (_) {}
+    }
+    if (pdfCandidates.length >= 15 && links.length >= 25) break;
+  }
+
+  const textExcerpt = decodeHtmlEntities(
+    htmlStr
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  ).slice(0, MAX_SCRAPE_CHARS_PER_URL);
+
+  return {
+    title,
+    headings,
+    selectorMatches: Array.isArray(precomputedMatches) ? precomputedMatches : [],
+    links,
+    pdfCandidates: pdfCandidates.slice(0, 15),
+    textExcerpt,
+  };
+}
+
+async function tryRenderDomWithChromium({
+  targetUrl,
+  selectors = [],
+  includeEvidence = true,
+  timeoutMs = 15000,
+}) {
+  let playwrightMod = null;
+  try {
+    playwrightMod = require('playwright');
+  } catch (_) {
+    try {
+      playwrightMod = require('playwright-core');
+    } catch (__) {}
+  }
+
+  if (playwrightMod?.chromium && typeof playwrightMod.chromium.launch === 'function') {
+    return runWithChromeSlot(async () => {
+      let browser = null;
+      const chromeBin = resolveChromeBinaryPath();
+      const baseArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--ignore-certificate-errors',
+      ];
+      try {
+        try {
+          browser = await playwrightMod.chromium.launch({
+            headless: true,
+            args: baseArgs,
+            timeout: 8000,
+          });
+        } catch (defaultPwErr) {
+          if (chromeBin) {
+            browser = await playwrightMod.chromium.launch({
+              headless: true,
+              executablePath: chromeBin,
+              args: baseArgs,
+              timeout: 8000,
+            });
+          } else {
+            throw defaultPwErr;
+          }
+        }
+
+        const context = await browser.newContext({
+          ignoreHTTPSErrors: true,
+          userAgent: DEFAULT_HEADERS['User-Agent'],
+          viewport: { width: 1280, height: 900 },
+        });
+        const page = await context.newPage();
+        page.setDefaultTimeout(timeoutMs);
+        const resp = await page.goto(targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: Math.min(timeoutMs, 13000),
+        });
+        await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+
+        const httpStatus = resp ? resp.status() : 200;
+        const renderedHtml = await page.content();
+
+        let precomputedMatches = [];
+        if (Array.isArray(selectors) && selectors.length > 0) {
+          precomputedMatches = await page
+            .evaluate((selList) => {
+              const out = [];
+              for (const sel of selList) {
+                try {
+                  const nodes = Array.from(document.querySelectorAll(sel));
+                  const texts = [];
+                  for (const node of nodes) {
+                    if (texts.length >= 25) break;
+                    const txt = String(node.innerText || node.textContent || '')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    if (txt && !texts.includes(txt)) texts.push(txt.slice(0, 600));
+                  }
+                  if (texts.length > 0) {
+                    out.push({ selector: sel, count: texts.length, matches: texts });
+                  }
+                } catch (_) {}
+              }
+              return out;
+            }, selectors)
+            .catch(() => []);
+        }
+
+        let screenshotBase64 = null;
+        let pdfBase64 = null;
+        if (includeEvidence !== false) {
+          const shotBuf = await page.screenshot({ type: 'png', fullPage: false }).catch(() => null);
+          if (shotBuf && shotBuf.length > 0) screenshotBase64 = Buffer.from(shotBuf).toString('base64');
+          const pdfBuf = await page.pdf({ format: 'A4', printBackground: true }).catch(() => null);
+          if (pdfBuf && pdfBuf.length > 64) pdfBase64 = Buffer.from(pdfBuf).toString('base64');
+        }
+
+        await context.close().catch(() => {});
+        return {
+          ok: true,
+          engineUsed: 'playwright_chromium_dom',
+          httpStatus,
+          html: renderedHtml,
+          precomputedMatches,
+          screenshotBase64,
+          pdfBase64,
+        };
+      } finally {
+        if (browser) await browser.close().catch(() => {});
+      }
+    });
+  }
+
+  return runWithPuppeteerPage(async (page) => {
+    const resp = await page.goto(targetUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: Math.min(timeoutMs, 13000),
+    });
+    await new Promise((r) => setTimeout(r, 900));
+    const httpStatus = resp ? resp.status() : 200;
+    const renderedHtml = await page.content();
+
+    let precomputedMatches = [];
+    if (Array.isArray(selectors) && selectors.length > 0) {
+      precomputedMatches = await page
+        .evaluate((selList) => {
+          const out = [];
+          for (const sel of selList) {
+            try {
+              const nodes = Array.from(document.querySelectorAll(sel));
+              const texts = [];
+              for (const node of nodes) {
+                if (texts.length >= 25) break;
+                const txt = String(node.innerText || node.textContent || '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                if (txt && !texts.includes(txt)) texts.push(txt.slice(0, 600));
+              }
+              if (texts.length > 0) {
+                out.push({ selector: sel, count: texts.length, matches: texts });
+              }
+            } catch (_) {}
+          }
+          return out;
+        }, selectors)
+        .catch(() => []);
+    }
+
+    let screenshotBase64 = null;
+    let pdfBase64 = null;
+    if (includeEvidence !== false) {
+      const shot = await page.screenshot({ type: 'png', encoding: 'base64', fullPage: false }).catch(() => null);
+      if (shot) screenshotBase64 = shot;
+      const pdfBuf = await page.pdf({ format: 'A4', printBackground: true }).catch(() => null);
+      if (pdfBuf && pdfBuf.length > 64) pdfBase64 = Buffer.from(pdfBuf).toString('base64');
+    }
+
+    return {
+      ok: true,
+      engineUsed: 'puppeteer_chromium_dom',
+      httpStatus,
+      html: renderedHtml,
+      precomputedMatches,
+      screenshotBase64,
+      pdfBase64,
+    };
+  }, timeoutMs);
+}
+
 /**
- * Ejecuta Web Scraping genérico sobre una URL retornando texto estructurado + evidencia PDF e Imagen PNG.
+ * Ejecuta Web Scraping multi-URL (hasta 5 URLs) con extracción DOM real (Playwright/Chromium o fetch + cheerio),
+ * soporte de selectores CSS (`scriptCode`), hash SHA-256 (`contentHash`) y evidencia PDF/PNG.
  */
 async function ejecutarWebScrapeConEvidencia({
   targetUrl = '',
   url = '',
+  urls = '',
+  scriptEngine = 'auto_chrome_dom',
+  scriptCode = '',
   includeEvidence = true,
+  userId = null,
+  companyId = null,
 } = {}) {
-  const rawUrls = String(targetUrl || url || 'https://www.mintrabajo.gov.co')
-    .split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
-  const firstUrl = rawUrls[0] || 'https://www.mintrabajo.gov.co';
-  const normalizedUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
-  const todayISO = new Date().toISOString().split('T')[0];
-
-  let parsedTarget;
-  try {
-    parsedTarget = new URL(normalizedUrl);
-  } catch (_) {
-    parsedTarget = new URL('https://www.mintrabajo.gov.co');
-  }
-  const hostSlug = sanitizeFileStem(parsedTarget.hostname.replace(/^www\./i, ''), 'Web').slice(0, 36);
-  const defaultPrefix = `Captura_WebScraper_${hostSlug}_${todayISO}`;
-
-  try {
-    let httpStatus = 200;
-    let contentType = '';
-    let rawBuf = null;
-
-    try {
-      const scrapeRes = await fetch(normalizedUrl, {
-        headers: DEFAULT_HEADERS,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(12000),
-      });
-      httpStatus = scrapeRes.status;
-      contentType = String(scrapeRes.headers.get('content-type') || '').toLowerCase();
-      rawBuf = Buffer.from(await scrapeRes.arrayBuffer());
-    } catch (primaryFetchErr) {
-      if (/^https:/i.test(normalizedUrl)) {
-        const fallbackRes = await insecureHttpsRequest(normalizedUrl, {
-          method: 'GET',
-          timeoutMs: 12000,
-        });
-        httpStatus = fallbackRes.status || 200;
-        contentType = String(fallbackRes.headers?.['content-type'] || '').toLowerCase();
-        rawBuf = fallbackRes.buf;
-      } else {
-        throw primaryFetchErr;
-      }
-    }
-
-    const isDirectPdf =
-      contentType.includes('application/pdf') ||
-      (rawBuf.length > 64 && rawBuf.subarray(0, 5).toString('ascii').startsWith('%PDF'));
-
-    if (isDirectPdf) {
-      const rawBase = path.basename(parsedTarget.pathname || '', '.pdf');
-      const pdfStem = sanitizeFileStem(rawBase, `Certificado_WebScraper_${hostSlug}_${todayISO}`);
-      const pdfBase64 = rawBuf.toString('base64');
-      const pdfFileName = `${pdfStem}.pdf`;
-      const imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
-      const imageFileName = imageBase64 ? `${pdfStem}.png` : null;
-
-      return {
-        fuente: 'Web Scraper Google Antigravity (IP Local)',
-        status: 'ok',
-        action: 'web_scrape',
-        url: normalizedUrl,
-        httpStatus,
-        contentType: contentType || 'application/pdf',
-        title: pdfFileName,
-        headings: [],
-        pdfLinks: [normalizedUrl],
-        textExcerpt: `Documento PDF oficial descargado directamente desde ${normalizedUrl} (${(rawBuf.length / 1024).toFixed(1)} KB).`,
-        pdfBase64,
-        pdfFileName,
-        imageBase64,
-        imageFileName,
-      };
-    }
-
-    const html = rawBuf.toString('utf8');
-    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const title = titleMatch
-      ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, ' ').trim())
-      : normalizedUrl;
-    const headings = Array.from(html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi))
-      .slice(0, 10)
-      .map((m) => decodeHtmlEntities(m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()))
-      .filter(Boolean);
-    const cleanBody = decodeHtmlEntities(
-      html
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim(),
-    ).slice(0, 3500);
-
-    // Extraer enlaces .pdf directos (embedded o hipervínculos)
-    const pdfCandidates = [];
-    const seenPdfUrls = new Set();
-    const pushPdfCandidate = (rawHref, labelText = '', isEmbedded = false) => {
-      if (!rawHref) return;
-      try {
-        const resolved = new URL(decodeHtmlEntities(rawHref).trim(), normalizedUrl);
-        if (!/^https?:$/i.test(resolved.protocol)) return;
-        const hrefLower = `${resolved.pathname}${resolved.search}`.toLowerCase();
-        if (!hrefLower.includes('.pdf')) return;
-        if (seenPdfUrls.has(resolved.href)) return;
-        seenPdfUrls.add(resolved.href);
-        pdfCandidates.push({
-          url: resolved.href,
-          hostname: resolved.hostname,
-          pathname: resolved.pathname,
-          text: decodeHtmlEntities(String(labelText || '').replace(/<[^>]+>/g, ' ')),
-          isEmbedded,
-        });
-      } catch (_) {}
-    };
-
-    for (const m of html.matchAll(/<(?:iframe|embed|object)[^>]+(?:src|data)=["']([^"']+)["'][^>]*>/gi)) {
-      pushPdfCandidate(m[1], 'embedded_pdf', true);
-    }
-    for (const m of html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-      pushPdfCandidate(m[1], m[2], false);
-      if (pdfCandidates.length >= 15) break;
-    }
-
-    let pdfBase64 = null;
-    let pdfFileName = null;
-    let imageBase64 = null;
-    let imageFileName = null;
-
-    if (includeEvidence !== false && pdfCandidates.length > 0) {
-      const firstCand = pdfCandidates[0];
-      const sameDomain = isSameOrSubdomain(firstCand.hostname, parsedTarget.hostname);
-      const candSignal = `${firstCand.url} ${firstCand.text}`;
-      const looksLikeCert =
-        firstCand.isEmbedded ||
-        (/certificad|constancia|diploma|carnet|afiliaci|vigencia|antecedente|boletin|soporte|descarga|imprimir/i.test(
-          candSignal,
-        ) &&
-          !/politica|privacidad|terminos|tratamiento[-_]?datos|manual[-_]?usuario/i.test(
-            firstCand.url,
-          ));
-
-      if (sameDomain && looksLikeCert) {
-        try {
-          const pdfLinkRes = await fetch(firstCand.url, {
-            headers: { ...DEFAULT_HEADERS, Referer: normalizedUrl },
-            redirect: 'follow',
-            signal: AbortSignal.timeout(10000),
-          });
-          const declaredLen = Number(pdfLinkRes.headers.get('content-length') || 0);
-          if (pdfLinkRes.ok && (!declaredLen || declaredLen <= 8 * 1024 * 1024)) {
-            const linkedBuf = Buffer.from(await pdfLinkRes.arrayBuffer());
-            if (
-              linkedBuf.length > 64 &&
-              linkedBuf.length <= 8 * 1024 * 1024 &&
-              linkedBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
-            ) {
-              const linkedStem = sanitizeFileStem(
-                path.basename(firstCand.pathname || '', '.pdf'),
-                `Certificado_${hostSlug}_${todayISO}`,
-              );
-              pdfBase64 = linkedBuf.toString('base64');
-              pdfFileName = `${linkedStem}.pdf`;
-              imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
-              imageFileName = imageBase64 ? `${linkedStem}.png` : null;
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    if (includeEvidence !== false && !pdfBase64) {
-      const evid = await captureWebOrHtmlEvidence({
-        url: normalizedUrl,
-        filePrefix: defaultPrefix,
-        timeoutMs: 12000,
-      });
-      pdfBase64 = evid.pdfBase64;
-      pdfFileName = evid.pdfFileName;
-      imageBase64 = evid.imageBase64;
-      imageFileName = evid.imageFileName;
-    }
-
+  const targetUrls = parseScrapeUrlsList({ urls, targetUrl, url });
+  if (targetUrls.length === 0) {
     return {
-      fuente: 'Web Scraper Google Antigravity (IP Local)',
-      status: 'ok',
+      fuente: 'Web Scraper Google Antigravity',
+      ok: false,
+      status: 'error',
       action: 'web_scrape',
-      url: normalizedUrl,
-      httpStatus,
-      title,
-      headings,
-      pdfLinks: pdfCandidates.map((c) => c.url),
-      textExcerpt: cleanBody,
-      pdfBase64,
-      pdfFileName,
-      imageBase64,
-      imageFileName,
-    };
-  } catch (fetchErr) {
-    if (includeEvidence !== false) {
-      const evid = await captureWebOrHtmlEvidence({
-        url: normalizedUrl,
-        filePrefix: defaultPrefix,
-        timeoutMs: 12000,
-      });
-      if (evid.pdfBase64 || evid.imageBase64) {
-        return {
-          fuente: 'Web Scraper Google Antigravity (IP Local · Chrome Headless)',
-          status: 'ok',
-          action: 'web_scrape',
-          url: normalizedUrl,
-          httpStatus: 200,
-          title: normalizedUrl,
-          headings: [],
-          pdfLinks: [],
-          textExcerpt: `Página capturada visualmente mediante Google Chrome Headless para ${normalizedUrl}.`,
-          pdfBase64: evid.pdfBase64,
-          pdfFileName: evid.pdfFileName,
-          imageBase64: evid.imageBase64,
-          imageFileName: evid.imageFileName,
-        };
-      }
-    }
-    return {
-      fuente: 'Web Scraper Google Antigravity (IP Local)',
-      status: 'warning',
-      action: 'web_scrape',
-      url: normalizedUrl,
-      httpStatus: 0,
-      title: normalizedUrl,
-      headings: [],
-      pdfLinks: [],
-      textExcerpt: `No fue posible extraer contenido de ${normalizedUrl}: ${fetchErr.message}`,
-      error: fetchErr.message,
+      url: '',
+      urls: [],
+      urlsProcessed: 0,
+      results: [],
+      items: [],
+      title: '',
+      textExcerpt: 'No se proporcionaron URLs válidas http/https para extraer.',
+      contentHash: computeNormalizedSha256(''),
+      evidences: [],
       pdfBase64: null,
       pdfFileName: null,
       imageBase64: null,
       imageFileName: null,
+      screenshotBase64: null,
+      error: 'No se proporcionaron URLs válidas http/https.',
     };
   }
+
+  const engine = String(scriptEngine || 'auto_chrome_dom').toLowerCase().trim();
+  const selectors = parseCssSelectorsFromScriptCode(scriptCode);
+  const todayISO = new Date().toISOString().split('T')[0];
+  let browserUnavailable = false;
+
+  const scrapeSingleTargetUrl = async (normalizedUrl) => {
+    let parsedTarget;
+    try {
+      parsedTarget = new URL(normalizedUrl);
+    } catch (_) {
+      parsedTarget = new URL('https://www.mintrabajo.gov.co');
+    }
+    const hostSlug = sanitizeFileStem(parsedTarget.hostname.replace(/^www\./i, ''), 'Web').slice(0, 36);
+    const defaultPrefix = `Captura_WebScraper_${hostSlug}_${todayISO}`;
+    const isLikelyDirectPdfUrl = /\.pdf($|\?)/i.test(parsedTarget.pathname + parsedTarget.search);
+    const allowBrowserRender =
+      engine !== 'fetch_only' &&
+      engine !== 'fetch_cheerio' &&
+      !isLikelyDirectPdfUrl &&
+      !browserUnavailable;
+    const preferBrowserFirst =
+      allowBrowserRender && (engine === 'auto_chrome_dom' || selectors.length > 0);
+
+    let domRenderResult = null;
+    if (preferBrowserFirst) {
+      try {
+        domRenderResult = await tryRenderDomWithChromium({
+          targetUrl: normalizedUrl,
+          selectors,
+          includeEvidence,
+          timeoutMs: 15000,
+        });
+      } catch (browserErr) {
+        const msg = String(browserErr?.message || '');
+        if (/executable|not available|no está disponible|cannot find module/i.test(msg)) {
+          browserUnavailable = true;
+        }
+        logger.debug(`[WebScraper] Fallback fetch+cheerio para ${normalizedUrl}: ${msg}`);
+      }
+    }
+
+    if (domRenderResult?.ok && domRenderResult.html) {
+      const parsedDom = extractHtmlStructuredContent(
+        domRenderResult.html,
+        normalizedUrl,
+        selectors,
+        domRenderResult.precomputedMatches,
+      );
+      let pdfBase64 = domRenderResult.pdfBase64 || null;
+      let pdfFileName = pdfBase64 ? `${defaultPrefix}.pdf` : null;
+      let screenshotBase64 = domRenderResult.screenshotBase64 || null;
+      let imageBase64 = screenshotBase64;
+      let imageFileName = imageBase64 ? `${defaultPrefix}.png` : null;
+
+      if (includeEvidence !== false && pdfBase64 && !imageBase64) {
+        imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64).catch(() => null);
+        imageFileName = imageBase64 ? `${defaultPrefix}.png` : null;
+      }
+
+      const contentHash = computeNormalizedSha256(
+        `${parsedDom.title}\n${parsedDom.headings.join('\n')}\n${parsedDom.textExcerpt}`,
+      );
+
+      return {
+        fuente: `Web Scraper (${domRenderResult.engineUsed})`,
+        ok: true,
+        status: 'ok',
+        url: normalizedUrl,
+        httpStatus: domRenderResult.httpStatus || 200,
+        engineUsed: domRenderResult.engineUsed,
+        title: parsedDom.title,
+        headings: parsedDom.headings,
+        links: parsedDom.links,
+        pdfLinks: parsedDom.pdfCandidates.map((c) => c.url),
+        selectorMatches: parsedDom.selectorMatches,
+        textExcerpt: parsedDom.textExcerpt,
+        contentHash,
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+        screenshotBase64: screenshotBase64 || imageBase64 || null,
+      };
+    }
+
+    try {
+      let httpStatus = 200;
+      let contentType = '';
+      let rawBuf = null;
+
+      try {
+        const scrapeRes = await fetch(normalizedUrl, {
+          headers: DEFAULT_HEADERS,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(12000),
+        });
+        httpStatus = scrapeRes.status;
+        contentType = String(scrapeRes.headers.get('content-type') || '').toLowerCase();
+        rawBuf = Buffer.from(await scrapeRes.arrayBuffer());
+      } catch (primaryFetchErr) {
+        if (/^https:/i.test(normalizedUrl)) {
+          const fallbackRes = await insecureHttpsRequest(normalizedUrl, {
+            method: 'GET',
+            timeoutMs: 12000,
+          });
+          httpStatus = fallbackRes.status || 200;
+          contentType = String(fallbackRes.headers?.['content-type'] || '').toLowerCase();
+          rawBuf = fallbackRes.buf;
+        } else {
+          throw primaryFetchErr;
+        }
+      }
+
+      const isDirectPdf =
+        contentType.includes('application/pdf') ||
+        (rawBuf.length > 64 && rawBuf.subarray(0, 5).toString('ascii').startsWith('%PDF'));
+
+      if (isDirectPdf) {
+        const rawBase = path.basename(parsedTarget.pathname || '', '.pdf');
+        const pdfStem = sanitizeFileStem(rawBase, `Certificado_WebScraper_${hostSlug}_${todayISO}`);
+        const pdfBase64 = rawBuf.toString('base64');
+        const pdfFileName = `${pdfStem}.pdf`;
+        const imageBase64 =
+          includeEvidence !== false ? await convertPdfBase64ToPngBase64(pdfBase64).catch(() => null) : null;
+        const imageFileName = imageBase64 ? `${pdfStem}.png` : null;
+        const pdfSummary = `Documento PDF oficial descargado directamente desde ${normalizedUrl} (${(rawBuf.length / 1024).toFixed(1)} KB).`;
+        return {
+          fuente: 'Web Scraper Google Antigravity (IP Local)',
+          ok: true,
+          status: 'ok',
+          url: normalizedUrl,
+          httpStatus,
+          engineUsed: 'fetch_pdf',
+          contentType: contentType || 'application/pdf',
+          title: pdfFileName,
+          headings: [],
+          links: [{ href: normalizedUrl, text: pdfFileName }],
+          pdfLinks: [normalizedUrl],
+          selectorMatches: [],
+          textExcerpt: pdfSummary,
+          contentHash: crypto.createHash('sha256').update(rawBuf).digest('hex'),
+          pdfBase64,
+          pdfFileName,
+          imageBase64,
+          imageFileName,
+          screenshotBase64: imageBase64 || null,
+        };
+      }
+
+      const html = rawBuf.toString('utf8');
+      let parsedHtml = extractHtmlStructuredContent(html, normalizedUrl, selectors);
+
+      if (
+        allowBrowserRender &&
+        !preferBrowserFirst &&
+        (looksLikeDynamicSpaHtml(html, parsedHtml.textExcerpt) ||
+          (selectors.length > 0 && parsedHtml.selectorMatches.length === 0))
+      ) {
+        try {
+          const upgradedDom = await tryRenderDomWithChromium({
+            targetUrl: normalizedUrl,
+            selectors,
+            includeEvidence,
+            timeoutMs: 14000,
+          });
+          if (upgradedDom?.ok && upgradedDom.html) {
+            parsedHtml = extractHtmlStructuredContent(
+              upgradedDom.html,
+              normalizedUrl,
+              selectors,
+              upgradedDom.precomputedMatches,
+            );
+          }
+        } catch (_) {}
+      }
+
+      let pdfBase64 = null;
+      let pdfFileName = null;
+      let imageBase64 = null;
+      let imageFileName = null;
+
+      if (includeEvidence !== false && parsedHtml.pdfCandidates.length > 0) {
+        const firstCand = parsedHtml.pdfCandidates[0];
+        const sameDomain = isSameOrSubdomain(firstCand.hostname, parsedTarget.hostname);
+        const candSignal = `${firstCand.url} ${firstCand.text}`;
+        const looksLikeCert =
+          firstCand.isEmbedded ||
+          (/certificad|constancia|diploma|carnet|afiliaci|vigencia|antecedente|boletin|soporte|descarga|imprimir/i.test(
+            candSignal,
+          ) &&
+            !/politica|privacidad|terminos|tratamiento[-_]?datos|manual[-_]?usuario/i.test(
+              firstCand.url,
+            ));
+
+        if (sameDomain && looksLikeCert) {
+          try {
+            const pdfLinkRes = await fetch(firstCand.url, {
+              headers: { ...DEFAULT_HEADERS, Referer: normalizedUrl },
+              redirect: 'follow',
+              signal: AbortSignal.timeout(10000),
+            });
+            const declaredLen = Number(pdfLinkRes.headers.get('content-length') || 0);
+            if (pdfLinkRes.ok && (!declaredLen || declaredLen <= 8 * 1024 * 1024)) {
+              const linkedBuf = Buffer.from(await pdfLinkRes.arrayBuffer());
+              if (
+                linkedBuf.length > 64 &&
+                linkedBuf.length <= 8 * 1024 * 1024 &&
+                linkedBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+              ) {
+                const linkedStem = sanitizeFileStem(
+                  path.basename(firstCand.pathname || '', '.pdf'),
+                  `Certificado_${hostSlug}_${todayISO}`,
+                );
+                pdfBase64 = linkedBuf.toString('base64');
+                pdfFileName = `${linkedStem}.pdf`;
+                imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64).catch(() => null);
+                imageFileName = imageBase64 ? `${linkedStem}.png` : null;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (includeEvidence !== false && !pdfBase64 && !browserUnavailable) {
+        const evid = await captureWebOrHtmlEvidence({
+          url: normalizedUrl,
+          filePrefix: defaultPrefix,
+          timeoutMs: 12000,
+        }).catch(() => ({}));
+        pdfBase64 = evid.pdfBase64 || null;
+        pdfFileName = evid.pdfFileName || null;
+        imageBase64 = evid.imageBase64 || null;
+        imageFileName = evid.imageFileName || null;
+      }
+
+      const contentHash = computeNormalizedSha256(
+        `${parsedHtml.title}\n${parsedHtml.headings.join('\n')}\n${parsedHtml.textExcerpt}`,
+      );
+
+      return {
+        fuente:
+          engine === 'antigravity_local'
+            ? 'Web Scraper Google Antigravity (IP Local)'
+            : 'Web Scraper (fetch + cheerio)',
+        ok: httpStatus >= 200 && httpStatus < 400,
+        status: httpStatus >= 200 && httpStatus < 400 ? 'ok' : 'warning',
+        url: normalizedUrl,
+        httpStatus,
+        engineUsed: 'fetch_cheerio',
+        title: parsedHtml.title,
+        headings: parsedHtml.headings,
+        links: parsedHtml.links,
+        pdfLinks: parsedHtml.pdfCandidates.map((c) => c.url),
+        selectorMatches: parsedHtml.selectorMatches,
+        textExcerpt: parsedHtml.textExcerpt,
+        contentHash,
+        pdfBase64,
+        pdfFileName,
+        imageBase64,
+        imageFileName,
+        screenshotBase64: imageBase64 || null,
+      };
+    } catch (fetchErr) {
+      if (includeEvidence !== false && !browserUnavailable) {
+        const evid = await captureWebOrHtmlEvidence({
+          url: normalizedUrl,
+          filePrefix: defaultPrefix,
+          timeoutMs: 12000,
+        }).catch(() => ({}));
+        if (evid.pdfBase64 || evid.imageBase64) {
+          const fallbackText = `Página capturada visualmente mediante Google Chrome Headless para ${normalizedUrl}.`;
+          return {
+            fuente: 'Web Scraper Google Antigravity (IP Local · Chrome Headless)',
+            ok: true,
+            status: 'ok',
+            url: normalizedUrl,
+            httpStatus: 200,
+            engineUsed: 'chrome_headless',
+            title: normalizedUrl,
+            headings: [],
+            links: [],
+            pdfLinks: [],
+            selectorMatches: [],
+            textExcerpt: fallbackText,
+            contentHash: computeNormalizedSha256(fallbackText),
+            pdfBase64: evid.pdfBase64 || null,
+            pdfFileName: evid.pdfFileName || null,
+            imageBase64: evid.imageBase64 || null,
+            imageFileName: evid.imageFileName || null,
+            screenshotBase64: evid.imageBase64 || null,
+          };
+        }
+      }
+      return {
+        fuente: 'Web Scraper Google Antigravity (IP Local)',
+        ok: false,
+        status: 'warning',
+        url: normalizedUrl,
+        httpStatus: 0,
+        engineUsed: 'error',
+        title: normalizedUrl,
+        headings: [],
+        links: [],
+        pdfLinks: [],
+        selectorMatches: [],
+        textExcerpt: `No fue posible extraer contenido de ${normalizedUrl}: ${fetchErr.message}`,
+        contentHash: computeNormalizedSha256(normalizedUrl),
+        error: fetchErr.message,
+        pdfBase64: null,
+        pdfFileName: null,
+        imageBase64: null,
+        imageFileName: null,
+        screenshotBase64: null,
+      };
+    }
+  };
+
+  const results = [];
+  for (const target of targetUrls) {
+    results.push(await scrapeSingleTargetUrl(target));
+  }
+
+  const items = [];
+  const evidences = [];
+  for (const r of results) {
+    if (Array.isArray(r.selectorMatches) && r.selectorMatches.length > 0) {
+      for (const sm of r.selectorMatches) {
+        for (const matchText of sm.matches || []) {
+          items.push({
+            url: r.url,
+            title: r.title,
+            selector: sm.selector,
+            text: matchText,
+            contentHash: r.contentHash,
+          });
+        }
+      }
+    } else {
+      items.push({
+        url: r.url,
+        title: r.title,
+        text: r.textExcerpt.slice(0, 1200),
+        links: (r.links || []).slice(0, 8),
+        contentHash: r.contentHash,
+      });
+    }
+
+    if (r.pdfBase64 || r.imageBase64 || r.screenshotBase64) {
+      evidences.push({
+        url: r.url,
+        title: r.title,
+        contentHash: r.contentHash,
+        pdfBase64: r.pdfBase64 || null,
+        pdfFileName: r.pdfFileName || null,
+        imageBase64: r.imageBase64 || null,
+        imageFileName: r.imageFileName || null,
+        screenshotBase64: r.screenshotBase64 || null,
+      });
+    }
+  }
+
+  const primaryResult = results.find((r) => r.ok) || results[0];
+  const primaryEvidence = evidences[0] || primaryResult;
+  const successCount = results.filter((r) => r.ok).length;
+
+  const combinedTextExcerpt = (
+    results.length === 1
+      ? primaryResult.textExcerpt
+      : results
+          .map((r, idx) => `[URL ${idx + 1}: ${r.url} | ${r.title}]\n${r.textExcerpt}`)
+          .join('\n\n---\n\n')
+  ).slice(0, MAX_SCRAPE_CHARS_TOTAL);
+
+  const globalContentHash =
+    results.length === 1
+      ? primaryResult.contentHash
+      : computeNormalizedSha256(results.map((r) => `${r.url}:${r.contentHash}`).join('\n'));
+
+  return {
+    fuente: primaryResult.fuente,
+    ok: successCount > 0,
+    status: successCount === results.length ? 'ok' : successCount > 0 ? 'partial' : 'warning',
+    action: 'web_scrape',
+    scriptEngine: engine,
+    userId: userId || null,
+    companyId: companyId || null,
+    url: primaryResult.url,
+    urls: targetUrls,
+    urlsProcessed: results.length,
+    httpStatus: primaryResult.httpStatus,
+    title: primaryResult.title,
+    headings: primaryResult.headings,
+    links: primaryResult.links,
+    pdfLinks: primaryResult.pdfLinks,
+    selectorMatches: primaryResult.selectorMatches,
+    results,
+    items,
+    textExcerpt: combinedTextExcerpt,
+    contentHash: globalContentHash,
+    evidences,
+    pdfBase64: primaryEvidence?.pdfBase64 || null,
+    pdfFileName: primaryEvidence?.pdfFileName || null,
+    imageBase64: primaryEvidence?.imageBase64 || null,
+    imageFileName: primaryEvidence?.imageFileName || null,
+    screenshotBase64: primaryEvidence?.screenshotBase64 || primaryEvidence?.imageBase64 || null,
+  };
 }
 
 module.exports = {

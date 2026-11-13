@@ -1866,4 +1866,13 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
   }
 });
 
+router.OUTPUT_MEDIA_DIR = OUTPUT_MEDIA_DIR;
+router.resolveActiveCompanyId = resolveActiveCompanyId;
+router.findSessionForCompany = findSessionForCompany;
+router.resolveNotebookArtifactFileMeta = resolveNotebookArtifactFileMeta;
+router.findCachedNotebookArtifact = findCachedNotebookArtifact;
+router.normalizeNotebookList = normalizeNotebookList;
+router.callNotebookLmDirectTool = callNotebookLmDirectTool;
+router.resolveUserNotebookCredentials = resolveUserNotebookCredentials;
+
 module.exports = router;

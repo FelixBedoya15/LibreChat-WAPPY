@@ -3993,6 +3993,7 @@ const ALL_NOTEBOOKLM_MCP_TOOLS = [
 const ALL_GOOGLE_AGENT_TOOLS = [
   'google_antigravity',
   'google_flow',
+  'wappy_notebooklm',
   'google_drive',
   'google_gmail',
   'google_calendar',
@@ -4003,6 +4004,7 @@ const ALL_GOOGLE_AGENT_TOOLS = [
 
 const ALL_WAPPY_SST_AGENT_TOOLS = [
   'web_search',
+  'web_scraper_live',
   'file_search',
   'execute_code',
   'canvas',
@@ -4037,9 +4039,11 @@ function expandAgentToolsList(rawTools, includeAllByDefault = true) {
     }
     return [
       'web_search',
+      'web_scraper_live',
       'file_search',
       'google_antigravity',
       'google_flow',
+      'wappy_notebooklm',
       'canvas',
       'wappy_renderizar_widget_interactivo',
       'wappy_memoria_procedimental',
@@ -4067,6 +4071,7 @@ function expandAgentToolsList(rawTools, includeAllByDefault = true) {
       ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
     } else if (lower === 'notebooklm' || lower === 'google_notebooklm') {
       ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
+      expanded.add('wappy_notebooklm');
     } else if (lower === 'google' || lower === 'google_suite') {
       ALL_GOOGLE_AGENT_TOOLS.forEach((t) => expanded.add(t));
       ALL_NOTEBOOKLM_MCP_TOOLS.forEach((t) => expanded.add(t));
@@ -4076,6 +4081,8 @@ function expandAgentToolsList(rawTools, includeAllByDefault = true) {
       expanded.add('google_antigravity');
     } else if (lower === 'flow') {
       expanded.add('google_flow');
+    } else if (lower === 'scraper' || lower === 'web_scraper' || lower === 'web_scraping') {
+      expanded.add('web_scraper_live');
     } else {
       expanded.add(String(item).trim());
     }

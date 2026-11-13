@@ -492,9 +492,9 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
 - Si el usuario solicita que el aplicativo esté conectado a la IA, tenga asistente virtual, copilot, chat inteligente o interactúe con la información del aplicativo:
   1. Inyecta el botón flotante lanzador (\`#wappy-ai-toggle-btn\` en la esquina inferior derecha con badge y botón circular gradiente) y el drawer lateral/inferior responsive (\`#wappy-ai-chat-container\`, clase \`w-full sm:w-[420px] fixed bottom-0 right-0 sm:bottom-6 sm:right-6\`).
   2. Incluye el selector de modelos (\`#wappy-ai-model-select\`) con los modelos oficiales de WAPPY:
+     - \`gemini-3.5-flash-lite\` (Ultra Velocidad y Baja Latencia)
      - \`gemini-3.6-flash\` (Predeterminado - Potente y Equilibrado SST)
-     - \`gemini-3.5-flash\` (Alta Velocidad)
-     - \`gemini-3.5-flash-lite\` (Ultra Ligero)
+     - \`gemini-3.8-flash\` (Avanzado y Análisis Profundo)
   3. Contexto Dinámico (\`getAppCurrentContext()\`): El aplicativo debe recolectar en tiempo real los datos en pantalla (Razón Social, NIT, indicadores visibles de \`.metric-card\` o \`[data-metric]\`, filas de la tabla de datos o Google Sheets, filtros activos) y enviarlos en el payload como \`context\`.
   4. Petición al Backend: Realiza llamadas fetch autenticadas a \`/api/sgsst/canvas/app-builder/generate\` (o \`/api/sgsst/canvas/ai-chat\`) con \`credentials: 'include'\`, pasando \`{ model, userInput, context, history }\`.
   5. Capacidades del Chat: El usuario puede consultar cálculos, pedir diagnósticos SST, recomendaciones normativas (Dec. 1072, Res. 0312, PESV), resumir hallazgos o simular escenarios sobre los datos cargados en el aplicativo.
@@ -564,14 +564,35 @@ Si el usuario te pregunta qué empresa tiene activa o registrada, debes responde
     try {
       const hasNotebookLMTool = (this.options.agent?.tools || []).some((t) => {
         const toolName = typeof t === 'string' ? t : (t?.name || '');
-        return toolName.includes('_mcp_notebooklm');
+        return toolName.includes('_mcp_notebooklm') || toolName === 'wappy_notebooklm';
       });
 
       if (hasNotebookLMTool && !isPublicChat && targetUserId) {
         const mongoose = require('mongoose');
         const NotebookSession =
           mongoose.models.NotebookSession || require('~/models/NotebookSession');
-        const nbSession = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+        const explicitCompanyId =
+          this.options.req?.companyId ||
+          this.options.req?.body?.companyId ||
+          (this.options.req?.user?.isSubUser && this.options.req?.user?.assignedCompany
+            ? this.options.req.user.assignedCompany
+            : null);
+        const { resolveActiveCompanyId, findSessionForCompany } = require('~/server/routes/notebooklm');
+        const resolvedCompanyId =
+          typeof resolveActiveCompanyId === 'function'
+            ? await resolveActiveCompanyId(targetUserId, explicitCompanyId).catch(() => explicitCompanyId)
+            : explicitCompanyId;
+        const nbSession =
+          typeof findSessionForCompany === 'function'
+            ? await findSessionForCompany(NotebookSession, targetUserId, resolvedCompanyId).catch(() => null)
+            : await NotebookSession.findOne(
+                resolvedCompanyId
+                  ? { user: targetUserId, $or: [{ companyId: resolvedCompanyId }, { companyId: null }] }
+                  : { user: targetUserId, $or: [{ companyId: null }, { companyId: { $exists: false } }] },
+              )
+                .sort({ companyId: -1, updatedAt: -1 })
+                .lean()
+                .catch(() => null);
 
         if (nbSession && Array.isArray(nbSession.cookies) && nbSession.cookies.length > 0) {
           const sessionOverrideNotebooks =
@@ -1687,10 +1708,10 @@ ${availablePreview}
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite';
+      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash';
 
       if (isPublicChat) {
-        defaultModels = 'gemini-3.5-flash-lite,gemini-3.5-flash';
+        defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash';
       }
 
       const envAgentModels = (process.env.GOOGLE_MODELS || defaultModels)
@@ -1763,22 +1784,22 @@ ${availablePreview}
 
       if (isPublicChat) {
         primaryAgentModel = 'gemini-3.5-flash-lite';
-        rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
+        rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
       } else if (userExplicitModel && userExplicitModel !== 'default' && userExplicitModel !== '') {
-        primaryAgentModel = (userExplicitModel === 'gemini-3.7-flash' || userExplicitModel === 'gemini-3.8-flash') ? 'gemini-3.6-flash' : userExplicitModel;
+        primaryAgentModel = userExplicitModel === 'gemini-3.7-flash' ? 'gemini-3.6-flash' : userExplicitModel;
         rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
       } else if (isCanvasTask) {
         // Arquitectura de Dos Modelos (Copia 3): Agente orquestador rápido (gemini-3.5-flash-lite) + CanvasTool potente
         // gemini-3.5-flash-lite no entra en bucle de pensamientos: ejecuta de inmediato la tool call de Canvas
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
         // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
-        const matrixModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
-        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7') || primaryAgentModel.includes('gemini-3.8')) {
+        const matrixModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+        if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7')) {
           primaryAgentModel = 'gemini-3.6-flash';
         }
         rawFallbacks = [primaryAgentModel, ...matrixModels.filter((m) => m !== primaryAgentModel)];
@@ -1789,11 +1810,11 @@ ${availablePreview}
         if (hasWebSearchIntent) {
           // gemini-3.5-flash-lite no entra en bucle de pensamientos tras ejecutar tools: ejecuta web_search y responde de inmediato con alta calidad y 500 RPD
           primaryAgentModel = 'gemini-3.5-flash-lite';
-          rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+          rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
           logger.info(`[WAPPY Brain Router] [BÚSQUEDA WEB] Tarea con búsqueda web detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, sin bucles de pensamiento)`);
         } else {
-          const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
-          if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7') || primaryAgentModel.includes('gemini-3.8')) {
+          const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+          if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7')) {
             primaryAgentModel = 'gemini-3.5-flash-lite';
           }
           rawFallbacks = [primaryAgentModel, ...operationalModels.filter((m) => m !== primaryAgentModel)];
@@ -2382,7 +2403,8 @@ ${availablePreview}
 
             const synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPrompt, {
               fastFallback: false,
-              generationConfig: { maxOutputTokens: 65536, temperature: 0.3 }
+              timeoutMs: 12000,
+              generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
             });
 
             if (synthResult?.response) {

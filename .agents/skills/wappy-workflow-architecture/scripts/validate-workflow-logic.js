@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Validador Determinista de Coherencia Lógica, Topológica DAG y Arquitectura n8n (AI Agent + Tools)
- * Verifica uno por uno los 15 Flujos Maestros Curados de systemWorkflowPresetsCatalog.js (o un JSON externo).
+ * Verifica uno por uno los 30 Flujos Maestros Curados de systemWorkflowPresetsCatalog.js (o un JSON externo).
  *
  * Uso:
  *   node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js
@@ -11,8 +11,16 @@
 const path = require('path');
 const fs = require('fs');
 
-const EXPECTED_CATALOG_COUNT = 15;
-const EXPECTED_CATALOG_VERSION = '2026.11.12-v58-n8n-curated-15';
+const EXPECTED_CATALOG_COUNT = 30;
+const EXPECTED_CATALOG_VERSION = '2026.11.12-v59-n8n-curated-30';
+const EXPECTED_CATEGORY_COUNTS = {
+  salud_vencimientos: 5,
+  drive_sincronizacion: 5,
+  atel_inspecciones: 6,
+  legal_cumplimiento: 5,
+  riesgos_vial_quimico: 5,
+  gerencia_auditoria: 4,
+};
 
 const ALLOWED_PRESET_CATEGORIES = new Set([
   'salud_vencimientos',
@@ -226,6 +234,10 @@ const MUTUAL_EXCLUSION_GROUPS = [
     domain: 'Compatibilidad Química SGA (MatrizCompatibilidad)',
     nodes: ['hito3_quimicos_sga', 'matriz_compatibilidad'],
   },
+  {
+    domain: 'Web Scraping Genérico en Vivo (Stage 2 vs Herramienta +)',
+    nodes: ['extract_web_scraping_agy', 'tool_web_scraping_agy'],
+  },
 ];
 
 // Extractores genéricos obsoletos de tablas locales prohibidos en `inputs[]` (se debe usar el aplicativo Hito en `agent_tool` o `source_read`)
@@ -236,9 +248,32 @@ const FORBIDDEN_GENERIC_LOCAL_TOOLS = new Set([
   'somos_sst_perfiles_cargo',
 ]);
 
+const VALID_NOTEBOOKLM_ACTIONS = new Set([
+  'query',
+  'add_source',
+  'generate_infographic',
+  'generate_slides',
+  'generate_report',
+  'generate_audio',
+  'generate_video',
+  'generate_mind_map',
+  'generate_study_guide',
+]);
+const VALID_FLOW_ACTIONS = new Set(['generate_image', 'generate_video']);
+const VALID_FLOW_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:5', '3:4']);
+const VALID_SCRAPER_ENGINES = new Set([
+  'auto',
+  'cheerio',
+  'playwright',
+  'chrome_mcp',
+  'chrome_devtools_mcp',
+  'python',
+  'node',
+]);
+
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
 const INTERNAL_CODE_IDENTIFIERS_REGEX =
-  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|hito\d+_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_agent|post_agent|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
+  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_agent|post_agent|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
 
 function getHitoConfig(nodeConfigs, hitoId) {
   if (!nodeConfigs || typeof nodeConfigs !== 'object') return {};
@@ -625,7 +660,7 @@ function validateSingleWorkflow(preset, index = 0) {
     );
   }
 
-  // Invariante 13: Coherencia de Memorias
+  // Invariante 13: Coherencia de Memorias y Validación de Google NotebookLM, Google Flow y Web Scrapers
   for (const m of memories) {
     if (!VALID_MEMORIES.has(m)) {
       errors.push(`[Inv-13] Nodo de memoria desconocido: "${m}".`);
@@ -635,14 +670,80 @@ function validateSingleWorkflow(preset, index = 0) {
     errors.push('[Inv-13] Memorias duplicadas en `memories[]`.');
   }
 
+  if (inputs.includes('notebooklm')) {
+    const nbCfg = nodeConfigs.tool_inputs_notebooklm || nodeConfigs.notebooklm || {};
+    if (!VALID_NOTEBOOKLM_ACTIONS.has(nbCfg.notebookAction)) {
+      errors.push(
+        `[Inv-17] El nodo \`notebooklm\` debe declarar \`notebookAction\` válido (${Array.from(VALID_NOTEBOOKLM_ACTIONS).join(', ')}).`,
+      );
+    }
+    if (!nbCfg.notebookPrompt || String(nbCfg.notebookPrompt).trim().length < 10) {
+      errors.push(
+        '[Inv-17] El nodo `notebooklm` debe definir `notebookPrompt` descriptivo (>= 10 caracteres).',
+      );
+    }
+    if (!memories.includes('wappy_rag_documental')) {
+      errors.push(
+        '[Inv-17] Todo flujo que conecta `notebooklm` en Herramienta + debe activar la memoria `wappy_rag_documental`.',
+      );
+    }
+  }
+
+  if (inputs.includes('google_flow')) {
+    const flowCfg = nodeConfigs.tool_inputs_google_flow || nodeConfigs.google_flow || {};
+    if (!VALID_FLOW_ACTIONS.has(flowCfg.flowAction)) {
+      errors.push(
+        `[Inv-18] El nodo \`google_flow\` debe declarar \`flowAction\` ("generate_image" o "generate_video").`,
+      );
+    }
+    if (!VALID_FLOW_ASPECT_RATIOS.has(flowCfg.flowAspectRatio)) {
+      errors.push(
+        `[Inv-18] El nodo \`google_flow\` debe declarar \`flowAspectRatio\` válido (${Array.from(VALID_FLOW_ASPECT_RATIOS).join(', ')}).`,
+      );
+    }
+    if (!flowCfg.flowPrompt || String(flowCfg.flowPrompt).trim().length < 10) {
+      errors.push(
+        '[Inv-18] El nodo `google_flow` debe definir `flowPrompt` visual explícito (>= 10 caracteres).',
+      );
+    }
+  }
+
+  for (const wsId of ['extract_web_scraping_agy', 'tool_web_scraping_agy', 'scraper_node_antigravity', 'web_scraper']) {
+    if (extractors.includes(wsId) || inputs.includes(wsId)) {
+      const wsCfg =
+        nodeConfigs[`extractor_${wsId}`] ||
+        nodeConfigs[`tool_inputs_${wsId}`] ||
+        nodeConfigs[wsId] ||
+        {};
+      if (!wsCfg.targetUrl || !/https?:\/\//i.test(String(wsCfg.targetUrl))) {
+        errors.push(
+          `[Inv-19] El nodo scraper "${wsId}" requiere \`targetUrl\` válido con protocolo http/https.`,
+        );
+      }
+      if (!VALID_SCRAPER_ENGINES.has(String(wsCfg.scriptEngine || ''))) {
+        errors.push(
+          `[Inv-19] El nodo scraper "${wsId}" debe declarar \`scriptEngine\` válido (${Array.from(VALID_SCRAPER_ENGINES).join(', ')}).`,
+        );
+      }
+      if (wsId === 'extract_web_scraping_agy' && ifPlacement === 'pre_agent' && !memories.includes('wappy_memory_antiduplicate')) {
+        errors.push(
+          '[Inv-19] Un flujo con `extract_web_scraping_agy` + `pre_agent` debe incluir `wappy_memory_antiduplicate` para control SHA-256.',
+        );
+      }
+    }
+  }
+
   // Invariante 14: Cero fuga de identificadores internos de código en textos visibles al usuario
   const promptStr = String(preset.prompt || '');
+  const ifConditionLabelStr = String((nodeConfigs.if_router || nodeConfigs.if_condition || {}).ifConditionLabel || '');
   const textSurfaces = [
     { surface: 'name', text: String(preset.name || '') },
     {
       surface: 'presetDescription',
       text: String(preset.presetDescription || preset.description || ''),
     },
+    ...(preset.notes ? [{ surface: 'notes', text: String(preset.notes) }] : []),
+    ...(ifConditionLabelStr ? [{ surface: 'if_router.ifConditionLabel', text: ifConditionLabelStr }] : []),
     { surface: 'prompt', text: promptStr },
   ];
   for (const [cfgKey, cfgObj] of Object.entries(nodeConfigs)) {
@@ -772,6 +873,20 @@ function main() {
       catalogGlobalErrors.push(
         `[Catálogo] Se exigen exactamente ${EXPECTED_CATALOG_COUNT} flujos maestros curados (actual: ${workflows.length}).`,
       );
+    }
+    const actualCatCounts = {};
+    for (const w of workflows) {
+      if (w?.presetCategory) {
+        actualCatCounts[w.presetCategory] = (actualCatCounts[w.presetCategory] || 0) + 1;
+      }
+    }
+    for (const [cat, expectedCnt] of Object.entries(EXPECTED_CATEGORY_COUNTS)) {
+      const gotCnt = actualCatCounts[cat] || 0;
+      if (gotCnt !== expectedCnt) {
+        catalogGlobalErrors.push(
+          `[Catálogo] Categoría "${cat}" exige ${expectedCnt} flujo(s) (actual: ${gotCnt}).`,
+        );
+      }
     }
     const seenKeys = new Set();
     const seenNames = new Set();

@@ -3,25 +3,27 @@
  * Suite Oficial de Pruebas Lógicas Multi-Escenario — WAPPY Workflow Architecture (DAG estilo n8n)
  *
  * Verifica matemáticamente y contra MongoDB real (con aislamiento efímero y limpieza 100% garantizada):
- *   BLOQUE 1: Invariantes Estáticos, Topológicos y Paridad Frontend/Backend en los 55 Presets Oficiales.
+ *   BLOQUE 1: Invariantes Estáticos, Topológicos y Paridad Frontend/Backend en los 30 Presets Curados.
  *   BLOQUE 2: Pruebas Unitarias Adversarias de Compuertas Condicionales (`pre_agent` vs `post_agent`,
  *             inmunidad a negaciones en español y matemática de ventana temprana `<= 30 días`).
- *   BLOQUE 3: Máquina de Estados E2E en MongoDB Real (Arquetipo 1: `preset_vencimientos_emo_epp`):
+ *   BLOQUE 3: Máquina de Estados E2E en MongoDB Real (Arquetipo 1: `preset_vencimientos_emo_alturas`):
  *             - Escenario 3A: Empresa 100% al día (5 trabajadores vigentes) -> Rama NO, 0 llamadas LLM (`llmSpy === 0`),
  *                             0 KanbanTask, Sandbox `agent_root` = `skipped`.
  *             - Escenario 3B: 1ª Brecha Real (CC 99887766 EMO vencido) + Llamada Real a Gemini (`gemini-3.5-flash-lite`) ->
- *                             Extracción quirúrgica (`critical_only` omite los 4 sanos), Rama SÍ, guarda llave
+ *                             Extracción quirúrgica (`critical_only` omite los sanos), Rama SÍ, guarda llave
  *                             `hito2_perfil_socio:99887766` en `AutomationLog.processedEntityKeys`, crea 1 KanbanTask.
  *             - Escenario 3C: Re-ejecución inmediata sin cambios (Anti-Duplicados con Estado) ->
  *                             Omite `hito2_perfil_socio:99887766`, Rama NO, 0 llamadas LLM (`llmSpy` sin incremento),
  *                             0 KanbanTask duplicadas (sigue exactamente en 1).
- *             - Escenario 3D: 2ª Brecha Incremental (CC 55443322 EMO vence en 12d <= 30d + EPP Casco vence en 10d) ->
- *                             Sigue omitiendo CC 99887766, detecta las 2 brechas nuevas de CC 55443322, Rama SÍ,
+ *             - Escenario 3D: 2ª Brecha Incremental (CC 55443322 EMO vence en 12d <= 30d + Alturas vencido) ->
+ *                             Sigue omitiendo CC 99887766, detecta la brecha nueva de CC 55443322, Rama SÍ,
  *                             idempotencia de KanbanTask actualiza la tarjeta abierta en vez de duplicarla (`count === 1`).
- *   BLOQUE 4: Arquetipo 2 (`preset_drive_furat_investigacion_correo` — 0 archivos nuevos en Drive) ->
- *             Rama NO, `llmSpy === 0`, Hito destino (`hito7_investigacion_atel` · `target_write_report`) JAMÁS se invoca.
+ *   BLOQUE 4: Arquetipo 2 (`preset_drive_furat_investigacion_atel` — 0 archivos nuevos en Drive) ->
+ *             Rama NO, `llmSpy === 0`, Hito conectado en Herramienta + (`hito7_investigacion_atel` · `agent_tool`) JAMÁS se invoca.
  *   BLOQUE 5: Arquetipo 3 (`preset_triage_qr_actos_condiciones` — `post_agent` Triage Menor `[VEREDICTO_IF: NO]` vs
  *             Peligro Grave `[VEREDICTO_IF: SI]`) y Arquetipo 4 (`logic_human_approval` -> `status: 'awaiting_approval'`).
+ *   BLOQUE 7: Fidelidad Multi-Dominio EMO + Curso Alturas + EPP + Merge sin pérdida.
+ *   BLOQUE 8: Resolución de Tools (`wappy_notebooklm`, `web_scraper_live`, `google_flow`), SHA-256 `pre_agent`, normalización URL y Presets #16–#30.
  */
 
 const buf = require('buffer');
@@ -64,6 +66,8 @@ const {
   loadProcessedEntityKeysForAutomation,
   evaluatePreAgentDeterministicIf,
   evaluatePostAgentSemanticIf,
+  resolveRequiredToolsForWorkflow,
+  normalizeGeneratedArtifactUrls,
 } = require('~/server/services/automationScheduler');
 const { callSgsstGemini } = require('~/server/routes/sgsst/sgsstGemini');
 const { validateSingleWorkflow } = require('./validate-workflow-logic');
@@ -85,13 +89,16 @@ function formatOffsetDateYmd(offsetDays) {
 function simulateFrontendResolveCanvasHitoRole(nodeConfigs = {}, rawHitoId = '') {
   const cleanId = String(rawHitoId || '').trim();
   if (!cleanId) return 'source_read';
-  const cfg =
-    nodeConfigs[`tool_hitos_${cleanId}`] ||
-    nodeConfigs[`hito_${cleanId}`] ||
-    nodeConfigs[cleanId] ||
-    {};
-  if (cfg.hitoRole === 'source_read' || cfg.hitoRole === 'target_write_report') {
-    return cfg.hitoRole;
+  const cfg = {
+    ...(nodeConfigs[cleanId] || {}),
+    ...(nodeConfigs[`hito_${cleanId}`] || {}),
+    ...(nodeConfigs[`tool_hitos_${cleanId}`] || {}),
+  };
+  if (cfg.hitoRole === 'source_read') {
+    return 'source_read';
+  }
+  if (cfg.hitoRole === 'agent_tool' || cfg.hitoRole === 'target_write_report') {
+    return 'target_write_report';
   }
   if (
     cfg.generateAppReport === true ||
@@ -123,12 +130,35 @@ async function runFullLogicalTestSuite() {
   // ═════════════════════════════════════════════════════════════════════════════
   // BLOQUE 1: INVARIANTES ESTÁTICOS, TOPOLÓGICOS Y PARIDAD FRONTEND/BACKEND
   // ═════════════════════════════════════════════════════════════════════════════
-  console.log('▶ BLOQUE 1: Validación Formal DAG, Modelos .env y Paridad Frontend/Backend (55 Presets)');
+  console.log('▶ BLOQUE 1: Validación Formal DAG, Modelos .env y Paridad Frontend/Backend (30 Presets)');
 
   assert.strictEqual(
     SYSTEM_WORKFLOW_PRESETS.length,
-    55,
-    `Se esperaban exactamente 55 presets oficiales y se encontraron ${SYSTEM_WORKFLOW_PRESETS.length}`,
+    30,
+    `Se esperaban exactamente 30 presets oficiales y se encontraron ${SYSTEM_WORKFLOW_PRESETS.length}`,
+  );
+  assert.strictEqual(
+    SYSTEM_WORKFLOW_PRESETS_VERSION,
+    '2026.11.12-v59-n8n-curated-30',
+    `Versión inesperada del catálogo: ${SYSTEM_WORKFLOW_PRESETS_VERSION}`,
+  );
+
+  const expectedCategoryCounts = {
+    salud_vencimientos: 5,
+    drive_sincronizacion: 5,
+    atel_inspecciones: 6,
+    legal_cumplimiento: 5,
+    riesgos_vial_quimico: 5,
+    gerencia_auditoria: 4,
+  };
+  const actualCategoryCounts = {};
+  for (const p of SYSTEM_WORKFLOW_PRESETS) {
+    actualCategoryCounts[p.presetCategory] = (actualCategoryCounts[p.presetCategory] || 0) + 1;
+  }
+  assert.deepStrictEqual(
+    actualCategoryCounts,
+    expectedCategoryCounts,
+    `Distribución por categoría inválida: ${JSON.stringify(actualCategoryCounts)}`,
   );
 
   let totalPresetErrors = 0;
@@ -155,10 +185,16 @@ async function runFullLogicalTestSuite() {
     const nodeConfigs = wf?.canvasLayout?.nodeConfigs || {};
     for (const hId of wf.hitos || []) {
       const backendRole = resolveWorkflowHitoRole(nodeConfigs, hId);
+      assert.notStrictEqual(
+        backendRole,
+        'target_write_report',
+        `Preset curado ${preset.presetKey} usa rol deprecado target_write_report en ${hId}`,
+      );
+      const expectedFrontendRole = backendRole === 'source_read' ? 'source_read' : 'target_write_report';
       const frontendRole = simulateFrontendResolveCanvasHitoRole(nodeConfigs, hId);
       assert.strictEqual(
-        backendRole,
         frontendRole,
+        expectedFrontendRole,
         `Discrepancia de rol Hito (${hId}) en ${preset.presetKey}: backend=${backendRole} vs frontend=${frontendRole}`,
       );
       totalHitoParityChecks += 1;
@@ -167,23 +203,23 @@ async function runFullLogicalTestSuite() {
 
   assert.strictEqual(totalPresetErrors, 0, `Existen ${totalPresetErrors} errores lógicos en el catálogo`);
   assert.strictEqual(totalPresetWarnings, 0, `Existen ${totalPresetWarnings} advertencias en el catálogo`);
-  const preset1Check = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_vencimientos_emo_epp');
-  assert.strictEqual(preset1Check?.agentTargetName, 'Consultor SG-SST');
+  const preset1Check = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_vencimientos_emo_alturas');
+  assert.strictEqual(preset1Check?.agentTargetName, 'Médico Laboral');
   assert.ok(
     !preset1Check?.workflowNodes?.hitos?.includes('hito3_alturas'),
-    'preset_vencimientos_emo_epp NO debe conectar hito3_alturas (Permiso Diario en Campo)',
+    'preset_vencimientos_emo_alturas NO debe conectar hito3_alturas (Permiso Diario en Campo)',
   );
   recordAssertion(
     'BLOQUE_1',
     'B1.1',
-    '55/55 Presets superan las 17 leyes formales (14 DAG + Reglas 15, 16 y 17 de Fidelidad de Dominio 8 Hitos) sin errores ni avisos',
-    `errores=0, avisos=0`,
+    '30/30 Presets superan las 19 leyes formales DAG + NotebookLM/Flow/Scrapers sin errores ni avisos',
+    `errores=0, avisos=0, version=${SYSTEM_WORKFLOW_PRESETS_VERSION}`,
   );
   recordAssertion(
     'BLOQUE_1',
     'B1.2',
     'Paridad 100% exacta entre Frontend (resolveCanvasHitoRole) y Backend (resolveWorkflowHitoRole)',
-    `${totalHitoParityChecks} nodos Hito verificados con 0 discrepancias`,
+    `${totalHitoParityChecks} nodos Hito verificados con 0 discrepancias (source_read vs agent_tool)`,
   );
 
   const canvasTsxSource = fs.readFileSync(
@@ -193,14 +229,14 @@ async function runFullLogicalTestSuite() {
   assert.ok(
     canvasTsxSource.includes('export function resolveCanvasHitoRole') &&
       canvasTsxSource.includes('sourceHitosList') &&
-      canvasTsxSource.includes('targetHitosList') &&
+      canvasTsxSource.includes('agentToolHitosList') &&
       canvasTsxSource.includes("ifPlacement === 'pre_agent'"),
-    'WappyWorkflowCanvas.tsx debe contener separación sourceHitosList vs targetHitosList e ifPlacement === pre_agent',
+    'WappyWorkflowCanvas.tsx debe contener separación sourceHitosList vs agentToolHitosList e ifPlacement === pre_agent',
   );
   recordAssertion(
     'BLOQUE_1',
     'B1.3',
-    'Lienzo React (WappyWorkflowCanvas.tsx) implementa separación espacial Izquierda (source_read) vs Derecha (target_write_report) y pre_agent vs post_agent',
+    'Lienzo React (WappyWorkflowCanvas.tsx) implementa separación espacial Izquierda (source_read) vs Clúster Herramienta + (agent_tool) y pre_agent vs post_agent',
   );
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -398,12 +434,12 @@ async function runFullLogicalTestSuite() {
     );
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BLOQUE 3: MÁQUINA DE ESTADOS E2E EN MONGODB REAL (`preset_vencimientos_emo_epp`)
+    // BLOQUE 3: MÁQUINA DE ESTADOS E2E EN MONGODB REAL (`preset_vencimientos_emo_alturas`)
     // ═══════════════════════════════════════════════════════════════════════════
-    console.log('\n▶ BLOQUE 3: Máquina de Estados E2E en MongoDB Real — Arquetipo 1 (`preset_vencimientos_emo_epp`)');
+    console.log('\n▶ BLOQUE 3: Máquina de Estados E2E en MongoDB Real — Arquetipo 1 (`preset_vencimientos_emo_alturas`)');
 
-    const emoPreset = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_vencimientos_emo_epp');
-    assert.ok(emoPreset, 'Debe existir preset_vencimientos_emo_epp en el catálogo');
+    const emoPreset = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_vencimientos_emo_alturas');
+    assert.ok(emoPreset, 'Debe existir preset_vencimientos_emo_alturas en el catálogo');
 
     // Sembrar 5 trabajadores activos 100% vigentes + EPP vigentes + Permiso Alturas vigente
     await PerfilSociodemograficoData.findOneAndUpdate(
@@ -507,8 +543,8 @@ async function runFullLogicalTestSuite() {
       ],
     });
 
-    // Instanciar automatización real en MongoDB clonando `preset_vencimientos_emo_epp`
-    // Quitamos salidas externas de red (email/calendar) o usamos destinatario vacío para evaluar exactamente Kanban vs Notificación WAPPY
+    // Instanciar automatización real en MongoDB clonando `preset_vencimientos_emo_alturas`
+    // Quitamos salidas externas de red (email/calendar) para evaluar exactamente Kanban vs Notificación WAPPY
     const emoWorkflowNodes = JSON.parse(JSON.stringify(emoPreset.workflowNodes));
     emoWorkflowNodes.outputs = ['acpm_task', 'wappy_notification'];
     emoWorkflowNodes.canvasLayout.nodeConfigs.out_acpm_task = {
@@ -523,9 +559,9 @@ async function runFullLogicalTestSuite() {
     const emoAutomation = await Automation.create({
       user: testUserId,
       companyId: testCompanyIdStr,
-      name: '[TEST SUITE] Alerta Temprana Vencimientos EMO, Alturas y EPP',
-      agentId: emoPreset.agentId || 'agent_consultor_sg_sst',
-      agentName: emoPreset.agentName || emoPreset.agentTargetName || 'Consultor SG-SST',
+      name: '[TEST SUITE] Vigilancia EMO y Certificados de Alturas por Vencer',
+      agentId: emoPreset.agentId || 'medico_laboral',
+      agentName: emoPreset.agentName || emoPreset.agentTargetName || 'Médico Laboral',
       prompt: emoPreset.prompt,
       scheduleType: 'daily',
       scheduleConfig: { time: '07:00', timezone: 'America/Bogota' },
@@ -725,21 +761,14 @@ async function runFullLogicalTestSuite() {
     );
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ESCENARIO 3D: 2ª BRECHA INCREMENTAL (CC 55443322 EMO <=30d + EPP <=30d)
+    // ESCENARIO 3D: 2ª BRECHA INCREMENTAL (CC 55443322 EMO <=30d + Alturas vencido)
     // ─────────────────────────────────────────────────────────────────────────
     await PerfilSociodemograficoData.updateOne(
       { companyId: testCompanyIdStr, 'trabajadores.identificacion': '55443322' },
       {
         $set: {
           'trabajadores.$.fechaProximoExamen': formatOffsetDateYmd(12), // Vence en 12 días (<= 30d)
-        },
-      },
-    );
-    await SgsstEppData.updateOne(
-      { companyId: testCompanyDoc._id, documento: '55443322' },
-      {
-        $set: {
-          'entregas.0.fechaVencimiento': formatOffsetDateYmd(10), // Casco vence en 10 días (<= 30d)
+          'trabajadores.$.fechaCursoAlturasAutorizado': formatOffsetDateYmd(-380), // Alturas vencido (> 365d)
         },
       },
     );
@@ -753,8 +782,8 @@ async function runFullLogicalTestSuite() {
         return {
           text:
             `### Nueva Alerta Preventiva Incremental (Ventana <= 30 Días)\n` +
-            `- **Trabajadora:** Laura Operativa Alturas (CC 55443322) — EMO vence en 12 días y Casco Dieléctrico Tipo II vence en 10 días.\n` +
-            `- **Acción:** Programar renovación de EMO y reposición inmediata de casco antes del vencimiento.`,
+            `- **Trabajadora:** Laura Operativa Alturas (CC 55443322) — EMO vence en 12 días y Certificado Alturas vencido.\n` +
+            `- **Acción:** Programar renovación de EMO y reentrenamiento inmediato en alturas.`,
         };
       },
     });
@@ -775,11 +804,10 @@ async function runFullLogicalTestSuite() {
     );
     assert.strictEqual(log3D?.executionTrace?.activeBranch, 'yes');
     assert.strictEqual(log3D?.executionTrace?.deduplicatedCount, 1, 'Carlos sigue contabilizado como omitido por anti-duplicados');
-    assert.strictEqual(log3D?.executionTrace?.freshCriticalCount, 2, 'Laura aporta 2 brechas nuevas (EMO <=30d + Casco EPP <=30d)');
+    assert.strictEqual(log3D?.executionTrace?.freshCriticalCount, 1, 'Laura aporta la brecha incremental nueva (EMO <=30d + Alturas)');
     assert.ok(
-      log3D?.processedEntityKeys.includes('hito2_perfil_socio:55443322') &&
-        log3D?.processedEntityKeys.some((k) => k.startsWith('hito3_epp:55443322:')),
-      `Debe persistir las llaves de EMO y EPP de 55443322, obtenido: ${JSON.stringify(log3D?.processedEntityKeys)}`,
+      log3D?.processedEntityKeys.includes('hito2_perfil_socio:55443322'),
+      `Debe persistir la llave de EMO/Alturas de 55443322, obtenido: ${JSON.stringify(log3D?.processedEntityKeys)}`,
     );
     assert.strictEqual(
       kanbanTasks3D.length,
@@ -794,26 +822,26 @@ async function runFullLogicalTestSuite() {
     recordAssertion(
       'BLOQUE_3',
       'B3.D',
-      'Escenario 3D (Brecha Incremental CC 55443322 EMO+EPP <=30d): Omite a CC 99887766, procesa solo a CC 55443322, y actualiza idempotentemente la misma KanbanTask abierta (count=1)',
-      `freshCritical=2, deduplicated=1, keys=${JSON.stringify(log3D.processedEntityKeys)}`,
+      'Escenario 3D (Brecha Incremental CC 55443322 EMO <=30d + Alturas): Omite a CC 99887766, procesa solo a CC 55443322 y actualiza idempotentemente la misma KanbanTask abierta (count=1)',
+      `freshCritical=1, deduplicated=1, keys=${JSON.stringify(log3D.processedEntityKeys)}`,
     );
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BLOQUE 4: ARQUETIPO 2 (`preset_drive_furat_investigacion_correo` — 0 ARCHIVOS NUEVOS)
+    // BLOQUE 4: ARQUETIPO 2 (`preset_drive_furat_investigacion_atel` — 0 ARCHIVOS NUEVOS)
     // ═══════════════════════════════════════════════════════════════════════════
     console.log('\n▶ BLOQUE 4: Arquetipo 2 — Ingesta Documental Drive FURAT (`0` Archivos Nuevos -> Rama NO)');
 
     const drivePreset = SYSTEM_WORKFLOW_PRESETS.find(
-      (p) => p.presetKey === 'preset_drive_furat_investigacion_correo',
+      (p) => p.presetKey === 'preset_drive_furat_investigacion_atel',
     );
-    assert.ok(drivePreset, 'Debe existir preset_drive_furat_investigacion_correo');
+    assert.ok(drivePreset, 'Debe existir preset_drive_furat_investigacion_atel');
 
-    // Verificar estáticamente que hito7_investigacion_atel es target_write_report (derecha del Agente)
+    // Verificar estáticamente que hito7_investigacion_atel tiene rol agent_tool (Herramienta + del Agente IA)
     const driveNodeConfigs = drivePreset.workflowNodes?.canvasLayout?.nodeConfigs || {};
     assert.strictEqual(
       resolveWorkflowHitoRole(driveNodeConfigs, 'hito7_investigacion_atel'),
-      'target_write_report',
-      'En preset_drive_furat_investigacion_correo, hito7_investigacion_atel DEBE tener hitoRole=target_write_report',
+      'agent_tool',
+      'En preset_drive_furat_investigacion_atel, hito7_investigacion_atel DEBE tener hitoRole=agent_tool',
     );
 
     const driveAuto = await Automation.create({
@@ -846,14 +874,14 @@ async function runFullLogicalTestSuite() {
     assert.strictEqual(
       log4A?.executionTrace?.officialReportsAttached || 0,
       0,
-      'hito7_investigacion_atel (target_write_report) JAMÁS debe invocarse cuando Rama NO está activa',
+      'hito7_investigacion_atel (agent_tool) JAMÁS debe invocarse cuando Rama NO está activa',
     );
     assert.deepStrictEqual(log4A?.executionTrace?.executedOutputs, ['wappy_notification']);
 
     recordAssertion(
       'BLOQUE_4',
       'B4.A',
-      'Arquetipo 2 (FURAT Drive con 0 archivos nuevos): Cortocircuita en pre_agent -> Rama NO (0 tokens IA) y omite hito7_investigacion_atel (target_write_report)',
+      'Arquetipo 2 (FURAT Drive con 0 archivos nuevos): Cortocircuita en pre_agent -> Rama NO (0 tokens IA) y omite hito7_investigacion_atel (agent_tool)',
     );
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -862,9 +890,9 @@ async function runFullLogicalTestSuite() {
     console.log('\n▶ BLOQUE 5: Arquetipo 3 (`post_agent` Triage Semántico QR) y Arquetipo 4 (`logic_human_approval`)');
 
     const qrPreset = SYSTEM_WORKFLOW_PRESETS.find(
-      (p) => p.presetKey === 'preset_qr_actos_condiciones_cierre_acpm',
+      (p) => p.presetKey === 'preset_triage_qr_actos_condiciones',
     );
-    assert.ok(qrPreset, 'Debe existir preset_qr_actos_condiciones_cierre_acpm');
+    assert.ok(qrPreset, 'Debe existir preset_triage_qr_actos_condiciones');
 
     const qrWfNodes = JSON.parse(JSON.stringify(qrPreset.workflowNodes));
     qrWfNodes.outputs = ['acpm_task', 'wappy_notification'];
@@ -1245,18 +1273,34 @@ async function runFullLogicalTestSuite() {
       'Caso 2 (CC 70000002): EMO vigente (+200d) + fechaCursoAlturasAutorizado hace 380d entra con aplicaCursoAlturas="Sí aplica" y Curso Alturas Autorizado VENCIDO',
     );
 
-    // Ejecutar la automatización completa clonada de `preset_vencimientos_emo_epp` para verificar Casos 3, 4 y 5 extremo a extremo
+    // Ejecutar automatización multi-fuente (Hito 2 + Hito 5 EPP + Merge) para verificar Casos 3, 4 y 5 extremo a extremo
+    const eppPreset = SYSTEM_WORKFLOW_PRESETS.find((p) => p.presetKey === 'preset_control_entregas_epp');
+    assert.ok(eppPreset, 'Debe existir preset_control_entregas_epp en el catálogo');
     const block7WfNodes = JSON.parse(JSON.stringify(emoPreset.workflowNodes));
+    block7WfNodes.hitos = ['hito2_perfil_socio', 'hito3_epp'];
     block7WfNodes.outputs = ['acpm_task', 'wappy_notification'];
-    block7WfNodes.canvasLayout.nodeConfigs.out_acpm_task = { ifBranch: 'yes' };
-    block7WfNodes.canvasLayout.nodeConfigs.out_wappy_notification = { ifBranch: 'no' };
+    block7WfNodes.canvasLayout.nodeConfigs = {
+      ...block7WfNodes.canvasLayout.nodeConfigs,
+      hito3_epp: { ...(eppPreset.workflowNodes.canvasLayout.nodeConfigs.hito3_epp || {}) },
+      tool_hitos_hito3_epp: { ...(eppPreset.workflowNodes.canvasLayout.nodeConfigs.tool_hitos_hito3_epp || {}) },
+      out_acpm_task: { ifBranch: 'yes' },
+      out_wappy_notification: { ifBranch: 'no' },
+    };
+    block7WfNodes.canvasLayout.logicNodes = [
+      {
+        key: 'logic_merge_b7',
+        logicType: 'merge',
+        title: 'Consolidar EMO + EPP',
+        subtitle: 'Cruce por Cédula',
+      },
+    ];
 
     const block7Auto = await Automation.create({
       user: testUserId,
       companyId: testCompanyIdStr,
       name: '[TEST SUITE B7] Auditoría Multi-Dominio EMO + Alturas + EPP',
-      agentId: 'agent_consultor_sg_sst',
-      agentName: 'Consultor SG-SST',
+      agentId: emoPreset.agentId || 'medico_laboral',
+      agentName: emoPreset.agentName || emoPreset.agentTargetName || 'Médico Laboral',
       prompt: emoPreset.prompt,
       scheduleType: 'daily',
       scheduleConfig: { time: '07:00', timezone: 'America/Bogota' },
@@ -1378,6 +1422,165 @@ async function runFullLogicalTestSuite() {
     }
     await mongoose.disconnect();
   }
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // BLOQUE 8: CONTRATOS DE NOTEBOOKLM, GOOGLE FLOW, WEB SCRAPING SHA-256 Y URLS
+  // ═════════════════════════════════════════════════════════════════════════════
+  console.log('\n▶ BLOQUE 8: Herramientas NotebookLM / Google Flow / Web Scraping Live, SHA-256 pre_agent y Presets #16–#30');
+
+  // 8.1 Resolución exacta de herramientas para el agente
+  const nlmTools = resolveRequiredToolsForWorkflow({
+    inputs: ['notebooklm'],
+    nodeConfigs: { notebooklm: { notebookId: 'nb_123', notebookAction: 'query' } },
+  });
+  assert.ok(
+    nlmTools.includes('wappy_notebooklm'),
+    `notebooklm debe resolver 'wappy_notebooklm', obtenido: ${JSON.stringify(nlmTools)}`,
+  );
+
+  const ragAliasTools = resolveRequiredToolsForWorkflow({
+    memories: ['wappy_rag_documental'],
+  });
+  assert.ok(
+    ragAliasTools.includes('wappy_notebooklm'),
+    `wappy_rag_documental debe resolver 'wappy_notebooklm', obtenido: ${JSON.stringify(ragAliasTools)}`,
+  );
+
+  const flowTools = resolveRequiredToolsForWorkflow({
+    inputs: ['google_flow'],
+  });
+  assert.ok(
+    flowTools.includes('google_flow'),
+    `google_flow debe resolver 'google_flow', obtenido: ${JSON.stringify(flowTools)}`,
+  );
+
+  const scraperServerTools = resolveRequiredToolsForWorkflow({
+    extractors: ['extract_web_scraping_agy'],
+    nodeConfigs: { extract_web_scraping_agy: { targetUrl: 'https://www.mintrabajo.gov.co', scriptEngine: 'http_fetch' } },
+  });
+  assert.ok(
+    scraperServerTools.includes('web_scraper_live'),
+    `extract_web_scraping_agy debe resolver 'web_scraper_live', obtenido: ${JSON.stringify(scraperServerTools)}`,
+  );
+
+  const scraperChromeTools = resolveRequiredToolsForWorkflow({
+    inputs: ['tool_web_scraping_agy'],
+    nodeConfigs: { tool_web_scraping_agy: { targetUrl: 'https://www.mintrabajo.gov.co', scriptEngine: 'chrome_mcp' } },
+  });
+  assert.ok(
+    scraperChromeTools.includes('web_scraper_live') && scraperChromeTools.includes('google_antigravity'),
+    `tool_web_scraping_agy con scriptEngine='chrome_mcp' debe resolver 'web_scraper_live' + 'google_antigravity', obtenido: ${JSON.stringify(scraperChromeTools)}`,
+  );
+  recordAssertion(
+    'BLOQUE_8',
+    'B8.1',
+    'resolveRequiredToolsForWorkflow resuelve wappy_notebooklm, web_scraper_live (+ google_antigravity en chrome_mcp) y google_flow con cero duplicados',
+  );
+
+  // 8.2 Compuerta pre_agent inteligente por hash SHA-256 en Web Scraping (en new_external_items y critical_findings)
+  const scraperChangedExtEval = evaluatePreAgentDeterministicIf({
+    ifCfg: { ifPlacement: 'pre_agent', ifConditionType: 'new_external_items', ifRuleExpression: '>= 1' },
+    structuredSourceRes: { freshCriticalRecords: [], allRecords: [], totalRecords: 1 },
+    preRes: { traceMeta: { freshDriveFilesCount: 0, freshGmailMessagesCount: 0 } },
+    scraperBreachCount: 1,
+    scraperDedupSkippedCount: 0,
+  });
+  assert.strictEqual(scraperChangedExtEval.passed, true, 'Cambio SHA-256 nuevo (new_external_items) en Web Scraping debe activar Rama SÍ');
+
+  const scraperChangedCritEval = evaluatePreAgentDeterministicIf({
+    ifCfg: { ifPlacement: 'pre_agent', ifConditionType: 'critical_findings' },
+    structuredSourceRes: { freshCriticalRecords: [], allRecords: [], totalRecords: 1 },
+    preRes: { traceMeta: { freshDriveFilesCount: 0, freshGmailMessagesCount: 0 } },
+    scraperBreachCount: 1,
+    scraperDedupSkippedCount: 0,
+  });
+  assert.strictEqual(scraperChangedCritEval.passed, true, 'Cambio SHA-256 nuevo (critical_findings) en Web Scraping debe activar Rama SÍ');
+
+  const scraperSameHashEval = evaluatePreAgentDeterministicIf({
+    ifCfg: { ifPlacement: 'pre_agent', ifConditionType: 'new_external_items', ifRuleExpression: '>= 1' },
+    structuredSourceRes: { freshCriticalRecords: [], allRecords: [], totalRecords: 1 },
+    preRes: { traceMeta: { freshDriveFilesCount: 0, freshGmailMessagesCount: 0 } },
+    scraperBreachCount: 0,
+    scraperDedupSkippedCount: 1,
+  });
+  assert.strictEqual(scraperSameHashEval.passed, false, 'Hash SHA-256 repetido (deduplicado) debe cortar por Rama NO (0 tokens LLM)');
+
+  const scraperSameHashCritEval = evaluatePreAgentDeterministicIf({
+    ifCfg: { ifPlacement: 'pre_agent', ifConditionType: 'critical_findings' },
+    structuredSourceRes: { freshCriticalRecords: [], allRecords: [], totalRecords: 1 },
+    preRes: { traceMeta: { freshDriveFilesCount: 0, freshGmailMessagesCount: 0 } },
+    scraperBreachCount: 0,
+    scraperDedupSkippedCount: 1,
+  });
+  assert.strictEqual(scraperSameHashCritEval.passed, false, 'Hash SHA-256 repetido en critical_findings debe cortar por Rama NO (0 tokens LLM)');
+  recordAssertion(
+    'BLOQUE_8',
+    'B8.2',
+    'Compuerta pre_agent Web Scraping SHA-256: cambio de contenido activa Rama SÍ y página sin cambios corta por Rama NO con 0 tokens LLM',
+  );
+
+  // 8.3 Normalizador público de rutas generadas por Google Flow / NotebookLM / Scrapers
+  const rawAgentReply =
+    'Infografía generada: /images/nlm_infografia_test.png | Afiche Veo: /images/flow_afiche_test.png | Deck: /uploads/nlm_artifacts/deck_test.pdf | Evidencia: /uploads/scraper_evidences/cap_test.png | Existente: https://wappy.club/images/flow_ok.png';
+  const normalizedReply = normalizeGeneratedArtifactUrls(rawAgentReply);
+  assert.ok(
+    normalizedReply.includes('https://wappy.club/images/nlm_infografia_test.png') &&
+      normalizedReply.includes('https://wappy.club/images/flow_afiche_test.png') &&
+      normalizedReply.includes('https://wappy.club/uploads/nlm_artifacts/deck_test.pdf') &&
+      normalizedReply.includes('https://wappy.club/uploads/scraper_evidences/cap_test.png') &&
+      !normalizedReply.includes('https://wappy.clubhttps://wappy.club'),
+    `normalizeGeneratedArtifactUrls no normalizó correctamente: ${normalizedReply}`,
+  );
+  recordAssertion(
+    'BLOQUE_8',
+    'B8.3',
+    'normalizeGeneratedArtifactUrls normaliza rutas /images/flow_*, /images/nlm_*, /uploads/nlm_artifacts/* y /uploads/scraper_evidences/* a https://wappy.club/... sin duplicar dominio',
+  );
+
+  // 8.4 Presets #16-#30 activos y resolución end-to-end de sus herramientas
+  const expectedNewKeys = [
+    'preset_scraping_arl_afiliacion_cedulas',
+    'preset_campana_audiovisual_salud_ergonomia',
+    'preset_carpeta_pc_notebooklm_gestion_cambio',
+    'preset_drive_manuales_notebooklm_flow_lms',
+    'preset_scraping_alturas_mintrabajo_sena',
+    'preset_scraping_antecedentes_contratistas',
+    'preset_leccion_aprendida_atel_notebooklm_flow',
+    'preset_web_scraping_mintrabajo_diario_matriz_legal',
+    'preset_web_scraping_jurisprudencia_sst_notebooklm',
+    'preset_auditoria_cruzada_politica_emergencias_notebooklm',
+    'preset_scraping_simit_runt_conductores_pesv',
+    'preset_scraping_fichas_sga_afiche_pictogramas_flow',
+    'preset_campana_seguridad_vial_clima_flow',
+    'preset_consultor_gerencial_notebooklm_slides',
+    'preset_radar_licitaciones_circulares_arl_flow',
+  ];
+  for (const key of expectedNewKeys) {
+    const p = SYSTEM_WORKFLOW_PRESETS.find((item) => item.presetKey === key);
+    assert.ok(p, `Falta el preset curado ${key}`);
+    const resolved = resolveRequiredToolsForWorkflow({
+      ...(p.workflowNodes || {}),
+      nodeConfigs: p.workflowNodes?.canvasLayout?.nodeConfigs || {},
+    });
+    assert.ok(resolved.length >= 1, `Preset ${key} debe resolver al menos 1 herramienta real`);
+  }
+  const webLegalPreset = SYSTEM_WORKFLOW_PRESETS.find(
+    (p) => p.presetKey === 'preset_web_scraping_mintrabajo_diario_matriz_legal',
+  );
+  assert.strictEqual(
+    webLegalPreset?.workflowNodes?.canvasLayout?.nodeConfigs?.extract_web_scraping_agy?.onlyOnContentChange,
+    true,
+    'preset_web_scraping_mintrabajo_diario_matriz_legal debe tener onlyOnContentChange=true para SHA-256 pre_agent',
+  );
+  assert.strictEqual(
+    resolveWorkflowHitoRole(webLegalPreset?.workflowNodes?.canvasLayout?.nodeConfigs, 'hito1_matriz_legal'),
+    'agent_tool',
+  );
+  recordAssertion(
+    'BLOQUE_8',
+    'B8.4',
+    'Presets curados #16–#30 presentes, validados estructuralmente y resolviendo sus herramientas reales (Web Scraping, NotebookLM, Google Flow)',
+  );
 
   const totalDurationMs = Date.now() - startSuiteMs;
   console.log('\n══════════════════════════════════════════════════════════════════════════════════');

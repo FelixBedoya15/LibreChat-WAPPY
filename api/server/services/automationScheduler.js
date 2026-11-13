@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const dns = require('dns');
 const net = require('net');
 const { Readable } = require('stream');
@@ -308,6 +309,7 @@ function evaluatePreAgentDeterministicIf({
   preRes = {},
   runCapturedEvidences = [],
   scraperBreachCount = 0,
+  scraperDedupSkippedCount = 0,
   eventPayload = null,
   watchesExternal = false,
 } = {}) {
@@ -318,9 +320,10 @@ function evaluatePreAgentDeterministicIf({
   const freshCriticalCount = Array.isArray(structuredSourceRes?.freshCriticalRecords)
     ? structuredSourceRes.freshCriticalRecords.length
     : 0;
-  const dedupSkippedCount = Array.isArray(structuredSourceRes?.deduplicatedSkippedRecords)
-    ? structuredSourceRes.deduplicatedSkippedRecords.length
-    : 0;
+  const dedupSkippedCount =
+    (Array.isArray(structuredSourceRes?.deduplicatedSkippedRecords)
+      ? structuredSourceRes.deduplicatedSkippedRecords.length
+      : 0) + Number(scraperDedupSkippedCount || 0);
   const freshExternalCount =
     Number(preRes?.traceMeta?.freshDriveFilesCount || 0) +
     Number(preRes?.traceMeta?.freshGmailMessagesCount || 0) +
@@ -352,14 +355,16 @@ function evaluatePreAgentDeterministicIf({
   let reason = '';
 
   if (condType === 'new_external_items') {
-    passed = evalOp(freshExternalCount, op, threshold);
+    const observedExtAndScraper = freshExternalCount + effectiveScraperBreachCount;
+    const dedupExtAndScraper = extDedupCount + Number(scraperDedupSkippedCount || 0);
+    passed = evalOp(observedExtAndScraper, op, threshold);
     reason = passed
-      ? `Se detectaron ${freshExternalCount} elemento(s) externo(s) nuevo(s) sin procesar (${freshExternalCount} ${op} ${threshold}) -> Se activa la Rama SÍ.`
-      : `0 elementos externos nuevos que cumplan (${freshExternalCount} ${op} ${threshold})${extDedupCount > 0 ? ` (${extDedupCount} archivo(s)/correo(s) ya procesados omitidos por anti-duplicados)` : ''} -> Se activa la Rama NO (0 tokens LLM).`;
+      ? `Se detectaron ${observedExtAndScraper} elemento(s)/cambio(s) externo(s) nuevo(s) sin procesar (${observedExtAndScraper} ${op} ${threshold}) -> Se activa la Rama SÍ.`
+      : `0 elementos/cambios externos nuevos que cumplan (${observedExtAndScraper} ${op} ${threshold})${dedupExtAndScraper > 0 ? ` (${dedupExtAndScraper} ítem(s) previos sin cambios omitidos por anti-duplicados)` : ''} -> Se activa la Rama NO (0 tokens LLM).`;
   } else if (condType === 'numeric_threshold') {
     // NUNCA sustituir 0 críticos por allRecords.length
     const observed = watchesExternal
-      ? freshExternalCount
+      ? freshExternalCount + effectiveScraperBreachCount
       : freshCriticalCount + effectiveScraperBreachCount;
     passed = evalOp(observed, op, threshold);
     reason = passed
@@ -889,6 +894,11 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
       ? [wf.trigger]
       : [];
   const extractors = Array.isArray(wf.extractors) ? wf.extractors : [];
+  const memories = Array.isArray(wf.memories)
+    ? wf.memories
+    : wf.memoryNode
+      ? [wf.memoryNode]
+      : [];
   const inputs = Array.isArray(wf.inputs) ? wf.inputs : [];
   const hitos = Array.isArray(wf.hitos) ? wf.hitos : [];
   const outputs = Array.isArray(wf.outputs) ? wf.outputs : [];
@@ -923,6 +933,7 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
     [
       ...triggers,
       ...extractors,
+      ...memories,
       ...inputs,
       ...hitos,
       ...canonicalHitos,
@@ -1013,8 +1024,51 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
   if (allTokens.has('extract_web_search') || allTokens.has('web_search')) {
     requiredTools.add('web_search');
   }
-  if (allTokens.has('google_antigravity')) {
+  if (
+    allTokens.has('google_antigravity') ||
+    allTokens.has('google_antigravity_cloud') ||
+    allTokens.has('antigravity_local') ||
+    allTokens.has('trigger_antigravity') ||
+    allTokens.has('trigger_antigravity_cloud')
+  ) {
     requiredTools.add('google_antigravity');
+  }
+  if (allTokens.has('notebooklm') || allTokens.has('wappy_rag_documental')) {
+    requiredTools.add('wappy_notebooklm');
+  }
+  const hasGenericWebScraperToken =
+    allTokens.has('tool_web_scraping_agy') ||
+    allTokens.has('extract_web_scraping_agy') ||
+    allTokens.has('scraper_node_antigravity') ||
+    allTokens.has('web_scraper');
+  if (hasGenericWebScraperToken) {
+    requiredTools.add('web_scraper_live');
+    const scraperConfigCandidates = [
+      nodeConfigs.tool_web_scraping_agy,
+      nodeConfigs.tool_inputs_tool_web_scraping_agy,
+      nodeConfigs.extract_web_scraping_agy,
+      nodeConfigs.extractor_extract_web_scraping_agy,
+      nodeConfigs.scraper_node_antigravity,
+      nodeConfigs.web_scraper,
+      ...customNodes
+        .filter((cn) => {
+          const cid = String(cn?.id || cn?.key || cn?.nodeType || '').toLowerCase();
+          return (
+            cid.includes('web_scraping') ||
+            cid.includes('scraper_node_antigravity') ||
+            cid.includes('web_scraper')
+          );
+        })
+        .map((cn) => ({ ...(cn || {}), ...(cn?.config || {}) })),
+    ].filter((c) => c && typeof c === 'object');
+    const needsAntigravityBridge = scraperConfigCandidates.some((c) => {
+      const eng = String(c.scriptEngine || '').toLowerCase().trim();
+      const agyMode = String(c.antigravityMode || c.mode || '').toLowerCase().trim();
+      return eng === 'chrome_mcp' || eng === 'chrome_devtools_mcp' || agyMode === 'local';
+    });
+    if (needsAntigravityBridge) {
+      requiredTools.add('google_antigravity');
+    }
   }
   if (allTokens.has('google_flow')) {
     requiredTools.add('google_flow');
@@ -1839,20 +1893,31 @@ function saveScraperEvidenceFiles({
  */
 function sanitizePublicEvidenceList(rawEvidences = []) {
   if (!Array.isArray(rawEvidences) || rawEvidences.length === 0) return [];
+  const PUBLIC_BASE = 'https://wappy.club';
+  const normalizeArtifactAbsUrl = (relUrl, existingAbs) => {
+    if (
+      relUrl &&
+      /^\/(?:images\/(?:flow|nlm)_|uploads\/(?:nlm_artifacts|scraper_evidences)\/)/i.test(String(relUrl))
+    ) {
+      return `${PUBLIC_BASE}${String(relUrl).split('?')[0]}`;
+    }
+    return existingAbs || null;
+  };
   const seen = new Set();
   const clean = [];
   for (const ev of rawEvidences) {
     if (!ev || typeof ev !== 'object') continue;
     const pdfUrl = ev.pdfUrl || null;
     const imageUrl = ev.imageUrl || null;
-    if (!pdfUrl && !imageUrl) continue;
+    const fileUrl = ev.fileUrl || null;
+    if (!pdfUrl && !imageUrl && !fileUrl) continue;
     const cedNorm = String(ev.cedula || '').trim();
     const portalNorm = String(ev.portal || '').trim().toLowerCase();
     const titleNorm = String(ev.title || '').trim().toLowerCase();
     const dedupKey =
-      cedNorm && cedNorm !== 'N/A'
+      cedNorm && cedNorm !== 'N/A' && cedNorm !== 'GEN'
         ? `person::${cedNorm}::${portalNorm}::${titleNorm}`
-        : `${pdfUrl || ''}::${imageUrl || ''}::${cedNorm}::${titleNorm}`;
+        : `${pdfUrl || ''}::${imageUrl || ''}::${fileUrl || ''}::${cedNorm}::${titleNorm}`;
     if (seen.has(dedupKey)) continue;
     seen.add(dedupKey);
     clean.push({
@@ -1863,15 +1928,210 @@ function sanitizePublicEvidenceList(rawEvidences = []) {
       title: String(ev.title || 'Certificado / Soporte Oficial').trim(),
       pdfUrl,
       pdfDownloadUrl: ev.pdfDownloadUrl || (pdfUrl ? `${pdfUrl}?download=1` : null),
-      pdfAbsoluteUrl: ev.pdfAbsoluteUrl || null,
+      pdfAbsoluteUrl: normalizeArtifactAbsUrl(pdfUrl, ev.pdfAbsoluteUrl),
       pdfFileName: ev.pdfFileName || (pdfUrl ? path.basename(String(pdfUrl).split('?')[0]) : null),
       imageUrl,
       imageDownloadUrl: ev.imageDownloadUrl || (imageUrl ? `${imageUrl}?download=1` : null),
-      imageAbsoluteUrl: ev.imageAbsoluteUrl || null,
+      imageAbsoluteUrl: normalizeArtifactAbsUrl(imageUrl, ev.imageAbsoluteUrl),
       imageFileName: ev.imageFileName || (imageUrl ? path.basename(String(imageUrl).split('?')[0]) : null),
+      ...(fileUrl
+        ? {
+            fileUrl,
+            downloadUrl: ev.downloadUrl || `${fileUrl}?download=1`,
+            absoluteUrl: normalizeArtifactAbsUrl(fileUrl, ev.absoluteUrl),
+            fileName: ev.fileName || path.basename(String(fileUrl).split('?')[0]),
+            ...(ev.mimeType ? { mimeType: ev.mimeType } : {}),
+          }
+        : {}),
     });
   }
   return clean;
+}
+
+/**
+ * Normaliza enlaces relativos o locales (`/images/flow_...`, `/images/nlm_...`, `/uploads/nlm_artifacts/...`,
+ * `/uploads/scraper_evidences/...`) hacia URLs públicas `https://wappy.club/...` sin duplicar prefijos.
+ */
+function normalizeGeneratedArtifactUrls(text = '') {
+  if (!text || typeof text !== 'string') return '';
+  return text.replace(
+    /(https?:\/\/[^\s)"'<>]+)?(\/(?:images\/(?:flow|nlm)_[^)\s"'<>?#]+|uploads\/(?:nlm_artifacts|scraper_evidences)\/[^)\s"'<>?#]+))(\?download=1)?/gi,
+    (fullMatch, origin, relPath, queryStr = '', offset, sourceStr) => {
+      if (origin) {
+        if (/^https?:\/\/(?:localhost|127\.0\.0\.1|app\.wappy\.club|wappy\.club)(?::\d+)?$/i.test(origin)) {
+          return `https://wappy.club${relPath}${queryStr || ''}`;
+        }
+        return fullMatch;
+      }
+      const prevChar = offset > 0 ? sourceStr[offset - 1] : '';
+      if (prevChar && /[a-z0-9._:-]/i.test(prevChar)) {
+        return fullMatch;
+      }
+      return `https://wappy.club${relPath}${queryStr || ''}`;
+    },
+  );
+}
+
+/**
+ * Resuelve en disco una ruta relativa de artefacto generado (`/images/flow_...`, `/images/nlm_...`,
+ * `/uploads/nlm_artifacts/...`, `/uploads/scraper_evidences/...`) verificando que el archivo exista.
+ */
+function resolveExistingGeneratedArtifactPath(relPath = '') {
+  const cleanRel = String(relPath || '').split('?')[0].split('#')[0].trim();
+  if (!cleanRel.startsWith('/') || cleanRel.includes('..')) return null;
+  let candidates = [];
+  if (cleanRel.startsWith('/images/')) {
+    const sub = cleanRel.slice(1);
+    candidates = [
+      path.resolve(process.cwd(), 'client', 'public', sub),
+      path.resolve(process.cwd(), 'client', 'dist', sub),
+      path.resolve(process.cwd(), 'api', 'public', sub),
+    ];
+  } else if (cleanRel.startsWith('/uploads/')) {
+    const sub = cleanRel.slice(1);
+    candidates = [path.resolve(process.cwd(), sub)];
+  }
+  for (const cand of candidates) {
+    try {
+      if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+        return cand;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+/**
+ * Escanea la respuesta del Agente IA y los mensajes guardados en `conversationId`
+ * para recolectar automáticamente archivos reales generados por Google Flow, NotebookLM
+ * o Web Scraping y adjuntarlos en `evidenceFiles` y `emailAttachments`.
+ */
+async function collectGeneratedArtifactEvidences({
+  resultText = '',
+  responseContent = null,
+  conversationId = null,
+} = {}) {
+  const textPool = [];
+  if (typeof resultText === 'string' && resultText.trim()) {
+    textPool.push(resultText);
+  }
+  if (responseContent) {
+    try {
+      textPool.push(typeof responseContent === 'string' ? responseContent : JSON.stringify(responseContent));
+    } catch (_) {}
+  }
+  if (conversationId) {
+    try {
+      const MessageModel = mongoose.models.Message || require('~/models/Message');
+      if (MessageModel) {
+        const msgs = await MessageModel.find({ conversationId })
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .select('text content attachments')
+          .lean();
+        for (const m of Array.isArray(msgs) ? msgs : []) {
+          if (m?.text) textPool.push(String(m.text));
+          if (m?.content) {
+            try {
+              textPool.push(typeof m.content === 'string' ? m.content : JSON.stringify(m.content));
+            } catch (_) {}
+          }
+          if (m?.attachments) {
+            try {
+              textPool.push(JSON.stringify(m.attachments));
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  const combined = textPool.join('\n');
+  if (!combined) return [];
+
+  const regex =
+    /(?:https?:\/\/[^\s)"'<>]+)?(\/(?:images\/(?:flow|nlm)_[^)\s"'<>?#]+|uploads\/(?:nlm_artifacts|scraper_evidences)\/[^)\s"'<>?#]+))/gi;
+  const matchedPaths = new Set();
+  let m;
+  while ((m = regex.exec(combined)) !== null) {
+    const cleanRel = String(m[1] || '').replace(/[.,;:]+$/, '');
+    if (cleanRel) matchedPaths.add(cleanRel);
+  }
+
+  const collected = [];
+  for (const relPath of matchedPaths) {
+    const localPath = resolveExistingGeneratedArtifactPath(relPath);
+    if (!localPath) continue;
+    const fileName = path.basename(localPath);
+    const ext = path.extname(fileName).toLowerCase();
+    const isFlow = relPath.startsWith('/images/flow_');
+    const isNlm = relPath.startsWith('/images/nlm_') || relPath.startsWith('/uploads/nlm_artifacts/');
+    const portal = isFlow
+      ? 'Google Flow Studio'
+      : isNlm
+        ? 'Google NotebookLM'
+        : 'Web Scraper Antigravity';
+    const title = isFlow
+      ? `Artefacto Visual Google Flow (${fileName})`
+      : isNlm
+        ? `Artefacto Documental NotebookLM (${fileName})`
+        : `Evidencia Extraída (${fileName})`;
+    const publicAbsUrl = `https://wappy.club${relPath}`;
+
+    if (ext === '.pdf') {
+      collected.push({
+        workerName: fileName,
+        cedula: 'GEN',
+        cargo: 'Artefacto IA',
+        portal,
+        title,
+        pdfUrl: relPath,
+        pdfDownloadUrl: `${relPath}?download=1`,
+        pdfAbsoluteUrl: publicAbsUrl,
+        pdfFileName: fileName,
+        pdfLocalPath: localPath,
+      });
+    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) {
+      collected.push({
+        workerName: fileName,
+        cedula: 'GEN',
+        cargo: 'Artefacto IA',
+        portal,
+        title,
+        imageUrl: relPath,
+        imageDownloadUrl: `${relPath}?download=1`,
+        imageAbsoluteUrl: publicAbsUrl,
+        imageFileName: fileName,
+        imageLocalPath: localPath,
+      });
+    } else {
+      const mimeMap = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.mp3': 'audio/mpeg',
+        '.m4a': 'audio/mp4',
+        '.wav': 'audio/wav',
+        '.txt': 'text/plain; charset=utf-8',
+        '.md': 'text/markdown; charset=utf-8',
+        '.html': 'text/html; charset=utf-8',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      };
+      collected.push({
+        workerName: fileName,
+        cedula: 'GEN',
+        cargo: 'Artefacto IA',
+        portal,
+        title,
+        fileUrl: relPath,
+        downloadUrl: `${relPath}?download=1`,
+        absoluteUrl: publicAbsUrl,
+        fileName,
+        localPath,
+        mimeType: mimeMap[ext] || 'application/octet-stream',
+      });
+    }
+  }
+  return collected;
 }
 
 /**
@@ -4059,12 +4319,17 @@ async function executeDownstreamOutputs({
 
         if (Array.isArray(capturedEvidences) && capturedEvidences.length > 0) {
           for (const ev of capturedEvidences) {
+            const candidateRel = ev?.pdfUrl || ev?.imageUrl || ev?.fileUrl || '';
             const chosenLocalPath =
               ev?.pdfLocalPath && fs.existsSync(ev.pdfLocalPath)
                 ? ev.pdfLocalPath
                 : ev?.imageLocalPath && fs.existsSync(ev.imageLocalPath)
                   ? ev.imageLocalPath
-                  : null;
+                  : ev?.localPath && fs.existsSync(ev.localPath)
+                    ? ev.localPath
+                    : candidateRel
+                      ? resolveExistingGeneratedArtifactPath(candidateRel)
+                      : null;
             if (!chosenLocalPath || seenAttachmentPaths.has(chosenLocalPath)) continue;
             try {
               const fileBuf = await fs.promises.readFile(chosenLocalPath);
@@ -4074,12 +4339,23 @@ async function executeDownstreamOutputs({
               ) {
                 const chosenFileName = path.basename(chosenLocalPath);
                 const ext = path.extname(chosenFileName).toLowerCase();
-                const contentType =
-                  ext === '.pdf'
-                    ? 'application/pdf'
-                    : ext === '.png'
-                      ? 'image/png'
-                      : 'image/jpeg';
+                const extMimeMap = {
+                  '.pdf': 'application/pdf',
+                  '.png': 'image/png',
+                  '.jpg': 'image/jpeg',
+                  '.jpeg': 'image/jpeg',
+                  '.webp': 'image/webp',
+                  '.gif': 'image/gif',
+                  '.mp4': 'video/mp4',
+                  '.webm': 'video/webm',
+                  '.mp3': 'audio/mpeg',
+                  '.m4a': 'audio/mp4',
+                  '.wav': 'audio/wav',
+                  '.txt': 'text/plain; charset=utf-8',
+                  '.md': 'text/markdown; charset=utf-8',
+                  '.html': 'text/html; charset=utf-8',
+                };
+                const contentType = ev?.mimeType || extMimeMap[ext] || 'application/octet-stream';
                 emailAttachments.push({
                   filename: chosenFileName,
                   content: fileBuf,
@@ -4172,13 +4448,24 @@ async function executeDownstreamOutputs({
         if (Array.isArray(capturedEvidences) && capturedEvidences.length > 0) {
           const evItemsHtml = capturedEvidences
             .map((ev, idx) => {
-              const pdfLink = ev.pdfAbsoluteUrl
-                ? `<a href="${ev.pdfAbsoluteUrl}?download=1" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 700; text-decoration: underline; margin-right: 10px;">📄 Descargar PDF Oficial</a>`
+              const normPublicUrl = (abs, rel) => {
+                if (abs && /^https:\/\//i.test(abs)) return abs;
+                if (rel && String(rel).startsWith('/')) return `https://wappy.club${rel}`;
+                return abs || '';
+              };
+              const resolvedPdfAbs = normPublicUrl(ev.pdfAbsoluteUrl, ev.pdfUrl);
+              const resolvedImgAbs = normPublicUrl(ev.imageAbsoluteUrl, ev.imageUrl);
+              const resolvedFileAbs = normPublicUrl(ev.absoluteUrl, ev.fileUrl);
+              const pdfLink = resolvedPdfAbs
+                ? `<a href="${resolvedPdfAbs}?download=1" target="_blank" rel="noopener noreferrer" style="color: #2dd4bf; font-weight: 700; text-decoration: underline; margin-right: 10px;">📄 Descargar PDF Oficial</a>`
                 : '';
-              const imgLink = ev.imageAbsoluteUrl
-                ? `<a href="${ev.imageAbsoluteUrl}" target="_blank" rel="noopener noreferrer" style="color: #a855f7; font-weight: 700; text-decoration: underline;">🖼️ Ver Imagen del Certificado</a>`
+              const imgLink = resolvedImgAbs
+                ? `<a href="${resolvedImgAbs}" target="_blank" rel="noopener noreferrer" style="color: #a855f7; font-weight: 700; text-decoration: underline; margin-right: 10px;">🖼️ Ver Imagen / Captura</a>`
                 : '';
-              return `<li style="margin-bottom: 8px;"><strong>${idx + 1}. ${ev.workerName || 'Registro'} (${ev.cedula || 'N/A'})</strong> — ${ev.title || 'Certificado Oficial'} (${ev.portal || 'Portal Oficial'}):<br>${pdfLink}${imgLink}</li>`;
+              const fileLink = resolvedFileAbs
+                ? `<a href="${resolvedFileAbs}" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; font-weight: 700; text-decoration: underline;">🎬 Descargar Artefacto (${ev.fileName || 'Archivo'})</a>`
+                : '';
+              return `<li style="margin-bottom: 8px;"><strong>${idx + 1}. ${ev.workerName || 'Registro'} (${ev.cedula || 'N/A'})</strong> — ${ev.title || 'Certificado Oficial'} (${ev.portal || 'Portal Oficial'}):<br>${pdfLink}${imgLink}${fileLink}</li>`;
             })
             .join('');
           emailHtmlResult += `
@@ -4622,7 +4909,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             `- [MEMORIA RAG DOCUMENTAL Y BASE DE CONOCIMIENTO DE LA EMPRESA (wappy_rag_documental)]:\n${ragLines.join('\n')}\n`;
         } else {
           ragDocumentalMemoryBlock =
-            `- [MEMORIA RAG DOCUMENTAL (wappy_rag_documental)]: Sin documentos vivos ni cuadernos NotebookLM indexados aún para esta empresa; puedes consultar la biblioteca documental con wappy_consultar_documentos_vivo o wappy_ejecutar_notebooklm.\n`;
+            `- [MEMORIA RAG DOCUMENTAL (wappy_rag_documental)]: Sin documentos vivos ni cuadernos NotebookLM indexados aún para esta empresa; puedes consultar la biblioteca documental con wappy_notebooklm o wappy_consultar_documentos_vivo.\n`;
         }
       } catch (_) {}
     }
@@ -4670,6 +4957,20 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       for (const [nKey, cfg] of Object.entries(nodeConfigs)) {
         if (!cfg || typeof cfg !== 'object') continue;
         const parts = [];
+        const nKeyLower = String(nKey || '').toLowerCase();
+        const isNotebookLmConfigNode =
+          nKeyLower.includes('notebooklm') ||
+          nKeyLower.includes('wappy_rag_documental') ||
+          Boolean(cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt);
+        const isGoogleFlowConfigNode =
+          nKeyLower.includes('google_flow') ||
+          Boolean(
+            cfg.flowAction ||
+              cfg.flowPrompt ||
+              cfg.flowAspectRatio ||
+              cfg.flowStyle ||
+              cfg.flowCameraMotion,
+          );
         const isHitoReportPipelineActive =
           hasDocumentaryOutput &&
           (cfg.generateAppReport === true ||
@@ -4677,8 +4978,40 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             cfg.appActionMode === 'write_and_report' ||
             cfg.includeLatestReport === true);
 
-        if (cfg.driveFolderName && String(cfg.driveFolderName).trim()) {
+        if (
+          !isNotebookLmConfigNode &&
+          !isGoogleFlowConfigNode &&
+          cfg.driveFolderName &&
+          String(cfg.driveFolderName).trim()
+        ) {
           parts.push(`📂 Carpeta Google Drive Objetivo: "${String(cfg.driveFolderName).trim()}"`);
+        }
+        if (cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt || isNotebookLmConfigNode) {
+          const nbParts = [
+            `📓 NotebookLM Cuaderno: ${cfg.notebookTitle ? `"${String(cfg.notebookTitle).trim()}" ` : ''}${cfg.notebookId ? `(ID: ${String(cfg.notebookId).trim()})` : 'Empresa Activa'}`,
+            cfg.notebookAction ? `Accion: ${String(cfg.notebookAction).trim()}` : null,
+            cfg.notebookFormat ? `Formato: ${String(cfg.notebookFormat).trim()}` : null,
+            cfg.notebookPrompt ? `Consulta: "${String(cfg.notebookPrompt).trim()}"` : null,
+          ].filter(Boolean);
+          if (nbParts.length > 0 && (cfg.notebookId || cfg.notebookAction || cfg.notebookPrompt)) {
+            parts.push(nbParts.join(' | '));
+          }
+        }
+        if (
+          cfg.flowAction ||
+          cfg.flowPrompt ||
+          cfg.flowAspectRatio ||
+          cfg.flowStyle ||
+          cfg.flowCameraMotion
+        ) {
+          const flowParts = [
+            `🎬 Google Flow Studio: Accion: ${String(cfg.flowAction || 'generate_image').trim()}`,
+            cfg.flowAspectRatio ? `Aspecto: ${String(cfg.flowAspectRatio).trim()}` : null,
+            cfg.flowStyle ? `Estilo: ${String(cfg.flowStyle).trim()}` : null,
+            cfg.flowCameraMotion ? `Movimiento Camara: ${String(cfg.flowCameraMotion).trim()}` : null,
+            cfg.flowPrompt ? `Prompt: "${String(cfg.flowPrompt).trim()}"` : null,
+          ].filter(Boolean);
+          parts.push(flowParts.join(' | '));
         }
         if (cfg.emailSubjectFilter && String(cfg.emailSubjectFilter).trim()) {
           parts.push(`📧 Filtro de Asunto Gmail: "${String(cfg.emailSubjectFilter).trim()}"`);
@@ -4969,7 +5302,10 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     let liveAntigravityScraperBlock = '';
     const runCapturedEvidences = [];
     let runScraperBreachCount = 0;
+    let runScraperDedupSkippedCount = 0;
     const runScraperCandidateKeys = [];
+    const scraperLiveSteps = [];
+    const scraperTraceSummaries = [];
     try {
       const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
         ? automation.workflowNodes.canvasLayout.customNodes
@@ -5003,16 +5339,24 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         if (!isAntigravityScraperIdentifier(cand.nodeKey, cand.nodeId, cand.customNodeObj)) {
           return false;
         }
+        const candIdLow = String(cand.nodeId || cand.nodeKey || '').toLowerCase();
+        const isGenericCand =
+          candIdLow.includes('extract_web_scraping_agy') ||
+          candIdLow.includes('tool_web_scraping_agy') ||
+          candIdLow.includes('scraper_node_antigravity') ||
+          candIdLow === 'web_scraper';
         const hay = `${cand.nodeKey} ${cand.nodeId} ${cand.customNodeObj?.title || ''} ${cand.customNodeObj?.config?.scraperTarget || ''}`.toLowerCase();
         let canonicalPortalKey = `${cand.nodeKey}::${cand.nodeId}`;
-        if (hay.includes('arl_directo') || hay.includes('agy_arl') || /\barl\b/.test(hay)) {
-          canonicalPortalKey = 'portal::arl_directo';
-        } else if (hay.includes('vial_pesv')) {
-          canonicalPortalKey = 'portal::vial_pesv';
-        } else if (hay.includes('antecedentes') || hay.includes('rama_judicial')) {
-          canonicalPortalKey = 'portal::antecedentes';
-        } else if (hay.includes('alto_riesgo') || hay.includes('mintrabajo') || hay.includes('centrosentrenamiento')) {
-          canonicalPortalKey = 'portal::alto_riesgo';
+        if (!isGenericCand) {
+          if (hay.includes('arl_directo') || hay.includes('agy_arl') || /\barl\b/.test(hay)) {
+            canonicalPortalKey = 'portal::arl_directo';
+          } else if (hay.includes('vial_pesv')) {
+            canonicalPortalKey = 'portal::vial_pesv';
+          } else if (hay.includes('antecedentes') || hay.includes('rama_judicial')) {
+            canonicalPortalKey = 'portal::antecedentes';
+          } else if (hay.includes('alto_riesgo') || hay.includes('mintrabajo') || hay.includes('centrosentrenamiento')) {
+            canonicalPortalKey = 'portal::alto_riesgo';
+          }
         }
         if (seenScraperKeys.has(canonicalPortalKey)) return false;
         seenScraperKeys.add(canonicalPortalKey);
@@ -5032,7 +5376,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             companyName: automationCompany?.companyName || 'Empresa Activa',
             nodeKey: sc.nodeKey,
             nodeId: sc.nodeId,
-            nodeTitle: sc.customNodeObj?.title || '',
+            nodeTitle: sc.customNodeObj?.title || mergedNodeCfg.customTitle || '',
             customNodeObj: sc.customNodeObj || {},
             nodeCfg: mergedNodeCfg,
             allNodeConfigs: allNodeCfg,
@@ -5042,6 +5386,10 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           if (Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0) {
             runCapturedEvidences.push(...scrapeRes.evidences);
           }
+
+          const isGenericScraperResult = Boolean(scrapeRes?.isGenericWebScraper);
+          let hasCriticalItemInScrape = false;
+          const criticalItemCandidates = [];
           if (Array.isArray(scrapeRes?.outputItems) && scrapeRes.outputItems.length > 0) {
             for (const item of scrapeRes.outputItems) {
               const statusTxt = String(
@@ -5053,6 +5401,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
                   statusTxt,
                 );
               if (isItemBreach) {
+                hasCriticalItemInScrape = true;
                 const rawDoc = String(
                   item?.cedula || item?.['Cédula / Documento'] || item?.documento || item?.placa || item?.id || '',
                 )
@@ -5061,14 +5410,76 @@ async function runAutomation(automation, optionsOrIsManual = false) {
                   .replace(/[^a-z0-9_-]/g, '');
                 const sKey = `scraper:${sc.nodeId || sc.nodeKey}:${rawDoc || 'item'}`;
                 if (!dedupLedger.keysSet.has(sKey)) {
-                  runScraperBreachCount += 1;
-                  runScraperCandidateKeys.push(sKey);
+                  criticalItemCandidates.push(sKey);
                 }
               }
             }
+          }
+
+          if (isGenericScraperResult && scrapeRes?.contentHash && !scrapeRes?.error) {
+            const hashDedupKey = `scraper_hash:${sc.nodeKey || sc.nodeId}:${scrapeRes.contentHash}`;
+            const hashAlreadySeen = dedupLedger.keysSet.has(hashDedupKey);
+            const onlyOnContentChange = mergedNodeCfg?.onlyOnContentChange !== false;
+            if ((onlyOnContentChange && !hashAlreadySeen) || !onlyOnContentChange || hasCriticalItemInScrape) {
+              if (!hashAlreadySeen || !onlyOnContentChange) {
+                runScraperBreachCount += 1;
+                if (!hashAlreadySeen) {
+                  runScraperCandidateKeys.push(hashDedupKey);
+                }
+              }
+              if (criticalItemCandidates.length > 0) {
+                runScraperBreachCount += criticalItemCandidates.length;
+                runScraperCandidateKeys.push(...criticalItemCandidates);
+              }
+            } else if (hashAlreadySeen) {
+              runScraperDedupSkippedCount += 1;
+            }
+          } else if (criticalItemCandidates.length > 0) {
+            runScraperBreachCount += criticalItemCandidates.length;
+            runScraperCandidateKeys.push(...criticalItemCandidates);
           } else if (Number(scrapeRes?.verifiedNoCoursesCount || 0) > 0) {
             runScraperBreachCount += Number(scrapeRes.verifiedNoCoursesCount);
           }
+
+          const stepStatus = scrapeRes?.error ? 'error' : 'done';
+          const scraperStepObj = {
+            nodeKey: sc.nodeKey || `extractor_${sc.nodeId}`,
+            nodeId: sc.nodeId,
+            title: scrapeRes?.portalLabel || formatHumanWorkflowNodeTitle(sc.nodeId),
+            category: String(sc.nodeKey || '').startsWith('tool_inputs_') ? 'input' : 'extractor',
+            status: stepStatus,
+            durationMs: Number(scrapeRes?.durationMs || 150),
+            inputCount: Number(scrapeRes?.urlsProcessed || 1),
+            outputCount: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.length : 1,
+            outputPreview: isGenericScraperResult
+              ? `${scrapeRes?.urlsProcessed || 1} URL(s) procesada(s) · Motor: ${scrapeRes?.scriptEngine || 'auto'} · SHA-256: ${scrapeRes?.contentHash ? String(scrapeRes.contentHash).slice(0, 12) : 'N/A'}`
+              : String(scrapeRes?.inputSummary || scrapeRes?.portalLabel || 'Verificación completada'),
+            outputItems: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.slice(0, 15) : [],
+            ...(scrapeRes?.error ? { error: String(scrapeRes.error) } : {}),
+            ...(Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0
+              ? { evidenceFiles: sanitizePublicEvidenceList(scrapeRes.evidences) }
+              : {}),
+            meta: {
+              ...(scrapeRes?.targetUrl ? { targetUrl: scrapeRes.targetUrl } : {}),
+              ...(scrapeRes?.contentHash ? { contentHash: scrapeRes.contentHash } : {}),
+              ...(scrapeRes?.scriptEngine ? { scriptEngine: scrapeRes.scriptEngine } : {}),
+              ...(scrapeRes?.urlsProcessed ? { urlsProcessed: scrapeRes.urlsProcessed } : {}),
+            },
+          };
+          scraperLiveSteps.push(scraperStepObj);
+          scraperTraceSummaries.push({
+            nodeKey: scraperStepObj.nodeKey,
+            nodeId: sc.nodeId,
+            isGenericWebScraper: isGenericScraperResult,
+            targetUrl: scrapeRes?.targetUrl || mergedNodeCfg?.targetUrl || null,
+            urlsProcessed: scrapeRes?.urlsProcessed || 1,
+            contentHash: scrapeRes?.contentHash || null,
+            scriptEngine: scrapeRes?.scriptEngine || mergedNodeCfg?.scriptEngine || 'auto',
+            durationMs: scraperStepObj.durationMs,
+            error: scrapeRes?.error || null,
+          });
+          liveTracker.upsertStep(scraperStepObj);
+
           if (scrapeRes?.outputPreview) {
             previewBlocks.push(
               `[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n${scrapeRes.outputPreview}`,
@@ -5103,6 +5514,14 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       preExtractionTraceMeta = preRes?.traceMeta || {};
     } catch (preErr) {
       console.warn('[AutomationScheduler] Aviso en buildLivePreExtractionAndLogicBlocks:', preErr?.message || preErr);
+    }
+    if (scraperLiveSteps.length > 0) {
+      preExtractionTraceMeta.liveSteps = [
+        ...(Array.isArray(preExtractionTraceMeta.liveSteps) ? preExtractionTraceMeta.liveSteps : []),
+        ...scraperLiveSteps,
+      ];
+      preExtractionTraceMeta.scraperStepsExecuted = scraperLiveSteps.length;
+      preExtractionTraceMeta.scraperSummaries = scraperTraceSummaries;
     }
 
     // 4.95. Compuerta Condicional Determinista Pre-Agente (`ifPlacement: 'pre_agent'`) — 0 tokens LLM en Rama NO
@@ -5229,6 +5648,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         preRes,
         runCapturedEvidences,
         scraperBreachCount: runScraperBreachCount,
+        scraperDedupSkippedCount: runScraperDedupSkippedCount,
         eventPayload: effectiveEventPayload,
         watchesExternal,
       });
@@ -5744,9 +6164,30 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       (Array.isArray(wfCanvasObj.inputs) && wfCanvasObj.inputs.length > 0) ||
       (Array.isArray(wfCanvasObj.hitos) && wfCanvasObj.hitos.length > 0) ||
       (Array.isArray(wfCanvasObj.outputs) && wfCanvasObj.outputs.length > 0);
+    const wfAllNodeIdsForTools = new Set(
+      [
+        ...(Array.isArray(wfCanvasObj.inputs) ? wfCanvasObj.inputs : []),
+        ...(Array.isArray(wfCanvasObj.memories) ? wfCanvasObj.memories : []),
+        ...(wfCanvasObj.memoryNode ? [wfCanvasObj.memoryNode] : []),
+        ...(Array.isArray(wfCanvasObj.extractors) ? wfCanvasObj.extractors : []),
+        ...(Array.isArray(wfCanvasObj.hitos) ? wfCanvasObj.hitos : []),
+        ...(Array.isArray(wfCanvasObj.outputs) ? wfCanvasObj.outputs : []),
+        ...Object.keys(wfCanvasObj?.canvasLayout?.nodeConfigs || wfCanvasObj?.nodeConfigs || {}),
+      ]
+        .filter(Boolean)
+        .map((x) => String(x).trim()),
+    );
+    const includesNotebookLmNode =
+      wfAllNodeIdsForTools.has('notebooklm') ||
+      wfAllNodeIdsForTools.has('wappy_rag_documental') ||
+      wfAllNodeIdsForTools.has('tool_inputs_notebooklm') ||
+      wfAllNodeIdsForTools.has('sub_memory_wappy_rag_documental');
     const existingAgentTools = Array.isArray(agent.tools) ? agent.tools.filter(Boolean) : [];
+    const preservedNotebookMcpTools = includesNotebookLmNode
+      ? existingAgentTools.filter((t) => typeof t === 'string' && t.endsWith('_mcp_notebooklm'))
+      : [];
     agent.tools = hasExplicitCanvasGraph
-      ? dynamicWorkflowTools
+      ? Array.from(new Set([...dynamicWorkflowTools, ...preservedNotebookMcpTools]))
       : Array.from(new Set([...existingAgentTools, ...dynamicWorkflowTools]));
 
     // Build mock request & response with explicit companyId, isAutomation flag, and app reports collector
@@ -5935,6 +6376,21 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     }
     if (!resultText) {
       resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
+    }
+
+    // Recolectar automáticamente archivos generados por Google Flow (/images/flow_...), NotebookLM (/images/nlm_..., /uploads/nlm_artifacts/...) o Web Scraping
+    try {
+      const generatedArtifacts = await collectGeneratedArtifactEvidences({
+        resultText,
+        responseContent: response?.content || null,
+        conversationId: generatedConvoId,
+      });
+      if (generatedArtifacts.length > 0) {
+        runCapturedEvidences.push(...generatedArtifacts);
+      }
+      resultText = normalizeGeneratedArtifactUrls(resultText);
+    } catch (artErr) {
+      console.warn('[AutomationScheduler] Aviso recolectando artefactos Flow/NotebookLM:', artErr?.message || artErr);
     }
 
     // Limpiar ruido visual de URLs crudas en la respuesta si existen certificados descargados en la bandeja dedicada
@@ -6277,7 +6733,8 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         ? structuredSourceRes.deduplicatedSkippedRecords.length
         : 0) +
       Number(preRes?.traceMeta?.deduplicatedDriveFilesCount || 0) +
-      Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0);
+      Number(preRes?.traceMeta?.deduplicatedGmailMessagesCount || 0) +
+      Number(runScraperDedupSkippedCount || 0);
 
     const humanApprovalNode = postLogicNodes.find(
       (ln) =>
@@ -7371,6 +7828,7 @@ async function executeRealAntigravityScraperVerification({
     consultarAlturasMinTrabajo,
     consultarRamaJudicial,
     consultarPortalEspecíficoAntigravity,
+    ejecutarWebScrapeConEvidencia,
   } = require('~/server/services/osintWorkerService');
 
   const antigravityMode = String(
@@ -7555,15 +8013,34 @@ async function executeRealAntigravityScraperVerification({
 
   // Caso B: Web Scraper Genérico (`web_scrape`)
   if (isGenericWebScraper) {
-    const targetUrl =
-      customNodeObj?.targetUrl || nodeCfg?.targetUrl || 'https://www.mintrabajo.gov.co';
+    const targetUrl = String(
+      nodeCfg?.targetUrl || customNodeObj?.targetUrl || nodeCfg?.url || 'https://www.mintrabajo.gov.co',
+    ).trim();
+    const urlsList = Array.isArray(nodeCfg?.urls)
+      ? nodeCfg.urls.map((u) => String(u || '').trim()).filter(Boolean)
+      : targetUrl
+          .split(/[\n,;]+/)
+          .map((u) => u.trim())
+          .filter(Boolean);
+    const effectiveUrls = urlsList.length > 0 ? urlsList : [targetUrl];
+    const primaryTargetUrl = effectiveUrls[0] || targetUrl;
+    const scriptEngine = String(
+      nodeCfg?.scriptEngine || customNodeObj?.scriptEngine || 'auto',
+    ).trim();
+    const scriptCode = String(
+      nodeCfg?.scriptCode || customNodeObj?.scriptCode || '',
+    ).trim();
+
     if (Array.isArray(upstreamInputItems) && upstreamInputItems.length > 0) {
       addLog(
         'info',
         `Recibidos ${upstreamInputItems.length} registro(s) de entrada desde "${upstreamSourceTitle || 'Nodo previo'}"`,
       );
     }
-    addLog('info', `Extrayendo contenido web y evidencia desde "${targetUrl}" (modo ${antigravityMode})`);
+    addLog(
+      'info',
+      `Extrayendo contenido web y evidencia desde "${effectiveUrls.join(', ')}" (motor: ${scriptEngine} · modo ${antigravityMode})`,
+    );
     let scrapeChatPromise = Promise.resolve(null);
     if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
       scrapeChatPromise = global
@@ -7572,8 +8049,8 @@ async function executeRealAntigravityScraperVerification({
           companyId,
           companyName,
           title: `[Flujo WAPPY] ${nodeTitle || 'Web Scraper AGY'} — ${companyName}`,
-          instruction: `Extrae y analiza el contenido en vivo y captura visual/PDF de la URL "${targetUrl}" para "${companyName}" (${Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0} elemento(s) recibidos del paso anterior).`,
-          recursoObjetivo: `Google Antigravity (Web Scraper · ${targetUrl})`,
+          instruction: `Extrae y analiza el contenido en vivo y captura visual/PDF de las URL(s) "${effectiveUrls.join(', ')}" (motor: ${scriptEngine}) para "${companyName}" (${Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0} elemento(s) recibidos del paso anterior).`,
+          recursoObjetivo: `Google Antigravity (Web Scraper · ${primaryTargetUrl})`,
           antigravityMode,
           waitTimeoutMs: 600,
         })
@@ -7585,6 +8062,11 @@ async function executeRealAntigravityScraperVerification({
         .dispatchOsintViaAntigravityDaemon({
           action: 'web_scrape',
           targetUrl,
+          urls: effectiveUrls,
+          url: primaryTargetUrl,
+          scriptEngine,
+          scriptCode,
+          companyId,
           includeEvidence: true,
           userId: userIdStr,
           antigravityMode,
@@ -7592,19 +8074,53 @@ async function executeRealAntigravityScraperVerification({
         .catch(() => null);
     }
     if (!scrapeRes || scrapeRes?.error) {
+      if (typeof ejecutarWebScrapeConEvidencia === 'function') {
+        try {
+          const directLiveScrape = await ejecutarWebScrapeConEvidencia({
+            targetUrl,
+            urls: effectiveUrls,
+            url: primaryTargetUrl,
+            scriptEngine,
+            scriptCode,
+            includeEvidence: true,
+            userId: userIdStr,
+            companyId,
+          }).catch(() => null);
+          if (
+            directLiveScrape &&
+            directLiveScrape.ok !== false &&
+            (directLiveScrape.textExcerpt ||
+              (Array.isArray(directLiveScrape.results) && directLiveScrape.results.length > 0) ||
+              (Array.isArray(directLiveScrape.items) && directLiveScrape.items.length > 0) ||
+              directLiveScrape.pdfBase64 ||
+              directLiveScrape.imageBase64 ||
+              directLiveScrape.screenshotBase64)
+          ) {
+            scrapeRes = directLiveScrape;
+          }
+        } catch (_) {}
+      }
+    }
+    if (!scrapeRes || scrapeRes?.error) {
       try {
         const portalScrapeFallback = await consultarPortalEspecíficoAntigravity({
           action: 'web_scrape',
           targetUrl,
-          url: targetUrl,
+          urls: effectiveUrls,
+          url: primaryTargetUrl,
+          scriptEngine,
+          scriptCode,
+          companyId,
           includeEvidence: true,
         }).catch(() => null);
         if (
           portalScrapeFallback &&
           portalScrapeFallback.action === 'web_scrape' &&
           (portalScrapeFallback.textExcerpt ||
+            (Array.isArray(portalScrapeFallback.results) && portalScrapeFallback.results.length > 0) ||
             portalScrapeFallback.pdfBase64 ||
-            portalScrapeFallback.imageBase64)
+            portalScrapeFallback.imageBase64 ||
+            portalScrapeFallback.screenshotBase64)
         ) {
           scrapeRes = portalScrapeFallback;
         }
@@ -7612,26 +8128,71 @@ async function executeRealAntigravityScraperVerification({
     }
     if (!scrapeRes || scrapeRes?.error) {
       try {
-        const firstUrl = String(targetUrl).split(',')[0].trim() || 'https://www.mintrabajo.gov.co';
-        const normUrl = /^https?:\/\//i.test(firstUrl) ? firstUrl : `https://${firstUrl}`;
-        const r = await fetch(normUrl, { signal: AbortSignal.timeout(10000) });
-        const html = await r.text();
-        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-        scrapeRes = {
-          ...(scrapeRes || {}),
-          error: null,
-          fuente: 'Web Scraper Directo WAPPY + Google Antigravity',
-          status: 'ok',
-          url: normUrl,
-          title: titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : normUrl,
-          textExcerpt: html
-            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 3500),
-        };
+        const fetchedResults = [];
+        for (const rawU of effectiveUrls.slice(0, 5)) {
+          const normUrl = /^https?:\/\//i.test(rawU) ? rawU : `https://${rawU}`;
+          try {
+            const r = await fetch(normUrl, { signal: AbortSignal.timeout(10000) });
+            const html = await r.text();
+            const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+            const cleanText = html
+              .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+              .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 3500);
+            const urlHash = crypto
+              .createHash('sha256')
+              .update(cleanText || normUrl)
+              .digest('hex');
+            fetchedResults.push({
+              url: normUrl,
+              title: titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : normUrl,
+              status: r.ok ? 'ok' : `http_${r.status}`,
+              textExcerpt: cleanText,
+              contentHash: urlHash,
+            });
+          } catch (singleUrlErr) {
+            fetchedResults.push({
+              url: normUrl,
+              title: normUrl,
+              status: 'error',
+              error: singleUrlErr.message,
+              textExcerpt: '',
+            });
+          }
+        }
+        const okResults = fetchedResults.filter((x) => !x.error);
+        if (okResults.length > 0) {
+          const mergedExcerpt = okResults
+            .map((x) => `[${x.title} (${x.url})]\n${x.textExcerpt}`)
+            .join('\n\n')
+            .slice(0, 4500);
+          const mergedHash = crypto.createHash('sha256').update(mergedExcerpt).digest('hex');
+          scrapeRes = {
+            ...(scrapeRes || {}),
+            error: null,
+            fuente: `Web Scraper Directo WAPPY (${scriptEngine})`,
+            status: 'ok',
+            url: okResults[0].url,
+            urlsProcessed: fetchedResults.length,
+            results: fetchedResults,
+            items: okResults,
+            title: okResults.map((x) => x.title).join(' | '),
+            textExcerpt: mergedExcerpt,
+            contentHash: mergedHash,
+          };
+        } else {
+          scrapeRes = {
+            fuente: 'Web Scraper Google Antigravity',
+            status: 'error',
+            url: primaryTargetUrl,
+            urlsProcessed: fetchedResults.length,
+            results: fetchedResults,
+            error: fetchedResults[0]?.error || 'No fue posible consultar ninguna URL objetivo.',
+          };
+        }
       } catch (e) {
         if (!scrapeRes) {
           scrapeRes = {
@@ -7652,12 +8213,37 @@ async function executeRealAntigravityScraperVerification({
       );
     }
 
+    const rawResultList =
+      Array.isArray(scrapeRes?.results) && scrapeRes.results.length > 0
+        ? scrapeRes.results
+        : Array.isArray(scrapeRes?.items) && scrapeRes.items.length > 0
+          ? scrapeRes.items
+          : [];
+    const computedContentHash =
+      scrapeRes?.contentHash ||
+      (scrapeRes?.textExcerpt
+        ? crypto.createHash('sha256').update(String(scrapeRes.textExcerpt)).digest('hex')
+        : rawResultList.length > 0
+          ? crypto.createHash('sha256').update(JSON.stringify(rawResultList)).digest('hex')
+          : null);
+    const urlsProcessedCount = Number(
+      scrapeRes?.urlsProcessed || rawResultList.length || effectiveUrls.length || 1,
+    );
+
     const genericEvidences = [];
+    const firstEvResult = rawResultList.find(
+      (r) => r && (r.pdfBase64 || r.imageBase64 || r.screenshotBase64),
+    );
     const savedWebEv = saveScraperEvidenceFiles({
-      pdfBase64: scrapeRes?.pdfBase64 || null,
-      pdfFileName: scrapeRes?.pdfFileName || null,
-      imageBase64: scrapeRes?.imageBase64 || scrapeRes?.screenshotBase64 || null,
-      imageFileName: scrapeRes?.imageFileName || null,
+      pdfBase64: scrapeRes?.pdfBase64 || firstEvResult?.pdfBase64 || null,
+      pdfFileName: scrapeRes?.pdfFileName || firstEvResult?.pdfFileName || null,
+      imageBase64:
+        scrapeRes?.imageBase64 ||
+        scrapeRes?.screenshotBase64 ||
+        firstEvResult?.imageBase64 ||
+        firstEvResult?.screenshotBase64 ||
+        null,
+      imageFileName: scrapeRes?.imageFileName || firstEvResult?.imageFileName || null,
       cedula: 'WEB',
       workerName: scrapeRes?.title || 'Captura_Web',
       portalLabel: nodeTitle || 'Web Scraper AGY',
@@ -7694,7 +8280,11 @@ async function executeRealAntigravityScraperVerification({
     if (scrapeRes?.error) {
       addLog('error', `Error al consultar URL "${targetUrl}": ${scrapeRes.error}`);
     } else {
-      addLog('success', `Página extraída exitosamente (${durationMs} ms): ${scrapeRes?.title || targetUrl}`, scrapeRes?.fuente || 'Web Scraper');
+      addLog(
+        'success',
+        `Página extraída exitosamente (${durationMs} ms · ${urlsProcessedCount} URL(s) · Hash ${computedContentHash ? computedContentHash.slice(0, 10) : 'N/A'}): ${scrapeRes?.title || targetUrl}`,
+        scrapeRes?.fuente || 'Web Scraper',
+      );
     }
     const lines = [
       `🛰️ **EXTRACCIÓN WEB EN TIEMPO REAL — GOOGLE ANTIGRAVITY (${nodeTitle || 'Web Scraper AGY'})**`,
@@ -7702,9 +8292,10 @@ async function executeRealAntigravityScraperVerification({
       scrapeChatDispatch?.dispatched
         ? `- **Hilo en Chat Google Antigravity IDE:** 🟢 Orden \`#${scrapeChatDispatch.ordenId}\` enviada y abierta en Google Antigravity (${scrapeChatDispatch.title})`
         : null,
-      `- **Canal de Ejecución:** ${scrapeRes?.error ? `⚠️ ${scrapeRes.error}` : scrapeRes?.fuente || 'Web Scraper Google Antigravity'}`,
-      `- **URL Consultada:** \`${scrapeRes?.url || targetUrl}\``,
+      `- **Canal de Ejecución:** ${scrapeRes?.error ? `⚠️ ${scrapeRes.error}` : scrapeRes?.fuente || 'Web Scraper Google Antigravity'} (Motor: ${scriptEngine})`,
+      `- **URL(s) Consultada(s):** \`${scrapeRes?.url || effectiveUrls.join(', ')}\` (${urlsProcessedCount} procesada(s))`,
       `- **Título Extraído:** ${scrapeRes?.title || 'N/A'}`,
+      computedContentHash ? `- **Huella SHA-256 Contenido:** \`${computedContentHash}\`` : null,
       `- **Tiempo Real HTTP:** ${(durationMs / 1000).toFixed(2)}s (${durationMs} ms)`,
       savedWebEv.hasEvidence ? `- **Certificado / Captura Descargada:** 📎 Sí (en archivos descargados)` : null,
       '',
@@ -7721,36 +8312,64 @@ async function executeRealAntigravityScraperVerification({
       );
     }
 
+    const mappedOutputItems =
+      rawResultList.length > 0
+        ? rawResultList.map((resItem, rIdx) => ({
+            index: rIdx + 1,
+            url: resItem?.url || effectiveUrls[rIdx] || targetUrl,
+            titulo: resItem?.title || scrapeRes?.title || 'N/A',
+            fuente: scrapeRes?.fuente || `Web Scraper (${scriptEngine})`,
+            motor: scriptEngine,
+            estado: resItem?.status || scrapeRes?.status || 'ok',
+            contentHash: resItem?.contentHash || computedContentHash || null,
+            certificado: rIdx === 0 ? webCertStatus : '—',
+            pdfUrl: rIdx === 0 ? savedWebEv.pdfUrl || null : null,
+            imageUrl: rIdx === 0 ? savedWebEv.imageUrl || null : null,
+            extracto: String(
+              resItem?.textExcerpt || resItem?.excerpt || resItem?.summary || scrapeRes?.textExcerpt || '',
+            ).slice(0, 600),
+            isCritical: Boolean(resItem?.isCritical),
+          }))
+        : [
+            {
+              index: 1,
+              url: scrapeRes?.url || primaryTargetUrl,
+              titulo: scrapeRes?.title || 'N/A',
+              fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
+              motor: scriptEngine,
+              estado: scrapeRes?.status || 'ok',
+              contentHash: computedContentHash || null,
+              certificado: webCertStatus,
+              pdfUrl: savedWebEv.pdfUrl || null,
+              pdfDownloadUrl: savedWebEv.pdfDownloadUrl || null,
+              imageUrl: savedWebEv.imageUrl || null,
+              imageDownloadUrl: savedWebEv.imageDownloadUrl || null,
+              pdfFileName: savedWebEv.pdfFileName || null,
+              imageFileName: savedWebEv.imageFileName || null,
+              extracto: scrapeRes?.textExcerpt ? String(scrapeRes.textExcerpt).slice(0, 600) : scrapeRes?.error || '',
+              ordenAntigravity: scrapeChatDispatch?.ordenId || null,
+              itemsPreviosRecibidos: Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0,
+            },
+          ];
+
     return {
       durationMs,
-      recordsCount: 1,
+      isGenericWebScraper: true,
+      targetUrl,
+      urlsProcessed: urlsProcessedCount,
+      contentHash: computedContentHash,
+      scriptEngine,
+      scriptCodeApplied: Boolean(scriptCode),
+      recordsCount: mappedOutputItems.length,
       relayUsedCount: scrapeRes && !scrapeRes.error ? 1 : 0,
-      verifiedWithCoursesCount: scrapeRes?.textExcerpt ? 1 : 0,
-      verifiedNoCoursesCount: scrapeRes?.textExcerpt ? 0 : 1,
+      verifiedWithCoursesCount: scrapeRes?.textExcerpt || rawResultList.length > 0 ? 1 : 0,
+      verifiedNoCoursesCount: scrapeRes?.textExcerpt || rawResultList.length > 0 ? 0 : 1,
       antigravityMode,
       portalLabel: nodeTitle || 'Web Scraper AGY',
-      inputSummary: `${scrapeRes?.fuente || 'Web Scraper Antigravity'} · ${scrapeRes?.url || targetUrl}`,
+      inputSummary: `${scrapeRes?.fuente || 'Web Scraper Antigravity'} · ${urlsProcessedCount} URL(s) · Motor ${scriptEngine}`,
       outputPreview: lines.join('\n'),
       inputItems: Array.isArray(upstreamInputItems) ? upstreamInputItems : [],
-      outputItems: [
-        {
-          index: 1,
-          url: scrapeRes?.url || targetUrl,
-          titulo: scrapeRes?.title || 'N/A',
-          fuente: scrapeRes?.fuente || 'Web Scraper Google Antigravity',
-          estado: scrapeRes?.status || 'ok',
-          certificado: webCertStatus,
-          pdfUrl: savedWebEv.pdfUrl || null,
-          pdfDownloadUrl: savedWebEv.pdfDownloadUrl || null,
-          imageUrl: savedWebEv.imageUrl || null,
-          imageDownloadUrl: savedWebEv.imageDownloadUrl || null,
-          pdfFileName: savedWebEv.pdfFileName || null,
-          imageFileName: savedWebEv.imageFileName || null,
-          extracto: scrapeRes?.textExcerpt ? String(scrapeRes.textExcerpt).slice(0, 600) : scrapeRes?.error || '',
-          ordenAntigravity: scrapeChatDispatch?.ordenId || null,
-          itemsPreviosRecibidos: Array.isArray(upstreamInputItems) ? upstreamInputItems.length : 0,
-        },
-      ],
+      outputItems: mappedOutputItems,
       evidences: genericEvidences,
       logs: stepLogs,
       error: scrapeRes?.error || null,
@@ -11908,6 +12527,7 @@ module.exports = {
   formatMarkdownToEmailHtml,
   saveScraperEvidenceFiles,
   sanitizePublicEvidenceList,
+  normalizeGeneratedArtifactUrls,
   stripAgentInlineEvidenceNoise,
   isUnderConstructionNode,
   calculateNextRun,

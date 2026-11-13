@@ -1,7 +1,34 @@
+const fs = require('fs');
+const path = require('path');
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { ContentTypes, EImageOutputType } = require('librechat-data-provider');
+
+function buildMediaLocations(rawUrl = '', fullPath = '') {
+  const cleaned = String(rawUrl || '')
+    .replace(/https?:\/\/(?:www\.)?wappy-ia\.com/gi, 'https://wappy.club')
+    .trim();
+  const relMatch = cleaned.match(/(\/images\/[^\s"'?#)]+(?:\?[^\s"')#]*)?)/i);
+  const relativeUrl = relMatch
+    ? relMatch[1]
+    : cleaned.startsWith('/')
+      ? cleaned
+      : `/images/${path.basename(cleaned || '')}`;
+  const pathOnly = relativeUrl.split('?')[0];
+  const absoluteUrl = /^https?:\/\//i.test(cleaned)
+    ? cleaned.replace(/https?:\/\/(?:www\.)?[^/]+/i, 'https://wappy.club')
+    : `https://wappy.club${relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`}`;
+
+  let localPath = fullPath && fs.existsSync(fullPath) ? fullPath : null;
+  if (!localPath && pathOnly.startsWith('/images/')) {
+    const candidate = path.join(process.cwd(), 'client', 'public', pathOnly.replace(/^\//, ''));
+    if (fs.existsSync(candidate)) {
+      localPath = candidate;
+    }
+  }
+  return { relativeUrl, absoluteUrl, localPath };
+}
 
 class GoogleFlow extends Tool {
   static lc_name() {
@@ -12,6 +39,7 @@ class GoogleFlow extends Tool {
     super();
 
     this.userId = fields.userId || fields.req?.user?.id;
+    this.companyId = fields.companyId || fields.req?.companyId || fields.req?.body?.companyId || null;
     this.req = fields.req;
     this.isAgent = fields.isAgent ?? true;
     this.imageOutputType = fields.imageOutputType || EImageOutputType.PNG;
@@ -56,9 +84,9 @@ class GoogleFlow extends Tool {
     });
   }
 
-  returnValue(val) {
+  returnValue(val, artifact = {}) {
     if (this.isAgent && typeof val === 'string') {
-      return [val, {}];
+      return [val, artifact];
     }
     return val;
   }
@@ -105,10 +133,27 @@ class GoogleFlow extends Tool {
         logger.info(`[google_flow] Generando video para usuario ${this.userId}: "${prompt.slice(0, 60)}..."`);
         const vidRes = await executeFlowVideoGeneration({
           userId: this.userId,
+          companyId: this.companyId,
           prompt,
           aspectRatio: aspecto,
           cameraMotion: movimiento_camara,
         });
+
+        const mediaLoc = buildMediaLocations(vidRes.publicUrl, vidRes.fullPath);
+        const mediaMeta = {
+          ok: true,
+          type: 'video',
+          filename: vidRes.filename,
+          localPath: mediaLoc.localPath,
+          videoUrl: mediaLoc.relativeUrl,
+          publicUrl: mediaLoc.relativeUrl,
+          relativeUrl: mediaLoc.relativeUrl,
+          absoluteUrl: mediaLoc.absoluteUrl,
+          posterUrl: vidRes.posterUrl || null,
+          model: vidRes.model,
+          aspectRatio: vidRes.aspectRatio,
+          cameraMotion: movimiento_camara,
+        };
 
         const markdown = `### 🎬 Video Generado con Google Flow Studio
 [🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl}${vidRes.posterUrl ? `?poster=${encodeURIComponent(vidRes.posterUrl)}` : ''})
@@ -116,18 +161,38 @@ class GoogleFlow extends Tool {
 * **Prompt:** ${prompt}
 * **Motor:** ${vidRes.model}
 * **Formato:** \`${vidRes.aspectRatio}\` (${movimiento_camara})
+* **URL Pública:** ${mediaLoc.absoluteUrl}
 
-*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye únicamente UNA VEZ el enlace Markdown del video \`[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl})\` en tu respuesta. NO agregues un segundo enlace \`[⬇ Descargar Video]\` separado ni etiquetas \`<video>\` crudas, ya que el reproductor interactivo de WAPPY muestra el video con su propio botón de descarga integrado).*`;
+\`\`\`json
+${JSON.stringify(mediaMeta)}
+\`\`\`
 
-        return this.returnValue(markdown);
+*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye únicamente UNA VEZ el enlace Markdown del video \`[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl})\` en tu respuesta. NO agregues un segundo enlace \`[⬇ Descargar Video]\` separado ni etiquetas \`<video>\` crudas ni repitas el bloque JSON técnico, ya que el reproductor interactivo de WAPPY muestra el video con su propio botón de descarga integrado).*`;
+
+        return this.returnValue(markdown, mediaMeta);
       } else {
         logger.info(`[google_flow] Generando imagen para usuario ${this.userId}: "${prompt.slice(0, 60)}..."`);
         const imgRes = await executeFlowImageGeneration({
           userId: this.userId,
+          companyId: this.companyId,
           prompt,
           aspectRatio: aspecto,
           style: estilo,
         });
+
+        const mediaLoc = buildMediaLocations(imgRes.publicUrl, imgRes.fullPath);
+        const mediaMeta = {
+          ok: true,
+          type: 'image',
+          filename: imgRes.filename,
+          localPath: mediaLoc.localPath,
+          imageUrl: mediaLoc.relativeUrl,
+          publicUrl: mediaLoc.relativeUrl,
+          relativeUrl: mediaLoc.relativeUrl,
+          absoluteUrl: mediaLoc.absoluteUrl,
+          model: imgRes.model,
+          aspectRatio: imgRes.aspectRatio,
+        };
 
         const markdown = `### ✨ Imagen Generada (${imgRes.model || 'Google Flow Studio'})
 ![${prompt.slice(0, 100)}](${imgRes.publicUrl})
@@ -135,10 +200,15 @@ class GoogleFlow extends Tool {
 * **Prompt:** ${prompt}
 * **Motor:** ${imgRes.model}
 * **Formato:** \`${imgRes.aspectRatio}\`
+* **URL Pública:** ${mediaLoc.absoluteUrl}
 
-*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta ÚNICAMENTE UNA SOLA VEZ la imagen en Markdown \`![${prompt.slice(0, 60)}](${imgRes.publicUrl})\` usando la ruta exacta \`${imgRes.publicUrl}\`. PROHIBIDO agregar un segundo enlace \`[⬇ Descargar Imagen](${imgRes.publicUrl})\` debajo porque la tarjeta visual de WAPPY ya incluye automáticamente la vista previa y el botón de descarga en una sola tarjeta).*`;
+\`\`\`json
+${JSON.stringify(mediaMeta)}
+\`\`\`
 
-        return this.returnValue(markdown);
+*(INSTRUCCIÓN CRÍTICA AL AGENTE: Incluye en tu respuesta ÚNICAMENTE UNA SOLA VEZ la imagen en Markdown \`![${prompt.slice(0, 60)}](${imgRes.publicUrl})\` usando la ruta exacta \`${imgRes.publicUrl}\`. PROHIBIDO agregar un segundo enlace \`[⬇ Descargar Imagen](${imgRes.publicUrl})\` debajo ni repetir el bloque JSON técnico porque la tarjeta visual de WAPPY ya incluye automáticamente la vista previa y el botón de descarga en una sola tarjeta).*`;
+
+        return this.returnValue(markdown, mediaMeta);
       }
     } catch (err) {
       logger.error('[google_flow] Error en herramienta:', err);

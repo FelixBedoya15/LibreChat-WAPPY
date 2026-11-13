@@ -194,13 +194,30 @@ async function buildMultimodalMediaContext(req, userId, stringContent = '', user
         const alreadyInList = mediaItems.some((m) => m.filename && m.filename.includes(artId));
         if (!alreadyInList) {
           try {
-            const notebooklmUrl = process.env.NOTEBOOKLM_MCP_URL || 'http://notebooklm-mcp:8000';
             const dlQs = new URLSearchParams({ notebook_id: nbId, artifact_id: artId, type: artType });
             if (userId) dlQs.set('user_id', String(userId));
-            const bgRes = await fetch(`${notebooklmUrl}/api/download-artifact?${dlQs.toString()}`, {
-              headers: userId ? { 'x-user-id': String(userId) } : {},
-            });
-            if (bgRes.ok && bgRes.status === 200) {
+            const baseCandidates = Array.from(
+              new Set(
+                [
+                  process.env.NOTEBOOKLM_URL,
+                  process.env.NOTEBOOKLM_MCP_URL,
+                  'http://notebooklm-mcp:9420',
+                  'http://127.0.0.1:9420',
+                ].filter(Boolean),
+              ),
+            );
+            let bgRes = null;
+            for (const baseUrl of baseCandidates) {
+              try {
+                const attempt = await fetch(`${String(baseUrl).replace(/\/+$/, '')}/api/download-artifact?${dlQs.toString()}`, {
+                  headers: userId ? { 'x-user-id': String(userId) } : {},
+                  signal: AbortSignal.timeout(12000),
+                });
+                bgRes = attempt;
+                if (attempt.ok || attempt.status < 500) break;
+              } catch (_) {}
+            }
+            if (bgRes && bgRes.ok && bgRes.status === 200) {
               const ab = await bgRes.arrayBuffer();
               if (ab.byteLength > 32) {
                 const extMap = {

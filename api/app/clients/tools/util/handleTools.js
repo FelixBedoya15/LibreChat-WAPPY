@@ -60,6 +60,8 @@ const {
   GenerarImagenSST,
   GoogleFlow,
   GoogleAntigravity,
+  WappyNotebookLM,
+  WebScraperLive,
   PubChem,
   WidgetInteractivoSST,
   MemoriaProcedimentalSST,
@@ -184,6 +186,7 @@ const getAuthFields = (toolKey) => {
  */
 const loadTools = async ({
   user,
+  customUser,
   agent,
   model,
   signal,
@@ -197,6 +200,13 @@ const loadTools = async ({
   fileStrategy,
   imageOutputType,
 }) => {
+  const resolvedToolUserId = options?.req?.user?.id || user;
+  const resolvedToolCompanyId =
+    options?.req?.companyId ||
+    options?.req?.body?.companyId ||
+    customUser?.companyId ||
+    options?.customUser?.companyId ||
+    null;
   const toolConstructors = {
     flux: FluxAPI,
     calculator: Calculator,
@@ -331,10 +341,27 @@ const loadTools = async ({
     },
     google_flow: async (_toolContextMap) => {
       return new GoogleFlow({
-        userId: user,
+        userId: resolvedToolUserId,
+        companyId: resolvedToolCompanyId,
         req: options.req,
         isAgent: !!agent,
         imageOutputType,
+      });
+    },
+    wappy_notebooklm: async (_toolContextMap) => {
+      return new WappyNotebookLM({
+        userId: resolvedToolUserId,
+        companyId: resolvedToolCompanyId,
+        req: options.req,
+        isAgent: !!agent,
+      });
+    },
+    web_scraper_live: async (_toolContextMap) => {
+      return new WebScraperLive({
+        userId: resolvedToolUserId,
+        companyId: resolvedToolCompanyId,
+        req: options.req,
+        isAgent: !!agent,
       });
     },
     google_antigravity: async (toolContextMap) => {

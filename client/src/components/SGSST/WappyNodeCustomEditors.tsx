@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Clock,
   Calendar,
@@ -40,7 +40,14 @@ import {
   Cloud,
   Laptop,
   Loader2,
+  RefreshCw,
+  ExternalLink,
+  Clapperboard,
+  Image as ImageIcon,
+  Video,
+  CheckCircle2,
 } from 'lucide-react';
+import { useAuthContext } from '~/hooks';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import {
   AI_ENGINE_MODELS,
@@ -401,6 +408,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     automationId = null,
   } = props;
 
+  const { token: authContextToken } = useAuthContext();
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
   const [customFieldInput, setCustomFieldInput] = useState('');
   const [liveRecordSearch, setLiveRecordSearch] = useState('');
@@ -410,12 +418,106 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   const [newAiFieldName, setNewAiFieldName] = useState<string>('');
   const [newAiFieldType, setNewAiFieldType] = useState<AiExtractionFieldDef['type']>('string');
   const [newAiFieldDesc, setNewAiFieldDesc] = useState<string>('');
+  const [nbLoading, setNbLoading] = useState<boolean>(false);
+  const [nbConnected, setNbConnected] = useState<boolean | null>(null);
+  const [nbEmail, setNbEmail] = useState<string>('');
+  const [nbSyncWarning, setNbSyncWarning] = useState<string | null>(null);
+  const [nbNotebooks, setNbNotebooks] = useState<
+    Array<{ id: string; title: string; emoji: string; sources_count: number }>
+  >([]);
+  const [nbForceManual, setNbForceManual] = useState<boolean>(false);
 
   const rawId = (activeNode.nodeId || '').trim();
   const cleanId = rawId.replace(
     /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
     '',
   );
+  const isNotebookLmNode = cleanId === 'notebooklm' || cleanId === 'wappy_rag_documental';
+
+  const fetchNotebookLmNotebooks = useCallback(
+    async (forceRefresh = false, signal?: AbortSignal) => {
+      if (!isNotebookLmNode) return;
+      setNbLoading(true);
+      setNbSyncWarning(null);
+      try {
+        const resolvedToken =
+          authContextToken ||
+          (typeof window !== 'undefined' &&
+            ((window as any).platformUserToken || localStorage.getItem('token'))) ||
+          '';
+        const activeCompanyId =
+          typeof window !== 'undefined'
+            ? (localStorage.getItem('wappy_active_company_id') || '').trim()
+            : '';
+        const qs = new URLSearchParams();
+        if (activeCompanyId && activeCompanyId !== 'default') {
+          qs.set('companyId', activeCompanyId);
+        }
+        if (forceRefresh) {
+          qs.set('refresh', '1');
+        }
+        const url = `/api/notebooklm/notebooks${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const res = await fetch(url, {
+          credentials: 'include',
+          signal,
+          headers: {
+            ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
+            ...(activeCompanyId && activeCompanyId !== 'default'
+              ? { 'x-company-id': activeCompanyId }
+              : {}),
+          },
+        });
+        if (signal?.aborted) return;
+        const data = await res.json().catch(() => null);
+        if (signal?.aborted) return;
+        if (!res.ok || !data || typeof data !== 'object') {
+          setNbConnected(false);
+          setNbNotebooks([]);
+          setNbSyncWarning('No se pudo consultar la sesión de Google NotebookLM.');
+          return;
+        }
+        setNbConnected(Boolean(data.connected));
+        setNbEmail(typeof data.email === 'string' ? data.email : '');
+        setNbSyncWarning(
+          typeof data.syncWarning === 'string' && data.syncWarning.trim()
+            ? data.syncWarning.trim()
+            : null,
+        );
+        const rawList = Array.isArray(data.notebooks) ? data.notebooks : [];
+        const normalized = rawList
+          .filter((item: any) => item && (item.id || item.notebookId || item.title))
+          .map((item: any) => ({
+            id: String(item.id || item.notebookId || '').trim(),
+            title: String(item.title || item.name || item.id || 'Cuaderno NotebookLM').trim(),
+            emoji:
+              typeof item.emoji === 'string' && item.emoji.trim() ? item.emoji.trim() : '📓',
+            sources_count: Number(item.sources_count ?? item.sourcesCount ?? 0),
+          }))
+          .filter((item: { id: string }) => Boolean(item.id));
+        setNbNotebooks(normalized);
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || signal?.aborted) return;
+        setNbConnected(false);
+        setNbNotebooks([]);
+        setNbSyncWarning('Sesión de Google NotebookLM sin conexión activa.');
+      } finally {
+        if (!signal?.aborted) {
+          setNbLoading(false);
+        }
+      }
+    },
+    [isNotebookLmNode, authContextToken],
+  );
+
+  useEffect(() => {
+    setNbForceManual(false);
+    if (!isNotebookLmNode) return;
+    const controller = new AbortController();
+    void fetchNotebookLmNotebooks(false, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [isNotebookLmNode, activeNode.key, fetchNotebookLmNotebooks]);
 
   const effectiveInspectMetaId =
     cleanId === 'extract_sst_app' && currentCfg.sstAppSourceId
@@ -1388,6 +1490,516 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   };
 
   const renderSpecificNodeEditor = () => {
+    /* ═════════════════════════════════════════════════════════════════════════
+       EDITOR DEDICADO: GOOGLE NOTEBOOKLM (`notebooklm` y `wappy_rag_documental`)
+       ═════════════════════════════════════════════════════════════════════════ */
+    if (cleanId === 'notebooklm' || cleanId === 'wappy_rag_documental') {
+      const saveNotebookUpdate = (partial: Partial<CanvasNodeConfig>) => {
+        const nextPatch: Partial<CanvasNodeConfig> = { ...partial };
+        if (
+          currentCfg.driveFolderUrl ||
+          currentCfg.driveFolderName ||
+          currentCfg.driveFolderId ||
+          currentCfg.targetUrl
+        ) {
+          nextPatch.driveFolderUrl = '';
+          nextPatch.driveFolderName = '';
+          nextPatch.driveFolderId = '';
+          nextPatch.targetUrl = '';
+        }
+        onUpdateNodeConfig(activeNode.key, nextPatch);
+      };
+
+      const activeNotebookId = String(currentCfg.notebookId ?? '').trim();
+      const activeNotebookTitle =
+        currentCfg.notebookTitle ??
+        (cleanId === 'wappy_rag_documental' ? currentCfg.documentTitle : '') ??
+        currentCfg.driveFolderName ??
+        '';
+      const activeNotebookAction: 'consultar' | 'agregar_fuente' | 'generar_estudio' =
+        currentCfg.notebookAction === 'agregar_fuente' ||
+        currentCfg.notebookAction === 'generar_estudio'
+          ? currentCfg.notebookAction
+          : 'consultar';
+      const activeArtifactType: NonNullable<CanvasNodeConfig['notebookArtifactType']> =
+        currentCfg.notebookArtifactType || 'infographic';
+      const activeNotebookPrompt =
+        currentCfg.notebookPrompt ?? currentCfg.customInstruction ?? '';
+      const activeAttachArtifact = currentCfg.attachArtifact !== false;
+      const safeNotebooks = Array.isArray(nbNotebooks) ? nbNotebooks : [];
+      const showManualInputs = nbForceManual || safeNotebooks.length === 0;
+      const hasConfiguredUnlistedNotebook =
+        Boolean(activeNotebookId) && !safeNotebooks.some((nb) => nb.id === activeNotebookId);
+
+      const NOTEBOOK_ACTIONS: Array<{
+        id: 'consultar' | 'agregar_fuente' | 'generar_estudio';
+        title: string;
+        desc: string;
+      }> = [
+        {
+          id: 'consultar',
+          title: '📖 Consultar / Analizar con citas',
+          desc: 'Responde preguntas citando fuentes exactas del cuaderno.',
+        },
+        {
+          id: 'agregar_fuente',
+          title: '📥 Indexar fuente del flujo',
+          desc: 'Agrega actas, informes o URLs del flujo al cuaderno.',
+        },
+        {
+          id: 'generar_estudio',
+          title: '✨ Generar artefacto Studio',
+          desc: 'Crea infografía, diapositivas, reporte, audio, video o tabla.',
+        },
+      ];
+
+      return (
+        <div className="space-y-3.5 min-w-0">
+          {/* Cabecera y estado de sesión NotebookLM */}
+          <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/10 dark:bg-purple-950/25 space-y-2.5 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-xl border border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-wide text-purple-900 dark:text-purple-200 truncate">
+                    Google NotebookLM · Cuadernos RAG y Studio
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
+                    {nbLoading
+                      ? '⏳ Consultando tus cuadernos en Google NotebookLM...'
+                      : nbConnected
+                        ? `🟢 Conectado${nbEmail ? ` · ${nbEmail}` : ''} (${safeNotebooks.length} cuaderno${safeNotebooks.length === 1 ? '' : 's'})`
+                        : '⚠️ Sesión NotebookLM sin vincular (puedes conectar o escribir ID/título manual)'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="cyan"
+                  disabled={nbLoading}
+                  icon={
+                    <RefreshCw className={`w-3.5 h-3.5 ${nbLoading ? 'animate-spin' : ''}`} />
+                  }
+                  label="Actualizar Cuadernos"
+                  title="Recargar listado real de cuadernos desde Google NotebookLM"
+                  onClick={() => void fetchNotebookLmNotebooks(true)}
+                />
+                {!nbConnected && !nbLoading && (
+                  <a
+                    href="/c/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir WAPPY para vincular Google NotebookLM desde tu Perfil"
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span>Conectar NotebookLM</span>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {nbSyncWarning && (
+              <div className="px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                ⚠️ {nbSyncWarning}
+              </div>
+            )}
+
+            {/* Selector de cuaderno real o entrada manual */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                  📓 1. Cuaderno de Google NotebookLM
+                </label>
+                {safeNotebooks.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNbForceManual((prev) => !prev)}
+                    className="px-2 py-0.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-[10.5px] font-extrabold text-purple-800 dark:text-purple-200 transition cursor-pointer"
+                  >
+                    {showManualInputs
+                      ? `📋 Elegir de la lista (${safeNotebooks.length})`
+                      : '✍️ Escribir ID / Nombre manual'}
+                  </button>
+                )}
+              </div>
+
+              {!showManualInputs ? (
+                <select
+                  value={activeNotebookId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__manual__') {
+                      setNbForceManual(true);
+                      return;
+                    }
+                    if (!val) {
+                      saveNotebookUpdate({ notebookId: '', notebookTitle: '' });
+                      return;
+                    }
+                    const found = safeNotebooks.find((nb) => nb.id === val);
+                    saveNotebookUpdate({
+                      notebookId: val,
+                      notebookTitle: found?.title || activeNotebookTitle || val,
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                >
+                  <option value="">
+                    — Seleccionar cuaderno real ({safeNotebooks.length} detectados) —
+                  </option>
+                  {hasConfiguredUnlistedNotebook && (
+                    <option value={activeNotebookId}>
+                      📓 {activeNotebookTitle || activeNotebookId} (Configurado)
+                    </option>
+                  )}
+                  {safeNotebooks.map((nb) => (
+                    <option key={nb.id} value={nb.id}>
+                      {nb.emoji} {nb.title} ({nb.sources_count} fuentes)
+                    </option>
+                  ))}
+                  <option value="__manual__">✍️ Escribir ID o nombre manualmente...</option>
+                </select>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      ID del Cuaderno (`notebookId`)
+                    </label>
+                    <input
+                      type="text"
+                      value={activeNotebookId}
+                      onChange={(e) => saveNotebookUpdate({ notebookId: e.target.value })}
+                      placeholder="Ej: nb_8f2a9c... o UUID del cuaderno"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                      Nombre del Cuaderno (`notebookTitle`)
+                    </label>
+                    <input
+                      type="text"
+                      value={activeNotebookTitle}
+                      onChange={(e) => saveNotebookUpdate({ notebookTitle: e.target.value })}
+                      placeholder="Ej: Cuaderno Normativo SG-SST / Manuales Internos"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Selector de Acción NotebookLM */}
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+              ⚡ 2. Acción en Google NotebookLM (`notebookAction`)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {NOTEBOOK_ACTIONS.map((act) => {
+                const isSelected = activeNotebookAction === act.id;
+                return (
+                  <button
+                    key={act.id}
+                    type="button"
+                    onClick={() =>
+                      saveNotebookUpdate({
+                        notebookAction: act.id,
+                        ...(act.id === 'generar_estudio' && !currentCfg.notebookArtifactType
+                          ? { notebookArtifactType: 'infographic' }
+                          : {}),
+                      })
+                    }
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      isSelected
+                        ? 'border-purple-500 bg-purple-500/15 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500/30'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-purple-400'
+                    }`}
+                  >
+                    <div className="text-xs font-extrabold leading-snug">{act.title}</div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                      {act.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selector de Artefacto Studio (visible si notebookAction === 'generar_estudio') */}
+          {activeNotebookAction === 'generar_estudio' && (
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-purple-800 dark:text-purple-300 mb-1">
+                🎨 3. Tipo de Artefacto a Generar (`notebookArtifactType`)
+              </label>
+              <select
+                value={activeArtifactType}
+                onChange={(e) =>
+                  saveNotebookUpdate({
+                    notebookArtifactType: e.target.value as CanvasNodeConfig['notebookArtifactType'],
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="infographic">🖼️ Infografía Visual (infographic)</option>
+                <option value="slide_deck">📽️ Presentación / Diapositivas (slide_deck)</option>
+                <option value="report">📄 Informe / Guía de Estudio (report)</option>
+                <option value="audio">🎙️ Audio / Podcast Educativo (audio)</option>
+                <option value="video">🎬 Video Explicativo (video)</option>
+                <option value="mind_map">🧠 Mapa Mental (mind_map)</option>
+                <option value="data_table">📊 Tabla de Datos Estructurada (data_table)</option>
+              </select>
+            </div>
+          )}
+
+          {/* Prompt específico para el cuaderno */}
+          <div>
+            <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              💬 Pregunta o Instrucción Específica para el Cuaderno (`notebookPrompt`)
+            </label>
+            <textarea
+              rows={3}
+              value={activeNotebookPrompt}
+              onChange={(e) => saveNotebookUpdate({ notebookPrompt: e.target.value })}
+              placeholder="Ej: Extrae las citas textuales sobre procedimientos de trabajo en alturas y compáralas con los hallazgos del flujo..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 leading-relaxed"
+            />
+          </div>
+
+          {/* Toggle adjuntar artefacto generado */}
+          <label className="inline-flex items-center gap-2.5 p-2.5 rounded-xl border border-purple-500/30 bg-purple-500/10 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={activeAttachArtifact}
+              onChange={(e) => saveNotebookUpdate({ attachArtifact: e.target.checked })}
+              className="rounded border-purple-500 text-purple-600"
+            />
+            <span>📎 Adjuntar artefacto generado al correo / informe</span>
+          </label>
+
+          {cleanId === 'wappy_rag_documental' &&
+            renderSimpleReadOnlyPreviewTable('📚 Documentos Vivos y Cuadernos NotebookLM Indexados')}
+        </div>
+      );
+    }
+
+    /* ═════════════════════════════════════════════════════════════════════════
+       EDITOR DEDICADO: GOOGLE FLOW STUDIO (`google_flow`)
+       ═════════════════════════════════════════════════════════════════════════ */
+    if (cleanId === 'google_flow') {
+      const saveFlowUpdate = (partial: Partial<CanvasNodeConfig>) => {
+        const nextPatch: Partial<CanvasNodeConfig> = { ...partial };
+        if (
+          currentCfg.driveFolderUrl ||
+          currentCfg.driveFolderName ||
+          currentCfg.driveFolderId ||
+          currentCfg.targetUrl
+        ) {
+          nextPatch.driveFolderUrl = '';
+          nextPatch.driveFolderName = '';
+          nextPatch.driveFolderId = '';
+          nextPatch.targetUrl = '';
+        }
+        onUpdateNodeConfig(activeNode.key, nextPatch);
+      };
+
+      const activeFlowAction: 'generar_imagen' | 'generar_video' =
+        currentCfg.flowAction === 'generar_video' ? 'generar_video' : 'generar_imagen';
+      const activeFlowAspectRatio: '9:16' | '16:9' | '1:1' =
+        currentCfg.flowAspectRatio === '16:9' || currentCfg.flowAspectRatio === '1:1'
+          ? currentCfg.flowAspectRatio
+          : '9:16';
+      const activeFlowStyle: NonNullable<CanvasNodeConfig['flowStyle']> =
+        currentCfg.flowStyle || 'corporativo_sst';
+      const activeFlowCameraMotion: NonNullable<CanvasNodeConfig['flowCameraMotion']> =
+        currentCfg.flowCameraMotion || 'paneo_suave';
+      const activeFlowPrompt =
+        currentCfg.flowPrompt ?? currentCfg.driveFolderName ?? currentCfg.targetUrl ?? '';
+      const activeAttachMedia = currentCfg.attachMedia !== false;
+
+      return (
+        <div className="space-y-3.5 min-w-0">
+          <div className="p-3.5 rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/10 dark:bg-fuchsia-950/20 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 flex items-center justify-center shrink-0">
+                  <Clapperboard className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-wide text-fuchsia-900 dark:text-fuchsia-200 truncate">
+                    Google Flow Studio · Generación Visual SST (Imagen & Veo)
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
+                    Configura piezas visuales para «{resolvedCompanyFull}»
+                  </div>
+                </div>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 text-[10px] font-extrabold text-fuchsia-800 dark:text-fuchsia-200">
+                {activeFlowAction === 'generar_video' ? '🎬 Veo Video' : '🖼️ Imagen HD'} ·{' '}
+                {activeFlowAspectRatio}
+              </span>
+            </div>
+
+            {/* Selector Acción Flow */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                🎬 1. Acción en Google Flow (`flowAction`)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => saveFlowUpdate({ flowAction: 'generar_imagen' })}
+                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition cursor-pointer ${
+                    activeFlowAction === 'generar_imagen'
+                      ? 'border-fuchsia-500 bg-fuchsia-500/15 text-fuchsia-900 dark:text-fuchsia-200 ring-1 ring-fuchsia-500/30'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-fuchsia-400'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4 shrink-0 text-fuchsia-600 dark:text-fuchsia-300" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-extrabold">🖼️ Imagen (Afiche / Infografía)</div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      Carteleras, lecciones aprendidas y gráficos EPP.
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveFlowUpdate({ flowAction: 'generar_video' })}
+                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition cursor-pointer ${
+                    activeFlowAction === 'generar_video'
+                      ? 'border-purple-500 bg-purple-500/15 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500/30'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-purple-400'
+                  }`}
+                >
+                  <Video className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-300" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-extrabold">🎬 Video Veo (Reel / Cápsula)</div>
+                    <div className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      Escenas animadas de prevención y sensibilización.
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Aspecto, Estilo y Cámara */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  📐 2. Relación de Aspecto (`flowAspectRatio`)
+                </label>
+                <select
+                  value={activeFlowAspectRatio}
+                  onChange={(e) =>
+                    saveFlowUpdate({
+                      flowAspectRatio: e.target.value as '9:16' | '16:9' | '1:1',
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                >
+                  <option value="9:16">📱 9:16 — Vertical Reel / Historias</option>
+                  <option value="16:9">🖥️ 16:9 — Horizontal / Presentación</option>
+                  <option value="1:1">🟦 1:1 — Cuadrado / Cartelera</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  🎨 3. Estilo Visual (`flowStyle`)
+                </label>
+                <select
+                  value={activeFlowStyle}
+                  onChange={(e) =>
+                    saveFlowUpdate({
+                      flowStyle: e.target.value as CanvasNodeConfig['flowStyle'],
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                >
+                  <option value="corporativo_sst">🏢 Corporativo SST</option>
+                  <option value="infografia_editorial">📊 Infografía Editorial</option>
+                  <option value="fotorealista">📷 Fotorealista</option>
+                  <option value="isometrico_3d">🧊 Isométrico 3D</option>
+                  <option value="minimalista">✨ Minimalista</option>
+                </select>
+              </div>
+
+              {activeFlowAction === 'generar_video' && (
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-extrabold uppercase text-purple-800 dark:text-purple-300 mb-1">
+                    🎥 4. Movimiento de Cámara Veo (`flowCameraMotion`)
+                  </label>
+                  <select
+                    value={activeFlowCameraMotion}
+                    onChange={(e) =>
+                      saveFlowUpdate({
+                        flowCameraMotion: e.target.value as CanvasNodeConfig['flowCameraMotion'],
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="estatico">🎯 Estático (Plano fijo estable)</option>
+                    <option value="paneo_suave">↔️ Paneo Suave (Desplazamiento lateral)</option>
+                    <option value="zoom_acercamiento">🔍 Zoom de Acercamiento (Enfoque gradual)</option>
+                    <option value="orbital">🔄 Orbital (Giro envolvente 3D)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Brief o plantilla visual */}
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <label className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                ✍️ Brief o Plantilla Visual del Flujo (`flowPrompt`)
+              </label>
+              <ExpandableButton
+                type="button"
+                size="sm"
+                variant="purple"
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                label="Autogenerar Brief SST"
+                onClick={() =>
+                  saveFlowUpdate({
+                    flowPrompt:
+                      activeFlowAction === 'generar_video'
+                        ? `Escena preventiva SST para ${resolvedCompanyFull}: trabajador con EPP completo (casco, arnés certificado y gafas) inspeccionando zona segura antes de iniciar labor crítica, iluminación limpia profesional, sin texto superpuesto.`
+                        : `Afiche visual preventivo SG-SST para ${resolvedCompanyFull} destacando los hallazgos críticos del flujo, uso correcto de EPP y medidas de control inmediatas con estética limpia y legible.`,
+                  })
+                }
+              />
+            </div>
+            <textarea
+              rows={3}
+              value={activeFlowPrompt}
+              onChange={(e) => saveFlowUpdate({ flowPrompt: e.target.value })}
+              placeholder="Ej: Trabajador usando arnés certificado en trabajo en alturas con línea de vida, señalización preventiva y estética limpia..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 leading-relaxed"
+            />
+          </div>
+
+          {/* Toggle adjuntar media */}
+          <label className="inline-flex items-center gap-2.5 p-2.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={activeAttachMedia}
+              onChange={(e) => saveFlowUpdate({ attachMedia: e.target.checked })}
+              className="rounded border-fuchsia-500 text-fuchsia-600"
+            />
+            <span>📎 Adjuntar imagen/video al correo e informe</span>
+          </label>
+        </div>
+      );
+    }
+
   /* ═════════════════════════════════════════════════════════════════════════
      EQUIPO 1: DISPARADORES (TRIGGER_NODES — 8 Nodos con UI Propia de Activación)
      ═════════════════════════════════════════════════════════════════════════ */
@@ -4132,11 +4744,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       (en) => en.id === cleanId || en.id === activeNode.nodeId,
     )) as any;
   const defaultCatalogEngine =
-    catalogScraperDef?.scriptEngine === 'chrome_devtools_mcp'
-      ? 'chrome_mcp'
-      : catalogScraperDef?.scriptEngine === 'node_cheerio_puppeteer'
-        ? 'node_cheerio'
-        : 'python_bs4';
+    catalogScraperDef?.scriptEngine === 'auto_chrome_dom'
+      ? 'auto_chrome_dom'
+      : catalogScraperDef?.scriptEngine === 'fetch_cheerio'
+        ? 'fetch_cheerio'
+        : catalogScraperDef?.scriptEngine === 'chrome_devtools_mcp'
+          ? 'chrome_mcp'
+          : catalogScraperDef?.scriptEngine === 'node_cheerio_puppeteer'
+            ? 'node_cheerio'
+            : cleanId === 'extract_web_scraping_agy' ||
+                cleanId === 'tool_web_scraping_agy' ||
+                cleanId === 'scraper_node_antigravity'
+              ? 'auto_chrome_dom'
+              : 'python_bs4';
   const isSkillNode = activeNode.customNodeType === 'skill' || cleanId.startsWith('skill_');
   const isRuleNode = activeNode.customNodeType === 'rule' || cleanId.startsWith('rule_');
   const isSubagentCustomNode =
@@ -4161,89 +4781,154 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       cleanId.includes('search_node'));
 
   if (isWebScraperNode) {
+    const rawTargetUrl =
+      currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? catalogScraperDef?.targetUrl ?? '';
+    const parsedTargetUrls = String(rawTargetUrl || '')
+      .split(/[\n,]+/)
+      .map((u) => u.trim())
+      .filter(Boolean);
+    const rawEngine =
+      currentCfg.scriptEngine || customNodeObj?.scriptEngine || defaultCatalogEngine;
+    const normalizedEngine =
+      rawEngine === 'chrome_devtools_mcp'
+        ? 'chrome_mcp'
+        : rawEngine === 'node_cheerio_puppeteer'
+          ? 'node_cheerio'
+          : rawEngine === 'python_bs4_playwright'
+            ? 'python_bs4'
+            : rawEngine;
+    const isAutonomousServerEngine =
+      normalizedEngine === 'auto_chrome_dom' || normalizedEngine === 'fetch_cheerio';
+    const isGenericScraperMonitor =
+      cleanId === 'extract_web_scraping_agy' ||
+      cleanId === 'tool_web_scraping_agy' ||
+      cleanId === 'scraper_node_antigravity' ||
+      !cleanId.includes('scraper_agy_');
+    const onlyOnContentChangeChecked =
+      currentCfg.onlyOnContentChange !== undefined
+        ? Boolean(currentCfg.onlyOnContentChange)
+        : isGenericScraperMonitor;
+
     return (
-      <div className="p-3.5 rounded-2xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
+      <div className="p-3.5 rounded-2xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/20 space-y-3 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-black uppercase text-orange-800 dark:text-orange-300 flex items-center gap-1.5">
-            <Terminal className="w-4 h-4" />
-            🕷️ Estudio de Web Scraping con Script en Google Antigravity
+            <Terminal className="w-4 h-4 shrink-0" />
+            🕷️ Estudio de Web Scraping (Servidor Autónomo & Antigravity)
           </span>
           <span
-            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-              antigravityStatus.connected
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300'
-                : 'bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950/80 dark:text-amber-300'
+            className={`px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold border ${
+              isAutonomousServerEngine
+                ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
+                : antigravityStatus.connected
+                  ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
+                  : 'bg-amber-500/15 text-amber-800 border-amber-500/40 dark:text-amber-300'
             }`}
           >
-            {antigravityStatus.connected
-              ? `🟢 Instancia Antigravity Conectada`
-              : '⚠️ Requiere tu instancia de Google Antigravity conectada'}
+            {isAutonomousServerEngine
+              ? '🟢 Autónomo en Servidor 24/7 (Sin depender de PC)'
+              : antigravityStatus.connected
+                ? '🟢 Instancia Antigravity Conectada'
+                : '⚠️ Requiere tu instancia de Google Antigravity conectada'}
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🔗 URL(s) del Sitio Web a Scrapear
-            </label>
-            <input
-              type="text"
-              value={
-                currentCfg.targetUrl ??
-                customNodeObj?.targetUrl ??
-                catalogScraperDef?.targetUrl ??
-                ''
-              }
+            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                🔗 URLs Públicas a Scrapear (Hasta 5 URLs)
+              </label>
+              <span
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${
+                  parsedTargetUrls.length > 5
+                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                    : 'bg-orange-500/10 border-orange-500/30 text-orange-800 dark:text-orange-300'
+                }`}
+              >
+                {parsedTargetUrls.length}/5 URLs
+                {parsedTargetUrls.length > 5 ? ' · Máx 5' : ''}
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              value={rawTargetUrl}
               onChange={(e) => onUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })}
-              placeholder="Ej: https://www.mintrabajo.gov.co/normatividad/..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              placeholder={
+                'Una URL pública por línea o separadas por coma (máximo 5):\nhttps://www.mintrabajo.gov.co/normatividad\nhttps://www.minsalud.gov.co/Normativa'
+              }
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-white leading-relaxed"
             />
           </div>
-          <div>
-            <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              🐍 Motor de Ejecución en Antigravity
+
+          <div className="space-y-2">
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                ⚡ Motor de Extracción Web (`scriptEngine`)
+              </label>
+              <select
+                value={normalizedEngine}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { scriptEngine: e.target.value as any })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
+              >
+                <option value="auto_chrome_dom">
+                  ⚡ Autónomo en Servidor · HTML + DOM JS (Recomendado)
+                </option>
+                <option value="fetch_cheerio">
+                  🚀 Rápido HTML Estático (Fetch + Cheerio)
+                </option>
+                <option value="chrome_mcp">
+                  🌐 Navegador Antigravity Local para Intranet (Chrome MCP)
+                </option>
+                <option value="python_bs4">
+                  🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
+                </option>
+                <option value="node_cheerio">
+                  🟢 Node.js (Cheerio + Puppeteer en Antigravity)
+                </option>
+                <option value="custom_script">💻 Script Personalizado CLI</option>
+              </select>
+            </div>
+
+            <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-orange-500/30 bg-white/80 dark:bg-slate-900/70 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={onlyOnContentChangeChecked}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { onlyOnContentChange: e.target.checked })
+                }
+                className="rounded border-orange-500 text-orange-600 mt-0.5 shrink-0"
+              />
+              <span className="leading-snug">
+                🔐 Activar rama SÍ solo si detecta cambio real SHA-256 respecto a la corrida anterior
+              </span>
             </label>
-            <select
-              value={
-                currentCfg.scriptEngine || customNodeObj?.scriptEngine || defaultCatalogEngine
-              }
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { scriptEngine: e.target.value as any })
-              }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
-            >
-              <option value="python_bs4">🐍 Python (BeautifulSoup4 + Playwright)</option>
-              <option value="node_cheerio">🟢 Node.js (Cheerio + Puppeteer)</option>
-              <option value="chrome_mcp">🌐 Chrome DevTools MCP (Navegador Real)</option>
-              <option value="custom_script">💻 Script Personalizado CLI</option>
-            </select>
           </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
             <label className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
-              💻 Código del Script o Selectores CSS
+              🎯 Selectores CSS Opcionales (ej. `.noticia, table, article, h2`) o Script Personalizado
             </label>
             <ExpandableButton
               size="sm"
               variant="amber"
               icon={<Wand2 className="w-3.5 h-3.5" />}
-              label="Autogenerar Script para esta URL"
+              label={
+                isAutonomousServerEngine
+                  ? 'Sugerir Selectores CSS'
+                  : 'Autogenerar Script para esta URL'
+              }
               onClick={() => {
-                const target =
-                  (
-                    currentCfg.targetUrl ??
-                    customNodeObj?.targetUrl ??
-                    catalogScraperDef?.targetUrl ??
-                    ''
-                  ).trim() || 'https://ejemplo.gov.co';
-                const engine =
-                  currentCfg.scriptEngine || customNodeObj?.scriptEngine || defaultCatalogEngine;
-                const autoScript =
-                  engine === 'python_bs4'
+                const target = (parsedTargetUrls[0] || 'https://ejemplo.gov.co').trim();
+                const autoScript = isAutonomousServerEngine
+                  ? `.noticia, article, table tr, h1, h2, a[href$='.pdf']`
+                  : normalizedEngine === 'python_bs4'
                     ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
-                    : engine === 'node_cheerio'
+                    : normalizedEngine === 'node_cheerio'
                       ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${target}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
                       : `Abrir ${target} con Chrome DevTools MCP, extraer todas las tablas y enlaces PDF y entregarlos en Markdown limpio.`;
                 onUpdateNodeConfig(activeNode.key, { scriptCode: autoScript });
@@ -4251,15 +4936,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             />
           </div>
           <textarea
-            rows={4}
+            rows={3}
             value={
-              currentCfg.scriptCode ??
-              customNodeObj?.scriptCode ??
-              catalogScraperDef?.scriptCode ??
-              ''
+              currentCfg.scriptCode ?? customNodeObj?.scriptCode ?? catalogScraperDef?.scriptCode ?? ''
             }
             onChange={(e) => onUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })}
-            placeholder="Script Python / Node.js o selectores CSS que ejecutará tu instancia Antigravity..."
+            placeholder="Selectores CSS opcionales (ej. .noticia, table, article, h2) o script Python / Node.js personalizado..."
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-slate-100"
           />
         </div>
@@ -5562,13 +6244,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                       ? '📧 Filtro de Búsqueda o Destinatario en Gmail'
                       : cleanId === 'google_calendar'
                         ? '📅 Título del Evento o Recordatorio en Google Calendar'
-                        : cleanId === 'notebooklm'
-                          ? '📚 Cuaderno o Fuente en Google NotebookLM'
-                          : cleanId === 'google_flow'
-                            ? '🎬 Escena / Prompt Visual para Google Flow (Veo / Imagen)'
-                            : cleanId.includes('antigravity')
-                              ? '💻 Ruta / Comando o Tarea Delegada en Google Antigravity'
-                              : '🔗 Endpoint URL o Parámetro de Consulta';
+                        : cleanId.includes('antigravity')
+                          ? '💻 Ruta / Comando o Tarea Delegada en Google Antigravity'
+                          : '🔗 Endpoint URL o Parámetro de Consulta';
 
     const paramPlaceholder =
       activeCompanyInfo?.city && cleanId.includes('clima')
@@ -5583,11 +6261,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 ? 'Ej: https://drive.google.com/drive/folders/1AbC... o nombre de carpeta'
                 : cleanId === 'google_sheets'
                   ? 'Ej: Matriz_Control_SST_2026 (Pestaña: Alertas)'
-                  : cleanId === 'notebooklm'
-                    ? 'Ej: Cuaderno Normativo SG-SST / Guía de Inducción...'
-                    : cleanId === 'google_flow'
-                      ? 'Ej: Trabajador usando arnés certificado en trabajo en alturas...'
-                      : `Ej: Recurso o parámetro objetivo para ${resolvedNodeDisplayTitle}...`;
+                  : `Ej: Recurso o parámetro objetivo para ${resolvedNodeDisplayTitle}...`;
 
     const liveToolDriveFolders =
       cleanId === 'google_drive' && Array.isArray(nodeLiveInspectorData.availableFolders)

@@ -105,6 +105,8 @@ export interface CanvasCustomUserNode {
   content?: string;
   targetUrl?: string;
   scriptEngine?:
+    | 'auto_chrome_dom'
+    | 'fetch_cheerio'
     | 'python_bs4'
     | 'node_cheerio'
     | 'chrome_mcp'
@@ -169,6 +171,8 @@ export interface CanvasNodeConfig {
   conditionFalseLabel?: string;
   targetUrl?: string;
   scriptEngine?:
+    | 'auto_chrome_dom'
+    | 'fetch_cheerio'
     | 'python_bs4'
     | 'node_cheerio'
     | 'chrome_mcp'
@@ -177,6 +181,7 @@ export interface CanvasNodeConfig {
     | 'chrome_devtools_mcp'
     | 'custom_script';
   scriptCode?: string;
+  onlyOnContentChange?: boolean;
   skillContent?: string;
   ruleText?: string;
   /** Parámetros propios de Disparadores (Equipo 1) */
@@ -275,6 +280,32 @@ export interface CanvasNodeConfig {
   linkedAgentId?: string;
   /** Destinatarios específicos de correo por nodo de salida (`email_report`) */
   emailRecipientsOverride?: string;
+  /** Parámetros propios de Google NotebookLM (`notebooklm` / `wappy_rag_documental`) */
+  notebookId?: string;
+  notebookTitle?: string;
+  notebookAction?: 'consultar' | 'agregar_fuente' | 'generar_estudio';
+  notebookArtifactType?:
+    | 'infographic'
+    | 'slide_deck'
+    | 'report'
+    | 'audio'
+    | 'video'
+    | 'mind_map'
+    | 'data_table';
+  notebookPrompt?: string;
+  attachArtifact?: boolean;
+  /** Parámetros propios de Google Flow Studio (`google_flow`) */
+  flowAction?: 'generar_imagen' | 'generar_video';
+  flowAspectRatio?: '9:16' | '16:9' | '1:1';
+  flowStyle?:
+    | 'corporativo_sst'
+    | 'infografia_editorial'
+    | 'fotorealista'
+    | 'isometrico_3d'
+    | 'minimalista';
+  flowCameraMotion?: 'estatico' | 'paneo_suave' | 'zoom_acercamiento' | 'orbital';
+  flowPrompt?: string;
+  attachMedia?: boolean;
 }
 
 export interface WappyAgentAvatarOption {
@@ -677,13 +708,14 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'extract_web_scraping_agy',
-    label: 'Web Scraping con Antigravity (Script Python / Node / Playwright)',
-    shortLabel: 'Web Scraping AGY',
-    badge: 'Script en tu Instancia',
+    label: 'Web Scraping Inteligente (Hasta 5 URLs · Auto DOM / Chrome / Script)',
+    shortLabel: 'Web Scraping',
+    badge: 'web_scraper_live + SHA-256',
     description:
-      'Ejecuta un script de Web Scraping en tu instancia configurada de Google Antigravity (Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools) para extraer tablas, normas o datos de cualquier página web.',
+      'Extrae contenido, tablas y normativa de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante Chrome DevTools MCP y scripts Antigravity, con selectores CSS y detección de cambios SHA-256.',
     category: 'extractor',
-    toolHint: 'Ejecutar script de Web Scraping mediante la instancia conectada de Google Antigravity (google_antigravity: delegate_task / script Python/Node/Playwright)',
+    toolHint:
+      'web_scraper_live (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección real de cambios SHA-256 o script Python/Node/Chrome Antigravity)',
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
@@ -785,7 +817,13 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   subtitle: string;
   content: string;
   targetUrl?: string;
-  scriptEngine?: 'python_bs4_playwright' | 'node_cheerio_puppeteer' | 'chrome_devtools_mcp' | 'custom_script';
+  scriptEngine?:
+    | 'auto_chrome_dom'
+    | 'fetch_cheerio'
+    | 'python_bs4_playwright'
+    | 'node_cheerio_puppeteer'
+    | 'chrome_devtools_mcp'
+    | 'custom_script';
   scriptCode?: string;
   defaultConstruction?: boolean;
 }> = [
@@ -1132,13 +1170,13 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   {
     id: 'scraper_node_antigravity',
     nodeType: 'web_scraper',
-    label: 'Nodo: Web Scraping con Antigravity (Script Python / Playwright)',
-    shortLabel: 'Web Scraping AGY',
-    subtitle: 'Script en tu Instancia AGY',
+    label: 'Nodo: Web Scraping Inteligente (Auto DOM / Chrome / Script)',
+    shortLabel: 'Web Scraping',
+    subtitle: 'Auto DOM · Hasta 5 URLs + SHA-256',
     content:
-      'Ejecuta un script de Web Scraping en tu instancia conectada de Google Antigravity para extraer información estructurada de la URL configurada.',
+      'Extrae contenido estructurado, tablas y documentos de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o vía script/navegador en Google Antigravity, con selectores CSS y detección de cambios SHA-256.',
     targetUrl: 'https://www.mintrabajo.gov.co',
-    scriptEngine: 'python_bs4_playwright',
+    scriptEngine: 'auto_chrome_dom',
   },
   {
     id: 'scraper_agy_alto_riesgo',
@@ -1584,18 +1622,26 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'notebooklm',
-    label: 'Google NotebookLM (Cuadernos RAG)',
+    label: 'Google NotebookLM (Cuadernos RAG y Studio)',
     shortLabel: 'NotebookLM',
+    badge: 'Cuadernos + Artefactos',
+    description:
+      'Consulta cuadernos reales de Google NotebookLM con citas exactas, indexa fuentes del flujo y genera infografías, diapositivas, reportes, audio, video, mapas mentales o tablas adjuntables al informe.',
     category: 'google_tools',
-    toolHint: 'notebooklm (consultar cuadernos documentales)',
+    toolHint:
+      'wappy_notebooklm (consultar cuadernos RAG con citas, indexar fuentes y generar artefactos Studio)',
     badgeColor: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
   },
   {
     id: 'google_flow',
-    label: 'Google Flow Studio (Veo / Imagen)',
+    label: 'Google Flow Studio (Imágenes y Video Veo)',
     shortLabel: 'Google Flow',
+    badge: 'Imagen + Video Veo',
+    description:
+      'Genera afiches, infografías y videos Veo SST (9:16, 16:9, 1:1) con estilo visual y movimiento de cámara configurables, adjuntando el recurso al correo e informe.',
     category: 'google_tools',
-    toolHint: 'google_flow (generación visual SST)',
+    toolHint:
+      'google_flow (generación visual SST de imágenes y video Veo con relación de aspecto, estilo y movimiento de cámara)',
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
 
@@ -1668,10 +1714,14 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'tool_web_scraping_agy',
-    label: 'Web Scraping MCP con Antigravity (Playwright / Chrome DevTools)',
-    shortLabel: 'Web Scraping MCP',
+    label: 'Web Scraping en Vivo (Auto DOM / Antigravity MCP)',
+    shortLabel: 'Web Scraping Live',
+    badge: 'web_scraper_live + MCP',
+    description:
+      'Permite al Agente IA consultar hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante Chrome DevTools MCP y scripts Antigravity, con selectores CSS y detección de cambios SHA-256.',
     category: 'mcp_tools',
-    toolHint: 'google_antigravity (ejecuta script de Web Scraping con Python BeautifulSoup/Playwright, Node.js Cheerio o Chrome DevTools MCP)',
+    toolHint:
+      'web_scraper_live / google_antigravity (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección SHA-256 o Chrome MCP)',
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
@@ -12347,10 +12397,27 @@ export function buildPromptFromWorkflowNodes(
       parts.push(`Modo de Conexión Google Antigravity: ${modeMap[cfg.antigravityMode] || cfg.antigravityMode}`);
     }
     if (cfg.scriptEngine) {
-      parts.push(`Motor de Script Antigravity: ${cfg.scriptEngine}`);
+      parts.push(`Motor de Extracción Web: ${cfg.scriptEngine}`);
+    }
+    if (cfg.onlyOnContentChange !== undefined) {
+      parts.push(
+        cfg.onlyOnContentChange
+          ? 'Detección SHA-256: Activar rama SÍ solo si hay cambio real de contenido'
+          : 'Detección SHA-256: Procesar contenido en cada ejecución',
+      );
     }
     if (cfg.scriptCode?.trim()) {
       parts.push(`Script/Selector de Extracción: "${cfg.scriptCode.trim()}"`);
+    }
+    if (cfg.notebookId?.trim() || cfg.notebookTitle?.trim() || cfg.notebookAction) {
+      parts.push(
+        `Google NotebookLM: cuaderno="${cfg.notebookTitle?.trim() || cfg.notebookId?.trim() || 'Por defecto'}", acción=${cfg.notebookAction || 'consultar'}${cfg.notebookArtifactType ? ` (${cfg.notebookArtifactType})` : ''}${cfg.notebookPrompt?.trim() ? `, instrucción="${cfg.notebookPrompt.trim()}"` : ''}${cfg.attachArtifact !== false ? ', adjuntar artefacto' : ''}`,
+      );
+    }
+    if (cfg.flowAction || cfg.flowPrompt?.trim()) {
+      parts.push(
+        `Google Flow Studio: acción=${cfg.flowAction || 'generar_imagen'}, aspecto=${cfg.flowAspectRatio || '9:16'}, estilo=${cfg.flowStyle || 'corporativo_sst'}${cfg.flowAction === 'generar_video' && cfg.flowCameraMotion ? `, cámara=${cfg.flowCameraMotion}` : ''}${cfg.flowPrompt?.trim() ? `, prompt="${cfg.flowPrompt.trim()}"` : ''}${cfg.attachMedia !== false ? ', adjuntar multimedia' : ''}`,
+      );
     }
     if (cfg.skillContent?.trim()) {
       parts.push(`Skill (SKILL.md): "${cfg.skillContent.trim()}"`);

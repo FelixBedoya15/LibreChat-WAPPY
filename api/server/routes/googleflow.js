@@ -1090,6 +1090,7 @@ async function executeFlowNativeStudioAction({
  */
 async function executeFlowImageGeneration({
   userId,
+  companyId = null,
   prompt,
   aspectRatio = '16:9',
   style = 'fotorrealista',
@@ -1099,7 +1100,7 @@ async function executeFlowImageGeneration({
     throw new Error('Debes indicar una descripción (prompt) para generar la imagen.');
   }
 
-  const creds = await resolveGoogleFlowCredentials(userId);
+  const creds = await resolveGoogleFlowCredentials(userId, companyId);
   const cleanRatio = ['16:9', '9:16', '1:1', '4:3', '3:4'].includes(aspectRatio)
     ? aspectRatio
     : aspectRatio === 'vertical'
@@ -1378,6 +1379,7 @@ function renderCinematicMp4FromImage(imagePath, outputMp4Path, aspectRatio = '16
  */
 async function executeFlowVideoGeneration({
   userId,
+  companyId = null,
   prompt,
   aspectRatio = '16:9',
   cameraMotion = 'zoom_in',
@@ -1386,7 +1388,7 @@ async function executeFlowVideoGeneration({
     throw new Error('Debes indicar una descripción (prompt) para generar el video.');
   }
 
-  const creds = await resolveGoogleFlowCredentials(userId);
+  const creds = await resolveGoogleFlowCredentials(userId, companyId);
   const cleanRatio = aspectRatio === '9:16' || aspectRatio === 'vertical' ? '9:16' : '16:9';
 
   const motionDescriptions = {
@@ -2009,6 +2011,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const companyId = req.companyId || req.body?.companyId || req.query?.companyId || null;
     const {
       type = 'image',
       prompt,
@@ -2024,6 +2027,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     if (type === 'video') {
       const vidRes = await executeFlowVideoGeneration({
         userId,
+        companyId,
         prompt,
         aspectRatio,
         cameraMotion,
@@ -2040,6 +2044,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     } else {
       const imgRes = await executeFlowImageGeneration({
         userId,
+        companyId,
         prompt,
         aspectRatio,
         style,

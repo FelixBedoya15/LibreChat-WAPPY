@@ -1074,7 +1074,13 @@ export default function WappyWorkflowCanvas({
     subtitle: string;
     content: string;
     targetUrl: string;
-    scriptEngine: 'python_bs4' | 'node_cheerio' | 'chrome_mcp' | 'custom_script';
+    scriptEngine:
+      | 'auto_chrome_dom'
+      | 'fetch_cheerio'
+      | 'python_bs4'
+      | 'node_cheerio'
+      | 'chrome_mcp'
+      | 'custom_script';
     scriptCode: string;
   }>({
     nodeType: 'skill',
@@ -1082,7 +1088,7 @@ export default function WappyWorkflowCanvas({
     subtitle: '',
     content: '',
     targetUrl: '',
-    scriptEngine: 'python_bs4',
+    scriptEngine: 'auto_chrome_dom',
     scriptCode: '',
   });
   const [savedUserLibraryNodes, setSavedUserLibraryNodes] = useState<CanvasCustomUserNode[]>(() => {
@@ -2627,6 +2633,41 @@ export default function WappyWorkflowCanvas({
           return node.key === 'agent_root' ? 50 : 80;
         case 'square_output':
           return 90;
+        case 'custom_node': {
+          const nid = String(node.nodeId || node.key || '').toLowerCase();
+          const cType = String(node.customNodeType || '').toLowerCase();
+          if (nid.includes('trigger') || nid.includes('cron') || nid.includes('webhook')) {
+            return 10;
+          }
+          if (
+            cType === 'web_scraper' ||
+            cType === 'web_search' ||
+            nid.includes('extract') ||
+            nid.includes('scraper') ||
+            nid.includes('scraping') ||
+            nid.includes('folder') ||
+            nid.includes('carpeta')
+          ) {
+            return 20;
+          }
+          if (nid.includes('if_') || nid.includes('logic') || nid.includes('filter')) {
+            return 45;
+          }
+          if (nid.includes('out_') || nid.includes('output') || nid.includes('salida')) {
+            return 90;
+          }
+          if (
+            cType === 'skill' ||
+            cType === 'rule' ||
+            cType === 'subagent' ||
+            nid.includes('tool') ||
+            nid.includes('notebooklm') ||
+            nid.includes('flow')
+          ) {
+            return 75;
+          }
+          return 75;
+        }
         default:
           return 95;
       }
@@ -3029,7 +3070,7 @@ export default function WappyWorkflowCanvas({
       subtitle: '',
       content: '',
       targetUrl: '',
-      scriptEngine: 'python_bs4',
+      scriptEngine: 'auto_chrome_dom',
       scriptCode: '',
     });
     setShowCustomNodeBuilder(false);
@@ -6227,14 +6268,20 @@ export default function WappyWorkflowCanvas({
                             }
                             className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
                           >
+                            <option value="auto_chrome_dom">
+                              ⚡ Autónomo en Servidor · HTML + DOM JS (Recomendado)
+                            </option>
+                            <option value="fetch_cheerio">
+                              🚀 Rápido HTML Estático (Fetch + Cheerio)
+                            </option>
+                            <option value="chrome_mcp">
+                              🌐 Navegador Antigravity Local para Intranet (Chrome MCP)
+                            </option>
                             <option value="python_bs4">
                               🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
                             </option>
                             <option value="node_cheerio">
                               🟢 Node.js (Cheerio + Puppeteer en Antigravity)
-                            </option>
-                            <option value="chrome_mcp">
-                              🌐 Chrome DevTools MCP (Navegador Real Conectado)
                             </option>
                             <option value="custom_script">
                               💻 Script / Comando Personalizado en Antigravity
@@ -6249,23 +6296,31 @@ export default function WappyWorkflowCanvas({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300">
-                          💻 Script de Web Scraping o Selectores CSS que ejecutará Antigravity
+                          🎯 Selectores CSS Opcionales (ej. `.noticia, table, article, h2`) o Script
                         </label>
                         <ExpandableButton
                           type="button"
                           size="sm"
                           variant="purple"
                           icon={<Wand2 className="w-3.5 h-3.5" />}
-                          label="⚡ Autogenerar Script Base de Scraping"
+                          label={
+                            newCustomNodeForm.scriptEngine === 'auto_chrome_dom' ||
+                            newCustomNodeForm.scriptEngine === 'fetch_cheerio'
+                              ? '⚡ Sugerir Selectores CSS'
+                              : '⚡ Autogenerar Script Base de Scraping'
+                          }
                           onClick={() => {
                             const urlSample =
                               newCustomNodeForm.targetUrl.trim() || 'https://ejemplo.gov.co';
                             const generated =
-                              newCustomNodeForm.scriptEngine === 'python_bs4'
-                                ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${urlSample}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor row in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(row.get_text(strip=True))`
-                                : newCustomNodeForm.scriptEngine === 'node_cheerio'
-                                  ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${urlSample}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
-                                  : `Abrir ${urlSample} con Chrome DevTools MCP, extraer todas las tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
+                              newCustomNodeForm.scriptEngine === 'auto_chrome_dom' ||
+                              newCustomNodeForm.scriptEngine === 'fetch_cheerio'
+                                ? `.noticia, article, table tr, h1, h2, a[href$='.pdf']`
+                                : newCustomNodeForm.scriptEngine === 'python_bs4'
+                                  ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${urlSample}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor row in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(row.get_text(strip=True))`
+                                  : newCustomNodeForm.scriptEngine === 'node_cheerio'
+                                    ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${urlSample}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
+                                    : `Abrir ${urlSample} con Chrome DevTools MCP, extraer todas las tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
                             setNewCustomNodeForm((prev) => ({ ...prev, scriptCode: generated }));
                           }}
                         />
@@ -6343,11 +6398,15 @@ export default function WappyWorkflowCanvas({
                             ? 'web_scraper'
                             : 'web_search';
                     const mappedEngine =
-                      catNode.scriptEngine === 'chrome_devtools_mcp'
-                        ? ('chrome_mcp' as const)
-                        : catNode.scriptEngine === 'node_cheerio_puppeteer'
-                          ? ('node_cheerio' as const)
-                          : ('python_bs4' as const);
+                      catNode.scriptEngine === 'auto_chrome_dom'
+                        ? ('auto_chrome_dom' as const)
+                        : catNode.scriptEngine === 'fetch_cheerio'
+                          ? ('fetch_cheerio' as const)
+                          : catNode.scriptEngine === 'chrome_devtools_mcp'
+                            ? ('chrome_mcp' as const)
+                            : catNode.scriptEngine === 'node_cheerio_puppeteer'
+                              ? ('node_cheerio' as const)
+                              : ('python_bs4' as const);
                     return {
                       ...catNode,
                       badge: catNode.subtitle || (catNode as any).badge || 'Nodo Especial',
@@ -11986,6 +12045,288 @@ export default function WappyWorkflowCanvas({
           </div>,
           document.body,
         )}
+
+      {/* Selector rápido conectado al puerto «Herramienta +» / diamond_tool del Agente IA */}
+      {toolPortPickerOpen &&
+        typeof document !== 'undefined' &&
+        (() => {
+          const safeInputs = Array.isArray(workflowNodes?.inputs) ? workflowNodes.inputs : [];
+          const safeHitos = Array.isArray(workflowNodes?.hitos) ? workflowNodes.hitos : [];
+          const nodeConfigsMap = workflowNodes?.canvasLayout?.nodeConfigs;
+          const searchNormalized = (toolPortPickerSearch || '').trim().toLowerCase();
+
+          const connectorItems = (Array.isArray(INPUT_CONNECTOR_NODES) ? INPUT_CONNECTOR_NODES : [])
+            .filter((node) => !isWorkflowNodeUnderConstruction(node, disabledSgsstApps))
+            .map((node) => ({
+              kind: 'connectors' as const,
+              node,
+              canvasKey: `tool_inputs_${node.id}`,
+              isConnected: safeInputs.includes(node.id),
+              isConnectedAsSource: false,
+            }));
+
+          const hitoItems = (Array.isArray(HITO_APP_NODES) ? HITO_APP_NODES : [])
+            .filter((node) => !isWorkflowNodeUnderConstruction(node, disabledSgsstApps))
+            .map((node) => {
+              const inHitos = safeHitos.includes(node.id);
+              const hitoRole = resolveCanvasHitoRole(node.id, nodeConfigsMap);
+              return {
+                kind: 'hitos' as const,
+                node,
+                canvasKey: `tool_hitos_${node.id}`,
+                isConnected: inHitos && hitoRole !== 'source_read',
+                isConnectedAsSource: inHitos && hitoRole === 'source_read',
+              };
+            });
+
+          const allItems = [...connectorItems, ...hitoItems];
+          const connectedTotalCount = allItems.filter((item) => item.isConnected).length;
+
+          const filteredItems = allItems.filter((item) => {
+            if (toolPortPickerFilter === 'connectors' && item.kind !== 'connectors') {
+              return false;
+            }
+            if (toolPortPickerFilter === 'hitos' && item.kind !== 'hitos') {
+              return false;
+            }
+            if (!searchNormalized) {
+              return true;
+            }
+            const haystack = [
+              item.node.id || '',
+              item.node.label || '',
+              item.node.badge || '',
+              item.node.description || '',
+              item.node.toolHint || '',
+            ]
+              .join(' ')
+              .toLowerCase();
+            return haystack.includes(searchNormalized);
+          });
+
+          return createPortal(
+            <div
+              className="fixed inset-0 z-[10015] flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-sm"
+              onClick={() => setToolPortPickerOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Conectar herramientas al puerto Herramienta + del Agente IA"
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-900/95 shadow-2xl"
+              >
+                <div className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-purple-500/10 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-teal-500/10 blur-3xl" />
+
+                <div className="relative flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5 border-b border-slate-200/80 dark:border-zinc-800">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
+                      <Hammer className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-zinc-100 truncate">
+                        Conectar Herramientas al Agente IA
+                      </h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">
+                        Puerto «Herramienta +» · Conectores MCP, NotebookLM, Google Flow, Web Scraping e Hitos SG-SST
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300">
+                      <Check className="h-3.5 w-3.5" />
+                      {connectedTotalCount} conectada{connectedTotalCount === 1 ? '' : 's'}
+                    </span>
+                    <ExpandableButton
+                      variant="neutral"
+                      size="sm"
+                      icon={<X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label="Cerrar"
+                      title="Cerrar selector de herramientas (Esc)"
+                      onClick={() => setToolPortPickerOpen(false)}
+                    />
+                  </div>
+                </div>
+
+                <div className="relative px-4 py-3 sm:px-5 border-b border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/40 flex flex-col sm:flex-row sm:items-center gap-2.5">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={toolPortPickerSearch}
+                      onChange={(e) => setToolPortPickerSearch(e.target.value)}
+                      placeholder="Buscar NotebookLM, Google Flow, Web Scraping, Drive, Hito..."
+                      className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/50"
+                    />
+                    {toolPortPickerSearch.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setToolPortPickerSearch('')}
+                        aria-label="Limpiar búsqueda"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <ExpandableButton
+                      variant="cyan"
+                      size="sm"
+                      isActive={toolPortPickerFilter === 'all'}
+                      icon={<Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label="Todas"
+                      badge={allItems.length}
+                      title="Mostrar todas las herramientas disponibles"
+                      onClick={() => setToolPortPickerFilter('all')}
+                    />
+                    <ExpandableButton
+                      variant="blue"
+                      size="sm"
+                      isActive={toolPortPickerFilter === 'connectors'}
+                      icon={<Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label="Conectores & IA"
+                      badge={connectorItems.length}
+                      title="Filtrar conectores externos, NotebookLM, Flow y Web Scraping"
+                      onClick={() => setToolPortPickerFilter('connectors')}
+                    />
+                    <ExpandableButton
+                      variant="emerald"
+                      size="sm"
+                      isActive={toolPortPickerFilter === 'hitos'}
+                      icon={<ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label="Hitos SG-SST"
+                      badge={hitoItems.length}
+                      title="Filtrar aplicativos Hito SG-SST"
+                      onClick={() => setToolPortPickerFilter('hitos')}
+                    />
+                  </div>
+                </div>
+
+                <div className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5">
+                  {filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-2xl border border-dashed border-slate-300/80 dark:border-zinc-700/80 bg-slate-50/50 dark:bg-zinc-900/40">
+                      <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 mb-1">
+                        No se encontraron herramientas con ese filtro
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+                        Prueba otro término de búsqueda o restablece los filtros del selector.
+                      </p>
+                      <ExpandableButton
+                        variant="neutral"
+                        size="sm"
+                        icon={<X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                        label="Limpiar filtros"
+                        onClick={() => {
+                          setToolPortPickerSearch('');
+                          setToolPortPickerFilter('all');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {filteredItems.map(({ kind, node, canvasKey, isConnected, isConnectedAsSource }) => (
+                        <div
+                          key={`${kind}_${node.id}`}
+                          className={`min-w-0 flex flex-col justify-between gap-2.5 rounded-2xl border p-3.5 transition-all duration-200 ${
+                            isConnected
+                              ? 'border-emerald-500/45 bg-emerald-500/5 dark:bg-emerald-950/20 shadow-sm'
+                              : 'border-slate-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/70 hover:border-purple-500/40'
+                          }`}
+                        >
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div className="h-9 w-9 rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-slate-50 dark:bg-zinc-800/80 flex items-center justify-center shrink-0">
+                                {renderOfficialNodeSvg(node.id, 'w-6 h-6')}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-zinc-100 leading-tight break-words">
+                                    {node.label || node.id}
+                                  </span>
+                                </div>
+                                {node.badge && (
+                                  <span className="mt-1 inline-block max-w-full truncate px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-500/10 border border-slate-300/60 dark:border-zinc-700 text-slate-600 dark:text-zinc-300">
+                                    {node.badge}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-slate-600 dark:text-zinc-400 line-clamp-3 break-words">
+                              {node.description || ''}
+                            </p>
+                            {node.toolHint && (
+                              <p className="text-[10px] font-mono text-purple-700 dark:text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-lg px-2 py-1 truncate">
+                                {node.toolHint}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-slate-200/60 dark:border-zinc-800/80">
+                            {isConnected ? (
+                              <>
+                                <span className="mr-auto inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                                  <Check className="h-3.5 w-3.5 shrink-0" />
+                                  Conectada
+                                </span>
+                                <ExpandableButton
+                                  variant="purple"
+                                  size="sm"
+                                  icon={<Sliders className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                  label="Configurar"
+                                  title={`Configurar ${node.label || node.id}`}
+                                  onClick={() => {
+                                    setToolPortPickerOpen(false);
+                                    openNodeConfigInspector(canvasKey);
+                                  }}
+                                />
+                                <ExpandableButton
+                                  variant="danger"
+                                  size="sm"
+                                  icon={<X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                  label="Desconectar"
+                                  title={`Quitar ${node.label || node.id} del puerto Herramienta +`}
+                                  onClick={() => {
+                                    toggleOrAddCatalogNode(kind === 'connectors' ? 'inputs' : 'hitos', node.id);
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                {kind === 'hitos' && isConnectedAsSource && (
+                                  <span className="mr-auto inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 dark:text-sky-300">
+                                    En uso como fuente
+                                  </span>
+                                )}
+                                <ExpandableButton
+                                  variant="emerald"
+                                  size="sm"
+                                  icon={<Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                  label={kind === 'hitos' && isConnectedAsSource ? 'Usar como Herramienta' : 'Conectar'}
+                                  title={`Conectar ${node.label || node.id} al puerto Herramienta +`}
+                                  onClick={() => {
+                                    if (kind === 'connectors') {
+                                      setToolPortPickerOpen(false);
+                                      toggleOrAddCatalogNode('inputs', node.id);
+                                    } else {
+                                      connectHitoAsAgentTool(node.id);
+                                    }
+                                  }}
+                                />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          );
+        })()}
     </div>
   );
 
