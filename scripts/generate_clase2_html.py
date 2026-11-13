@@ -2416,7 +2416,8 @@ html_content = f'''<!DOCTYPE html>
       <a href="/clase1" class="course-org-pill done">✅ Clase 1 · Grabada</a>
       <a href="/clase2" class="course-org-pill active" aria-current="page">📍 Clase 2 · Estás aquí</a>
       <a href="/clase3" class="course-org-pill done">✅ Clase 3 · Grabada</a>
-      <a href="/clase4" class="course-org-pill live">🔴 Clase 4 · Mar 10 Nov 7PM</a>
+      <a href="/clase4" class="course-org-pill done">✅ Clase 4 · Grabada</a>
+      <a href="/clase5" class="course-org-pill live">🔴 Clase 5 · Mar 17 Nov 7PM</a>
     </nav>
   </div>
 

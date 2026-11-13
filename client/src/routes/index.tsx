@@ -185,6 +185,11 @@ const Clase4Route = () => {
   return null;
 };
 
+const Clase5Route = () => {
+  window.location.replace('/clase5.html');
+  return null;
+};
+
 /**
  * Índice de wappy.club.
  * - PWA instalada (standalone): se mantiene el acceso directo a la app (/c/new o /login).
@@ -760,6 +765,16 @@ export const router = createBrowserRouter(
     {
       path: 'clase4.html',
       element: <Clase4Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase5',
+      element: <Clase5Route />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'clase5.html',
+      element: <Clase5Route />,
       errorElement: <RouteErrorBoundary />,
     },
     {
