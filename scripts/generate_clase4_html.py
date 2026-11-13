@@ -2441,7 +2441,7 @@ html_content = f'''<!DOCTYPE html>
         </div>
 
         <h1>
-          Flujos DAG en <span class="highlight-lime">Lienzo WAPPY</span>, Condiciones Pre-IA &amp; Subagentes Masivos
+          Flujos DAG en <span class="highlight-lime">Lienzo WAPPY</span><br>Condiciones Pre-IA &amp; Subagentes Masivos
         </h1>
 
         <p class="hero-sub">

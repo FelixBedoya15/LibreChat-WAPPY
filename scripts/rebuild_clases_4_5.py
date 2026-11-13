@@ -216,7 +216,7 @@ html_content = f\'\'\'<!DOCTYPE html>
         </div>
 
         <h1>
-          Flujos DAG en <span class="highlight-lime">Lienzo WAPPY</span>, Condiciones Pre-IA &amp; Subagentes Masivos
+          Flujos DAG en <span class="highlight-lime">Lienzo WAPPY</span><br>Condiciones Pre-IA &amp; Subagentes Masivos
         </h1>
 
         <p class="hero-sub">
@@ -1274,17 +1274,17 @@ html_content = f\'\'\'<!DOCTYPE html>
 
       <div class="nav-links">
         <a href="#presentacion" class="active-pill">🎬 Presentación</a>
-        <a href="#grabacion">🔴 Sala en Vivo &amp; Checklist</a>
+        <a href="#grabacion">🔴 En Vivo &amp; Checklist</a>
         <a href="#prompts-chat">💬 Prompts Clase 5</a>
-        <a href="#guia-paso-a-paso">📘 Temario Paso a Paso</a>
+        <a href="#guia-paso-a-paso">📘 Guía Paso a Paso</a>
       </div>
 
-      <div class="nav-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy">
-          <span>Ir a WAPPY</span>
-        </a>
-        <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding: 9px 16px; font-size: 13px;">
+      <div class="nav-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
+        <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-glass" style="padding:8px 13px; font-size:12px; white-space:nowrap;">
           📹 Entrar a Meet
+        </a>
+        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy" style="white-space:nowrap;">
+          <span>Ir a WAPPY</span>
         </a>
       </div>
     </nav>
@@ -1320,7 +1320,7 @@ html_content = f\'\'\'<!DOCTYPE html>
         </div>
 
         <h1>
-          Puesta en Marcha de <span class="highlight-lime">Flujos Alumnos</span>, NotebookLM &amp; Google Flow Audiovisual
+          Puesta en Marcha de <span class="highlight-lime">Flujos Alumnos</span><br>NotebookLM &amp; Google Flow Audiovisual
         </h1>
 
         <p class="hero-sub">
