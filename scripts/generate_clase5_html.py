@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Generador Maestro de la Página de Clase 5:
-Puesta en Marcha de Flujos DAG, Google NotebookLM & Google Flow Audiovisual
-Sesión en Vivo: Martes 17 de Noviembre de 2026 · 7:00 – 9:00 PM (Hora Colombia)
-"""
 import os
 import base64
 
@@ -34,7 +29,7 @@ html_content = f'''<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>WAPPY IA · Clase 5: Puesta en Marcha de Flujos DAG, Google NotebookLM &amp; Google Flow Audiovisual | SOMOS SST</title>
-  <meta name="description" content="Clase 5 Oficial en Vivo: Antigravity + Wappy IA · Martes, 17 de noviembre · 7:00 – 9:00 PM (America/Bogota) vía Google Meet (meet.google.com/yxv-gyhv-ron). Puesta en marcha práctica de los flujos diseñados por alumnos, Google NotebookLM con cero alucinación, generación audiovisual con Google Flow y claves API independientes.">
+  <meta name="description" content="Clase 5 Oficial en Vivo: Antigravity + Wappy IA · Martes 17 de noviembre · 7:00 – 9:00 PM (America/Bogota) vía Google Meet (meet.google.com/yxv-gyhv-ron). Parametrización práctica en vivo de los flujos diseñados por los alumnos, Google NotebookLM 0% alucinación con podcasts a 2 voces, Google Flow audiovisual y claves API independientes.">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v=wappy" />
   <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png?v=wappy" />
   <link rel="shortcut icon" href="/assets/favicon-32x32.png?v=wappy" />
@@ -2382,35 +2377,42 @@ html_content = f'''<!DOCTYPE html>
 </head>
 <body>
 
-  <!-- ===========================================================
-       BARRA DE NAVEGACIÓN SUPERIOR FIJA
-       =========================================================== -->
-  <header class="app-nav" role="banner">
-    <div class="nav-container">
-      <a href="/cursowappy01" class="brand-link" aria-label="WAPPY IA - Inicio del Curso">
-        <img src="{cat_logo}" alt="WAPPY IA" class="cat-logo">
-        <span class="brand-name">WAPPY <span>IA</span></span>
-        <span class="brand-pill" style="background:rgba(239,68,68,0.2); border-color:#ef4444; color:#fca5a5;">🔴 EN VIVO</span>
+  <!-- ========================================================================
+       1. FLOATING NAVBAR OFICIAL WAPPY.CLUB
+       ======================================================================== -->
+  <div class="nav-wrap">
+    <nav class="nav">
+      <a href="#inicio" class="brand">
+        <div class="brand-icon">
+          <img src="{cat_logo}" alt="WAPPY IA">
+        </div>
+        <div class="brand-text">
+          <div class="main">WAPPY<span>IA</span></div>
+          <div class="sub">SOMOS SST · CLASE 5</div>
+        </div>
       </a>
 
-      <nav class="nav-actions" aria-label="Navegación principal">
-        <a href="#video-clase" class="nav-link active">🔴 Sala en Vivo</a>
-        <a href="#presentacion" class="nav-link">📊 Diapositivas (10)</a>
-        <a href="#prompts" class="nav-link">💬 Prompts Clase 5</a>
-        <a href="#guia-pasos" class="nav-link">📘 Preparación Previa</a>
-        <button type="button" class="nav-link" onclick="openNotesModal()" style="background:rgba(199,243,3,0.15); border:1px solid rgba(199,243,3,0.4); color:#c7f303; cursor:pointer;">
-          📋 Checklist &amp; Temario
-        </button>
-        <a href="https://meet.google.com/yxv-gyhv-ron" class="btn btn-primary" target="_blank" rel="noopener" style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-color:rgba(255,255,255,0.4);">
-          <span>🔴 Entrar a Meet</span>
-        </a>
-      </nav>
-    </div>
-  </header>
+      <div class="nav-links">
+        <a href="#presentacion" class="active-pill">🎬 Presentación</a>
+        <a href="#grabacion">🔴 Sala en Vivo &amp; Checklist</a>
+        <a href="#prompts-chat">💬 Prompts Clase 5</a>
+        <a href="#guia-paso-a-paso">📘 Temario Paso a Paso</a>
+      </div>
 
-  <!-- ===========================================================
-       ORGANIZADOR DE CLASES DEL CURSO (6 Píldoras)
-       =========================================================== -->
+      <div class="nav-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <a id="navCtaEnterWappy" href="/login" class="nav-cta-wappy">
+          <span>Ir a WAPPY</span>
+        </a>
+        <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding: 9px 16px; font-size: 13px;">
+          📹 Entrar a Meet
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ========================================================================
+       1B. BARRA ORGANIZADORA DEL CURSO (CLASES 1 A 5 + TEMARIO)
+       ======================================================================== -->
   <div class="course-organizer-strip" id="inicio">
     <nav class="course-organizer-inner" aria-label="Navegación oficial del curso">
       <a href="/cursowappy01" class="course-org-pill">🎓 Temario Curso</a>
@@ -2418,171 +2420,96 @@ html_content = f'''<!DOCTYPE html>
       <a href="/clase2" class="course-org-pill done">✅ Clase 2 · Grabada</a>
       <a href="/clase3" class="course-org-pill done">✅ Clase 3 · Grabada</a>
       <a href="/clase4" class="course-org-pill done">✅ Clase 4 · Grabada</a>
-      <a href="/clase5" class="course-org-pill active live">🔴 Clase 5 · Mar 17 Nov 7PM</a>
+      <a href="/clase5" class="course-org-pill live active" aria-current="page">🔴 Clase 5 · Estás aquí (Mar 17 Nov · 7PM)</a>
     </nav>
   </div>
 
-  <main>
-    <!-- ===========================================================
-         HERO & SALA DE EMISIÓN EN VIVO CLASE 5
-         =========================================================== -->
-    <section class="hero-section" id="video-clase" aria-labelledby="hero-title">
-      <div class="hero-inner">
-        <div class="hero-kicker-row">
-          <span class="live-pill" style="background:rgba(239,68,68,0.22); border-color:#ef4444; color:#fca5a5;">
-            🔴 PRÓXIMA SESIÓN EN VIVO · MARTES 17 DE NOVIEMBRE · 7:00 – 9:00 PM
-          </span>
-          <span class="hero-telemetry">WAPPY.CLUB // SALA_EN_VIVO // CLASE_05_NOTEBOOKLM_FLOW</span>
+  <!-- ========================================================================
+       2. HERO OFICIAL ESTILO WAPPY.CLUB (SKY + NUBES + TENSHI)
+       ======================================================================== -->
+  <header class="hero">
+    <div class="hero-cloud c1"></div>
+    <div class="hero-cloud c2"></div>
+    <div class="hero-cloud c3"></div>
+
+    <div class="container hero-inner">
+      <div>
+        <div class="eyebrow">
+          <span class="dot" style="background:#ef4444; box-shadow:0 0 10px #ef4444;"></span>
+          <span>🔴 En Vivo · Martes 17 de Noviembre · 7:00 – 9:00 PM (America/Bogota)</span>
         </div>
 
-        <h1 class="hero-title" id="hero-title">
-          Puesta en Marcha de <span class="accent-lime">Flujos DAG</span>, Google <span class="accent-teal">NotebookLM</span> &amp; Flow Audiovisual
+        <h1>
+          Puesta en Marcha de <span class="highlight-lime">Flujos Alumnos</span>, NotebookLM &amp; Google Flow Audiovisual
         </h1>
 
-        <p class="hero-desc">
-          Quinta sesión práctica en vivo con el <strong>Ing. Félix Bedoya</strong>. Tomaremos los diagramas de flujos diseñados por los alumnos y los implementaremos en tiempo real en <strong>WAPPY</strong> y <strong>Antigravity</strong>, conectando además <strong>Google NotebookLM</strong> para podcasts y resúmenes ejecutivos con 0% de alucinación y <strong>Google Flow</strong> para la generación de micro-cápsulas audiovisuales de capacitación.
+        <p class="hero-sub">
+          Quinta sesión práctica oficial de <strong>Antigravity + Wappy IA</strong>. Construiremos en tiempo real los flujos DAG maquetados por cada empresa participante, conectaremos <strong>Google NotebookLM</strong> (0% alucinación normativa y podcasts a 2 voces), produciremos micro-cápsulas de capacitación con <strong>Google Flow (3.5 min)</strong> y habilitaremos <strong>claves API independientes</strong> por proceso.
         </p>
 
-        <!-- Reproductor Embebido 16:9 con Miniatura Oficial En Vivo -->
-        <div class="video-viewport-wrap">
-          <div class="video-aspect-box">
-            <!-- Miniatura Oficial Personalizada HD 16:9 (Conexión Google Meet) -->
-            <div class="video-thumb-cover" id="video-thumb-cover" onclick="window.open('https://meet.google.com/yxv-gyhv-ron', '_blank')" role="button" tabindex="0" aria-label="Entrar a la videoconferencia de la Clase 5 en Google Meet">
-              <img src="{thumb_bg}" alt="" class="video-thumb-bg-img" aria-hidden="true">
-              <div class="video-thumb-radial-overlay"></div>
-              <div class="video-thumb-grid-bg"></div>
-
-              <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
-              <div class="thumb-char-col">
-                <img src="{felix_avatar}" alt="Ing. Félix Bedoya">
-                <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
-              </div>
-
-              <!-- Columna Central: Logos + CLASE 5 + Píldoras + Botón Meet -->
-              <div class="thumb-center-col">
-                <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 14px; border-radius:999px; background:rgba(220,38,38,0.22); border:1px solid rgba(248,113,113,0.65); color:#fecaca; font-size:11.5px; font-weight:900; letter-spacing:0.06em; margin-bottom:8px;">
-                  🔴 SESIÓN EN VIVO · MARTES 17 NOV · 7:00 – 9:00 PM
-                </div>
-
-                <div class="thumb-logos-pill">
-                  <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
-                  <span class="plus-sep">+</span>
-                  <img src="{agy_logo}" alt="Google Antigravity" class="agy-i">
-                </div>
-
-                <div class="thumb-clase-giant">CLASE 5</div>
-
-                <div class="thumb-sub-title">
-                  Flujos DAG Alumnos, <span>NotebookLM 0% Alucinación</span> &amp; <span>Google Flow</span>
-                </div>
-
-                <div class="thumb-topic-pills">
-                  <span class="thumb-topic-pill">🔀 FLUJOS ALUMNOS EN VIVO</span>
-                  <span class="thumb-topic-pill">🎙️ PODCASTS NOTEBOOKLM</span>
-                  <span class="thumb-topic-pill">🎬 GOOGLE FLOW VÍDEO</span>
-                  <span class="thumb-topic-pill highlight">⏱️ 7:00 – 9:00 PM</span>
-                </div>
-
-                <div class="thumb-play-cta" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow:0 14px 36px rgba(16,185,129,0.6);">
-                  <span class="thumb-play-icon">▶</span>
-                  <span>UNIRSE A LA SALA DE GOOGLE MEET</span>
-                </div>
-              </div>
-
-              <!-- Columna Derecha: Avatar 3D de Tenshi con Aureola -->
-              <div class="thumb-char-col">
-                <svg class="thumb-halo-svg" viewBox="0 0 200 60">
-                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#fde047" stroke-width="10"/>
-                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#ffffff" stroke-width="3.5" opacity="0.9"/>
-                </svg>
-                <img src="{tenshi_img}" alt="Tenshi WAPPY IA">
-                <span class="thumb-char-tag" style="border-color:#2dd4bf; color:#2dd4bf;">✨ Tenshi IA · WAPPY</span>
-              </div>
-            </div>
-
-            <!-- Iframe de Espera Informativo -->
-            <iframe
-              id="drive-video-iframe"
-              src="https://meet.google.com/yxv-gyhv-ron"
-              allow="camera; microphone; fullscreen; display-capture"
-              loading="lazy"
-              title="Sala de Google Meet Clase 5">
-            </iframe>
-          </div>
+        <div class="hero-ctas">
+          <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-dark">
+            📹 Entrar a Google Meet (7:00 PM)
+            <span class="arrow-pip">↗</span>
+          </a>
+          <button type="button" onclick="openNotesModal()" class="btn btn-lime">
+            📋 Ver Checklist &amp; Requisitos (Popup)
+          </button>
+          <a href="#presentacion" class="btn btn-glass">
+            🎬 Temario Interactivo (10 Slides)
+            <span class="arrow-pip">↓</span>
+          </a>
         </div>
 
-        <!-- Telemetría & Botones de Acción Rápida -->
-        <div class="video-meta-bar">
-          <div class="meta-item">
-            <span class="meta-label">HORARIO OFICIAL</span>
-            <span class="meta-val">🔴 Martes 17 Nov · 7:00 – 9:00 PM</span>
+        <div class="hero-pills-bar">
+          <div class="hero-pill-item">
+            <div class="hero-pill-label">🔀 Taller en Vivo</div>
+            <div class="hero-pill-val">Flujos por Empresa</div>
           </div>
-          <div class="meta-item">
-            <span class="meta-label">SALA GOOGLE MEET</span>
-            <span class="meta-val">🌐 meet.google.com/yxv-gyhv-ron</span>
+          <div class="hero-pill-item">
+            <div class="hero-pill-label">🎙️ Cero Alucinación</div>
+            <div class="hero-pill-val">NotebookLM + Podcasts</div>
           </div>
-          <div class="meta-item">
-            <span class="meta-label">MATERIAL REQUERIDO</span>
-            <span class="meta-val">📝 Diagrama de Flujo por Empresa</span>
+          <div class="hero-pill-item">
+            <div class="hero-pill-label">🎬 Videos 3.5 Min</div>
+            <div class="hero-pill-val">Google Flow + Tenshi</div>
           </div>
-          <div class="meta-cta-group">
-            <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener" class="btn btn-primary" style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-              <span>🔴 Entrar a la Sala Google Meet</span>
-            </a>
-            <a href="https://calendar.app.google/HKPNhtmxygTfn7NBA" target="_blank" rel="noopener" class="btn btn-secondary" style="border-color:rgba(59,130,246,0.5); color:#93c5fd;">
-              <span>📅 Agendar en Google Calendar</span>
-            </a>
-            <button type="button" class="btn btn-secondary" onclick="openNotesModal()">
-              <span>📋 Checklist &amp; Temario</span>
-            </button>
-            <a href="/clase4" class="btn btn-secondary" style="border-color:rgba(199,243,3,0.5); color:#c7f303;">
-              <span>⬅️ Ver Grabación Clase 4</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Cuadrícula de Contenido y Objetivos de la Clase 5 -->
-        <div class="chapters-card">
-          <h3 class="chapters-title">📑 Temario &amp; Bloques de Trabajo Planeados para la Clase 5</h3>
-          <div class="chapters-grid">
-            <div class="chapter-pill">
-              <span class="chapter-time">07:00 PM</span>
-              <span class="chapter-name">Apertura y Revisión de Flujos Diseñados por las Empresas Alumnas</span>
-            </div>
-            <div class="chapter-pill">
-              <span class="chapter-time">07:20 PM</span>
-              <span class="chapter-name">Parametrización en Vivo en el Lienzo WAPPY (/tareas) y Pruebas DAG</span>
-            </div>
-            <div class="chapter-pill">
-              <span class="chapter-time">07:45 PM</span>
-              <span class="chapter-name">Google NotebookLM: Cero Alucinación Normativa y Fuentes Confiables</span>
-            </div>
-            <div class="chapter-pill">
-              <span class="chapter-time">08:10 PM</span>
-              <span class="chapter-name">Generación de Podcasts a 2 Voces y Resúmenes Ejecutivos en Audio</span>
-            </div>
-            <div class="chapter-pill">
-              <span class="chapter-time">08:30 PM</span>
-              <span class="chapter-name">Google Flow: Micro-Cápsulas de 3.5 Minutos y Reels de Capacitación</span>
-            </div>
-            <div class="chapter-pill">
-              <span class="chapter-time">08:45 PM</span>
-              <span class="chapter-name">Asignación de Claves API Independientes y Paralelismo en Servidor</span>
-            </div>
+          <div class="hero-pill-item">
+            <div class="hero-pill-label">🔑 Paralelismo</div>
+            <div class="hero-pill-val">Claves API por Flujo</div>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- ===========================================================
-         ESCENARIO DE DIAPOSITIVAS INTERACTIVAS (10 SLIDES)
-         =========================================================== -->
-    <section class="deck-section" id="presentacion" aria-labelledby="deck-title">
-      <div class="deck-container">
+      <!-- Tarjeta Interactiva de Tenshi en el Hero -->
+      <div class="hero-tenshi-card">
+        <div class="hero-tenshi-glow"></div>
+        <img src="{tenshi_img}" alt="Tenshi IA" class="tenshi-avatar-floating">
+        <div class="tenshi-bubble">
+          «¡Hola! Soy <strong>Tenshi</strong>. Este <strong>Martes 17 de Noviembre</strong> pasamos del papel a producción: trae tu diagrama de flujo empresarial, un archivo de prueba y conéctate a las <strong>7:00 PM</strong> para construirlo juntos en WAPPY y NotebookLM!»
+        </div>
+        <div class="meet-live-strip">
+          <div style="text-align:left;">
+            <div style="font-size:10px; text-transform:uppercase; color:#fca5a5; font-weight:800;">🔴 Sala Oficial Google Meet (Mar 17 Nov)</div>
+            <div style="font-weight:900; color:#fff;">meet.google.com/yxv-gyhv-ron</div>
+          </div>
+          <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:8px 14px; font-size:12px;">
+            Unirse ahora ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       3. PRESENTACIÓN INTERACTIVA DEL TEMARIO OFICIAL · CLASE 5 (10 SLIDES)
+       ======================================================================== -->
+  <section class="presentation-section" id="presentacion">
+    <div class="container">
       <div class="sec-head-bar">
         <div>
-          <span class="sec-kicker">✨ Temario Maestro · Síntesis Estructurada Clase 5</span>
-          <h2 class="sec-big-title">Diapositivas Dinámicas de la Clase 5 (10 Slides)</h2>
+          <span class="sec-kicker">✨ Temario Oficial · Próxima Emisión en Vivo (Clase 5)</span>
+          <h2 class="sec-big-title">Diapositivas Interactivas de la Clase 5 (10 Slides)</h2>
         </div>
         <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
           💡 Usa las flechas del teclado <code>←</code> <code>→</code>, desliza en el celular o activa <strong>Pantalla Completa</strong>
@@ -2600,7 +2527,7 @@ html_content = f'''<!DOCTYPE html>
         <div class="deck-topbar">
           <div class="deck-telemetry">
             <span class="telemetry-dot"></span>
-            <span>WAPPY.CLUB // CLASE_05 // PUESTA_EN_MARCHA_FLUJOS_NOTEBOOKLM_GOOGLE_FLOW</span>
+            <span>WAPPY.CLUB // CLASE_05 // FLUJOS_ALUMNOS_NOTEBOOKLM_Y_GOOGLE_FLOW</span>
           </div>
           <div class="deck-controls-top">
             <span class="deck-counter-badge" id="deck-counter">SLIDE 01 / 10</span>
@@ -2615,306 +2542,289 @@ html_content = f'''<!DOCTYPE html>
         </div>
 
         <div class="slide-pills-strip" id="slide-pills-strip">
-          <button class="slide-num-pill active" onclick="showSlide(1)">01 En Vivo Martes 17</button>
+          <button class="slide-num-pill active" onclick="showSlide(1)">01 Portada En Vivo</button>
           <button class="slide-num-pill" onclick="showSlide(2)">02 Flujos Alumnos</button>
-          <button class="slide-num-pill" onclick="showSlide(3)">03 NotebookLM Cero Alucinación</button>
+          <button class="slide-num-pill" onclick="showSlide(3)">03 NotebookLM 0% Alucinación</button>
           <button class="slide-num-pill" onclick="showSlide(4)">04 Podcasts 2 Voces</button>
           <button class="slide-num-pill" onclick="showSlide(5)">05 Google Flow 3.5m</button>
           <button class="slide-num-pill" onclick="showSlide(6)">06 Claves API Únicas</button>
-          <button class="slide-num-pill" onclick="showSlide(7)">07 Conectores Workspace</button>
-          <button class="slide-num-pill" onclick="showSlide(8)">08 Centro Control Kanban</button>
+          <button class="slide-num-pill" onclick="showSlide(7)">07 Workspace &amp; Tenshi</button>
+          <button class="slide-num-pill" onclick="showSlide(8)">08 Auditoría Kanban</button>
           <button class="slide-num-pill" onclick="showSlide(9)">09 Checklist Previo</button>
-          <button class="slide-num-pill" onclick="showSlide(10)">10 Sala Google Meet</button>
+          <button class="slide-num-pill" onclick="showSlide(10)">10 Sala Meet 7:00 PM</button>
         </div>
 
         <div class="slide-viewport" id="slide-viewport">
 
-          <!-- SLIDE 1: Portada y Convocatoria en Vivo -->
+          <!-- SLIDE 1 -->
           <div class="slide active" id="slide-1">
             <div class="slide-header-row">
-              <span class="slide-badge coral s-kicker">🔴 SESIÓN EN VIVO · MARTES 17 NOV</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fca5a5;">7:00 – 9:00 PM (HORA COLOMBIA)</span>
+              <span class="slide-badge amber">🔴 Próxima Clase en Vivo · Martes 17 Nov · 7:00 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fca5a5;">MEET: YXV-GYHV-RON</span>
             </div>
-            <h2 class="s-title">De la Teoría a la Producción: <span class="accent-lime">Flujos Alumnos en Vivo</span></h2>
+            <h2>De los Bocetos a Producción: <span class="accent-lime">Flujos Vivos</span> &amp; <span class="accent-teal">Ecosistema Google</span></h2>
             <p class="slide-lead">
-              Bienvenidos a la quinta sesión del programa oficial WAPPY IA + Antigravity. Hoy conectaremos las ideas y diagramas elaborados por cada empresa participante, construyendo automatizaciones vivas que integran <strong>Google NotebookLM</strong> para soporte normativo sin alucinaciones y <strong>Google Flow</strong> para la creación audiovisual.
+              Tomaremos los diagramas y necesidades operativas preparadas tras la Clase 4 para implementarlos en directo, sumando <strong>Google NotebookLM</strong> (0% alucinación normativa) y <strong>Google Flow</strong> audiovisual.
             </p>
-            <div class="s-grid-3">
+            <div class="s-grid-4">
               <div class="s-card glow-lime">
-                <div class="sc-badge">🔀 TALLER EN VIVO</div>
+                <div style="font-size:24px; font-weight:900; color:var(--lime);">En Vivo</div>
                 <h4>Flujos de Alumnos</h4>
-                <p>Parametrización paso a paso de los esquemas diseñados por Xiomara Ardila, Gloria Quintero, Carolina Colorado y Maria Elena Obando.</p>
+                <p>Montaje real en Lienzo WAPPY (/tareas) y Antigravity de los procesos de cada participante.</p>
               </div>
               <div class="s-card glow-teal">
-                <div class="sc-badge">🎙️ CERO ALUCINACIÓN</div>
-                <h4>Google NotebookLM</h4>
-                <p>Carga de matrices legales, decretos y políticas corporativas para generar respuestas fundamentadas y podcasts ejecutivos.</p>
+                <div style="font-size:24px; font-weight:900; color:var(--teal-bright);">0% Error</div>
+                <h4>NotebookLM SST</h4>
+                <p>Consultas jurídicas estrictas con citas textuales a Dec. 1072, Res. 0312 y GTC 45.</p>
               </div>
-              <div class="s-card glow-cyan">
-                <div class="sc-badge">🎬 GENERACIÓN MULTIMEDIA</div>
-                <h4>Google Flow Audiovisual</h4>
-                <p>Automatización de videos cortos y piezas gráficas para divulgar lecciones aprendidas y pausas activas en la empresa.</p>
+              <div class="s-card">
+                <div style="font-size:24px; font-weight:900; color:#fcd34d;">3.5 Min</div>
+                <h4>Videos Google Flow</h4>
+                <p>Micro-cápsulas de inducción, pausas activas y lecciones aprendidas de accidentalidad.</p>
+              </div>
+              <div class="s-card">
+                <div style="font-size:24px; font-weight:900; color:#a78bfa;">Paralelo</div>
+                <h4>Claves API Únicas</h4>
+                <p>Aislamiento de credenciales por proceso para correr flujos simultáneos sin bloqueos.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 2: Puesta en Producción de Flujos Alumnos -->
+          <!-- SLIDE 2 -->
           <div class="slide" id="slide-2">
             <div class="slide-header-row">
-              <span class="slide-badge teal s-kicker">PUESTA EN MARCHA EN VIVO</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASOS POR EMPRESA</span>
+              <span class="slide-badge lime">🔀 Bloque 1 · 7:00 – 7:35 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CASOS REALES DE PARTICIPANTES</span>
             </div>
-            <h2 class="s-title">Parametrización en el <span class="accent-teal">Lienzo WAPPY (/tareas)</span></h2>
+            <h2>Implementación en Vivo: <span class="accent-lime">Flujos por Empresa</span></h2>
             <p class="slide-lead">
-              Tomaremos los bocetos presentados y los traduciremos a nodos concretos en WAPPY. Configuraremos disparadores, compuertas lógicas y salidas coordinadas para cada necesidad empresarial identificada.
+              Revisaremos y parametrizaremos los flujos priorizados por las empresas del grupo durante la semana:
             </p>
             <div class="s-grid-3">
-              <div class="s-card">
-                <div class="sc-badge">1. CONTRATOS (XIOMARA)</div>
-                <h4>Renovación &amp; PDFs</h4>
-                <p>Automatización de alertas de vencimiento de contratos y validación documental mediante subagentes paralelos.</p>
+              <div class="s-card glow-lime">
+                <h4>📄 Contratos Digitales (Xiomara)</h4>
+                <p>Orquestación de subagentes paralelos en Antigravity para auditar vencimientos de contratos en PDF y conectar tokens de nómina.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>🩺 100 Exámenes Médicos (Gloria)</h4>
+                <p>Lectura automatizada de conceptos de aptitud periódica, matriz sociodemográfica y verificación de habilitación ReTHUS.</p>
               </div>
               <div class="s-card">
-                <div class="sc-badge">2. SALUD (GLORIA)</div>
-                <h4>Exámenes Periódicos</h4>
-                <p>Flujo lineal de recepción de conceptos médicos, clasificación de aptitud laboral y matriz sociodemográfica.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">3. FLOTA (CAROLINA)</div>
-                <h4>Control de Vehículos</h4>
-                <p>Seguimiento al Plan Estratégico de Seguridad Vial (PESV), SOAT, tecnomecánica y mantenimiento preventivo.</p>
+                <h4>🚛 Flota PESV &amp; EPP (Carolina)</h4>
+                <p>Disparadores semanales con compuerta Pre-IA (0 tokens en NO) para vigilar vencimientos de SOAT, tecnomecánica y entregas EPP.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 3: Google NotebookLM: El Cerebro Normativo -->
+          <!-- SLIDE 3 -->
           <div class="slide" id="slide-3">
             <div class="slide-header-row">
-              <span class="slide-badge lime s-kicker">INTELIGENCIA NORMATIVA SEGURA</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">GROUNDING CONTEXTUAL</span>
+              <span class="slide-badge teal">🧠 Bloque 2 · 7:35 – 8:00 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#5eead4;">GROUNDING ESTRICTO</span>
             </div>
-            <h2 class="s-title">Google NotebookLM: <span class="accent-lime">0% Alucinación Normativa</span></h2>
+            <h2>Google NotebookLM: <span class="accent-lime">Cerebro Normativo</span> con Cero Alucinación</h2>
             <p class="slide-lead">
-              En SG-SST una alucinación jurídica puede acarrear sanciones de cientos de salarios mínimos. <strong>Google NotebookLM</strong> opera exclusivamente sobre las fuentes suministradas (Decreto 1072, Resolución 0312, GTC 45), garantizando respuestas con citas textuales y verificables.
+              Conecta reglamentos internos, actas de COPASST y normatividad colombiana para obtener análisis jurídicos respaldados página por página:
             </p>
             <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <div class="sc-badge">📚 FUENTES ANCLADAS</div>
-                <h4>Grounding Estricto</h4>
-                <p>El modelo no inventa artículos ni números de decretos. Si una información no está presente en los documentos cargados, declara explícitamente su ausencia.</p>
-              </div>
               <div class="s-card glow-teal">
-                <div class="sc-badge">🔗 CITAS AUDITABLES</div>
-                <h4>Trazabilidad Total</h4>
-                <p>Cada respuesta incluye números de página y fragmentos exactos de la norma, listos para adjuntar en descargos o auditorías del Ministerio de Trabajo.</p>
+                <h4>📚 Fuentes Verificables</h4>
+                <p>NotebookLM nunca inventa artículos legales: cada respuesta muestra citas clicables hacia el fragmento exacto del PDF o Google Doc.</p>
               </div>
-              <div class="s-card glow-cyan">
-                <div class="sc-badge">🏢 MULTI-EMPRESA</div>
-                <h4>Carpetas Privadas</h4>
-                <p>Aislamiento total de información entre empresas: las políticas y actas de una compañía nunca se mezclan con las de otra.</p>
+              <div class="s-card glow-lime">
+                <h4>🔗 Conexión vía MCP WAPPY</h4>
+                <p>Integraremos los cuadernos de NotebookLM directamente con Tenshi para responder auditorías del Ministerio en segundos.</p>
+              </div>
+              <div class="s-card">
+                <h4>🏢 Aislamiento por Cliente</h4>
+                <p>Un cuaderno normativo maestro compartible y cuadernos privados exclusivos para cada empresa asesora.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 4: Generación de Podcasts SST a 2 Voces -->
+          <!-- SLIDE 4 -->
           <div class="slide" id="slide-4">
             <div class="slide-header-row">
-              <span class="slide-badge teal s-kicker">DIVULGACIÓN PEDAGÓGICA</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">AUDIO DE ALTO IMPACTO</span>
+              <span class="slide-badge lime">🎙️ Divulgación SST · 8:00 – 8:20 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">AUDIO &amp; MAPAS MENTALES</span>
             </div>
-            <h2 class="s-title">Podcasts SST a 2 Voces &amp; <span class="accent-teal">Resúmenes Ejecutivos</span></h2>
+            <h2>Podcasts a <span class="accent-lime">2 Voces</span> y Mapas Mentales Ejecutivos</h2>
             <p class="slide-lead">
-              Nadie lee un manual de 80 páginas. Con NotebookLM convertimos extensas políticas de seguridad en <strong>conversaciones dinámicas de audio</strong> entre dos especialistas que explican los puntos críticos en lenguaje ameno para operarios y directivos.
-            </p>
-            <div class="s-grid-3">
-              <div class="s-card">
-                <div class="sc-badge">🎙️ FORMATO AUDIO</div>
-                <h4>Cápsulas de 5 a 10 Min</h4>
-                <p>Dos voces con entonación natural analizan un riesgo específico, debaten medidas de control y recomiendan buenas prácticas.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">📱 DIFUSIÓN DIRECTA</div>
-                <h4>WhatsApp &amp; Intranet</h4>
-                <p>Los audios se envían directamente a los grupos de trabajo para que los colaboradores los escuchen antes de iniciar su jornada laboral.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">📊 RESUMEN EJECUTIVO</div>
-                <h4>Fichas para Gerencia</h4>
-                <p>NotebookLM extrae simultáneamente un resumen de 1 página con indicadores clave para la Alta Dirección.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 5: Google Flow: Producción Audiovisual -->
-          <div class="slide" id="slide-5">
-            <div class="slide-header-row">
-              <span class="slide-badge lime s-kicker">MULTIMEDIA EN TIEMPO RÉCORD</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">GOOGLE FLOW &amp; ESTUDIO AUDIOVISUAL</span>
-            </div>
-            <h2 class="s-title">Google Flow: <span class="accent-lime">Micro-Cápsulas de 3.5 Minutos</span></h2>
-            <p class="slide-lead">
-              Conectamos WAPPY con herramientas audiovisuales de Google para producir videos de formación en seguridad vial, orden y aseo o ergonomía en cuestión de minutos, con avatares 3D y subtítulos sincronizados.
-            </p>
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <div class="sc-badge">🎬 GUIÓN AUTOMÁTICO</div>
-                <h4>Estructura Pedagógica</h4>
-                <p>El agente genera el guión en 3 actos: Gancho visual (15s), Desarrollo técnico normativo (2 min) y Llamado a la acción (45s).</p>
-              </div>
-              <div class="s-card glow-teal">
-                <div class="sc-badge">🎨 ESTILO WAPPY</div>
-                <h4>Identidad Gráfica</h4>
-                <p>Animaciones con la paleta oficial (#c7f303 verde lima, #0d9488 turquesa), Tenshi 3D y tipografías legibles en dispositivos móviles.</p>
-              </div>
-              <div class="s-card glow-cyan">
-                <div class="sc-badge">⏱️ RENDER DETERMINISTA</div>
-                <h4>Exportación MP4</h4>
-                <p>Generación de archivos de video listos para proyectar en pantallas corporativas o compartir en estados de redes sociales.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 6: Claves API Independientes y Paralelismo -->
-          <div class="slide" id="slide-6">
-            <div class="slide-header-row">
-              <span class="slide-badge teal s-kicker">INFRAESTRUCTURA &amp; ROBUSTEZ</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">COMPROMISO FÉLIX BEDOYA</span>
-            </div>
-            <h2 class="s-title">Claves API Independientes: <span class="accent-teal">Cero Bloqueos</span></h2>
-            <p class="slide-lead">
-              Cumpliendo el compromiso acordado en la Clase 4, WAPPY asigna claves API únicas a cada proceso automatizado. Esto garantiza que un flujo pesado (ej. auditoría masiva de PDFs) no bloquee los demás procesos de la empresa.
-            </p>
-            <div class="s-grid-3">
-              <div class="s-card">
-                <div class="sc-badge">🔑 AISLAMIENTO TOTAL</div>
-                <h4>Claves por Proceso</h4>
-                <p>Cada automatización cuenta con su propio token. Si una tarea alcanza temporalmente un límite, las demás continúan operando normalmente.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">⚡ EJECUCIÓN PARALELA</div>
-                <h4>Flujos Concurrentes</h4>
-                <p>Posibilidad de ejecutar inspecciones de EPP, matrices legales y seguimiento médico al mismo tiempo sin colisiones de memoria.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">📈 TELEMETRÍA DETALLADA</div>
-                <h4>Consumo por Tarea</h4>
-                <p>Monitoreo exacto de cuántos tokens y llamadas consume cada departamento de la organización para control presupuestal.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 7: Conectores Workspace: Drive, Gmail & Calendar -->
-          <div class="slide" id="slide-7">
-            <div class="slide-header-row">
-              <span class="slide-badge lime s-kicker">INTEGRACIÓN CON GOOGLE WORKSPACE</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">ECOSISTEMA NATIVO WAPPY</span>
-            </div>
-            <h2 class="s-title">Conectores Workspace: <span class="accent-lime">Drive, Gmail &amp; Calendar</span></h2>
-            <p class="slide-lead">
-              Tenshi actúa como el puente agéntico que sincroniza el trabajo de WAPPY con las herramientas cotidianas de tu equipo de trabajo, cerrando el ciclo administrativo de forma automática.
-            </p>
-            <div class="s-grid-3">
-              <div class="s-card glow-lime">
-                <div class="sc-badge">📁 GOOGLE DRIVE</div>
-                <h4>Gestor Documental</h4>
-                <p>Carpetas inteligentes que clasifican conceptos médicos, certificados de inspección y actas de comités automáticamente.</p>
-              </div>
-              <div class="s-card glow-teal">
-                <div class="sc-badge">✉️ GMAIL CORPORATIVO</div>
-                <h4>Alertas Formales</h4>
-                <p>Envío de correos automáticos con copias ocultas, plantillas personalizadas y archivos adjuntos generados en el flujo.</p>
-              </div>
-              <div class="s-card glow-cyan">
-                <div class="sc-badge">📅 GOOGLE CALENDAR</div>
-                <h4>Agenda de Inspecciones</h4>
-                <p>Programación automática de auditorías periódicas, vencimientos de licencias y reuniones de COPASST con recordatorios.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 8: Auditoría y Mitigación de Riesgos en Tiempo Real -->
-          <div class="slide" id="slide-8">
-            <div class="slide-header-row">
-              <span class="slide-badge teal s-kicker">CONTROL OPERATIVO RIGUROSO</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">ESTÁNDARES MÍNIMOS RESOLUCIÓN 0312</span>
-            </div>
-            <h2 class="s-title">Auditoría en Tiempo Real &amp; <span class="accent-teal">Centro de Control Kanban</span></h2>
-            <p class="slide-lead">
-              Las automatizaciones no operan a espaldas del responsable de SST. Todo hallazgo generado por un flujo DAG se registra en el <strong>Centro de Control Kanban</strong> para supervisión humana antes de su cierre definitivo.
-            </p>
-            <div class="s-grid-3">
-              <div class="s-card">
-                <div class="sc-badge">📋 ETAPAS KANBAN</div>
-                <h4>Trazabilidad Visual</h4>
-                <p>Estados claros: Pendiente por Revisión, En Ejecución, Requiere Soporte Técnico, y Cerrado con Evidencia Documental.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">🛡️ FIRMA DIGITAL</div>
-                <h4>Responsabilidad Técnica</h4>
-                <p>El profesional de SST valida las acciones correctoras con su firma digital y número de licencia antes de archivar el caso.</p>
-              </div>
-              <div class="s-card">
-                <div class="sc-badge">📊 INDICADORES SG-SST</div>
-                <h4>Métricas en Vivo</h4>
-                <p>Cálculo automático de tasas de accidentalidad, porcentaje de cumplimiento de capacitaciones y cobertura de EPP.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- SLIDE 9: Checklist para la Sesión en Vivo -->
-          <div class="slide" id="slide-9">
-            <div class="slide-header-row">
-              <span class="slide-badge lime s-kicker">PREPARACIÓN OBLIGATORIA</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">REQUISITOS PARA APROVECHAR AL 100%</span>
-            </div>
-            <h2 class="s-title">Checklist Previo para la <span class="accent-lime">Clase 5 en Vivo</span></h2>
-            <p class="slide-lead">
-              Para garantizar que puedas implementar tu flujo durante las 2 horas de taller en vivo, asegúrate de tener listos estos 4 elementos antes de iniciar:
+              Transforma matrices legales extensas o procedimientos de 50 páginas en material digerible que tus trabajadores y gerentes sí consumen:
             </p>
             <div class="s-grid-2">
               <div class="s-card glow-lime">
-                <div class="sc-badge">✅ REQUISITOS TÉCNICOS</div>
-                <h4>Conectividad y Cuentas</h4>
-                <ul style="margin:8px 0 0 16px; font-size:13px; line-height:1.7; color:#e2e8f0;">
-                  <li>Sesión activa en <strong>WAPPY IA</strong> (<a href="https://app.wappy.club" target="_blank" style="color:#c7f303;">app.wappy.club</a>).</li>
-                  <li>Google Antigravity abierto con proyecto de la empresa configurado.</li>
-                  <li>Acceso a Google Meet: <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" style="color:#5eead4;">meet.google.com/yxv-gyhv-ron</a>.</li>
-                </ul>
+                <h4>🎧 Podcasts Técnicos en Español</h4>
+                <p>Genera audios dinámicos donde dos locutores debaten peligros reales (alturas, riesgo químico, LOTO) listos para compartir por grupos de WhatsApp corporativos.</p>
               </div>
               <div class="s-card glow-teal">
-                <div class="sc-badge">📄 MATERIAL EMPRESARIAL</div>
-                <h4>Documentos del Flujo</h4>
-                <ul style="margin:8px 0 0 16px; font-size:13px; line-height:1.7; color:#e2e8f0;">
-                  <li>Diagrama o borrador escrito con los 4 pasos de la automatización deseada.</li>
-                  <li>Archivo de prueba en Excel o PDF representativo (sin datos ultrasensibles).</li>
-                  <li>Token de API (si tu software lo permite) o credenciales de prueba.</li>
-                </ul>
+                <h4>🗺️ Guías &amp; Mapas Mentales Gerenciales</h4>
+                <p>Extrae automáticamente diagramas visuales y resúmenes ejecutivos de una hoja para presentar resultados del SG-SST ante la Alta Dirección.</p>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 10: Espacio de Preguntas y Retroalimentación -->
+          <!-- SLIDE 5 -->
+          <div class="slide" id="slide-5">
+            <div class="slide-header-row">
+              <span class="slide-badge teal">🎬 Bloque 3 · 8:20 – 8:40 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#5eead4;">GOOGLE FLOW &amp; WAPPY STUDIO</span>
+            </div>
+            <h2>Google Flow: <span class="accent-lime">Micro-Cápsulas de Video</span> de 3.5 Minutos</h2>
+            <p class="slide-lead">
+              Rompe la monotonía de las charlas tradicionales produciendo piezas visuales y animaciones de alto impacto en minutos:
+            </p>
+            <div class="s-grid-3">
+              <div class="s-card glow-lime">
+                <h4>🎨 Afiches &amp; Señalética</h4>
+                <p>Creación de gráficos preventivos, recordatorios de uso de EPP y campañas de cultura de autocuidado alineadas con tu marca.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>📽️ Clips con Avatares &amp; Voz</h4>
+                <p>Micro-videos educativos de 3 a 3.5 minutos para inducciones, reinducciones y divulgación de lecciones aprendidas.</p>
+              </div>
+              <div class="s-card">
+                <h4>⚡ Flujo Guion ➔ Render</h4>
+                <p>Automatiza desde la redacción pedagógica del guion hasta la generación de escenas listas para proyectar.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 6 -->
+          <div class="slide" id="slide-6">
+            <div class="slide-header-row">
+              <span class="slide-badge lime">🔑 Infraestructura WAPPY · 8:40 – 8:50 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">COMPROMISO FÉLIX BEDOYA</span>
+            </div>
+            <h2>Claves API Independientes: <span class="accent-lime">Flujos Concurrentes</span> sin Bloqueos</h2>
+            <p class="slide-lead">
+              Revisaremos la configuración de credenciales independientes por proceso en WAPPY para garantizar estabilidad total:
+            </p>
+            <div class="s-grid-3">
+              <div class="s-card glow-lime">
+                <h4>🔑 Una Llave por Proceso</h4>
+                <p>Cada automatización crítica (EPP, médicos, PESV) opera con su propia clave aislada sin interferir con los demás flujos.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>📊 Telemetría de Consumo</h4>
+                <p>Visibilidad clara de cuántas ejecuciones y tokens consume cada proceso junto con su compuerta Pre-IA.</p>
+              </div>
+              <div class="s-card">
+                <h4>🏥 Verificación ReTHUS</h4>
+                <p>Entrega del recurso web prometido para validar en segundos si un médico tratante se encuentra activo y habilitado.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 7 -->
+          <div class="slide" id="slide-7">
+            <div class="slide-header-row">
+              <span class="slide-badge teal">🔌 Conectores Workspace · 8:50 – 9:00 PM</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#5eead4;">DRIVE · GMAIL · CALENDAR</span>
+            </div>
+            <h2>Ecosistema Workspace con <span class="accent-lime">Tenshi</span> al Mando</h2>
+            <p class="slide-lead">
+              Cierra el ciclo de automatización conectando las salidas de tus flujos DAG con las herramientas de oficina cotidianas:
+            </p>
+            <div class="s-grid-3">
+              <div class="s-card glow-teal">
+                <h4>📁 Google Drive Vivo</h4>
+                <p>Lectura y archivado automático en carpetas clasificadas por mes, trabajador o comité paritario.</p>
+              </div>
+              <div class="s-card glow-lime">
+                <h4>✉️ Bitácora Gmail</h4>
+                <p>Notificaciones automáticas con trazabilidad y prevención anti-duplicados de 7 días.</p>
+              </div>
+              <div class="s-card">
+                <h4>📅 Google Calendar</h4>
+                <p>Programación de inspecciones planeadas, auditorías y vencimientos con recordatorios oportunos.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 8 -->
+          <div class="slide" id="slide-8">
+            <div class="slide-header-row">
+              <span class="slide-badge lime">📋 Control Operativo · RES. 0312</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#94a3b8;">CENTRO DE CONTROL KANBAN</span>
+            </div>
+            <h2>Supervisión Humana en el <span class="accent-lime">Centro de Control Kanban</span></h2>
+            <p class="slide-lead">
+              Cada hallazgo detectado por los flujos autónomos queda organizado visualmente para que el responsable de SST tome decisiones rápidas:
+            </p>
+            <div class="s-grid-3">
+              <div class="s-card glow-lime">
+                <h4>📌 Etapas de Seguimiento</h4>
+                <p>Visualización de hallazgos abiertos, acciones en curso y evidencias cargadas antes del cierre.</p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>🛡️ Firma y Licencias</h4>
+                <p>El responsable valida las acciones correctoras con respaldo normativo antes de archivar.</p>
+              </div>
+              <div class="s-card">
+                <h4>📈 Indicadores PHVA</h4>
+                <p>Actualización continua de tableros de gestión sin digitación manual repetitiva.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 9 -->
+          <div class="slide" id="slide-9">
+            <div class="slide-header-row">
+              <span class="slide-badge teal">✅ Lista de Chequeo</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#5eead4;">ANTES DE LAS 7:00 PM</span>
+            </div>
+            <h2>Checklist Obligatorio para Aprovechar la <span class="accent-lime">Clase 5 en Vivo</span></h2>
+            <p class="slide-lead">
+              Asegúrate de tener listos estos 4 requisitos antes de ingresar a Google Meet:
+            </p>
+            <div class="s-grid-2">
+              <div class="s-card glow-lime">
+                <h4>1. Tu Diagrama &amp; Archivos de Prueba</h4>
+                <p>
+                  • Borrador escrito o dibujado del flujo que quieres automatizar (Entrada ➔ Condición ➔ Salida).<br>
+                  • 2 archivos de muestra (Excel o PDF no críticos) para probar en directo.
+                </p>
+              </div>
+              <div class="s-card glow-teal">
+                <h4>2. Accesos Técnicos Abiertos</h4>
+                <p>
+                  • Sesión iniciada en <strong>app.wappy.club</strong> (/tareas) y Google Antigravity abierto.<br>
+                  • Enlace de verificación médica ReTHUS o credenciales API de nómina (si ya las tramitaste).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 10 -->
           <div class="slide" id="slide-10">
             <div class="slide-header-row">
-              <span class="slide-badge coral s-kicker">🔴 EN VIVO AHORA</span>
-              <span style="font-family:var(--font-mono); font-size:12px; color:#fecaca;">SALA DE CONFERENCIA ABIERTA</span>
+              <span class="slide-badge amber">🔴 Transmisión en Directo · Meet</span>
+              <span style="font-family:var(--font-mono); font-size:12px; color:#fca5a5;">MARTES 17 NOV · 7:00 – 9:00 PM COT</span>
             </div>
-            <h2 class="s-title">¡Nos Vemos en la Sala! <span class="accent-lime">Google Meet Listo</span></h2>
+            <h2>¡Nos Vemos en Sala! <span class="accent-lime">meet.google.com/yxv-gyhv-ron</span></h2>
             <p class="slide-lead">
-              Haz clic en el botón principal para ingresar a la sala en vivo. El Ing. Félix Bedoya y el equipo de soporte técnico estarán listos para resolver dudas puntuales de tu flujo empresarial.
+              Conéctate puntual a las 6:55 PM para verificar tu audio y compartir pantalla si quieres que parametrizemos tu flujo empresarial en vivo.
             </p>
-            <div style="margin-top:24px; text-align:center;">
-              <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:16px; padding:16px 36px; background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                <span>🔴 Ingresar a Google Meet (meet.google.com/yxv-gyhv-ron) →</span>
-              </a>
-            </div>
-            <div style="margin-top:20px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-              <a href="https://calendar.app.google/HKPNhtmxygTfn7NBA" target="_blank" rel="noopener" class="btn btn-secondary">
-                <span>📅 Agendar en Google Calendar</span>
-              </a>
-              <a href="/clase4" class="btn btn-secondary" style="border-color:rgba(199,243,3,0.4); color:#c7f303;">
-                <span>⬅️ Repasar Grabación Clase 4</span>
-              </a>
+            <div class="s-grid-2">
+              <div class="s-card glow-lime">
+                <h4>⏮️ ¿Aún no viste la Clase 4?</h4>
+                <p style="margin-bottom:12px;">
+                  Repasa la grabación de ~02:42 hrs de Flujos DAG en Lienzo WAPPY, condiciones Pre-IA y los 8 compromisos oficiales.
+                </p>
+                <a href="/clase4" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+                  Ir a Grabación Clase 4 ⏮️
+                </a>
+              </div>
+              <div class="s-card glow-teal" style="display:flex; flex-direction:column; justify-content:center;">
+                <h4>🔴 Ingresar Directo a la Videoconferencia</h4>
+                <p style="margin-bottom:12px;">
+                  Martes 17 de Noviembre · 7:00 – 9:00 PM (Hora Colombia).
+                </p>
+                <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:10px 18px; font-size:13px;">
+                  📹 Abrir Google Meet Ahora ↗
+                </a>
+              </div>
             </div>
           </div>
 
@@ -2926,10 +2836,10 @@ html_content = f'''<!DOCTYPE html>
             <button class="btn-slide-ctrl primary-next" id="btn-next" onclick="nextSlide()">Siguiente Diapositiva →</button>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <a href="#video-clase" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
-              🔴 Sala en Vivo ↑
+            <a href="#grabacion" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              🔴 Ir a Sala Meet ↓
             </a>
-            <a href="#prompts" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+            <a href="#prompts-chat" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
               💬 Ir a los 5 Prompts ↓
             </a>
           </div>
@@ -2938,178 +2848,148 @@ html_content = f'''<!DOCTYPE html>
     </div>
   </section>
 
-    <!-- ===========================================================
-         SIMULADOR DE TOKENS EN TIEMPO REAL
-         =========================================================== -->
-    <section class="simulator-section" aria-labelledby="sim-title">
-      <div class="sim-container">
-        <span class="slide-badge lime">HERRAMIENTA DIDÁCTICA INTERACTIVA</span>
-        <h2 class="sim-title" id="sim-title">Simulador de Tokens para NotebookLM &amp; Flujos DAG</h2>
-        <p class="sim-desc">
-          Calcula la longitud en tokens de los documentos normativos o prompts que planeas conectar a Google NotebookLM. Recuerda que NotebookLM admite fuentes extensas sin costo adicional de tokens por consulta.
-        </p>
+  <!-- ========================================================================
+       3B. SALA EN VIVO GOOGLE MEET & MINIATURA HD "PRÓXIMA EMISIÓN" · CLASE 5
+       ======================================================================== -->
+  <section class="recording-section" id="grabacion">
+    <div class="container">
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">🔴 Emisión Oficial en Vivo · Martes 17 de Noviembre · 7:00 – 9:00 PM (America/Bogota)</span>
+          <h2 class="sec-big-title">Sala Google Meet &amp; Grabación Oficial Clase 5</h2>
+        </div>
+        <div style="font-size: 13px; color: var(--ink-muted); font-weight: 600;">
+          💡 Haz clic en la portada para entrar a <strong>Google Meet</strong>; al finalizar la clase quedará publicada aquí la grabación HD y las notas oficiales
+        </div>
+      </div>
 
-        <div class="sim-box">
-          <textarea id="token-live-input" class="sim-textarea" rows="3" oninput="updateTokenSimulator()" placeholder="Escribe aquí tu prompt para NotebookLM o resumen de norma...">Actúa como Especialista en SG-SST en Google NotebookLM. Analiza el Decreto 1072 de 2015 y la Resolución 0312 de 2019. Extrae los estándares mínimos obligatorios para una empresa de 45 trabajadores con nivel de riesgo III.</textarea>
+      <div class="deck-stage" id="video-stage">
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
 
-          <div class="sim-stats-row">
-            <span class="sim-badge" id="token-stats-badge">Calculando tokens...</span>
-            <span style="font-size:12px; color:#94a3b8; font-family:var(--font-mono);">MODELO: GOOGLE NOTEBOOKLM / GEMINI FLASH</span>
+        <div class="deck-topbar">
+          <div class="deck-telemetry">
+            <span class="telemetry-dot"></span>
+            <span>WAPPY.CLUB // EMISIÓN_EN_VIVO // CLASE_05 // MEET: YXV-GYHV-RON</span>
           </div>
+          <div class="deck-controls-top">
+            <span class="deck-counter-badge">MARTES 17 NOV · 7:00 – 9:00 PM COT</span>
+            <button type="button" class="btn-fullscreen" onclick="toggleVideoFullscreen()">
+              ⛶ Pantalla Completa
+            </button>
+          </div>
+        </div>
 
-          <div class="sim-output-wrap" id="token-pills-output">
-            <!-- Chips de tokens generados dinámicamente -->
+        <div class="deck-progress-track">
+          <div class="deck-progress-fill" style="width: 100%;"></div>
+        </div>
+
+        <div class="recording-chapters-strip">
+          <span class="rec-chapter-pill"><strong>7:00 PM</strong> Flujos DAG de Alumnos en Vivo</span>
+          <span class="rec-chapter-pill"><strong>7:35 PM</strong> NotebookLM 0% Alucinación</span>
+          <span class="rec-chapter-pill"><strong>8:00 PM</strong> Podcasts SST a 2 Voces</span>
+          <span class="rec-chapter-pill"><strong>8:20 PM</strong> Google Flow · Videos 3.5m &amp; APIs</span>
+        </div>
+
+        <!-- Portada HD 16:9 de Próxima Emisión en Vivo (Abre Google Meet) -->
+        <div class="video-viewport-wrap">
+          <div class="video-aspect-box">
+            <div class="video-thumb-cover" id="video-thumb-cover" onclick="window.open('https://meet.google.com/yxv-gyhv-ron', '_blank')" role="button" tabindex="0" aria-label="Entrar a la videoconferencia de la Clase 5 en Google Meet">
+              <img src="{thumb_bg}" alt="" class="video-thumb-bg-img" aria-hidden="true">
+              <div class="video-thumb-radial-overlay"></div>
+              <div class="video-thumb-grid-bg"></div>
+
+              <!-- Columna Izquierda: Avatar 3D de Félix Bedoya -->
+              <div class="thumb-char-col">
+                <img src="{felix_avatar}" alt="Ing. Félix Bedoya">
+                <span class="thumb-char-tag">👨‍🏫 Ing. Félix Bedoya</span>
+              </div>
+
+              <!-- Columna Central: Insignia En Vivo + Logos + CLASE 5 + Píldoras + Botón Meet -->
+              <div class="thumb-center-col">
+                <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 14px; border-radius:999px; background:rgba(220,38,38,0.22); border:1px solid rgba(248,113,113,0.65); color:#fecaca; font-size:11.5px; font-weight:900; letter-spacing:0.06em; margin-bottom:8px;">
+                  🔴 EN VIVO · MARTES 17 NOV · 7:00 – 9:00 PM
+                </div>
+
+                <div class="thumb-logos-pill">
+                  <img src="{wappy_horiz_logo}" alt="WAPPY Logo" class="wappy-h">
+                  <span class="plus-sep">+</span>
+                  <img src="{agy_logo}" alt="Google Antigravity" class="agy-i">
+                </div>
+
+                <div class="thumb-clase-giant">CLASE 5</div>
+
+                <div class="thumb-sub-title">
+                  Flujos Alumnos en Vivo, <span>NotebookLM</span> &amp; <span>Google Flow</span>
+                </div>
+
+                <div class="thumb-topic-pills">
+                  <span class="thumb-topic-pill">🔀 FLUJOS DAG ALUMNOS</span>
+                  <span class="thumb-topic-pill">🎙️ PODCASTS NOTEBOOKLM</span>
+                  <span class="thumb-topic-pill">🎬 VIDEOS 3.5 MIN FLOW</span>
+                  <span class="thumb-topic-pill highlight">🔑 CLAVES API ÚNICAS</span>
+                </div>
+
+                <div class="thumb-play-cta">
+                  <span class="thumb-play-icon">▶</span>
+                  <span>ENTRAR A LA VIDEOCONFERENCIA EN GOOGLE MEET ↗</span>
+                </div>
+              </div>
+
+              <!-- Columna Derecha: Avatar 3D de Tenshi / WAPPY con Aureola -->
+              <div class="thumb-char-col">
+                <svg class="thumb-halo-svg" viewBox="0 0 200 60">
+                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#fde047" stroke-width="10"/>
+                  <ellipse cx="100" cy="30" rx="82" ry="18" fill="none" stroke="#ffffff" stroke-width="3.5" opacity="0.9"/>
+                </svg>
+                <img src="{tenshi_img}" alt="Tenshi WAPPY IA">
+                <span class="thumb-char-tag" style="border-color:#2dd4bf; color:#2dd4bf;">✨ Tenshi IA · WAPPY</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BARRA DEBAJO DE LA PORTADA CON AVISO Y BOTÓN POPUP -->
+        <div class="notes-trigger-bar">
+          <div class="notes-trigger-info">
+            <h3>🔴 Sala Oficial Activa · Grabación HD y Memorias al Finalizar la Sesión en Vivo</h3>
+            <p>Evento oficial <strong>Antigravity + Wappy IA</strong> (Martes 17 de noviembre · 7:00 – 9:00 PM · <code>America/Bogota</code>). Tan pronto concluya la emisión en directo por Google Meet, quedará publicada aquí mismo la <strong>grabación completa en HD</strong> junto con las <strong>notas y memorias oficiales</strong>.</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn-open-notes" onclick="openNotesModal()">
+              📋 Datos de Sala y Checklist Previo (Popup)
+            </button>
+          </div>
+        </div>
+
+        <div class="deck-footer">
+          <div class="deck-telemetry">
+            <span>🔗 Enlace oficial confirmado para computador o celular: <strong>https://meet.google.com/yxv-gyhv-ron</strong></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <a href="/clase4" class="btn btn-glass" style="padding:9px 15px; font-size:12.5px;">
+              ⏮️ Repasar Clase 4 Grabada
+            </a>
+            <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime" style="padding:9px 16px; font-size:12.5px;">
+              📹 Abrir Google Meet (yxv-gyhv-ron) ↗
+            </a>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ===========================================================
-         PROMPTS COPIABLES DE LA CLASE 5
-         =========================================================== -->
-    <section class="prompts-section" id="prompts" aria-labelledby="prompts-title">
-      <div class="prompts-container">
-        <div class="prompts-header">
-          <span class="slide-badge lime">PLANTILLAS CONVERSACIONALES DE ALTO IMPACTO</span>
-          <h2 class="prompts-title" id="prompts-title">5 Prompts Maestros de la Clase 5 para NotebookLM &amp; Google Flow</h2>
-          <p class="prompts-lead">
-            Utiliza estas instrucciones para extraer citas normativas exactas, diseñar guiones de podcasts a 2 voces y parametrizar videos cortos de capacitación.
-          </p>
-        </div>
-
-        <div class="prompt-cards-grid">
-          <!-- Prompt 1 -->
-          <article class="p-card">
-            <div class="p-header">
-              <span class="p-tag lime">NOTEBOOKLM / NORMAS</span>
-              <h4>1. Generador de Fuentes Estructuradas para Google NotebookLM</h4>
-            </div>
-            <p class="p-desc">Organiza reglamentos, matrices y decretos en bloques temáticos para alimentar un cuaderno sin sobrecargar el contexto.</p>
-            <div class="p-code-box" id="prompt-p1">Actúa como Curador Documental SG-SST para Google NotebookLM. Voy a entregarte la normativa y políticas de seguridad de mi empresa [Nombre de la Empresa].
-
-Tu tarea es preparar las fuentes de información:
-1. Divide el contenido en 3 cuadernos especializados: Marco Normativo Nacional (Decretos/Resoluciones), Procedimientos Operativos Específicos (Trabajo en Alturas, Químicos, LOTO), y Registros Históricos de la Empresa (Actas de COPASST, Informes de Accidentalidad).
-2. Asegúrate de incluir encabezados claros con fecha de emisión, entidad emisora y ámbito de aplicación para facilitar las citas textuales de NotebookLM.
-3. Formula 5 preguntas de prueba de alta complejidad técnica para verificar que el cuaderno responda con 0% de alucinación citando los números de página exactos.</div>
-            <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p1', this)">📋 Copiar Prompt al Portapapeles</button>
-          </div>
-
-          <!-- Prompt 2 -->
-          <article class="p-card">
-            <div class="p-header">
-              <span class="p-tag teal">PODCAST A 2 VOCES</span>
-              <h4>2. Diseñador de Guiones para Podcasts SST (Estilo NotebookLM)</h4>
-            </div>
-            <p class="p-desc">Genera una conversación dinámica y formativa entre dos especialistas para divulgar lecciones aprendidas de seguridad.</p>
-            <div class="p-code-box" id="prompt-p2">Actúa como Director Pedagógico Audiovisual en WAPPY IA. Necesito un guión de audio a dos voces (Locutor A: Especialista Técnico riguroso; Locutor B: Supervisor de Campo cercano y práctico) con duración de 6 minutos.
-
-Tema del podcast: [Describe el tema, ej: Peligro biomecánico y levantamiento de cargas en bodega].
-
-Estructura de la conversación:
-- Minuto 0 a 1: Gancho de impacto relatando una situación cotidiana en el trabajo y su impacto en la salud lumbar.
-- Minuto 1 a 4: Diálogo ágil donde el técnico explica los límites de carga permitidos en Colombia (Resolución 2400) y el supervisor comparte trucos prácticos para usar ayudas mecánicas.
-- Minuto 4 a 6: Reflexión final con 3 reglas de oro inolvidables y llamado a reportar condiciones inseguras en WAPPY.</div>
-            <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p2', this)">📋 Copiar Prompt al Portapapeles</button>
-          </div>
-
-          <!-- Prompt 3 -->
-          <article class="p-card">
-            <div class="p-header">
-              <span class="p-tag cyan">GOOGLE FLOW / VÍDEO</span>
-              <h4>3. Prompts Audiovisuales para Google Flow (Micro-Cápsulas 3.5 Min)</h4>
-            </div>
-            <p class="p-desc">Configura la narrativa visual, planos y efectos para crear un video animado con Tenshi y el avatar de Félix Bedoya.</p>
-            <div class="p-code-box" id="prompt-p3">Actúa como Productor de Video en WAPPY IA utilizando Google Flow y el sistema de animación determinista a 60 FPS.
-
-Necesito producir un micro-video de capacitación de 3.5 minutos en formato vertical 9:16 (1080x1920) sobre: [Indica el tema, ej: Protocolo de Bloqueo y Etiquetado LOTO].
-
-Genera los prompts visuales para cada escena:
-1. Escena 1 (0-20s): Plano con avatar de Félix Bedoya en zona superior y tarjeta de alerta roja con candado LOTO animado en el pecho.
-2. Escena 2 (20s-2m): Cortina oscura a pantalla completa con esquema de 5 pasos numerados que se iluminan en verde lima (#c7f303) al nombrarse.
-3. Escena 3 (2m-3.5m): Regreso de Tenshi 3D con aureola dorada, resumen de las 3 compuertas de seguridad y botón animado hacia wappy.club.</div>
-            <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p3', this)">📋 Copiar Prompt al Portapapeles</button>
-          </div>
-
-          <!-- Prompt 4 -->
-          <article class="p-card">
-            <div class="p-header">
-              <span class="p-tag amber">CONECTORES WORKSPACE</span>
-              <h4>4. Enrutador de Alertas Gmail con Clasificación Automática</h4>
-            </div>
-            <p class="p-desc">Clasifica correos de incidentes o reportes de actos inseguros y envía alertas prioritarias según su nivel de severidad.</p>
-            <div class="p-code-box" id="prompt-p4">Actúa como Agente de Triaje de Incidentes SG-SST conectado a Gmail en Google Antigravity. Cuando ingrese un correo a la cuenta de seguridad y salud en el trabajo:
-
-1. Analiza el asunto y cuerpo del mensaje buscando palabras clave de riesgo: atrapamiento, caída de altura, quemadura química, fuga de gas, o amago de incendio.
-2. Si la severidad es ALTA: Redacta un correo urgente con asunto "[URGENTE SG-SST] Incidente Crítico Reportado", marca con etiqueta roja y programa una reunión en Google Calendar para los brigadistas en los próximos 15 minutos.
-3. Si la severidad es BAJA: Registra el caso en la matriz de actos y condiciones inseguras y responde al colaborador agradeciendo su reporte con un mensaje cordial de retroalimentación.</div>
-            <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p4', this)">📋 Copiar Prompt al Portapapeles</button>
-          </div>
-
-          <!-- Prompt 5 -->
-          <article class="p-card">
-            <div class="p-header">
-              <span class="p-tag purple">PARAMETRIZADOR DAG</span>
-              <h4>5. Parametrizador de Flujos DAG con Claves API Independientes</h4>
-            </div>
-            <p class="p-desc">Estructura un flujo multi-proceso en WAPPY con llaves API dedicadas para evitar colisiones y cuellos de botella.</p>
-            <div class="p-code-box" id="prompt-p5">Actúa como Arquitecto de Sistemas de WAPPY IA. Deseo configurar una automatización en /tareas con dos procesos concurrentes:
-- Proceso A: Auditoría diaria de entrega de EPP (Lectura en H5 -> Condición Si/No -> Alerta).
-- Proceso B: Verificación semanal de habilitación médica de proveedores de salud ocupacional.
-
-Configura la arquitectura técnica:
-1. Asigna identificadores y claves API independientes para cada flujo (wpy_proc_epp_... y wpy_proc_med_...).
-2. Establece límites de concurrencia y políticas de reintento automático ante fallas de red.
-3. Diseña el webhook de salida unificado para consolidar las métricas de ambos flujos en el panel de control de WAPPY.</div>
-            <button type="button" class="btn btn-copy" onclick="copyPromptText('prompt-p5', this)">📋 Copiar Prompt al Portapapeles</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===========================================================
-         GUÍA DE PREPARACIÓN PASO A PASO
-         =========================================================== -->
-    <section class="guide-section" id="guia-pasos" aria-labelledby="guide-title">
-      <div class="guide-container">
-        <span class="slide-badge lime">HOJA DE RUTA PARA LA CLASE 5</span>
-        <h2 class="guide-title" id="guide-title">Guía de Preparación Previa para la Sesión en Vivo</h2>
-        <p class="guide-desc">Sigue estos 4 pasos antes de las 7:00 PM para llegar con todo listo a la sala virtual y aprovechar al máximo el taller práctico.</p>
-
-        <div class="guide-blocks-grid">
-          <div class="g-block">
-            <div class="g-num">1</div>
-            <h4>Verifica tu Conexión a WAPPY</h4>
-            <p>Ingresa a <a href="https://app.wappy.club" target="_blank" style="color:#c7f303;">app.wappy.club</a> y confirma que puedas acceder a la sección de Tareas (/tareas). Revisa el catálogo de flujos preestablecidos.</p>
-          </div>
-          <div class="g-block">
-            <div class="g-num">2</div>
-            <h4>Prepara tu Diagrama de Flujo</h4>
-            <p>Ten a la mano el boceto en papel, diagrama de Lucidchart o descripción paso a paso de la automatización que tu empresa necesita resolver con urgencia.</p>
-          </div>
-          <div class="g-block">
-            <div class="g-num">3</div>
-            <h4>Reúne Archivos de Prueba</h4>
-            <p>Guarda en una carpeta accesible 2 o 3 archivos representativos (un PDF de contrato, un Excel de nómina o un certificado médico) sin datos personales confidenciales.</p>
-          </div>
-          <div class="g-block">
-            <div class="g-num">4</div>
-            <h4>Entra Puntual a Google Meet</h4>
-            <p>La sala virtual abre a las 6:50 PM. Conéctate a través de <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" style="color:#5eead4;">meet.google.com/yxv-gyhv-ron</a> para probar tu micrófono y cámara antes de arrancar.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- ===========================================================
-       POPUP / MODAL DE NOTAS Y CHECKLIST PREVIO (4 PESTAÑAS)
-       =========================================================== -->
+  <!-- ========================================================================
+       MODAL / POPUP INTERACTIVO DE SALA EN VIVO, CHECKLIST Y REQUISITOS CLASE 5
+       ======================================================================== -->
   <div class="notes-modal-backdrop" id="notes-modal" onclick="handleBackdropClick(event)">
     <div class="notes-modal-window" role="dialog" aria-modal="true" aria-labelledby="notes-modal-title">
       <div class="notes-modal-header">
         <div class="notes-modal-title-wrap">
-          <h3 id="notes-modal-title">📋 Checklist, Temario &amp; Requisitos · Clase V en Vivo</h3>
-          <p>Fecha: Martes 17 de Noviembre de 2026 · 7:00 – 9:00 PM · Docente: Ing. Félix Bedoya · Google Meet</p>
+          <h3 id="notes-modal-title">📋 Checklist Previo y Datos de Sala · Clase V en Vivo</h3>
+          <p>Fecha: Martes 17 de Noviembre de 2026 · 7:00 – 9:00 PM (America/Bogota) · Google Meet: yxv-gyhv-ron</p>
         </div>
         <button type="button" class="btn-close-modal" onclick="closeNotesModal()">✕ Cerrar Ventana</button>
       </div>
@@ -3117,156 +2997,337 @@ Configura la arquitectura técnica:
       <div class="notes-tabs-bar">
         <div class="notes-tab-group">
           <button type="button" class="notes-tab-btn active" id="ntab-all" onclick="switchNotesTab('all')">🌟 Ver Todo</button>
-          <button type="button" class="notes-tab-btn" id="ntab-resumen" onclick="switchNotesTab('resumen')">📌 Temario Oficial</button>
-          <button type="button" class="notes-tab-btn" id="ntab-pasos" onclick="switchNotesTab('pasos')">✅ Tareas Previas Requeridas</button>
+          <button type="button" class="notes-tab-btn" id="ntab-resumen" onclick="switchNotesTab('resumen')">📌 Temario Clase 5</button>
+          <button type="button" class="notes-tab-btn" id="ntab-pasos" onclick="switchNotesTab('pasos')">✅ Tareas Previas (Clase 4)</button>
           <button type="button" class="notes-tab-btn" id="ntab-detalles" onclick="switchNotesTab('detalles')">🛠️ Herramientas &amp; Accesos</button>
         </div>
       </div>
 
       <div class="notes-modal-body">
-        <!-- Tira de Enlaces Oficiales -->
+
         <div class="n-links-strip">
           <div style="font-size:12.5px; font-weight:800; color:#5eead4;">
-            📎 Enlaces Oficiales de la Clase 5:
+            📎 Enlaces de Conexión Directa Clase 5:
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener" class="n-doc-btn" style="border-color:#ef4444; color:#fca5a5; background:rgba(239,68,68,0.18);">
-              🔴 Sala en Vivo Google Meet
-            </a>
-            <a href="https://calendar.app.google/HKPNhtmxygTfn7NBA" target="_blank" rel="noopener" class="n-doc-btn">
-              📅 Agendar en Google Calendar
-            </a>
-            <a href="/clase4" class="n-doc-btn" style="border-color:#c7f303; color:#ecfccb;">
-              ⬅️ Ver Grabación Clase 4
-            </a>
+            <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📹 Sala Google Meet</a>
+            <a href="https://calendar.app.google/HKPNhtmxygTfn7NBA" target="_blank" rel="noopener noreferrer" class="n-doc-btn">📅 Calendario Recurrente</a>
+            <a href="/clase4" class="n-doc-btn">⏮️ Repasar Clase 4</a>
           </div>
         </div>
 
-        <!-- Pestaña 1: Temario Oficial -->
         <div class="notes-pane active" data-npane="resumen">
           <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            📌 1. Temario Maestro de la Clase 5
+            📌 1. Temario Oficial de la Clase 5
           </div>
           <div class="s-grid-2">
             <div class="s-card glow-lime n-section-card">
-              <h4>🔀 Puesta en Marcha de Flujos DAG de Alumnos</h4>
-              <p>Revisión en vivo de los bocetos creados por las empresas participantes. Construcción paso a paso de los nodos en el Lienzo WAPPY (/tareas) con compuertas Pre-IA deterministas.</p>
+              <h4>🔀 Puesta en Marcha de Flujos de Alumnos</h4>
+              <p>Parametrización en directo en el Lienzo WAPPY (/tareas) y Google Antigravity de los diagramas y necesidades operativas diseñadas por cada empresa participante.</p>
             </div>
             <div class="s-card glow-teal n-section-card">
-              <h4>🎙️ Google NotebookLM: Cero Alucinación</h4>
-              <p>Conexión de matrices legales, decretos y políticas corporativas. Generación de podcasts a 2 voces y resúmenes ejecutivos verificables con número de página y cita normativa.</p>
-            </div>
-            <div class="s-card glow-cyan n-section-card">
-              <h4>🎬 Google Flow Audiovisual &amp; Micro-Cápsulas</h4>
-              <p>Producción de videos de capacitación en seguridad y salud de 3.5 minutos a 60 FPS con Tenshi 3D y el avatar del Ing. Félix Bedoya para divulgación masiva.</p>
-            </div>
-            <div class="s-card glow-purple n-section-card">
-              <h4>🔑 Claves API Independientes &amp; Conectores</h4>
-              <p>Asignación de credenciales únicas por proceso para evitar colisiones entre flujos concurrentes. Integración nativa con Google Drive, Gmail y Google Calendar.</p>
+              <h4>🎙️ Google NotebookLM &amp; Google Flow</h4>
+              <p>Cuadernos normativos con 0% de alucinación, generación de podcasts SST a dos voces y producción audiovisual de micro-cápsulas de 3.5 minutos.</p>
             </div>
           </div>
         </div>
 
-        <!-- Pestaña 2: Tareas Previas Requeridas -->
         <div class="notes-pane active" data-npane="pasos">
           <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            ✅ 2. Compromisos Acordados en Clase 4 para Traer Listos
+            ✅ 2. Compromisos de Clase 4 que debes traer listos
           </div>
-
           <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(199,243,3,0.18); color:#c7f303; border-color:rgba(199,243,3,0.5);">👤 FELIX BEDOYA</span>
-            <div><strong>1. Optimizar Procesos:</strong> Compartir con los alumnos guiones y métodos específicos para optimizar el rendimiento y consumo de procesos en Antigravity.</div>
+            <span class="n-task-owner">El Grupo</span>
+            <div><strong>1. Diagrama del Flujo:</strong> Traer dibujado o redactado el paso a paso de la automatización necesaria en tu empresa (Entrada ➔ Condición ➔ Salida).</div>
           </div>
-
           <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(45,212,191,0.18); color:#2dd4bf; border-color:rgba(45,212,191,0.5);">👤 XIOMARA ARDILA</span>
-            <div><strong>2. Credenciales de Nómina:</strong> Solicitar los credenciales de API o token administrativo para conectar el software de nómina (Sigo/Aportes) a la automatización.</div>
+            <span class="n-task-owner">Xiomara Ardila</span>
+            <div><strong>2. Credenciales / PDFs:</strong> Solicitar credenciales API de nómina y preparar carpeta de contratos digitales para ejecutar con subagentes.</div>
           </div>
-
           <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(139,92,246,0.18); color:#c4b5fd; border-color:rgba(139,92,246,0.5);">👤 EL GRUPO</span>
-            <div><strong>3. Diagrama de Flujo:</strong> Esbozar un diagrama o dibujo del flujo de trabajo requerido por su empresa para parametrizarlo en el Lienzo WAPPY.</div>
-          </div>
-
-          <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(199,243,3,0.18); color:#c7f303; border-color:rgba(199,243,3,0.5);">👤 FELIX BEDOYA</span>
-            <div><strong>4. Enlace ReTHUS:</strong> Compartir el enlace web oficial para verificar la habilitación de médicos tratantes en Colombia.</div>
-          </div>
-
-          <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(199,243,3,0.18); color:#c7f303; border-color:rgba(199,243,3,0.5);">👤 FELIX BEDOYA</span>
-            <div><strong>5. Claves API en WAPPY:</strong> Asignar una clave única a cada proceso en WAPPY para permitir ejecución paralela sin bloqueos de cuotas.</div>
-          </div>
-
-          <div class="n-task-item n-step-item">
-            <span class="n-task-owner" style="background:rgba(45,212,191,0.18); color:#2dd4bf; border-color:rgba(45,212,191,0.5);">👤 XIOMARA ARDILA</span>
-            <div><strong>6. Automatizar PDFs:</strong> Utilizar Antigravity con subagentes paralelos para gestionar la renovación de contratos digitales.</div>
+            <span class="n-task-owner">Félix Bedoya</span>
+            <div><strong>3. Scripts, ReTHUS y Claves API:</strong> Compartir guiones de optimización en Antigravity, enlace verificador de médicos habilitados y asignación de claves únicas por proceso en WAPPY.</div>
           </div>
         </div>
 
-        <!-- Pestaña 3: Herramientas & Accesos Necesarios -->
         <div class="notes-pane active" data-npane="detalles">
           <div style="font-size:14px; font-weight:900; color:var(--lime); text-transform:uppercase; letter-spacing:0.06em;">
-            🛠️ 3. Herramientas &amp; Accesos Recomendados
+            🛠️ 3. Accesos Recomendados en Computador
           </div>
-
           <div class="n-detail-card n-section-card">
-            <h4><span>1. WAPPY IA Cloud (/tareas)</span> <span class="n-ts-badge">app.wappy.club</span></h4>
-            <p>Plataforma central donde operan los 55 flujos preestablecidos y el Lienzo DAG interactivo. Requiere cuenta activa para guardar y ejecutar flujos en servidor.</p>
+            <h4><span>1. Plataforma WAPPY IA (/tareas) y Google Antigravity</span> <span class="ts-link">app.wappy.club</span></h4>
+            <p>Mantén iniciada tu sesión para probar en directo las compuertas Pre-IA y tu proyecto empresarial exclusivo.</p>
           </div>
-
           <div class="n-detail-card n-section-card">
-            <h4><span>2. Google Antigravity &amp; Gemini 3.8</span> <span class="n-ts-badge">Local / Cloud</span></h4>
-            <p>Entorno de desarrollo agéntico para crear herramientas MCP, orquestar subagentes en paralelo y procesar lotes masivos de PDFs o bases de datos.</p>
-          </div>
-
-          <div class="n-detail-card n-section-card">
-            <h4><span>3. Google NotebookLM</span> <span class="n-ts-badge">notebooklm.google.com</span></h4>
-            <p>Herramienta gratuita de Google para análisis de documentos extensos con citas auditables y generación automática de podcasts a 2 voces.</p>
-          </div>
-
-          <div class="n-detail-card n-section-card">
-            <h4><span>4. Conexión Google Meet</span> <span class="n-ts-badge">meet.google.com/yxv-gyhv-ron</span></h4>
-            <p>Sala de videoconferencia de alta definición con soporte de audio, cámara y compartición de pantalla para recibir mentoría en directo.</p>
+            <h4><span>2. Google NotebookLM &amp; Sala Meet</span> <span class="ts-link">meet.google.com/yxv-gyhv-ron</span></h4>
+            <p>Ten a mano un PDF normativo o reglamento interno para convertirlo en cuaderno consultable y podcast en vivo.</p>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 
-  <!-- ===========================================================
-       PIE DE PÁGINA OFICIAL
-       =========================================================== -->
-  <footer class="app-footer" role="contentinfo">
-    <div class="footer-inner">
-      <div class="footer-top">
-        <div class="footer-brand">
-          <img src="{cat_logo}" alt="WAPPY Logo" class="f-logo">
-          <h3>WAPPY <span>IA</span> · SOMOS SST</h3>
-          <p>Ecosistema agéntico de automatización, inteligencia normativa y seguridad en el trabajo para Colombia e Iberoamérica.</p>
-        </div>
-        <div class="footer-links">
-          <h4>Navegación del Curso</h4>
-          <a href="/cursowappy01">🎓 Temario General del Curso</a>
-          <a href="/clase1">✅ Clase 1: Fundamentos &amp; Antigravity</a>
-          <a href="/clase2">✅ Clase 2: Documentos Vivos &amp; MCP</a>
-          <a href="/clase3">✅ Clase 3: Subagentes &amp; Control QR</a>
-          <a href="/clase4">✅ Clase 4: Flujos DAG &amp; Lienzo WAPPY</a>
-          <a href="/clase5">🔴 Clase 5: Próxima Sesión en Vivo</a>
-        </div>
-        <div class="footer-links">
-          <h4>Plataforma &amp; Soporte</h4>
-          <a href="https://wappy.club" target="_blank" rel="noopener">wappy.club</a>
-          <a href="https://app.wappy.club" target="_blank" rel="noopener">Lienzo WAPPY (/tareas)</a>
-          <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener">Sala Google Meet</a>
+  <!-- ========================================================================
+       4. SECCIÓN ESTRELLA: LOS 5 PROMPTS OFICIALES DE LA CLASE 5
+       ======================================================================== -->
+  <section class="prompts-section" id="prompts-chat">
+    <div class="container">
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">💬 Práctica Oficial Clase 5 · Copiar y Pegar</span>
+          <h2 class="sec-big-title">5 Prompts Oficiales de la Clase 5 (NotebookLM &amp; Flow)</h2>
         </div>
       </div>
-      <div class="footer-bottom">
-        <p>© 2026 WAPPY IA · SOMOS SST · Desarrollado por Ing. Félix Bedoya y Agencia WAPPY.</p>
-        <p>Todos los derechos reservados. Material educativo y de entrenamiento profesional.</p>
+
+      <div class="zero-code-banner">
+        <div>
+          <h3>🎙️ Conecta Normativa Verificable + Producción Audiovisual sin Alucinaciones</h3>
+          <p>
+            Utiliza estos 5 prompts durante la sesión del Martes 17 para alimentar NotebookLM con fuentes auditables, generar guiones de podcast a dos voces y producir micro-cápsulas de seguridad en Google Flow.
+          </p>
+        </div>
+        <div class="zero-code-compare">
+          <div style="color:#fca5a5; font-weight:800; margin-bottom:6px;">❌ Charlas Largas Sin Retención:</div>
+          <div style="color:#cbd5e1; margin-bottom:10px; font-size:12px;">PDFs de 80 páginas que nadie lee ni comprende en planta.</div>
+          <div style="color:var(--lime); font-weight:800; margin-bottom:6px;">✅ Método Clase 5 (Impacto):</div>
+          <div style="color:#ffffff; font-size:12px;"><strong>NotebookLM 0% Error</strong> + <strong>Podcast 2 Voces</strong> + <strong>Micro-Video 3.5 min</strong>.</div>
+        </div>
+      </div>
+
+      <div class="prompt-cards-grid">
+
+        <div class="prompt-chat-card">
+          <div class="p-card-top">
+            <span class="p-step-tag">Prompt 1 · NotebookLM Normativo</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Cero Alucinación</span>
+          </div>
+          <div class="p-card-body">
+            <h3 class="p-card-title">1. Curador de Fuentes y Matriz de Citas para Google NotebookLM</h3>
+            <p class="p-card-explain">Organiza tus decretos, resoluciones y reglamentos internos antes de cargarlos para obtener citas jurídicas verificables al 100%.</p>
+            <div class="chat-prompt-box">
+              <div class="chat-prompt-label">💬 Mensaje para pegar en Antigravity / NotebookLM:</div>
+              <div class="chat-prompt-text" id="prompt-1">Actúa como Especialista en Cumplimiento Normativo SG-SST. Analiza exclusivamente los documentos y normas cargadas en este cuaderno de mi empresa [Nombre].
+
+Responde cumpliendo estas reglas estrictas:
+1. Cero alucinación: Si un dato o artículo no figura en las fuentes suministradas, indícalo explícitamente sin suponer.
+2. Cita exacta: Incluye junto a cada respuesta el nombre del documento fuente, artículo o numeral y número de página exacto.
+3. Redacta una matriz ejecutiva con: Requisito Legal, Evidencia Existente en Empresa, Brecha Detectada y Plan de Cierre Prioritario.</div>
+            </div>
+          </div>
+          <div class="p-card-footer">
+            <span class="p-result-note">⚡ Resultado: Respuesta jurídica auditable con trazabilidad exacta.</span>
+            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-1', this)">
+              📋 Copiar Prompt para el Chat
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-chat-card">
+          <div class="p-card-top">
+            <span class="p-step-tag">Prompt 2 · Podcast a 2 Voces</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Divulgación Operativa</span>
+          </div>
+          <div class="p-card-body">
+            <h3 class="p-card-title">2. Diseñador de Podcast Pedagógico a Dos Voces para Operarios</h3>
+            <p class="p-card-explain">Convierte un procedimiento largo en una conversación amena de audio ideal para compartir por WhatsApp en turnos de trabajo.</p>
+            <div class="chat-prompt-box">
+              <div class="chat-prompt-label">💬 Mensaje para pegar en el Chat:</div>
+              <div class="chat-prompt-text" id="prompt-2">Basándote en nuestro procedimiento interno adjunto sobre [TEMA: Trabajo Seguro en Alturas / Bloqueo LOTO / Riesgo Químico], diseña una guía para Podcast a 2 voces en español colombiano cercano y claro:
+
+- Locutor A (Ingeniero SST): Aporta precisión normativa y explica el riesgo real.
+- Locutor B (Supervisor de Planta): Hace preguntas prácticas del día a día en campo.
+
+Estructura en 5 minutos:
+1. Gancho inicial (30s): Historia corta de un error común y cómo prevenirlo.
+2. Reglas de oro (3.5m): Los 3 controles críticos explicados sin tecnicismos difíciles.
+3. Cierre accionable (1m): Invitación a reportar condiciones inseguras en WAPPY antes de iniciar la tarea.</div>
+            </div>
+          </div>
+          <div class="p-card-footer">
+            <span class="p-result-note">⚡ Resultado: Guion o instrucción lista para Audio Overview en NotebookLM.</span>
+            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-2', this)">
+              📋 Copiar Prompt para el Chat
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-chat-card">
+          <div class="p-card-top">
+            <span class="p-step-tag">Prompt 3 · Google Flow Vídeo</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Micro-Cápsula 3.5 Min</span>
+          </div>
+          <div class="p-card-body">
+            <h3 class="p-card-title">3. Director Audiovisual para Micro-Videos de Capacitación (Google Flow)</h3>
+            <p class="p-card-explain">Genera la secuencia visual y guion sincronizado para producir videos verticales o presentaciones educativas en WAPPY Studio / Flow.</p>
+            <div class="chat-prompt-box">
+              <div class="chat-prompt-label">💬 Mensaje para pegar en Antigravity / Flow:</div>
+              <div class="chat-prompt-text" id="prompt-3">Actúa como Productor Audiovisual en WAPPY IA conectado a Google Flow. Quiero producir un micro-video de capacitación de 3 minutos y medio sobre: [TEMA DE SEGURIDAD].
+
+Genera el guion técnico dividido en escenas cortas:
+1. Portada Hero (2 segundos): Gancho visual directo con título gigante y fondo oscuro de alto contraste.
+2. Desarrollo en bloques de 15 segundos: Cada bloque muestra UNA sola idea visual clave acompañada de su narración exacta en off.
+3. Prompts visuales para Google Flow: Describe iluminación, encuadre limpio y acciones preventivas seguras en planta sin texto superpuesto innecesario.</div>
+            </div>
+          </div>
+          <div class="p-card-footer">
+            <span class="p-result-note">⚡ Resultado: Guion técnico + prompts de escena listos para render.</span>
+            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-3', this)">
+              📋 Copiar Prompt para el Chat
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-chat-card">
+          <div class="p-card-top">
+            <span class="p-step-tag">Prompt 4 · Flujos Alumnos + APIs</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Claves Independientes</span>
+          </div>
+          <div class="p-card-body">
+            <h3 class="p-card-title">4. Constructor de Flujo Empresarial con Clave API Dedicada</h3>
+            <p class="p-card-explain">Traduce el boceto en papel que trajiste a la Clase 5 en una automatización real de /tareas con ejecución paralela segura.</p>
+            <div class="chat-prompt-box">
+              <div class="chat-prompt-label">💬 Mensaje para pegar al iniciar tu flujo:</div>
+              <div class="chat-prompt-text" id="prompt-4">Tengo el siguiente diagrama/boceto de automatización para mi empresa [DESCRIBIR TU FLUJO: disparador, archivo o módulo a consultar, condición y correo o reporte final].
+
+Ayúdame a implementarlo paso a paso sin desperdiciar tokens:
+1. Define la condición Pre-IA exacta que filtre los casos en orden con 0 tokens.
+2. Configura una Memoria Bitácora Anti-duplicados para no repetir alertas en 7 días.
+3. Estructura las salidas hacia Drive, Gmail y Centro de Control Kanban dejando el proceso listo para asignarle una clave API independiente en WAPPY.</div>
+            </div>
+          </div>
+          <div class="p-card-footer">
+            <span class="p-result-note">⚡ Resultado: Tu flujo empresarial listo para operar 24/7.</span>
+            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-4', this)">
+              📋 Copiar Prompt para el Chat
+            </button>
+          </div>
+        </div>
+
+        <div class="prompt-chat-card">
+          <div class="p-card-top">
+            <span class="p-step-tag">Prompt 5 · Triaje Workspace</span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-muted);">Gmail + Calendar</span>
+          </div>
+          <div class="p-card-body">
+            <h3 class="p-card-title">5. Clasificador Automático de Reportes y Agenda de Inspecciones</h3>
+            <p class="p-card-explain">Enruta reportes de actos y condiciones inseguras recibidos por correo y agenda seguimientos urgentes en Calendar.</p>
+            <div class="chat-prompt-box">
+              <div class="chat-prompt-label">💬 Mensaje para conectar Workspace con Tenshi:</div>
+              <div class="chat-prompt-text" id="prompt-5">Conéctate a mi flujo de notificaciones SG-SST. Cuando reciba un reporte de acto o condición insegura:
+
+1. Clasifica automáticamente la severidad (Crítica, Alta, Media o Baja) según potencial de lesión o fatalidad.
+2. Si es Crítica o Alta: envía alerta inmediata al responsable de área por Gmail y agenda automáticamente en Google Calendar una inspección prioritaria de 30 minutos para el mismo día.
+3. Si es Media o Baja: registra el hallazgo en la matriz de seguimiento semanal y responde agradeciendo el reporte al trabajador.</div>
+            </div>
+          </div>
+          <div class="p-card-footer">
+            <span class="p-result-note">⚡ Resultado: Triaje inteligente conectado a tu agenda y correo.</span>
+            <button class="btn-copy-prompt" onclick="copyPromptText('prompt-5', this)">
+              📋 Copiar Prompt para el Chat
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
-  </footer>
+  </section>
+
+  <!-- ========================================================================
+       5. TEMARIO PASO A PASO DE LA CLASE 5 (4 BLOQUES INTENSIVOS · 7:00 – 9:00 PM)
+       ======================================================================== -->
+  <section class="guide-section" id="guia-paso-a-paso">
+    <div class="container">
+      <div class="sec-head-bar">
+        <div>
+          <span class="sec-kicker">📘 Hoja de Ruta en Vivo · Clase 5</span>
+          <h2 class="sec-big-title">Temario Paso a Paso de la Clase 5 (Martes 17 Nov)</h2>
+        </div>
+      </div>
+
+      <div class="guide-blocks-grid">
+
+        <div class="g-block-card">
+          <div class="g-block-header">
+            <span class="g-badge">Bloque 1 · Flujos de Alumnos</span>
+            <span class="g-time">⏰ 7:00 PM – 7:35 PM</span>
+          </div>
+          <h3>Puesta en Marcha de Flujos Empresariales</h3>
+          <ul class="g-list">
+            <li><strong>1. Revisión de bocetos del grupo:</strong> análisis rápido de los flujos traídos por los participantes.</li>
+            <li><strong>2. Montaje en Lienzo WAPPY y Antigravity:</strong> conexión de disparadores, condiciones Pre-IA y salidas Kanban/Gmail.</li>
+          </ul>
+        </div>
+
+        <div class="g-block-card">
+          <div class="g-block-header">
+            <span class="g-badge">Bloque 2 · NotebookLM</span>
+            <span class="g-time">⏰ 7:35 PM – 8:20 PM</span>
+          </div>
+          <h3>0% Alucinación, Citas Exactas y Podcasts</h3>
+          <ul class="g-list">
+            <li><strong>1. Carga normativa estructurada:</strong> Decretos, Resoluciones y manuales internos con citas verificables.</li>
+            <li><strong>2. Podcasts a dos voces &amp; mapas:</strong> audio explicativo listo para operarios y síntesis gerenciales.</li>
+          </ul>
+        </div>
+
+        <div class="g-block-card">
+          <div class="g-block-header">
+            <span class="g-badge">Bloque 3 · Google Flow</span>
+            <span class="g-time">⏰ 8:20 PM – 8:40 PM</span>
+          </div>
+          <h3>Producción Audiovisual de Capacitaciones</h3>
+          <ul class="g-list">
+            <li><strong>1. Micro-cápsulas de 3.5 minutos:</strong> guiones de alto impacto y generación visual con Google Flow.</li>
+            <li><strong>2. Campañas SST sin apatía:</strong> afiches, señalética y videos cortos para inducción y pausas activas.</li>
+          </ul>
+        </div>
+
+        <div class="g-block-card">
+          <div class="g-block-header">
+            <span class="g-badge">Bloque 4 · APIs &amp; Cierre</span>
+            <span class="g-time">⏰ 8:40 PM – 9:00 PM</span>
+          </div>
+          <h3>Claves API Independientes &amp; Verificación Médica</h3>
+          <ul class="g-list">
+            <li><strong>1. Aislamiento por proceso:</strong> llaves independientes en WAPPY para correr varios flujos a la vez.</li>
+            <li><strong>2. Recurso ReTHUS &amp; Q&amp;A:</strong> entrega de enlace para validar médicos habilitados y soporte técnico.</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="final-cta-card">
+        <div style="max-width: 640px;">
+          <span style="color:var(--lime); font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;">
+            🔴 Sala en Vivo · Martes 17 de Noviembre · 7:00 PM (Hora Colombia)
+          </span>
+          <h3 style="font-family:var(--font-display); font-size:clamp(20px, 2.6vw, 30px); font-weight:900; margin:6px 0 8px;">
+            ¡Entra puntual a la Clase 5 con tu Flujo Listo!
+          </h3>
+          <p style="font-size:14px; color:#cbd5e1;">
+            Guarda el enlace de Google Meet y repasa el checklist previo en el popup antes de conectarte con el Ing. Félix Bedoya.
+          </p>
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button type="button" onclick="openNotesModal()" class="btn btn-glass">
+            📋 Ver Checklist Previo
+          </button>
+          <a href="/clase4" class="btn btn-glass">
+            ⏮️ Repasar Clase 4
+          </a>
+          <a href="https://meet.google.com/yxv-gyhv-ron" target="_blank" rel="noopener noreferrer" class="btn btn-lime">
+            📹 Entrar a Google Meet ↗
+          </a>
+        </div>
+      </div>
+
+      <footer>
+        <p><strong>WAPPY IA · SOMOS SST</strong> · Especialización Práctica en Agentes Autónomos para Seguridad y Salud en el Trabajo</p>
+        <p style="margin-top:4px;">wappy.club/clase5 · Docente Líder: Ing. Félix Bedoya · Sesión Oficial Clase 5 (Flujos Alumnos en Vivo, NotebookLM &amp; Google Flow)</p>
+      </footer>
+    </div>
+  </section>
 
   <script>
     // 1. Controlador de las 15 Diapositivas
@@ -3327,13 +3388,13 @@ Configura la arquitectura técnica:
     // Gestos Swipe en Celular
     let touchStartX = 0;
     let touchEndX = 0;
-    const viewport = document.getElementById('slide-viewport');
+    const viewport = document.getElementById('slide-viewport') || document.getElementById('deck-stage');
 
-    viewport.addEventListener('touchstart', (e) => {{
+    if (viewport) viewport.addEventListener('touchstart', (e) => {{
       touchStartX = e.changedTouches[0].screenX;
     }}, {{ passive: true }});
 
-    viewport.addEventListener('touchend', (e) => {{
+    if (viewport) viewport.addEventListener('touchend', (e) => {{
       touchEndX = e.changedTouches[0].screenX;
       const dist = touchEndX - touchStartX;
       if (Math.abs(dist) > 50) {{
@@ -3635,13 +3696,13 @@ Configura la arquitectura técnica:
 </html>
 '''
 
-# Write client/public/clase5.html
+# Write to client/public/clase5.html
 pub_path = '/Users/venta/Documents/GitHub/LibreChat-WAPPY/client/public/clase5.html'
 with open(pub_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
 print(f"Generated {pub_path} ({len(html_content)} bytes)")
 
-# Write Desktop/clase5.html
+# Write to Desktop
 desktop_path = '/Users/venta/Desktop/clase5.html'
 with open(desktop_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
