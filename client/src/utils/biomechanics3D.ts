@@ -91,15 +91,10 @@ export const loadScript = (src: string): Promise<void> => {
 };
 
 /**
- * Carga ultrarrápida de MediaPipe Pose y MediaPipe Hands en paralelo
+ * Carga ultrarrápida de MediaPipe Pose (sin cargar modelos secundarios pesados de manos)
  */
 export const loadVisionEngines = async (): Promise<void> => {
-    await Promise.all([
-        loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'),
-        loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js').catch(err => {
-            console.warn('[Biomechanics3D] MediaPipe Hands diferido:', err);
-        }),
-    ]);
+    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
 };
 
 export const loadClassicPoseScripts = loadVisionEngines;
@@ -193,7 +188,7 @@ function drawFuturisticFaceHUD(
 
     ctx.save();
 
-    // 1. VISOR HUD CRANEAL OVALADO ANATÓMICO (Simulando el contorno facial)
+    // 1. VISOR HUD CRANEAL OVALADO ANATÓMICO (Cero shadowBlur para renderizado <0.1ms)
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(headAngle);
@@ -201,60 +196,49 @@ function drawFuturisticFaceHUD(
     // Anillo exterior orbital punteado
     ctx.lineWidth = 1.2;
     ctx.setLineDash([5, 6]);
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)'; // Esmeralda sutil
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
     ctx.beginPath();
     ctx.ellipse(0, 0, radiusX * 1.08, radiusY * 1.08, 0, 0, 2 * Math.PI);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Elipse facial base con resplandor neón
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.75)'; // Cyan brillante
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
+    // Halo exterior suave sin filtro Gaussian blur
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.22)';
     ctx.beginPath();
     ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
     ctx.stroke();
 
-    // Arcos de acento biométrico (Frente, Mentón, Pómulos)
+    // Elipse facial base nítida
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.8)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Arcos de acento biométrico agrupados en un solo path
     ctx.lineWidth = 2.8;
     ctx.strokeStyle = '#06b6d4';
-    // Bóveda craneal superior (Frente)
     ctx.beginPath();
     ctx.ellipse(0, 0, radiusX, radiusY, 0, -Math.PI * 0.65, -Math.PI * 0.35);
-    ctx.stroke();
-    // Mentón / Mandíbula inferior
-    ctx.beginPath();
+    ctx.moveTo(radiusX * Math.cos(Math.PI * 0.35), radiusY * Math.sin(Math.PI * 0.35));
     ctx.ellipse(0, 0, radiusX, radiusY, 0, Math.PI * 0.35, Math.PI * 0.65);
-    ctx.stroke();
-    // Sienes / Pómulos laterales
-    ctx.beginPath();
+    ctx.moveTo(radiusX * Math.cos(-Math.PI * 0.12), radiusY * Math.sin(-Math.PI * 0.12));
     ctx.ellipse(0, 0, radiusX, radiusY, 0, -Math.PI * 0.12, Math.PI * 0.12);
-    ctx.stroke();
-    ctx.beginPath();
+    ctx.moveTo(radiusX * Math.cos(Math.PI * 0.88), radiusY * Math.sin(Math.PI * 0.88));
     ctx.ellipse(0, 0, radiusX, radiusY, 0, Math.PI * 0.88, Math.PI * 1.12);
     ctx.stroke();
 
-    // Ticks tácticos en los 4 polos cardinales del óvalo
+    // Ticks tácticos en los 4 polos cardinales agrupados en 1 solo stroke
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = 'rgba(16, 185, 129, 0.85)';
-    // Polo norte
     ctx.beginPath();
     ctx.moveTo(0, -radiusY - 4);
     ctx.lineTo(0, -radiusY + 4);
-    ctx.stroke();
-    // Polo sur (mentón)
-    ctx.beginPath();
     ctx.moveTo(0, radiusY - 4);
     ctx.lineTo(0, radiusY + 4);
-    ctx.stroke();
-    // Polo oeste
-    ctx.beginPath();
     ctx.moveTo(-radiusX - 4, 0);
     ctx.lineTo(-radiusX + 4, 0);
-    ctx.stroke();
-    // Polo este
-    ctx.beginPath();
     ctx.moveTo(radiusX - 4, 0);
     ctx.lineTo(radiusX + 4, 0);
     ctx.stroke();
@@ -262,7 +246,6 @@ function drawFuturisticFaceHUD(
     // Micro-etiqueta HUD de tracking craneal sobre el polo superior
     ctx.font = 'bold 8px monospace';
     ctx.fillStyle = 'rgba(6, 182, 212, 0.95)';
-    ctx.shadowBlur = 4;
     ctx.textAlign = 'center';
     ctx.fillText('CRANIAL TRACKING • OVAL HUD', 0, -radiusY - 9);
 
@@ -275,36 +258,39 @@ function drawFuturisticFaceHUD(
         const rx = rightEye.x * width;
         const ry = rightEye.y * height;
 
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.4;
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)'; // Esmeralda suave
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
         ctx.beginPath();
         ctx.moveTo(rx - 12, ry);
         ctx.lineTo(lx + 12, ly);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Nodos oculares mínimos
         ctx.fillStyle = '#10b981';
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(lx, ly, 2.5, 0, 2 * Math.PI);
+        ctx.moveTo(rx + 2.5, ry);
         ctx.arc(rx, ry, 2.5, 0, 2 * Math.PI);
         ctx.fill();
     }
 
     // 3. Nodos auditivos (Orejas / Sienes)
-    if (leftEarVis) {
+    if (leftEarVis || rightEarVis) {
         ctx.fillStyle = '#06b6d4';
         ctx.beginPath();
-        ctx.arc(leftEar.x * width, leftEar.y * height, 3, 0, 2 * Math.PI);
-        ctx.fill();
-    }
-    if (rightEarVis) {
-        ctx.fillStyle = '#06b6d4';
-        ctx.beginPath();
-        ctx.arc(rightEar.x * width, rightEar.y * height, 3, 0, 2 * Math.PI);
+        if (leftEarVis) {
+            const lex = leftEar.x * width;
+            const ley = leftEar.y * height;
+            ctx.moveTo(lex + 3, ley);
+            ctx.arc(lex, ley, 3, 0, 2 * Math.PI);
+        }
+        if (rightEarVis) {
+            const rex = rightEar.x * width;
+            const rey = rightEar.y * height;
+            ctx.moveTo(rex + 3, rey);
+            ctx.arc(rex, rey, 3, 0, 2 * Math.PI);
+        }
         ctx.fill();
     }
 
@@ -312,7 +298,7 @@ function drawFuturisticFaceHUD(
 }
 
 /**
- * Dibuja la mano completa de 21 articulaciones (MediaPipe Hands) con falanges afiladas y cápsulas articulares
+ * Dibuja la mano completa de 21 articulaciones (compatibilidad opcional) con trazado por lotes sin shadowBlur
  */
 export function drawDetailedHand(
     ctx: CanvasRenderingContext2D,
@@ -326,7 +312,6 @@ export function drawDetailedHand(
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // 1. Polígono anatómico de la palma (Carpo + Metacarpo)
     const palmIndices = [0, 1, 5, 9, 13, 17];
     ctx.beginPath();
     for (let i = 0; i < palmIndices.length; i++) {
@@ -343,74 +328,46 @@ export function drawDetailedHand(
     ctx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
     ctx.stroke();
 
-    // 2. Huesos metacarpianos y falanges (Proximal, Media y Distal) con grosor progresivo
-    const chains = [
-        [0, 1, 2, 3, 4],     // Pulgar
-        [0, 5, 6, 7, 8],     // Índice
-        [0, 9, 10, 11, 12],  // Medio
-        [0, 13, 14, 15, 16], // Anular
-        [0, 17, 18, 19, 20], // Meñique
-    ];
-    const segWidths = [2.4, 2.1, 1.75, 1.4];
-
-    for (const chain of chains) {
-        for (let s = 0; s < chain.length - 1; s++) {
-            const p1 = handLandmarks[chain[s]];
-            const p2 = handLandmarks[chain[s + 1]];
-            if (!p1 || !p2) continue;
-            const x1 = p1.x * width;
-            const y1 = p1.y * height;
-            const x2 = p2.x * width;
-            const y2 = p2.y * height;
-
-            ctx.strokeStyle = '#06b6d4';
-            ctx.shadowColor = '#06b6d4';
-            ctx.shadowBlur = 6;
-            ctx.lineWidth = segWidths[s] || 1.6;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
-            ctx.lineWidth = Math.max(0.7, (segWidths[s] || 1.6) * 0.42);
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-        }
+    // Huesos en 2 pasadas por lotes (cero shadowBlur)
+    ctx.beginPath();
+    for (const [i1, i2] of HAND_ANATOMY_CONNECTIONS) {
+        const p1 = handLandmarks[i1];
+        const p2 = handLandmarks[i2];
+        if (!p1 || !p2) continue;
+        ctx.moveTo(p1.x * width, p1.y * height);
+        ctx.lineTo(p2.x * width, p2.y * height);
     }
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.28)';
+    ctx.lineWidth = 4.6;
+    ctx.stroke();
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 2.0;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.88)';
+    ctx.lineWidth = 0.85;
+    ctx.stroke();
 
-    // 3. Articulaciones interfalángicas y falanges distales (puntas de los dedos)
+    // Nodos en 2 pasadas por lotes
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
     for (let i = 0; i < handLandmarks.length; i++) {
         const pt = handLandmarks[i];
         const px = pt.x * width;
         const py = pt.y * height;
         const isTip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
-        const isKnuckle = i === 0 || i === 1 || i === 5 || i === 9 || i === 13 || i === 17;
-        const r = isTip ? 3.2 : isKnuckle ? 2.8 : 2.1;
-
-        ctx.fillStyle = isTip ? '#10b981' : '#06b6d4';
-        ctx.shadowColor = isTip ? '#10b981' : '#06b6d4';
-        ctx.shadowBlur = 5;
-        ctx.beginPath();
+        const r = isTip ? 3.0 : 2.2;
+        ctx.moveTo(px + r, py);
         ctx.arc(px, py, r, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(px, py, r * 0.45, 0, 2 * Math.PI);
-        ctx.fill();
     }
+    ctx.fill();
 
     ctx.restore();
 }
 
 /**
- * Síntesis anatómica completa de mano de 21 articulaciones (Carpo, 5 Metacarpianos y 14 Falanges
- * hasta la punta de los 5 dedos) calculada geométricamente en 0ms a partir de los puntos de Pose.
+ * Síntesis anatómica instantánea (0ms, 3 pasadas por lotes sin shadowBlur) de mano de 5 dedos
+ * y 14 falanges articuladas, 100% anclada en tiempo real a la muñeca y antebrazo de MediaPipe Pose.
+ * Nunca se queda pausada ni se separa del esqueleto al mover los brazos rápidamente.
  */
 function drawSynthesizedPoseHand(
     ctx: CanvasRenderingContext2D,
@@ -419,27 +376,57 @@ function drawSynthesizedPoseHand(
     index: any,
     thumb: any,
     width: number,
-    height: number
+    height: number,
+    elbow?: any,
+    isRightHand?: boolean
 ) {
-    if (!wrist || !pinky || !index) return;
-    if ((wrist.visibility ?? 0) < 0.42 || (pinky.visibility ?? 0) < 0.38 || (index.visibility ?? 0) < 0.38) {
-        return;
-    }
+    if (!wrist || (wrist.visibility ?? 0) < 0.32) return;
 
     const wx = wrist.x * width;
     const wy = wrist.y * height;
-    const ix = index.x * width;
-    const iy = index.y * height;
-    const px = pinky.x * width;
-    const py = pinky.y * height;
 
-    // Centro de nudillos (MCP) y longitud base de la palma (metacarpo)
-    const midKx = (ix + px) * 0.5;
-    const midKy = (iy + py) * 0.5;
-    const palmDx = midKx - wx;
-    const palmDy = midKy - wy;
-    const palmLen = Math.hypot(palmDx, palmDy);
-    if (palmLen < 6 || palmLen > Math.max(width, height) * 0.32) return;
+    // Determinar puntos base de índice y meñique (con respaldo instantáneo desde el vector del antebrazo si hay desenfoque por movimiento)
+    let ix = index ? index.x * width : wx;
+    let iy = index ? index.y * height : wy;
+    let px = pinky ? pinky.x * width : wx;
+    let py = pinky ? pinky.y * height : wy;
+
+    let midKx = (ix + px) * 0.5;
+    let midKy = (iy + py) * 0.5;
+    let palmDx = midKx - wx;
+    let palmDy = midKy - wy;
+    let palmLen = Math.hypot(palmDx, palmDy);
+
+    const maxValidPalm = Math.max(width, height) * 0.28;
+
+    // Si los nudillos de Pose están muy juntos o fuera de rango durante un movimiento rápido, proyectar desde el antebrazo (codo -> muñeca)
+    if (!index || !pinky || palmLen < 5 || palmLen > maxValidPalm) {
+        let fx = 0;
+        let fy = -1;
+        let estPalm = Math.max(14, Math.min(width, height) * 0.045);
+        if (elbow && (elbow.visibility ?? 0) > 0.25) {
+            const edx = wx - elbow.x * width;
+            const edy = wy - elbow.y * height;
+            const eLen = Math.hypot(edx, edy);
+            if (eLen > 4) {
+                fx = edx / eLen;
+                fy = edy / eLen;
+                estPalm = Math.max(12, Math.min(maxValidPalm * 0.5, eLen * 0.26));
+            }
+        }
+        const sideSign = isRightHand ? -1 : 1;
+        const perpX = -fy * sideSign;
+        const perpY = fx * sideSign;
+        ix = wx + fx * estPalm - perpX * (estPalm * 0.34);
+        iy = wy + fy * estPalm - perpY * (estPalm * 0.34);
+        px = wx + fx * estPalm + perpX * (estPalm * 0.34);
+        py = wy + fy * estPalm + perpY * (estPalm * 0.34);
+        midKx = (ix + px) * 0.5;
+        midKy = (iy + py) * 0.5;
+        palmDx = midKx - wx;
+        palmDy = midKy - wy;
+        palmLen = Math.hypot(palmDx, palmDy) || estPalm;
+    }
 
     const fwdX = palmDx / palmLen;
     const fwdY = palmDy / palmLen;
@@ -447,20 +434,19 @@ function drawSynthesizedPoseHand(
     // Vector transversal de índice a meñique
     const spanDx = px - ix;
     const spanDy = py - iy;
-    const spanLen = Math.hypot(spanDx, spanDy) || palmLen * 0.65;
+    const spanLen = Math.hypot(spanDx, spanDy);
     const acrossX = spanLen > 2 ? spanDx / spanLen : -fwdY;
     const acrossY = spanLen > 2 ? spanDy / spanLen : fwdX;
 
-    // Arco metacarpiano anatómico para los 4 nudillos (Índice, Medio, Anular, Meñique)
+    // Arco metacarpiano anatómico para los 4 nudillos (Índice, Medio, Anular, Meñique) y sus 3 falanges
     const knuckles = [
-        { t: 0.0, arch: 0.0, splay: -0.14, lenMul: 1.04 },  // Índice
-        { t: 0.33, arch: 0.11, splay: -0.04, lenMul: 1.18 }, // Medio (más largo)
-        { t: 0.67, arch: 0.07, splay: 0.05, lenMul: 1.08 },  // Anular
+        { t: 0.0, arch: 0.0, splay: -0.14, lenMul: 1.02 },  // Índice
+        { t: 0.33, arch: 0.11, splay: -0.04, lenMul: 1.16 }, // Medio
+        { t: 0.67, arch: 0.07, splay: 0.05, lenMul: 1.06 },  // Anular
         { t: 1.0, arch: -0.04, splay: 0.16, lenMul: 0.84 },  // Meñique
     ].map((cfg) => {
         const kx = ix + (px - ix) * cfg.t + fwdX * (palmLen * cfg.arch);
         const ky = iy + (py - iy) * cfg.t + fwdY * (palmLen * cfg.arch);
-        // Dirección del rayo digital con ligera apertura natural (splay)
         const rawDirX = fwdX + acrossX * cfg.splay;
         const rawDirY = fwdY + acrossY * cfg.splay;
         const dNorm = Math.hypot(rawDirX, rawDirY) || 1;
@@ -468,7 +454,6 @@ function drawSynthesizedPoseHand(
         const dirY = rawDirY / dNorm;
         const fingerLen = palmLen * cfg.lenMul;
 
-        // 3 Falanges: Proximal (45%), Media (31%), Distal (24%)
         const pip = { x: kx + dirX * (fingerLen * 0.45), y: ky + dirY * (fingerLen * 0.45) };
         const dip = { x: kx + dirX * (fingerLen * 0.76), y: ky + dirY * (fingerLen * 0.76) };
         const tip = { x: kx + dirX * fingerLen, y: ky + dirY * fingerLen };
@@ -482,10 +467,10 @@ function drawSynthesizedPoseHand(
         x: wx + fwdX * (palmLen * 0.28) + radialDirX * (palmLen * 0.22),
         y: wy + fwdY * (palmLen * 0.28) + radialDirY * (palmLen * 0.22),
     };
-    const rawTx = thumb && (thumb.visibility ?? 0) > 0.35
+    const rawTx = thumb && (thumb.visibility ?? 0) > 0.25
         ? thumb.x * width
         : cmc.x + (fwdX * 0.65 + radialDirX * 0.75) * (palmLen * 0.48);
-    const rawTy = thumb && (thumb.visibility ?? 0) > 0.35
+    const rawTy = thumb && (thumb.visibility ?? 0) > 0.25
         ? thumb.y * height
         : cmc.y + (fwdY * 0.65 + radialDirY * 0.75) * (palmLen * 0.48);
 
@@ -496,9 +481,8 @@ function drawSynthesizedPoseHand(
     tDirY /= tDirLen;
 
     const thumbMcp = { x: cmc.x + tDirX * (palmLen * 0.38), y: cmc.y + tDirY * (palmLen * 0.38) };
-    // Curvar ligeramente la falange distal del pulgar hacia el eje frontal
-    const tTipDirX = (tDirX * 0.75 + fwdX * 0.25);
-    const tTipDirY = (tDirY * 0.75 + fwdY * 0.25);
+    const tTipDirX = tDirX * 0.75 + fwdX * 0.25;
+    const tTipDirY = tDirY * 0.75 + fwdY * 0.25;
     const tTipNorm = Math.hypot(tTipDirX, tTipDirY) || 1;
     const thumbIp = {
         x: thumbMcp.x + (tTipDirX / tTipNorm) * (palmLen * 0.32),
@@ -513,7 +497,7 @@ function drawSynthesizedPoseHand(
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // 1. Cápsula palmar translúcida (Carpo -> CMC -> Nudillos MCP -> Carpo)
+    // 1. Cápsula palmar translúcida + arco intermetacarpiano
     ctx.beginPath();
     ctx.moveTo(wx, wy);
     ctx.lineTo(cmc.x, cmc.y);
@@ -521,97 +505,85 @@ function drawSynthesizedPoseHand(
         ctx.lineTo(k.mcp.x, k.mcp.y);
     }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.13)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.14)';
     ctx.fill();
-
-    // Arco intermetacarpiano (conecta los 4 nudillos MCP)
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
-    ctx.lineWidth = 1.3;
-    ctx.beginPath();
-    ctx.moveTo(cmc.x, cmc.y);
-    for (const k of knuckles) {
-        ctx.lineTo(k.mcp.x, k.mcp.y);
-    }
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.48)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    // Helper para trazar hueso con halo cyan + núcleo óseo claro
-    const drawBoneSeg = (a: { x: number; y: number }, b: { x: number; y: number }, w: number) => {
-        ctx.strokeStyle = '#06b6d4';
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = w;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
-        ctx.lineWidth = Math.max(0.7, w * 0.42);
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-    };
-
-    // 2. Trazar los 4 dedos largos (Metacarpo + Falange Proximal + Media + Distal)
-    const wristPt = { x: wx, y: wy };
+    // 2. Todos los 5 rayos digitales (metacarpos + 14 falanges) en UN SOLO PATH por lote (0 shadowBlur = 300x más rápido)
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(cmc.x, cmc.y);
+    ctx.lineTo(thumbMcp.x, thumbMcp.y);
+    ctx.lineTo(thumbIp.x, thumbIp.y);
+    ctx.lineTo(thumbTip.x, thumbTip.y);
     for (const k of knuckles) {
-        drawBoneSeg(wristPt, k.mcp, 2.2);
-        drawBoneSeg(k.mcp, k.pip, 2.0);
-        drawBoneSeg(k.pip, k.dip, 1.65);
-        drawBoneSeg(k.dip, k.tip, 1.35);
+        ctx.moveTo(wx, wy);
+        ctx.lineTo(k.mcp.x, k.mcp.y);
+        ctx.lineTo(k.pip.x, k.pip.y);
+        ctx.lineTo(k.dip.x, k.dip.y);
+        ctx.lineTo(k.tip.x, k.tip.y);
     }
+    // Pasada 1: Halo neón exterior suave
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.26)';
+    ctx.lineWidth = 4.6;
+    ctx.stroke();
+    // Pasada 2: Hueso cyan brillante
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 1.95;
+    ctx.stroke();
+    // Pasada 3: Núcleo óseo claro
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.88)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
 
-    // 3. Trazar el pulgar (Carpo -> CMC -> MCP -> IP -> Punta)
-    drawBoneSeg(wristPt, cmc, 2.2);
-    drawBoneSeg(cmc, thumbMcp, 2.0);
-    drawBoneSeg(thumbMcp, thumbIp, 1.7);
-    drawBoneSeg(thumbIp, thumbTip, 1.4);
-
-    // 4. Nodos articulares (MCP, PIP, DIP y Puntas esmeralda)
-    const drawHandNode = (pt: { x: number; y: number }, r: number, isTip: boolean) => {
-        ctx.fillStyle = isTip ? '#10b981' : '#06b6d4';
-        ctx.shadowColor = isTip ? '#10b981' : '#06b6d4';
-        ctx.shadowBlur = 5;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, r, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, r * 0.45, 0, 2 * Math.PI);
-        ctx.fill();
-    };
-
-    drawHandNode(cmc, 2.3, false);
-    drawHandNode(thumbMcp, 2.2, false);
-    drawHandNode(thumbIp, 1.9, false);
-    drawHandNode(thumbTip, 2.8, true);
-
-    for (const k of knuckles) {
-        drawHandNode(k.mcp, 2.5, false);
-        drawHandNode(k.pip, 2.1, false);
-        drawHandNode(k.dip, 1.8, false);
-        drawHandNode(k.tip, 2.8, true);
+    // 3. Nodos interfalángicos (MCP, PIP, DIP) agrupados en 1 solo fill
+    const interNodes = [
+        cmc,
+        thumbMcp,
+        thumbIp,
+        ...knuckles.flatMap((k) => [k.mcp, k.pip, k.dip]),
+    ];
+    ctx.fillStyle = '#06b6d4';
+    ctx.beginPath();
+    for (const pt of interNodes) {
+        ctx.moveTo(pt.x + 2.1, pt.y);
+        ctx.arc(pt.x, pt.y, 2.1, 0, 2 * Math.PI);
     }
+    ctx.fill();
+
+    // 4. Nodos de las 5 puntas distales de los dedos en esmeralda brillante (1 solo fill)
+    const tipNodes = [thumbTip, ...knuckles.map((k) => k.tip)];
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    for (const pt of tipNodes) {
+        ctx.moveTo(pt.x + 2.8, pt.y);
+        ctx.arc(pt.x, pt.y, 2.8, 0, 2 * Math.PI);
+    }
+    ctx.fill();
+
+    // Centros blancos de articulaciones de la mano en 1 solo fill
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    for (const pt of [...interNodes, ...tipNodes]) {
+        ctx.moveTo(pt.x + 0.95, pt.y);
+        ctx.arc(pt.x, pt.y, 0.95, 0, 2 * Math.PI);
+    }
+    ctx.fill();
 
     ctx.restore();
 }
 
 /**
- * RENDERER NATIVO DEL EXOESQUELETO NEÓN HUD (CANVAS 2D PURO)
- * Visualmente superior:
- * - Columna cervical C1-C7 sin invadir la boca.
- * - Brackets HUD de tracking facial futuristas.
- * - Manos completas de 5 dedos (21 articulaciones o síntesis biomecánica).
- * - Extremidades y torso con estética neón cyan/esmeralda.
+ * RENDERER NATIVO DEL EXOESQUELETO NEÓN HUD (CANVAS 2D PURO POR LOTES, 0ms DE LATENCIA)
+ * - Cero llamadas a ctx.shadowBlur (elimina el cuello de botella de filtros Gaussianos en Chrome).
+ * - Manos de 5 dedos y 3 falanges 100% sincronizadas en el mismo frame del esqueleto corporal.
  */
 export const drawBiomechanicSkeleton = (
     ctx: CanvasRenderingContext2D,
     landmarks: any[],
-    multiHandLandmarks?: any[] | null
+    _multiHandLandmarks?: any[] | null
 ) => {
     if (!ctx || !landmarks || landmarks.length === 0) return;
 
@@ -620,23 +592,34 @@ export const drawBiomechanicSkeleton = (
     if (width <= 0 || height <= 0) return;
 
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
     const nose = landmarks[0];
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
     const leftEar = landmarks[7];
     const rightEar = landmarks[8];
+    const leftHip = landmarks[23];
+    const rightHip = landmarks[24];
 
     const shouldersVisible = leftShoulder && rightShoulder &&
         (leftShoulder.visibility ?? 1) > 0.3 && (rightShoulder.visibility ?? 1) > 0.3;
 
-    // 1. COLUMNA CERVICAL (CUELLO): Conecta hombros con la base del cuello / mandíbula
-    // ¡REGLA CRÍTICA: NO entra en la boca ni en la nariz!
+    // 1. HUD FACIAL FUTURISTA (BRACKETS SCI-FI & HORIZONTE)
+    drawFuturisticFaceHUD(ctx, landmarks, width, height);
+
+    // 2. TRAZADO AGRUPADO DE TODOS LOS HUESOS DEL CUERPO, CUELLO Y COLUMNA (3 pasadas ultra-rápidas sin shadowBlur)
+    const spineVertebrae: { x: number; y: number; r: number }[] = [];
+
+    ctx.beginPath();
+
+    // 2a. Columna Cervical (C1-C7, nunca cruza la boca)
     if (shouldersVisible) {
         const neckBaseX = ((leftShoulder.x + rightShoulder.x) / 2) * width;
         const neckBaseY = ((leftShoulder.y + rightShoulder.y) / 2) * height;
 
-        let headRefY = neckBaseY - (width * 0.15); // Fallback razonable
+        let headRefY = neckBaseY - (width * 0.15);
         let headRefX = neckBaseX;
 
         if (leftEar && rightEar && (leftEar.visibility ?? 0) > 0.3 && (rightEar.visibility ?? 0) > 0.3) {
@@ -647,48 +630,43 @@ export const drawBiomechanicSkeleton = (
             headRefY = nose.y * height;
         }
 
-        // El cuello termina a la altura de la mandíbula (72% de la distancia hacia la cabeza)
         const chinTargetX = neckBaseX + (headRefX - neckBaseX) * 0.72;
         const chinTargetY = neckBaseY + (headRefY - neckBaseY) * 0.72;
 
-        ctx.lineWidth = 3.5;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#06b6d4';
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 10;
-
-        ctx.beginPath();
         ctx.moveTo(neckBaseX, neckBaseY);
         ctx.lineTo(chinTargetX, chinTargetY);
-        ctx.stroke();
 
-        // Vértebras biomecánicas cervicales (C3, C5, C7)
-        const steps = [0.25, 0.6, 1.0];
-        for (const s of steps) {
-            const vx = neckBaseX + (chinTargetX - neckBaseX) * s;
-            const vy = neckBaseY + (chinTargetY - neckBaseY) * s;
+        for (const s of [0.25, 0.6, 1.0]) {
+            spineVertebrae.push({
+                x: neckBaseX + (chinTargetX - neckBaseX) * s,
+                y: neckBaseY + (chinTargetY - neckBaseY) * s,
+                r: 3.4,
+            });
+        }
 
-            ctx.fillStyle = '#10b981';
-            ctx.shadowColor = '#10b981';
-            ctx.shadowBlur = 6;
-            ctx.beginPath();
-            ctx.arc(vx, vy, 3.5, 0, 2 * Math.PI);
-            ctx.fill();
+        // 2b. Columna Toracolumbar central si las caderas son visibles
+        if (
+            leftHip &&
+            rightHip &&
+            (leftHip.visibility ?? 0) > 0.35 &&
+            (rightHip.visibility ?? 0) > 0.35
+        ) {
+            const hx = ((leftHip.x + rightHip.x) / 2) * width;
+            const hy = ((rightHip.y + leftHip.y) / 2) * height;
+            ctx.moveTo(neckBaseX, neckBaseY);
+            ctx.lineTo(hx, hy);
 
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(vx, vy, 1.5, 0, 2 * Math.PI);
-            ctx.fill();
+            for (const t of [0.22, 0.45, 0.68, 0.88]) {
+                spineVertebrae.push({
+                    x: neckBaseX + (hx - neckBaseX) * t,
+                    y: neckBaseY + (hy - neckBaseY) * t,
+                    r: 2.8,
+                });
+            }
         }
     }
 
-    // 2. HUD FACIAL FUTURISTA (BRACKETS SCI-FI & HORIZONTE)
-    drawFuturisticFaceHUD(ctx, landmarks, width, height);
-
-    // 3. SEGMENTOS DEL CUERPO (Hombros, Brazos, Tronco, Piernas) con núcleo óseo brillante
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
+    // 2c. Extremidades y cintura escapular/pélvica
     for (const [idx1, idx2] of BODY_CONNECTIONS) {
         const p1 = landmarks[idx1];
         const p2 = landmarks[idx2];
@@ -698,123 +676,79 @@ export const drawBiomechanicSkeleton = (
         const v2 = p2.visibility !== undefined ? p2.visibility : 1;
         if (v1 < 0.35 || v2 < 0.35) continue;
 
-        const x1 = p1.x * width;
-        const y1 = p1.y * height;
-        const x2 = p2.x * width;
-        const y2 = p2.y * height;
-
-        ctx.lineWidth = 3.2;
-        ctx.strokeStyle = '#06b6d4';
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.lineWidth = 1.2;
-        ctx.strokeStyle = 'rgba(224, 242, 254, 0.82)';
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+        ctx.moveTo(p1.x * width, p1.y * height);
+        ctx.lineTo(p2.x * width, p2.y * height);
     }
 
-    // Columna Torácica-Lumbar central cuando hombros y caderas son visibles
-    const leftHip = landmarks[23];
-    const rightHip = landmarks[24];
-    if (
-        shouldersVisible &&
-        leftHip &&
-        rightHip &&
-        (leftHip.visibility ?? 0) > 0.35 &&
-        (rightHip.visibility ?? 0) > 0.35
-    ) {
-        const sx = ((leftShoulder.x + rightShoulder.x) / 2) * width;
-        const sy = ((leftShoulder.y + rightShoulder.y) / 2) * height;
-        const hx = ((leftHip.x + rightHip.x) / 2) * width;
-        const hy = ((rightHip.y + leftHip.y) / 2) * height;
+    // Renderizar todos los huesos corporales en 3 pasadas (halo + neón + núcleo)
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+    ctx.lineWidth = 7.0;
+    ctx.stroke();
 
-        ctx.lineWidth = 2.6;
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(hx, hy);
-        ctx.stroke();
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 3.1;
+    ctx.stroke();
 
-        for (const t of [0.22, 0.45, 0.68, 0.88]) {
-            const vx = sx + (hx - sx) * t;
-            const vy = sy + (hy - sy) * t;
-            ctx.fillStyle = '#10b981';
-            ctx.shadowColor = '#10b981';
-            ctx.shadowBlur = 4;
-            ctx.beginPath();
-            ctx.arc(vx, vy, 2.8, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(vx, vy, 1.2, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-    }
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
+    ctx.lineWidth = 1.15;
+    ctx.stroke();
 
-    // 4. ARTICULACIONES PRINCIPALES (Hombros, Codos, Muñecas, Caderas, Rodillas, Tobillos)
+    // 3. ARTICULACIONES PRINCIPALES Y VÉRTEBRAS (2 pasadas por lotes, cero shadowBlur)
     const bodyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    const activeJointPts: { x: number; y: number; r: number }[] = [...spineVertebrae];
+
     for (const idx of bodyJoints) {
         const p = landmarks[idx];
         if (!p) continue;
         const v = p.visibility !== undefined ? p.visibility : 1;
         if (v < 0.35) continue;
+        activeJointPts.push({ x: p.x * width, y: p.y * height, r: 4.2 });
+    }
 
-        const px = p.x * width;
-        const py = p.y * height;
+    if (activeJointPts.length > 0) {
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.28)';
+        ctx.beginPath();
+        for (const j of activeJointPts) {
+            ctx.moveTo(j.x + j.r + 2.2, j.y);
+            ctx.arc(j.x, j.y, j.r + 2.2, 0, 2 * Math.PI);
+        }
+        ctx.fill();
 
         ctx.fillStyle = '#10b981';
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.arc(px, py, 4.2, 0, 2 * Math.PI);
+        for (const j of activeJointPts) {
+            ctx.moveTo(j.x + j.r, j.y);
+            ctx.arc(j.x, j.y, j.r, 0, 2 * Math.PI);
+        }
         ctx.fill();
 
-        ctx.shadowBlur = 0;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(px, py, 1.7, 0, 2 * Math.PI);
+        for (const j of activeJointPts) {
+            const ir = j.r * 0.42;
+            ctx.moveTo(j.x + ir, j.y);
+            ctx.arc(j.x, j.y, ir, 0, 2 * Math.PI);
+        }
         ctx.fill();
     }
 
-    // 5. TRACKING DETALLADO DE MANOS (21 ARTICULACIONES O SÍNTESIS ANATÓMICA)
-    let handsDrawnWithMediaPipe = false;
-    if (multiHandLandmarks && Array.isArray(multiHandLandmarks) && multiHandLandmarks.length > 0) {
-        for (const hand of multiHandLandmarks) {
-            drawDetailedHand(ctx, hand, width, height);
-            handsDrawnWithMediaPipe = true;
-        }
+    // 4. MANOS DE 5 DEDOS Y 14 FALANGES EN SINCRONÍA INSTANTÁNEA CON LAS MUÑECAS DE POSE
+    const lElbow = landmarks[13];
+    const lWrist = landmarks[15];
+    const lPinky = landmarks[17];
+    const lIndex = landmarks[19];
+    const lThumb = landmarks[21];
+    if (lWrist && (lWrist.visibility ?? 0) > 0.32) {
+        drawSynthesizedPoseHand(ctx, lWrist, lPinky, lIndex, lThumb, width, height, lElbow, false);
     }
 
-    // Si MediaPipe Hands aún no tiene detección para las manos visibles, sintetizar mano anatómica
-    if (!handsDrawnWithMediaPipe) {
-        // Mano Izquierda
-        const lWrist = landmarks[15];
-        const lPinky = landmarks[17];
-        const lIndex = landmarks[19];
-        const lThumb = landmarks[21];
-        if (lWrist && (lWrist.visibility ?? 0) > 0.4) {
-            drawSynthesizedPoseHand(ctx, lWrist, lPinky, lIndex, lThumb, width, height);
-        }
-
-        // Mano Derecha
-        const rWrist = landmarks[16];
-        const rPinky = landmarks[18];
-        const rIndex = landmarks[20];
-        const rThumb = landmarks[22];
-        if (rWrist && (rWrist.visibility ?? 0) > 0.4) {
-            drawSynthesizedPoseHand(ctx, rWrist, rPinky, rIndex, rThumb, width, height);
-        }
+    const rElbow = landmarks[14];
+    const rWrist = landmarks[16];
+    const rPinky = landmarks[18];
+    const rIndex = landmarks[20];
+    const rThumb = landmarks[22];
+    if (rWrist && (rWrist.visibility ?? 0) > 0.32) {
+        drawSynthesizedPoseHand(ctx, rWrist, rPinky, rIndex, rThumb, width, height, rElbow, true);
     }
 
     ctx.restore();

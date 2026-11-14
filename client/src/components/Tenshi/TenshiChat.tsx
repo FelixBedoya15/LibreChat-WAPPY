@@ -3861,18 +3861,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
     const loadAll = async () => {
       try {
-        const classicLoadPromise = loadClassicPoseScripts()
-          .then(() => {
-            if (active) setIsMediaPipeLoaded(true);
-          })
-          .catch((e) => console.warn('[TenshiChat] Classic load warning:', e));
-
         const tasksVision = await loadTasksVision();
         if (tasksVision && active) {
           setIsMediaPipeLoaded(true);
           return;
         }
-        await classicLoadPromise;
+        await loadClassicPoseScripts();
+        if (active) setIsMediaPipeLoaded(true);
       } catch (err) {
         console.error('[TenshiChat] Error loading Vision AI:', err);
       }
@@ -3922,6 +3917,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         }
       }
 
+      await loadClassicPoseScripts().catch(() => {});
       if (typeof window !== 'undefined' && window.Pose && isSubscribed) {
         try {
           const pose = new window.Pose({
@@ -3961,13 +3957,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     };
   }, [isMediaPipeLoaded, isVisionActive, visionSource, isBiomechanicsActive, onPoseResults]);
 
-  // Loop de telemetría a 10 FPS
+  // Loop de telemetría a 20 FPS con guardia de no-solapamiento
   useEffect(() => {
     if (!isPoseActive || !visionVideoRef.current) return;
 
     let active = true;
+    let isBusy = false;
     let lastFrameTime = 0;
-    const fpsInterval = 1000 / 10;
+    const fpsInterval = 1000 / 20;
 
     const poseLoop = async () => {
       if (!active) return;
@@ -3975,35 +3972,42 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       const now = Date.now();
       const elapsed = now - lastFrameTime;
 
-      if (elapsed >= fpsInterval) {
+      if (elapsed >= fpsInterval && !isBusy) {
         lastFrameTime = now - (elapsed % fpsInterval);
+        isBusy = true;
 
-        const video = visionVideoRef.current;
-        if (video && video.readyState >= 2) {
-          const canvas = biomechanicCanvasRef.current;
-          if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-          }
+        try {
+          const video = visionVideoRef.current;
+          if (video && video.readyState >= 2) {
+            const canvas = biomechanicCanvasRef.current;
+            if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+            }
 
-          if (landmarkerRef.current) {
-            try {
-              const results = landmarkerRef.current.detectForVideo(video, performance.now());
-              onPoseResults(results);
-            } catch (e) {
-              console.error('[TenshiChat] Tasks-Vision detect error:', e);
-            }
-          } else if (poseRef.current) {
-            try {
-              await poseRef.current.send({ image: video });
-            } catch (e) {
-              console.error('[TenshiChat] Pose send error:', e);
+            if (landmarkerRef.current) {
+              try {
+                const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                onPoseResults(results);
+              } catch (e) {
+                console.error('[TenshiChat] Tasks-Vision detect error:', e);
+              }
+            } else if (poseRef.current) {
+              try {
+                await poseRef.current.send({ image: video });
+              } catch (e) {
+                console.error('[TenshiChat] Pose send error:', e);
+              }
             }
           }
+        } finally {
+          isBusy = false;
         }
       }
 
-      requestAnimationFrame(poseLoop);
+      if (active) {
+        requestAnimationFrame(poseLoop);
+      }
     };
 
     requestAnimationFrame(poseLoop);

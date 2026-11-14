@@ -987,22 +987,19 @@ const VoiceModal: FC<VoiceModalProps> = ({
 
         const loadAll = async () => {
             try {
-                // Cargar scripts clásicos inmediatamente en paralelo (<400ms)
-                const classicLoadPromise = loadClassicPoseScripts().then(() => {
-                    if (active) {
-                        setIsMediaPipeLoaded(true);
-                        setStatusText('Visión IA Preparada');
-                    }
-                }).catch(e => console.warn('[VoiceModal] Classic load warning:', e));
-
-                // Paralelamente consultar Tasks-Vision
+                // Priorizar Google Tasks-Vision (PoseLandmarker con aceleración GPU)
                 const tasksVision = await loadTasksVision();
                 if (tasksVision && active) {
                     setIsMediaPipeLoaded(true);
                     setStatusText('Visión IA 3D Preparada');
                     return;
                 }
-                await classicLoadPromise;
+                // Fallback a Pose clásico solo si Tasks-Vision no está disponible
+                await loadClassicPoseScripts();
+                if (active) {
+                    setIsMediaPipeLoaded(true);
+                    setStatusText('Visión IA Preparada');
+                }
             } catch (err) {
                 console.error('[VoiceModal] Error loading Vision AI:', err);
                 if (active) {
@@ -1062,7 +1059,8 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 }
             }
 
-            // 2. Fallback a Pose clásico
+            // 2. Fallback a Pose clásico (solo si Tasks-Vision GPU falló)
+            await loadClassicPoseScripts().catch(() => {});
             if (typeof window !== 'undefined' && window.Pose && isSubscribed) {
                 try {
                     const pose = new window.Pose({
@@ -1087,31 +1085,6 @@ const VoiceModal: FC<VoiceModalProps> = ({
                     console.error('Error creating Pose instance in VoiceModal:', e);
                 }
             }
-
-            // 3. Inicializar MediaPipe Hands para tracking detallado de dedos
-            if (typeof window !== 'undefined' && (window as any).Hands && isSubscribed) {
-                try {
-                    const hands = new (window as any).Hands({
-                        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-                    });
-
-                    hands.setOptions({
-                        maxNumHands: 2,
-                        modelComplexity: 0,
-                        minDetectionConfidence: 0.5,
-                        minTrackingConfidence: 0.5
-                    });
-
-                    hands.onResults((hResults: any) => {
-                        handsResultsRef.current = hResults?.multiHandLandmarks || null;
-                    });
-
-                    handsRef.current = hands;
-                    console.log('[VoiceModal] MediaPipe Hands instance ready!');
-                } catch (hErr) {
-                    console.warn('[VoiceModal] Hands instance creation warning:', hErr);
-                }
-            }
         };
 
         initEngine();
@@ -1134,24 +1107,19 @@ const VoiceModal: FC<VoiceModalProps> = ({
                 }
                 poseRef.current = null;
             }
-            if (handsRef.current) {
-                try {
-                    handsRef.current.close();
-                } catch (_) {}
-                handsRef.current = null;
-            }
             handsResultsRef.current = null;
             setIsPoseActive(false);
         };
     }, [isMediaPipeLoaded, isCameraOn, isBiomechanicsAgent, onPoseResults]);
 
-    // Procesar frames a 10 FPS (óptimo para telemetría continua sin saturar CPU ni el hilo principal)
+    // Procesar frames a 20 FPS con guardia de no-solapamiento (fluidez inmediata sin saturar CPU)
     useEffect(() => {
         if (!isPoseActive || !videoRef.current) return;
 
         let active = true;
+        let isBusy = false;
         let lastFrameTime = 0;
-        const fpsInterval = 1000 / 10; // 10 FPS
+        const fpsInterval = 1000 / 20; // 20 FPS
 
         const poseLoop = async () => {
             if (!active) return;
@@ -1159,38 +1127,42 @@ const VoiceModal: FC<VoiceModalProps> = ({
             const now = Date.now();
             const elapsed = now - lastFrameTime;
 
-            if (elapsed >= fpsInterval) {
+            if (elapsed >= fpsInterval && !isBusy) {
                 lastFrameTime = now - (elapsed % fpsInterval);
+                isBusy = true;
 
-                const video = videoRef.current;
-                if (video && video.readyState >= 2) {
-                    const canvas = canvasRef.current;
-                    if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                    }
-
-                    if (landmarkerRef.current) {
-                        try {
-                            const results = landmarkerRef.current.detectForVideo(video, performance.now());
-                            onPoseResults(results);
-                        } catch (e) {
-                            console.error('[VoiceModal] Tasks-Vision detect error:', e);
+                try {
+                    const video = videoRef.current;
+                    if (video && video.readyState >= 2) {
+                        const canvas = canvasRef.current;
+                        if (canvas && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
                         }
-                    } else if (poseRef.current) {
-                        try {
-                            await poseRef.current.send({ image: video });
-                            if (handsRef.current) {
-                                await handsRef.current.send({ image: video }).catch(() => {});
+
+                        if (landmarkerRef.current) {
+                            try {
+                                const results = landmarkerRef.current.detectForVideo(video, performance.now());
+                                onPoseResults(results);
+                            } catch (e) {
+                                console.error('[VoiceModal] Tasks-Vision detect error:', e);
                             }
-                        } catch (e) {
-                            console.error('[VoiceModal] Pose send error:', e);
+                        } else if (poseRef.current) {
+                            try {
+                                await poseRef.current.send({ image: video });
+                            } catch (e) {
+                                console.error('[VoiceModal] Pose send error:', e);
+                            }
                         }
                     }
+                } finally {
+                    isBusy = false;
                 }
             }
 
-            requestAnimationFrame(poseLoop);
+            if (active) {
+                requestAnimationFrame(poseLoop);
+            }
         };
 
         requestAnimationFrame(poseLoop);
