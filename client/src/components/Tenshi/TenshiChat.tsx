@@ -1610,11 +1610,116 @@ export default function TenshiChat() {
   const [isMicMuted, setIsMicMuted] = useState(false);
 
   // ─── 1. MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DIARIO (ESTILO DOT) ───
+  type BriefingActivityItem = {
+    tipo: string;
+    modulo?: string;
+    categoria?: string;
+    titulo: string;
+    detalle?: string;
+    estado?: string;
+    fecha: string;
+    fechaIso?: string;
+    timestamp?: number;
+  };
+
+  const getBriefingActivityParts = (
+    act?: BriefingActivityItem | null,
+  ): { prefix: string; title: string } => {
+    if (!act) return { prefix: '', title: '' };
+    const rawTitle = (act.titulo || '').trim();
+    const rawModule = (act.modulo || act.categoria || '').trim();
+    const fallbackTitle = (act.tipo || '').trim();
+    if (!rawModule) {
+      return { prefix: '', title: rawTitle || fallbackTitle };
+    }
+    const compactModule = rawModule.replace(/\s*\([^)]*\)\s*/g, '').trim() || rawModule;
+    const normTitle = rawTitle.toLowerCase();
+    const normModule = rawModule.toLowerCase();
+    const normCompact = compactModule.toLowerCase();
+    const singularCompact =
+      normCompact.endsWith('s') && normCompact.length > 4 ? normCompact.slice(0, -1) : normCompact;
+    const alreadyPrefixed =
+      normTitle.startsWith(normModule) ||
+      normTitle.startsWith(normCompact) ||
+      normTitle.startsWith(`[${normModule}]`) ||
+      normTitle.startsWith(`[${normCompact}]`) ||
+      (singularCompact !== normCompact &&
+        (normTitle.startsWith(`${singularCompact}:`) || normTitle.startsWith(`${singularCompact} `))) ||
+      (normCompact === 'flujos' &&
+        /^(?:en ejecuci[oó]n|esperando aprobaci[oó]n|con error|flujo(?:\s|:))/i.test(normTitle));
+    return {
+      prefix: alreadyPrefixed ? '' : compactModule,
+      title: rawTitle,
+    };
+  };
+
+  const formatShortBriefingActivity = (act?: BriefingActivityItem | null): string => {
+    if (!act) return '';
+    const { prefix, title } = getBriefingActivityParts(act);
+    if (prefix && title) return `${prefix}: ${title}`;
+    return prefix || title || (act.tipo || '').trim();
+  };
+
+  const formatBriefingActivityMeta = (act?: BriefingActivityItem | null): string => {
+    if (!act) return '';
+    const source = (act.modulo || act.tipo || '').trim();
+    const date = (act.fecha || '').trim();
+    return [source, date].filter(Boolean).join(' · ');
+  };
+
+  const formatBriefingActivityTooltip = (
+    act?: BriefingActivityItem | null,
+    recentList?: BriefingActivityItem[],
+  ): string => {
+    if (!act) return '';
+    const title = (act.titulo || '').trim();
+    const mod = (act.modulo || act.categoria || act.tipo || '').trim();
+    const detail = (act.detalle || '').trim();
+    const status = (act.estado || '').trim();
+    const date = (act.fecha || '').trim();
+    const header =
+      mod && title && !title.toLowerCase().startsWith(mod.toLowerCase())
+        ? `${mod}: ${title}`
+        : title || mod;
+    const metaParts = [detail, status ? `Estado: ${status}` : '', date].filter(Boolean);
+    const primaryLine = metaParts.length > 0 ? `${header} — ${metaParts.join(' · ')}` : header;
+
+    const extras = (Array.isArray(recentList) ? recentList : [])
+      .filter((item) => {
+        if (!item) return false;
+        const itemTitle = (item.titulo || '').trim();
+        const itemDate = (item.fecha || '').trim();
+        const itemMod = (item.modulo || item.categoria || item.tipo || '').trim();
+        return itemTitle !== title || itemDate !== date || itemMod !== mod;
+      })
+      .slice(0, 3)
+      .map((item) => {
+        const itemLabel = formatShortBriefingActivity(item);
+        if (!itemLabel) return '';
+        const itemStatus = (item.estado || '').trim();
+        const itemDate = (item.fecha || '').trim();
+        const itemMeta = [itemStatus, itemDate].filter(Boolean).join(' · ');
+        return itemMeta ? `• ${itemLabel} (${itemMeta})` : `• ${itemLabel}`;
+      })
+      .filter(Boolean);
+
+    return extras.length > 0 ? `${primaryLine}\n\nOtras recientes:\n${extras.join('\n')}` : primaryLine;
+  };
+
   const [dailyBriefing, setDailyBriefing] = useState<{
     empresa: string;
     companyId: string | null;
     responsableSST: string;
-    ultimaActividad: { tipo: string; titulo: string; fecha: string } | null;
+    ultimaActividad: BriefingActivityItem | null;
+    actividadesRecientes?: Array<{
+      tipo: string;
+      modulo?: string;
+      categoria?: string;
+      titulo: string;
+      estado?: string;
+      fecha: string;
+      fechaIso?: string;
+    }>;
     agendaHoy: Array<{ id: string; titulo: string; hora: string; prioridad: string; estado: string }>;
     vencenManana: Array<{ id: string; titulo: string; hora: string; prioridad: string }>;
     vencidas: Array<{ id: string; titulo: string; fecha: string }>;
@@ -7003,12 +7108,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       </button>
                     </div>
                     <div className="space-y-1.5 text-xs text-zinc-200 leading-relaxed">
-                      {dailyBriefing.ultimaActividad && (
-                        <div className="truncate">
-                          <span className="font-bold text-white">📋 Último: </span>
-                          <span>{dailyBriefing.ultimaActividad.titulo}</span>
-                        </div>
-                      )}
+                      {dailyBriefing.ultimaActividad && (() => {
+                        const { prefix, title } = getBriefingActivityParts(dailyBriefing.ultimaActividad);
+                        return (
+                          <div
+                            className="truncate"
+                            title={formatBriefingActivityTooltip(
+                              dailyBriefing.ultimaActividad,
+                              dailyBriefing.actividadesRecientes,
+                            )}
+                          >
+                            <span className="font-bold text-white">📋 Último: </span>
+                            {prefix && (
+                              <span className="font-semibold text-emerald-300">
+                                {prefix}
+                                {title ? ': ' : ''}
+                              </span>
+                            )}
+                            {title && <span>{title}</span>}
+                          </div>
+                        );
+                      })()}
                       <div className="line-clamp-2">
                         <span className="font-bold text-white">
                           📅 Hoy ({dailyBriefing.agendaHoy?.length || 0}):{' '}
@@ -7918,15 +8038,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       </button>
                     </div>
                     <div className="space-y-2 text-xs leading-relaxed text-slate-700 dark:text-zinc-200">
-                      {dailyBriefing.ultimaActividad && (
-                        <div className="flex items-start gap-2 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-zinc-700/60">
-                          <span className="shrink-0">📋</span>
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
-                            <span>{dailyBriefing.ultimaActividad.titulo} ({dailyBriefing.ultimaActividad.tipo}) — ¿Cómo te fue con este avance?</span>
+                      {dailyBriefing.ultimaActividad && (() => {
+                        const act = dailyBriefing.ultimaActividad;
+                        const rawTitle = (act.titulo || '').trim();
+                        const displayTitle = rawTitle || (act.modulo || act.tipo || 'Actividad reciente').trim();
+                        const meta = rawTitle ? formatBriefingActivityMeta(act) : (act.fecha || '').trim();
+                        return (
+                          <div
+                            className="flex items-start gap-2 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-zinc-700/60"
+                            title={formatBriefingActivityTooltip(act, dailyBriefing.actividadesRecientes)}
+                          >
+                            <span className="shrink-0">📋</span>
+                            <div className="min-w-0 break-words">
+                              <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
+                              <span>
+                                {displayTitle}
+                                {meta ? ` (${meta})` : ''} — ¿Cómo te fue con este avance?
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                       <div className="flex items-start gap-2 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-zinc-700/60">
                         <span className="shrink-0">📅</span>
                         <div>
@@ -8864,15 +8996,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       </button>
                     </div>
                     <div className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-200">
-                      {dailyBriefing.ultimaActividad && (
-                        <div className="flex items-start gap-1.5 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-2.5 py-1.5 border border-slate-200/60 dark:border-zinc-700/60">
-                          <span className="shrink-0">📋</span>
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
-                            <span>{dailyBriefing.ultimaActividad.titulo} ({dailyBriefing.ultimaActividad.tipo}) — ¿Cómo te fue con este avance?</span>
+                      {dailyBriefing.ultimaActividad && (() => {
+                        const act = dailyBriefing.ultimaActividad;
+                        const rawTitle = (act.titulo || '').trim();
+                        const displayTitle = rawTitle || (act.modulo || act.tipo || 'Actividad reciente').trim();
+                        const meta = rawTitle ? formatBriefingActivityMeta(act) : (act.fecha || '').trim();
+                        return (
+                          <div
+                            className="flex items-start gap-1.5 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-2.5 py-1.5 border border-slate-200/60 dark:border-zinc-700/60"
+                            title={formatBriefingActivityTooltip(act, dailyBriefing.actividadesRecientes)}
+                          >
+                            <span className="shrink-0">📋</span>
+                            <div className="min-w-0 break-words">
+                              <span className="font-bold text-slate-800 dark:text-white">Última gestión: </span>
+                              <span>
+                                {displayTitle}
+                                {meta ? ` (${meta})` : ''} — ¿Cómo te fue con este avance?
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                       <div className="flex items-start gap-1.5 bg-white/80 dark:bg-zinc-800/70 rounded-xl px-2.5 py-1.5 border border-slate-200/60 dark:border-zinc-700/60">
                         <span className="shrink-0">📅</span>
                         <div>
@@ -9792,12 +9936,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </button>
             </div>
             <div className="space-y-1.5 text-xs sm:text-[11px] text-zinc-200 leading-snug">
-              {dailyBriefing.ultimaActividad && (
-                <div className="truncate">
-                  <span className="font-bold text-white">📋 Último: </span>
-                  <span>{dailyBriefing.ultimaActividad.titulo}</span>
-                </div>
-              )}
+              {dailyBriefing.ultimaActividad && (() => {
+                const { prefix, title } = getBriefingActivityParts(dailyBriefing.ultimaActividad);
+                return (
+                  <div
+                    className="truncate"
+                    title={formatBriefingActivityTooltip(
+                      dailyBriefing.ultimaActividad,
+                      dailyBriefing.actividadesRecientes,
+                    )}
+                  >
+                    <span className="font-bold text-white">📋 Último: </span>
+                    {prefix && (
+                      <span className="font-semibold text-emerald-300">
+                        {prefix}
+                        {title ? ': ' : ''}
+                      </span>
+                    )}
+                    {title && <span>{title}</span>}
+                  </div>
+                );
+              })()}
               <div className="line-clamp-2">
                 <span className="font-bold text-white">📅 Hoy ({dailyBriefing.agendaHoy?.length || 0}): </span>
                 <span>

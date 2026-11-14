@@ -33,6 +33,23 @@ const {
     searchInstantHistory,
 } = require('./tenshiOpenBotEngine');
 
+let cachedGetLatestSystemActivity = null;
+function resolveGetLatestSystemActivity() {
+    if (typeof cachedGetLatestSystemActivity === 'function') {
+        return cachedGetLatestSystemActivity;
+    }
+    try {
+        const mod = require('~/server/services/systemActivityService');
+        if (typeof mod?.getLatestSystemActivity === 'function') {
+            cachedGetLatestSystemActivity = mod.getLatestSystemActivity;
+            return cachedGetLatestSystemActivity;
+        }
+    } catch (_err) {
+        // Servicio en carga paralela o no disponible aún
+    }
+    return null;
+}
+
 const LIVE_KEY_COOLDOWN_MS = 15 * 60 * 1000;
 const liveQuotaCooldowns = new Map();
 
@@ -3126,7 +3143,6 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         (async () => {
                             try {
                                 const KanbanTask = mongoose.models.KanbanTask || require('~/models/KanbanTask');
-                                const { Conversation } = require('~/db/models');
                                 const { getCalendarClient } = require('~/server/services/googleCalendar');
                                 const fetchGoogleCalendarEvents = async () => {
                                     try {
@@ -3157,7 +3173,27 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                     fetchGoogleCalendarEvents(),
                                     new Promise((resolve) => setTimeout(() => resolve([]), 600)),
                                 ]);
-                                const [todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents] = await Promise.all([
+                                const getSystemActivityFn = resolveGetLatestSystemActivity();
+                                const systemActivityPromise = getSystemActivityFn
+                                    ? (() => {
+                                        let activityTimer = null;
+                                        return Promise.race([
+                                            getSystemActivityFn({
+                                                userId: targetUserId,
+                                                companyId: activeCompId,
+                                                viewerRole: '',
+                                                limit: 4,
+                                                timeoutMs: 850,
+                                            }).catch(() => null),
+                                            new Promise((resolve) => {
+                                                activityTimer = setTimeout(() => resolve(null), 900);
+                                            }),
+                                        ]).finally(() => {
+                                            if (activityTimer) clearTimeout(activityTimer);
+                                        });
+                                    })()
+                                    : Promise.resolve(null);
+                                const [todayTasks, tomorrowTasks, overdueTasks, todoTasks, systemActivity, gcalEvents] = await Promise.all([
                                     KanbanTask.find({
                                         ...briefingScope,
                                         type: { $ne: 'antigravity_delegation' },
@@ -3181,21 +3217,10 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                         type: { $ne: 'antigravity_delegation' },
                                         status: { $in: ['todo', 'in_progress', 'due_soon'] },
                                     }).sort({ updatedAt: -1 }).limit(5).select('title status dueDate').lean().catch(() => []),
-                                    KanbanTask.findOne({
-                                        ...briefingScope,
-                                        type: { $ne: 'antigravity_delegation' },
-                                        status: { $in: ['done', 'in_progress'] },
-                                    }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
-                                    Conversation.findOne({
-                                        user: String(targetUserId),
-                                        title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
-                                        ...(activeCompId
-                                            ? { $and: [{ tags: { $elemMatch: { $regex: /^sgsst-/i } } }, { tags: { $in: [`company-${activeCompId}`, `company:${activeCompId}`] } }] }
-                                            : { tags: { $elemMatch: { $regex: /^sgsst-/i } } }),
-                                    }).sort({ updatedAt: -1 }).select('title updatedAt').lean().catch(() => null),
+                                    systemActivityPromise,
                                     calendarPromiseWithTimeout,
                                 ]);
-                                return { todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents };
+                                return { todayTasks, tomorrowTasks, overdueTasks, todoTasks, systemActivity, gcalEvents };
                             } catch (briefErr) {
                                 logger.warn('[VoiceSession] Could not build daily briefing context:', briefErr.message);
                                 return null;
@@ -3332,7 +3357,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     let overdueList = '';
                     let todoList = '';
                     if (briefingResults) {
-                        const { todayTasks, tomorrowTasks, overdueTasks, todoTasks, lastDoneTask, latestSgsstReport, gcalEvents } = briefingResults;
+                        const { todayTasks, tomorrowTasks, overdueTasks, todoTasks, systemActivity, gcalEvents } = briefingResults;
                         const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
                         const gcalToday = [];
                         const gcalTomorrow = [];
@@ -3347,22 +3372,73 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                             else gcalTomorrow.push(label);
                         }
 
-                        const recentReportCandidate = recentTenshiReports?.[0];
-                        const candidates = [];
-                        if (recentReportCandidate?.file?.title && !/^new chat$/i.test(recentReportCandidate.file.title.trim())) {
-                            candidates.push({ title: recentReportCandidate.file.title.trim(), time: new Date(recentReportCandidate.createdAt || 0).getTime() });
-                        }
-                        if (lastDoneTask?.title && !/^new chat$/i.test(lastDoneTask.title.trim())) {
-                            candidates.push({ title: lastDoneTask.title.trim(), time: new Date(lastDoneTask.updatedAt || 0).getTime() });
-                        }
-                        if (latestSgsstReport?.title) {
-                            const cleaned = latestSgsstReport.title.replace(/^\[.*?\]\s*/, '').trim();
-                            if (cleaned && !/^(new chat|nueva conversaci[oó]n|nuevo chat)$/i.test(cleaned)) {
-                                candidates.push({ title: cleaned, time: new Date(latestSgsstReport.updatedAt || 0).getTime() });
+                        const sanitizeActivityText = (val) => String(val || '').replace(/\s+/g, ' ').trim();
+                        const isForbiddenActivityTitle = (raw) => {
+                            const cleaned = sanitizeActivityText(raw)
+                                .replace(/^\[.*?\]\s*/, '')
+                                .replace(/^["']+|["']+$/g, '')
+                                .trim();
+                            return !cleaned || /^(new chat|nueva conversaci[oó]n|nuevo chat|untitled|sin t[ií]tulo)$/i.test(cleaned);
+                        };
+                        const formatActivityLabel = (act) => {
+                            const rawTitulo = sanitizeActivityText(act?.titulo).replace(/^["']+|["']+$/g, '').trim();
+                            if (isForbiddenActivityTitle(rawTitulo)) return null;
+                            const shortTitulo = rawTitulo.length > 100 ? rawTitulo.slice(0, 97).trim() + '...' : rawTitulo;
+                            const modulo = sanitizeActivityText(act?.modulo);
+                            return modulo ? `"${shortTitulo}" (${modulo})` : `"${shortTitulo}"`;
+                        };
+
+                        const recentActivitiesRaw = Array.isArray(systemActivity?.actividadesRecientes)
+                            ? systemActivity.actividadesRecientes
+                            : [];
+                        const validRecentActivities = recentActivitiesRaw.filter((a) => a && !isForbiddenActivityTitle(a.titulo));
+                        const primaryAct = (systemActivity?.ultimaActividad && !isForbiddenActivityTitle(systemActivity.ultimaActividad.titulo))
+                            ? systemActivity.ultimaActividad
+                            : (validRecentActivities[0] || null);
+
+                        if (primaryAct) {
+                            lastTitle = formatActivityLabel(primaryAct);
+                        } else {
+                            const fallbackReportTitle = sanitizeActivityText(recentTenshiReports?.[0]?.file?.title)
+                                .replace(/^["']+|["']+$/g, '')
+                                .trim();
+                            if (!isForbiddenActivityTitle(fallbackReportTitle)) {
+                                const shortFallback = fallbackReportTitle.length > 100
+                                    ? fallbackReportTitle.slice(0, 97).trim() + '...'
+                                    : fallbackReportTitle;
+                                lastTitle = `"${shortFallback}"`;
                             }
                         }
-                        candidates.sort((a, b) => b.time - a.time);
-                        lastTitle = candidates[0]?.title || null;
+
+                        let otherActivitiesLine = '';
+                        if (recentActivitiesRaw.length > 1 && validRecentActivities.length > 0) {
+                            const primaryTitleNorm = primaryAct ? sanitizeActivityText(primaryAct.titulo).toLowerCase() : '';
+                            const primaryModNorm = primaryAct ? sanitizeActivityText(primaryAct.modulo).toLowerCase() : '';
+                            const primaryTs = primaryAct ? String(primaryAct.timestamp || primaryAct.fechaIso || '') : '';
+                            const additional = [];
+                            for (let i = 0; i < validRecentActivities.length && additional.length < 3; i += 1) {
+                                const act = validRecentActivities[i];
+                                const actTitleNorm = sanitizeActivityText(act.titulo).toLowerCase();
+                                const actModNorm = sanitizeActivityText(act.modulo).toLowerCase();
+                                const actTs = String(act.timestamp || act.fechaIso || '');
+                                if (
+                                    primaryAct &&
+                                    actTitleNorm === primaryTitleNorm &&
+                                    actModNorm === primaryModNorm &&
+                                    (!primaryTs || !actTs || actTs === primaryTs)
+                                ) {
+                                    continue;
+                                }
+                                const t = sanitizeActivityText(act.titulo).replace(/^["']+|["']+$/g, '').trim();
+                                const shortT = t.length > 55 ? t.slice(0, 52).trim() + '...' : t;
+                                const mod = sanitizeActivityText(act.modulo);
+                                const fecha = sanitizeActivityText(act.fecha);
+                                additional.push(`${mod ? `[${mod}] ` : ''}"${shortT}"${fecha ? ` (${fecha})` : ''}`);
+                            }
+                            if (additional.length > 0) {
+                                otherActivitiesLine = `\n- Otras actividades recientes en el sistema: ${additional.join('; ')}.`;
+                            }
+                        }
 
                         todayList = [
                             ...gcalToday.map(e => `[Google Calendar] ${e}`),
@@ -3377,14 +3453,14 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 
                         companyAndMemoryPrompt += `\n\n[MEMORIA AUTOBIOGRÁFICA Y BRIEFING EJECUTIVO DEL DÍA (ESTILO DOT - DATOS REALES EN TIEMPO REAL)]:
 - Empresa activa actual: ${companyInfo?.companyName || 'Tu Empresa'}.
-- Último informe o gestión real realizada: ${lastTitle ? `"${lastTitle}"` : 'Avance en el SG-SST'}.
+- Último informe o gestión real realizada: ${lastTitle || 'Avance en el SG-SST'}.${otherActivitiesLine}
 - Agenda REAL de HOY (${colNowStr} - Google Calendar + Centro de Control): ${todayList}.
 - Agenda REAL de MAÑANA: ${tomorrowList}.${todoList ? `\n- Tareas por hacer / en curso en Centro de Control ACPM: ${todoList}.` : ''}${overdueList ? `\n- Tareas vencidas que requieren atención en Centro de Control ACPM (${overdueTasks.length} recientes): ${overdueList}.` : ''}
 - REGLA OBLIGATORIA DE PRIMER SALUDO (ESTILO DOT CON DATOS REALES — CERO TOOL CALLS EN EL SALUDO):
   En tu PRIMERA respuesta de la llamada (cuando el usuario saluda o inicia la conversación):
   * PROHIBICIÓN ESTRICTA DE INVOCAR HERRAMIENTAS EN EL SALUDO: NO invoques NINGUNA herramienta ('google_calendar', 'wappy_consultar_trabajadores', 'somos_sst', etc.) durante el saludo inicial ni ante ruido de micrófono, porque todos los datos reales del briefing ya están inyectados aquí.
   1) Saluda cálidamente al usuario por su nombre y menciona su empresa activa (${companyInfo?.companyName || 'su empresa'}).
-  2) Pregúntale cómo le fue con su última gestión real (${lastTitle ? `"${lastTitle}"` : 'su gestión reciente en el SG-SST'}). ESTÁ TERMINANTEMENTE PROHIBIDO decir "New Chat".
+  2) Pregúntale cómo le fue con su última gestión real (${lastTitle || 'su gestión reciente en el SG-SST'}). ESTÁ TERMINANTEMENTE PROHIBIDO decir "New Chat".
   3) Infórmale con precisión lo que REALMENTE tiene hoy en Google Calendar (${todayList}) y recuérdale brevemente si tiene tareas por hacer o vencidas en su Centro de Control ACPM (${todoList || overdueList || 'sin pendientes'}). NUNCA digas que "no tiene tareas pendientes" si arriba aparecen datos.`;
                     }
 
@@ -3413,7 +3489,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     }
 
                     companyAndMemoryPrompt += `\n\n[DIRECTIVA ABSOLUTA DE ENFOQUE TEMÁTICO, ESCUCHA ACTIVA Y CONTINUIDAD]:
-1. EN EL PRIMER TURNO DE LA LLAMADA: Entrega SIEMPRE el Briefing Ejecutivo del Día (empresa activa, pregunta cómo le fue con la última gestión "${lastTitle || 'reciente'}", menciona la agenda de hoy y los vencimientos de mañana).
+1. EN EL PRIMER TURNO DE LA LLAMADA: Entrega SIEMPRE el Briefing Ejecutivo del Día (empresa activa, pregunta cómo le fue con la última gestión ${lastTitle || '"reciente"'}, menciona la agenda de hoy y los vencimientos de mañana).
 2. EN LOS TURNOS SIGUIENTES: Tu tema de trabajo está delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te pida en ese turno.
 3. ESCUCHA PACIENTE SIN CORTAR AL USUARIO: Si la frase del usuario quedó claramente inconclusa o termina en conector/preposición (ej: "Tengo una tarea, perdón, una tarea...", "tengo pendiente una actividad que es asistir a...", "quiero que..."), NO dispares navegaciones precipitadas ni cambies de pantalla antes de escuchar la idea completa; si ya estás en el módulo mencionado en pantalla, NO vuelvas a invocar \`wappy_navegar\` hacia ese mismo módulo. Si el usuario menciona una tarea o actividad del Centro de Control/Cronograma, consulta directamente sus tareas (\`wappy_consultar_cronograma_sst\` o \`somos_sst\`) en lugar de solo navegar.
 4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;

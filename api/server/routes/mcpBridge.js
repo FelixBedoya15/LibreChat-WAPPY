@@ -111,6 +111,7 @@ const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData || (
 const { setMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 const { logger } = require('~/config');
+const { getLatestSystemActivity } = require('~/server/services/systemActivityService');
 
 // Modelos con esquema dinámico registrado defensivamente
 const MatrizLegalData =
@@ -8630,7 +8631,6 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     const targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const company = await getActiveCompany(targetUserId);
     const companyId = company ? String(company._id) : null;
-    const { Conversation } = require('~/db/models');
 
     // Calcular inicio de hoy, fin de hoy y fin de mañana en Hora Colombia (UTC-5)
     const now = new Date();
@@ -8641,7 +8641,6 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
     const startOfTomorrow = new Date(endOfToday.getTime() + 1);
 
     const scopeQuery = companyScope(targetUserId, companyId);
-    const TenshiMessage = mongoose.models.TenshiMessage || require('~/models/TenshiMessage');
     const { getCalendarClient } = require('~/server/services/googleCalendar');
 
     const fetchGcal = async () => {
@@ -8679,9 +8678,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       todayTasks,
       tomorrowTasks,
       overdueTasks,
-      lastDoneTask,
-      latestReportConvo,
-      latestTenshiReport,
+      activityResult,
       gcalEvents,
     ] = await Promise.all([
       KanbanTask.find({
@@ -8705,33 +8702,13 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
           { dueDate: { $lt: startOfToday } },
         ],
       }).sort({ dueDate: -1 }).limit(5).lean().catch(() => []),
-      KanbanTask.findOne({
-        ...scopeQuery,
-        type: { $ne: 'antigravity_delegation' },
-        status: { $in: ['done', 'in_progress'] },
-      }).sort({ updatedAt: -1 }).select('title status updatedAt sourceModule').lean().catch(() => null),
-      Conversation.findOne({
-        user: String(targetUserId),
-        title: { $nin: ['New Chat', 'new chat', 'Nueva conversación', 'Nuevo chat', 'Untitled', ''] },
-        ...(companyId
-          ? {
-              $and: [
-                { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                { tags: { $in: [`company-${companyId}`, `company:${companyId}`] } },
-              ],
-            }
-          : {
-              $and: [
-                { tags: { $elemMatch: { $regex: /^sgsst-/i } } },
-                { tags: { $not: /^company[-:]/ } },
-              ],
-            }),
-      }).sort({ updatedAt: -1 }).select('title tags updatedAt').lean().catch(() => null),
-      TenshiMessage.findOne({
-        user: targetUserId,
-        ...(companyId ? { companyId } : { companyId: { $in: [null, ''] } }),
-        'file.title': { $exists: true, $ne: '', $nin: ['', 'New Chat', 'new chat'] },
-      }).sort({ createdAt: -1 }).select('file.title createdAt').lean().catch(() => null),
+      getLatestSystemActivity({
+        userId: targetUserId,
+        companyId,
+        viewerRole: req.user?.role || '',
+        limit: 5,
+        timeoutMs: 1200,
+      }).catch(() => ({ ultimaActividad: null, actividadesRecientes: [] })),
       gcalWithTimeout,
     ]);
 
@@ -8754,40 +8731,10 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       });
     };
 
-    const candidates = [];
-    if (latestTenshiReport?.file?.title) {
-      candidates.push({
-        tipo: 'informe',
-        titulo: latestTenshiReport.file.title.trim(),
-        fecha: formatShortDateCol(latestTenshiReport.createdAt),
-        updatedAt: latestTenshiReport.createdAt,
-        time: new Date(latestTenshiReport.createdAt || 0).getTime(),
-      });
-    }
-    if (latestReportConvo?.title) {
-      const cleanT = latestReportConvo.title.replace(/^\[.*?\]\s*/, '').trim();
-      if (cleanT && !/^(new chat|nueva conversaci[oó]n|nuevo chat)$/i.test(cleanT)) {
-        candidates.push({
-          tipo: 'informe',
-          titulo: cleanT,
-          fecha: formatShortDateCol(latestReportConvo.updatedAt),
-          updatedAt: latestReportConvo.updatedAt,
-          time: new Date(latestReportConvo.updatedAt || 0).getTime(),
-        });
-      }
-    }
-    if (lastDoneTask?.title && !/^new chat$/i.test(lastDoneTask.title.trim())) {
-      candidates.push({
-        tipo: 'tarea',
-        titulo: lastDoneTask.title.trim(),
-        estado: lastDoneTask.status === 'done' ? 'completada' : 'en curso',
-        fecha: formatShortDateCol(lastDoneTask.updatedAt),
-        updatedAt: lastDoneTask.updatedAt,
-        time: new Date(lastDoneTask.updatedAt || 0).getTime(),
-      });
-    }
-    candidates.sort((a, b) => b.time - a.time);
-    const ultimaActividad = candidates[0] || null;
+    const ultimaActividad = activityResult?.ultimaActividad || null;
+    const actividadesRecientes = Array.isArray(activityResult?.actividadesRecientes)
+      ? activityResult.actividadesRecientes
+      : [];
 
     const gcalTodayItems = [];
     const gcalTomorrowItems = [];
@@ -8845,6 +8792,7 @@ router.get('/briefing', requireApiKeyOrJwt, async (req, res) => {
       companyId,
       responsableSST: company?.responsibleSST || '',
       ultimaActividad,
+      actividadesRecientes,
       agendaHoy,
       vencenManana,
       vencidas,

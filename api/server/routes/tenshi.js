@@ -24,6 +24,7 @@ const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
+const { getLatestSystemActivity } = require('~/server/services/systemActivityService');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
 const TenshiPendingAction = require('../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
@@ -1232,6 +1233,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             nbSess,
             avatarProfileResult,
             tenshiFlowsBlock,
+            systemActivityResult,
         ] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
@@ -1304,6 +1306,13 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 companyInfo?._id ? String(companyInfo._id) : null
             ),
             buildTenshiFlowsPromptBlock().catch(() => ''),
+            getLatestSystemActivity({
+                userId: targetUserId,
+                companyId: companyInfo?._id || null,
+                viewerRole: req.user?.role || '',
+                limit: 5,
+                timeoutMs: 900,
+            }).catch(() => null),
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
@@ -1414,6 +1423,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             recentConvosBlock += `\n*REGLA DE MEMORIA DE INFORMES PROPIOS*: Estos informes están publicados directamente en TU propio chat de Tenshi. Si el usuario te dice "revisa nuestro chat", "el último informe que hiciste", "envíame el último informe del chat a mi correo" o te pregunta por el informe en vuestro chat, se refiere SIEMPRE al 🔥 [ÚLTIMO INFORME EN CHAT DE TENSHI] listado arriba. NUNCA inventes que no tienes informes ni menciones chats viejos de otros agentes.\n\n`;
         }
 
+        let recentSystemActivityBlock = '';
+        const recentSystemItems = Array.isArray(systemActivityResult?.actividadesRecientes)
+            ? systemActivityResult.actividadesRecientes
+            : [];
+        if (recentSystemItems.length > 0) {
+            recentSystemActivityBlock = `### ⚡ [ACTIVIDAD RECIENTE REAL EN TODO EL SISTEMA (DEL MÁS RECIENTE AL MÁS ANTIGUO)]:\n`;
+            recentSystemItems.forEach((act, idx) => {
+                const modLabel = act.modulo || act.tipo || 'Sistema';
+                const stateLabel = act.estado ? ` · Estado: ${act.estado}` : '';
+                const detailLabel = act.detalle ? ` · ${act.detalle}` : '';
+                const dateLabel = act.fecha ? ` (${act.fecha})` : '';
+                recentSystemActivityBlock += `${idx === 0 ? '🔥 [ÚLTIMA ACTIVIDAD REAL]' : `#${idx + 1}`} [${modLabel}] "${act.titulo}"${stateLabel}${detailLabel}${dateLabel}\n`;
+            });
+            recentSystemActivityBlock += `*REGLA*: Si el usuario pregunta "¿qué fue lo último que hice?", "¿en qué quedé?", "¿qué automatización corrí?" o pide continuar su último trabajo, responde con exactitud usando esta lista en tiempo real (priorizando 🔥 [ÚLTIMA ACTIVIDAD REAL]).\n\n`;
+        }
+
         let isAdminUser = req.user?.role === 'ADMIN';
         if (!req.user?.role && req.user?.id) {
             try {
@@ -1491,6 +1516,7 @@ ${blogStr ? `ÚLTIMAS PUBLICACIONES DEL BLOG:\n${blogStr}\n` : ''}
 ${courseStr ? `CURSOS DE FORMACIÓN DISPONIBLES:\n${courseStr}\n` : ''}
 ${ticketContext ? `CONOCIMIENTO DINÁMICO (Contexto extraído por RAG):\n${ticketContext}\n` : ''}
 ${recentConvosBlock}
+${recentSystemActivityBlock}
 
 ### 🎯 ROL Y PERSONALIDAD DE TENSHI
 Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administras la plataforma central Somos SST (ubicada en /sgsst). Tu personalidad es alegre, carismática, empática, muy espontánea y respetuosa, utilizando modismos paisas colombianos naturales ("parce", "listo", "qué más pues", "bacano", "de una", "hágale").
