@@ -41,6 +41,8 @@ import {
   X,
   History,
   Activity,
+  Mic,
+  FlaskConical,
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -93,6 +95,8 @@ interface Automation {
   emails: string[];
   status: 'active' | 'inactive' | 'paused_error';
   isSystemPreset?: boolean;
+  isTenshiFlow?: boolean;
+  isActive?: boolean;
   presetKey?: string;
   presetCategory?: string;
   presetDescription?: string;
@@ -125,6 +129,11 @@ interface AutomationLog {
   result?: string;
   error?: string;
   conversationId?: string;
+  triggerSource?: string;
+  isTenshiFlow?: boolean;
+  tenshiFlowName?: string;
+  userInstruction?: string;
+  companyName?: string;
   evidenceFiles?: ScraperCapturedEvidence[];
   evidences?: ScraperCapturedEvidence[];
 }
@@ -150,15 +159,50 @@ function resolveAutomationLogEvidences(
   return collectUniqueScraperEvidences([], rawList);
 }
 
+const getStoredActiveCompanyId = (): string => {
+  try {
+    return typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+  } catch {
+    return '';
+  }
+};
+
+const normalizeSearchText = (val?: string): string =>
+  (val?.trim() || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const getTenshiVoiceCommand = (flow?: Partial<Automation> | null): string => {
+  const nodeConfigs = flow?.workflowNodes?.canvasLayout?.nodeConfigs;
+  if (!nodeConfigs || typeof nodeConfigs !== 'object') return '';
+  const rootCmd = nodeConfigs.trigger_root?.voiceCommand?.trim();
+  if (rootCmd) return rootCmd;
+  const tenshiCmd =
+    nodeConfigs.trigger_trigger_tenshi?.voiceCommand?.trim() ||
+    nodeConfigs.trigger_tenshi?.voiceCommand?.trim();
+  if (tenshiCmd) return tenshiCmd;
+  for (const [key, cfg] of Object.entries(nodeConfigs)) {
+    if (key.startsWith('trigger') && (cfg as any)?.voiceCommand?.trim()) {
+      return String((cfg as any).voiceCommand).trim();
+    }
+  }
+  return '';
+};
+
 interface AutomatizacionesProps {
   hideMainHeader?: boolean;
-  defaultTab?: 'list' | 'presets' | 'logs';
+  defaultTab?: 'list' | 'presets' | 'tenshi' | 'logs';
 }
 
 export default function Automatizaciones({ hideMainHeader = false, defaultTab = 'list' }: AutomatizacionesProps = {}) {
   const { showToast } = useToastContext();
   const { user } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
+  const isAdminRef = useRef(isAdmin);
+  isAdminRef.current = isAdmin;
+  const [activeCompanyId, setActiveCompanyId] = useState<string>(getStoredActiveCompanyId);
+  const lastCompanyIdRef = useRef<string>(getStoredActiveCompanyId());
   const { data: agentsData } = useListAgentsQuery({ requiredPermission: 1, limit: 100 });
   const rawAgents = agentsData?.data || [];
   const agents = useMemo(() => {
@@ -178,21 +222,33 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [presets, setPresets] = useState<Automation[]>([]);
+  const [tenshiFlows, setTenshiFlows] = useState<Automation[]>([]);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'list' | 'presets' | 'logs'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'list' | 'presets' | 'tenshi' | 'logs'>(() =>
+    defaultTab === 'tenshi' && !isAdmin ? 'list' : defaultTab,
+  );
   const [selectedPresetCategory, setSelectedPresetCategory] = useState<string>('all');
   const [presetSearchQuery, setPresetSearchQuery] = useState<string>('');
+  const [tenshiSearchQuery, setTenshiSearchQuery] = useState<string>('');
+  const [tenshiStatusFilter, setTenshiStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [showDashboard, setShowDashboard] = useState(true);
 
   useEffect(() => {
     if (defaultTab) {
-      setActiveTab(defaultTab);
+      setActiveTab(defaultTab === 'tenshi' && !isAdmin ? 'list' : defaultTab);
     }
-  }, [defaultTab]);
-  
+  }, [defaultTab, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin && activeTab === 'tenshi') {
+      setActiveTab('list');
+    }
+  }, [isAdmin, activeTab]);
+
   // Loading states
   const [loading, setLoading] = useState(false);
   const [presetsLoading, setPresetsLoading] = useState(false);
+  const [tenshiFlowsLoading, setTenshiFlowsLoading] = useState(false);
   const [logsLoading, setLogsLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -219,6 +275,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const [isPresetModalMode, setIsPresetModalMode] = useState(false);
+  const [isTenshiModalMode, setIsTenshiModalMode] = useState(false);
   const [initialCanvasMonitorMode, setInitialCanvasMonitorMode] = useState<'none' | 'live' | 'sandbox'>('none');
   const [initialCanvasRunId, setInitialCanvasRunId] = useState<string | null>(null);
   const [viewResultModal, setViewResultModal] = useState<{
@@ -236,6 +293,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
   const hasLoadedPresetsOnceRef = useRef(false);
+  const hasLoadedTenshiFlowsOnceRef = useRef(false);
   const hasLoadedLogsOnceRef = useRef(false);
 
   const handleOpenLogEvidence = useCallback(
@@ -291,12 +349,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   }, [isAgentOpen, isFreqOpen, isDayOpen]);
 
   // Fetch all automations (stable identity — zero re-render loops)
-  const fetchAutomations = useCallback(async (silent = false) => {
+  const fetchAutomations = useCallback(async (silent = false, explicitCompId?: string) => {
     if (!silent) {
       setLoading(true);
     }
     try {
-      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const compId = explicitCompId !== undefined ? explicitCompId : getStoredActiveCompanyId();
       const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
       const res = await axios.get(`/api/sgsst/automatizaciones${q}`);
       setAutomations(Array.isArray(res.data) ? res.data : []);
@@ -392,12 +450,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   );
 
   // Fetch execution logs (stable identity — zero re-render loops)
-  const fetchLogs = useCallback(async (silent = false) => {
+  const fetchLogs = useCallback(async (silent = false, explicitCompId?: string) => {
     if (!silent && !hasLoadedLogsOnceRef.current) {
       setLogsLoading(true);
     }
     try {
-      const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+      const compId = explicitCompId !== undefined ? explicitCompId : getStoredActiveCompanyId();
       const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
       const res = await axios.get(`/api/sgsst/automatizaciones/logs${q}`);
       setLogs(Array.isArray(res.data) ? res.data : []);
@@ -409,6 +467,32 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       });
     } finally {
       setLogsLoading(false);
+    }
+  }, []);
+
+  // Exclusivo ADMIN: cargar Flujos Internos de Tenshi (jamás se invoca para usuarios normales)
+  const fetchTenshiFlows = useCallback(async (silent = false, explicitCompId?: string) => {
+    if (!isAdminRef.current) {
+      setTenshiFlows([]);
+      setTenshiFlowsLoading(false);
+      return;
+    }
+    if (!silent && !hasLoadedTenshiFlowsOnceRef.current) {
+      setTenshiFlowsLoading(true);
+    }
+    try {
+      const compId = explicitCompId !== undefined ? explicitCompId : getStoredActiveCompanyId();
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.get(`/api/sgsst/automatizaciones/tenshi-flows${q}`);
+      setTenshiFlows(Array.isArray(res.data) ? res.data : []);
+      hasLoadedTenshiFlowsOnceRef.current = true;
+    } catch (err: any) {
+      showToastRef.current({
+        message: err?.response?.data?.error || 'Error al cargar los Flujos Tenshi.',
+        status: 'error',
+      });
+    } finally {
+      setTenshiFlowsLoading(false);
     }
   }, []);
 
@@ -446,25 +530,66 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refresco silencioso en tiempo real cuando Tenshi o un agente crea/activa/desactiva/edita/elimina tareas o se cambia de empresa
   useEffect(() => {
-    const handleSilentReload = async () => {
+    if (isAdmin) {
+      void fetchTenshiFlows(false);
+    } else {
+      setTenshiFlows([]);
+      hasLoadedTenshiFlowsOnceRef.current = false;
+    }
+  }, [isAdmin, fetchTenshiFlows]);
+
+  // Refresco en tiempo real cuando cambia la empresa activa o Tenshi/agentes actualizan tareas
+  useEffect(() => {
+    const handleSilentReload = async (evt?: Event) => {
       try {
-        const compId = typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+        const detailObj = (evt as CustomEvent<any> | undefined)?.detail;
+        const detailCompId =
+          typeof detailObj === 'object' && detailObj
+            ? detailObj.companyId || detailObj.empresaId || ''
+            : '';
+        const compId = String(detailCompId || getStoredActiveCompanyId() || '');
+        const prevCompId = lastCompanyIdRef.current;
+        const evtType = evt?.type || '';
+        const isCompanyChangeEvt =
+          evtType === 'wappy-empresa-cambiada' ||
+          evtType === 'wappy-company-changed' ||
+          evtType === 'wappy-company-updated' ||
+          compId !== prevCompId;
+
+        lastCompanyIdRef.current = compId;
+        setActiveCompanyId(compId);
+
+        if (isCompanyChangeEvt) {
+          setAutomations([]);
+          setLogs([]);
+          if (isAdminRef.current) {
+            setTenshiFlows([]);
+          }
+        }
+        if (!isAdminRef.current) {
+          setTenshiFlows([]);
+        }
+
         const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
-        const [autoRes, logsRes, presetsRes] = await Promise.allSettled([
+        const requests: Promise<any>[] = [
           axios.get(`/api/sgsst/automatizaciones${q}`),
           axios.get(`/api/sgsst/automatizaciones/logs${q}`),
           axios.get(`/api/sgsst/automatizaciones/presets${q}`),
-        ]);
-        if (autoRes.status === 'fulfilled') {
+        ];
+        if (isAdminRef.current) {
+          requests.push(axios.get(`/api/sgsst/automatizaciones/tenshi-flows${q}`));
+        }
+
+        const [autoRes, logsRes, presetsRes, tenshiRes] = await Promise.allSettled(requests);
+        if (autoRes?.status === 'fulfilled') {
           setAutomations(Array.isArray(autoRes.value.data) ? autoRes.value.data : []);
         }
-        if (logsRes.status === 'fulfilled') {
+        if (logsRes?.status === 'fulfilled') {
           setLogs(Array.isArray(logsRes.value.data) ? logsRes.value.data : []);
           hasLoadedLogsOnceRef.current = true;
         }
-        if (presetsRes.status === 'fulfilled') {
+        if (presetsRes?.status === 'fulfilled') {
           const rawP = Array.isArray(presetsRes.value.data) ? presetsRes.value.data : [];
           setPresets(
             rawP.length > 0
@@ -478,6 +603,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               : mapCatalogPresetsToAutomations(disabledSgsstAppsRef.current),
           );
           hasLoadedPresetsOnceRef.current = true;
+        }
+        if (isAdminRef.current && tenshiRes?.status === 'fulfilled') {
+          setTenshiFlows(Array.isArray(tenshiRes.value.data) ? tenshiRes.value.data : []);
+          hasLoadedTenshiFlowsOnceRef.current = true;
         }
       } catch (_) {}
     };
@@ -502,8 +631,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       if (!hasLoadedPresetsOnceRef.current) {
         fetchPresets(false);
       }
+    } else if (activeTab === 'tenshi' && isAdmin) {
+      fetchTenshiFlows(hasLoadedTenshiFlowsOnceRef.current);
     }
-  }, [activeTab, fetchLogs, fetchPresets]);
+  }, [activeTab, isAdmin, fetchLogs, fetchPresets, fetchTenshiFlows]);
 
   // Auto-polling silencioso únicamente cuando hay tareas realmente en ejecución reciente (<15 min)
   const hasActiveRunningJob = useMemo(() => {
@@ -620,6 +751,39 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     });
   }, [presets, selectedPresetCategory, presetSearchQuery]);
 
+  const tenshiFlowCounts = useMemo(() => {
+    let active = 0;
+    let paused = 0;
+    for (const flow of tenshiFlows) {
+      const isFlowActive = flow.isActive !== undefined ? Boolean(flow.isActive) : flow.status === 'active';
+      if (isFlowActive) active += 1;
+      else paused += 1;
+    }
+    return { total: tenshiFlows.length, active, paused };
+  }, [tenshiFlows]);
+
+  const filteredTenshiFlows = useMemo(() => {
+    const query = normalizeSearchText(tenshiSearchQuery);
+    return tenshiFlows.filter((flow) => {
+      const isFlowActive = flow.isActive !== undefined ? Boolean(flow.isActive) : flow.status === 'active';
+      if (tenshiStatusFilter === 'active' && !isFlowActive) return false;
+      if (tenshiStatusFilter === 'paused' && isFlowActive) return false;
+      if (!query) return true;
+
+      const voiceCmd = getTenshiVoiceCommand(flow);
+      const searchable = [
+        flow.name,
+        flow.presetDescription,
+        flow.agentName,
+        voiceCmd,
+        flow.prompt,
+      ]
+        .map(normalizeSearchText)
+        .join(' ');
+      return searchable.includes(query);
+    });
+  }, [tenshiFlows, tenshiSearchQuery, tenshiStatusFilter]);
+
   // Handle open modal for create
   const handleCreateOpen = () => {
     if (effectiveLimit <= 0) {
@@ -647,6 +811,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
 
     setIsPresetModalMode(false);
+    setIsTenshiModalMode(false);
     setEditingAutomation(null);
     setInitialCanvasMonitorMode('none');
     setInitialCanvasRunId(null);
@@ -688,6 +853,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   // Exclusivo ADMIN: abrir modal para crear una Tarea Preestablecida Global para todos los usuarios
   const handleCreatePresetOpen = () => {
     setIsPresetModalMode(true);
+    setIsTenshiModalMode(false);
     setEditingAutomation(null);
     setInitialCanvasMonitorMode('none');
     setInitialCanvasRunId(null);
@@ -726,22 +892,68 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setIsModalOpen(true);
   };
 
-  // Handle open modal for edit (normal task or global preset)
+  // Exclusivo ADMIN: abrir modal para crear un Flujo Interno de Tenshi (instantáneo, sin Cron ni cupo)
+  const handleCreateTenshiFlowOpen = () => {
+    if (!isAdmin) return;
+    setIsPresetModalMode(false);
+    setIsTenshiModalMode(true);
+    setEditingAutomation(null);
+    setInitialCanvasMonitorMode('none');
+    setInitialCanvasRunId(null);
+    setFormName('');
+    setFormAgentId('tenshi_avatar_orchestrator');
+    setFormPrompt('');
+    setFormScheduleType('daily');
+    setFormHour(8);
+    setFormMinute(0);
+    setFormDayOfWeek(1);
+    setFormDaysOfWeek([1]);
+    setFormDayOfMonth(1);
+    setFormIntervalHours(1);
+    setFormEmailsStr('');
+    setFormPresetCategory('salud_vencimientos');
+    setFormPresetDescription('');
+    setFormSaveAsSystemPreset(false);
+    setFormWorkflowNodes({
+      trigger: 'trigger_tenshi',
+      triggers: ['trigger_tenshi'],
+      extractors: [],
+      aiEngine: 'wappy',
+      aiModel: 'gemini-3.6-flash',
+      memoryNode: 'wappy_memory_company',
+      memories: ['wappy_memory_company'],
+      includeIfNode: false,
+      inputs: ['somos_sst_empresa'],
+      hitos: [],
+      outputs: ['wappy_notification'],
+      canvasLayout: null,
+    });
+    setActiveNodeBuilderTab('inputs');
+    setIsAgentOpen(false);
+    setIsFreqOpen(false);
+    setIsDayOpen(false);
+    setIsModalOpen(true);
+  };
+
+  // Handle open modal for edit (normal task, global preset or Flujo Tenshi)
   const handleEditOpen = (
     automation: Automation,
-    isPreset = false,
+    modeOrIsPreset: boolean | 'preset' | 'tenshi' = false,
     monitorOpts?: { monitorMode?: 'none' | 'live' | 'sandbox'; runId?: string | null },
   ) => {
-    setIsPresetModalMode(isPreset);
+    const resolvedIsPreset = modeOrIsPreset === true || modeOrIsPreset === 'preset';
+    const resolvedIsTenshi = modeOrIsPreset === 'tenshi';
+    setIsPresetModalMode(resolvedIsPreset);
+    setIsTenshiModalMode(resolvedIsTenshi);
     setEditingAutomation(automation);
     setInitialCanvasMonitorMode(
-      isPreset
+      resolvedIsPreset
         ? 'none'
         : monitorOpts?.monitorMode ||
-            (automation.lastRunStatus === 'running' ? 'live' : 'none'),
+            (!resolvedIsTenshi && automation.lastRunStatus === 'running' ? 'live' : 'none'),
     );
     setInitialCanvasRunId(
-      isPreset
+      resolvedIsPreset || resolvedIsTenshi
         ? null
         : monitorOpts?.runId !== undefined
           ? monitorOpts.runId
@@ -772,9 +984,25 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory(automation.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(automation.presetDescription || '');
     setFormSaveAsSystemPreset(false);
-    setFormWorkflowNodes(
-      sanitizeWorkflowNodesForActiveUse(automation.workflowNodes, disabledSgsstApps),
+    const sanitizedEditNodes = sanitizeWorkflowNodesForActiveUse(
+      automation.workflowNodes,
+      disabledSgsstApps,
     );
+    if (resolvedIsTenshi) {
+      const existingTriggers = Array.isArray(sanitizedEditNodes.triggers)
+        ? sanitizedEditNodes.triggers
+        : [];
+      const resolvedTriggers =
+        existingTriggers.length > 0 ? existingTriggers : ['trigger_tenshi'];
+      setFormWorkflowNodes({
+        ...sanitizedEditNodes,
+        trigger: sanitizedEditNodes.trigger || resolvedTriggers[0] || 'trigger_tenshi',
+        triggers: resolvedTriggers,
+        aiModel: sanitizedEditNodes.aiModel || 'gemini-3.6-flash',
+      });
+    } else {
+      setFormWorkflowNodes(sanitizedEditNodes);
+    }
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
     setIsFreqOpen(false);
@@ -782,9 +1010,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setIsModalOpen(true);
   };
 
-  // Abrir una plantilla en el constructor visual para personalizarla antes de guardarla en la empresa
-  const handleCustomizeFromPreset = (preset: Automation) => {
+  // Abrir una plantilla en el constructor visual para personalizarla antes de guardarla en la empresa (o como Flujo Tenshi)
+  const handleCustomizeFromPreset = (preset: Automation, keepTenshiMode = false) => {
     setIsPresetModalMode(false);
+    setIsTenshiModalMode(Boolean(keepTenshiMode));
     setEditingAutomation(null);
     setInitialCanvasMonitorMode('none');
     setInitialCanvasRunId(null);
@@ -793,7 +1022,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       agents.find((a) => a.id === preset.agentId) ||
       agents.find((a) => a.name?.toLowerCase() === preset.agentName?.toLowerCase()) ||
       agents[0];
-    setFormAgentId(matchingAgent?.id || preset.agentId);
+    setFormAgentId(
+      keepTenshiMode ? 'tenshi_avatar_orchestrator' : matchingAgent?.id || preset.agentId,
+    );
     setFormPrompt(preset.prompt);
     setFormScheduleType(preset.scheduleType || 'daily');
     setFormHour(preset.scheduleConfig?.hour ?? 8);
@@ -811,13 +1042,40 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
     setFormDayOfMonth(preset.scheduleConfig?.dayOfMonth ?? 1);
     setFormIntervalHours(preset.scheduleConfig?.intervalHours ?? 1);
-    setFormEmailsStr(user?.email || '');
+    setFormEmailsStr(keepTenshiMode ? '' : user?.email || '');
     setFormPresetCategory(preset.presetCategory || 'salud_vencimientos');
     setFormPresetDescription(preset.presetDescription || '');
     setFormSaveAsSystemPreset(false);
-    setFormWorkflowNodes(
-      sanitizeWorkflowNodesForActiveUse(preset.workflowNodes, disabledSgsstApps),
+    const sanitizedPresetNodes = sanitizeWorkflowNodesForActiveUse(
+      preset.workflowNodes,
+      disabledSgsstApps,
     );
+    if (keepTenshiMode) {
+      const existingTriggers = Array.isArray(sanitizedPresetNodes.triggers)
+        ? sanitizedPresetNodes.triggers
+        : [];
+      const withoutCron = existingTriggers.filter((t) => t !== 'schedule_cron');
+      const tenshiTriggers = withoutCron.includes('trigger_tenshi')
+        ? withoutCron
+        : ['trigger_tenshi', ...withoutCron];
+      setFormWorkflowNodes({
+        ...sanitizedPresetNodes,
+        trigger: 'trigger_tenshi',
+        triggers: tenshiTriggers,
+        aiModel: sanitizedPresetNodes.aiModel || 'gemini-3.6-flash',
+        memories:
+          Array.isArray(sanitizedPresetNodes.memories) && sanitizedPresetNodes.memories.length > 0
+            ? sanitizedPresetNodes.memories
+            : ['wappy_memory_company'],
+        includeIfNode: Boolean(sanitizedPresetNodes.includeIfNode),
+        outputs:
+          Array.isArray(sanitizedPresetNodes.outputs) && sanitizedPresetNodes.outputs.length > 0
+            ? sanitizedPresetNodes.outputs
+            : ['wappy_notification'],
+      });
+    } else {
+      setFormWorkflowNodes(sanitizedPresetNodes);
+    }
     setActiveNodeBuilderTab('inputs');
     setIsModalOpen(true);
   };
@@ -953,19 +1211,51 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       presetCategory: formPresetCategory,
       presetDescription: formPresetDescription.trim(),
       workflowNodes: formWorkflowNodes,
-      saveAsSystemPreset: isAdmin && formSaveAsSystemPreset,
+      saveAsSystemPreset: isAdmin && !isTenshiModalMode && formSaveAsSystemPreset,
     };
 
     try {
+      const compId = getStoredActiveCompanyId();
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+
+      if (isTenshiModalMode) {
+        if (!isAdmin) return;
+        const tenshiPayload = {
+          ...payload,
+          isTenshiFlow: true,
+          saveAsSystemPreset: false,
+        };
+        if (editingAutomation) {
+          await axios.put(
+            `/api/sgsst/automatizaciones/tenshi-flows/${editingAutomation._id}${q}`,
+            tenshiPayload,
+          );
+          showToast({
+            message: 'Flujo interno de Tenshi actualizado correctamente.',
+            status: 'success',
+          });
+        } else {
+          await axios.post(`/api/sgsst/automatizaciones/tenshi-flows${q}`, tenshiPayload);
+          showToast({
+            message:
+              'Nuevo Flujo Tenshi creado. Quedó disponible globalmente (aislado por empresa).',
+            status: 'success',
+          });
+        }
+        setIsModalOpen(false);
+        await fetchTenshiFlows(false);
+        return;
+      }
+
       if (isPresetModalMode) {
         if (editingAutomation) {
-          await axios.put(`/api/sgsst/automatizaciones/presets/${editingAutomation._id}`, payload);
+          await axios.put(`/api/sgsst/automatizaciones/presets/${editingAutomation._id}${q}`, payload);
           showToast({
             message: 'Tarea preestablecida global actualizada para todos los usuarios.',
             status: 'success',
           });
         } else {
-          await axios.post('/api/sgsst/automatizaciones/presets', payload);
+          await axios.post(`/api/sgsst/automatizaciones/presets${q}`, payload);
           showToast({
             message: 'Tarea preestablecida global publicada para todos los usuarios.',
             status: 'success',
@@ -977,7 +1267,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       }
 
       if (editingAutomation) {
-        await axios.put(`/api/sgsst/automatizaciones/${editingAutomation._id}`, payload);
+        await axios.put(`/api/sgsst/automatizaciones/${editingAutomation._id}${q}`, payload);
         showToast({
           message: formSaveAsSystemPreset
             ? 'Tarea actualizada y publicada también en el catálogo global.'
@@ -985,7 +1275,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           status: 'success'
         });
       } else {
-        await axios.post('/api/sgsst/automatizaciones', payload);
+        await axios.post(`/api/sgsst/automatizaciones${q}`, payload);
         showToast({
           message: formSaveAsSystemPreset
             ? 'Tarea creada en tu empresa y publicada para todos los usuarios.'
@@ -1002,6 +1292,70 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         message: err.response?.data?.error || 'Error al guardar la automatización.',
         status: 'error'
       });
+    }
+  };
+
+  // Exclusivo ADMIN: Activar / Pausar globalmente un Flujo Tenshi
+  const handleToggleTenshiFlow = async (flow: Automation) => {
+    if (!isAdmin) return;
+    setActionLoadingId(flow._id);
+    try {
+      const compId = getStoredActiveCompanyId();
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      const res = await axios.patch(
+        `/api/sgsst/automatizaciones/tenshi-flows/${flow._id}/toggle${q}`,
+      );
+      const nextIsActive =
+        res.data?.isActive !== undefined
+          ? Boolean(res.data.isActive)
+          : res.data?.status
+            ? res.data.status === 'active'
+            : !(flow.isActive !== undefined ? Boolean(flow.isActive) : flow.status === 'active');
+      showToast({
+        message: nextIsActive
+          ? `Flujo "${flow.name}" activado globalmente para Tenshi.`
+          : `Flujo "${flow.name}" pausado para Tenshi.`,
+        status: 'success',
+      });
+      await fetchTenshiFlows(true);
+    } catch (err: any) {
+      showToast({
+        message:
+          err.response?.data?.error || 'Error al cambiar el estado del Flujo Tenshi.',
+        status: 'error',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Exclusivo ADMIN: Eliminar un Flujo Tenshi
+  const handleDeleteTenshiFlow = async (id: string, name?: string) => {
+    if (!isAdmin) return;
+    if (
+      !window.confirm(
+        `¿Está seguro de eliminar el Flujo Tenshi "${name || 'seleccionado'}"? Dejará de responder a comandos de voz/chat en Tenshi.`,
+      )
+    ) {
+      return;
+    }
+    setActionLoadingId(id);
+    try {
+      const compId = getStoredActiveCompanyId();
+      const q = compId ? `?companyId=${encodeURIComponent(compId)}` : '';
+      await axios.delete(`/api/sgsst/automatizaciones/tenshi-flows/${id}${q}`);
+      showToast({
+        message: 'Flujo Tenshi eliminado correctamente.',
+        status: 'success',
+      });
+      await fetchTenshiFlows(true);
+    } catch (err: any) {
+      showToast({
+        message: err.response?.data?.error || 'Error al eliminar el Flujo Tenshi.',
+        status: 'error',
+      });
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -1218,6 +1572,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         <WappyWorkflowCanvas
           workflowNodes={safeNodes}
           agentName={agentLabel || 'Consultor SG-SST'}
+          companyId={activeCompanyId}
+          isAdmin={isAdmin}
           readOnly={true}
           compact={true}
         />
@@ -1504,10 +1860,27 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         >
           <Workflow className="w-3.5 h-3.5" />
           <span>Flujos Preestablecidos</span>
-          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
+          <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
             {presets.length || WORKFLOW_PRESETS.length}
           </span>
         </button>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('tenshi')}
+            className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
+              activeTab === 'tenshi'
+                ? 'border-[#C7F303] text-purple-700 dark:text-[#C7F303] bg-purple-50/60 dark:bg-[#0e1300]/80 rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-purple-600 dark:hover:text-[#C7F303]'
+            }`}
+          >
+            <span>⚡ Flujos Tenshi</span>
+            <span className="ml-0.5 px-1.5 py-0.5 text-[10px] rounded-xl bg-purple-100 text-purple-800 dark:bg-[#C7F303]/20 dark:text-[#C7F303] font-extrabold">
+              {tenshiFlows.length}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('logs')}
@@ -1525,14 +1898,24 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             type="button"
             size="sm"
             variant="purple"
-            disabled={loading || logsLoading || presetsLoading}
-            icon={<RefreshCw className={`w-3.5 h-3.5 ${(loading || logsLoading || presetsLoading) ? 'animate-spin' : ''}`} />}
+            disabled={loading || logsLoading || presetsLoading || tenshiFlowsLoading}
+            icon={
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${
+                  loading || logsLoading || presetsLoading || tenshiFlowsLoading
+                    ? 'animate-spin'
+                    : ''
+                }`}
+              />
+            }
             label="Actualizar"
             onClick={() => {
               if (activeTab === 'list') {
                 void fetchAutomations();
               } else if (activeTab === 'presets') {
                 void fetchPresets();
+              } else if (activeTab === 'tenshi' && isAdmin) {
+                void fetchTenshiFlows();
               } else {
                 void fetchLogs();
               }
@@ -2125,6 +2508,299 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </div>
             )}
           </div>
+        ) : activeTab === 'tenshi' && isAdmin ? (
+          /* Admin Exclusive Tab: Flujos Internos de Tenshi */
+          <div className="min-w-0">
+            {/* Banner superior premium WAPPY */}
+            <div className="relative overflow-hidden mb-5 p-5 rounded-2xl bg-gradient-to-br from-[#0e1300] via-[#0c192e] to-[#1a103c] text-white border border-purple-500/35 shadow-lg">
+              <div className="pointer-events-none absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[#C7F303]/15 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-purple-500/20 blur-3xl" />
+
+              <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4 min-w-0">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="p-3 rounded-2xl bg-[#C7F303]/15 border border-[#C7F303]/40 text-[#C7F303] shrink-0">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-white">
+                        Flujos Internos de Tenshi (Parte no visible para usuarios)
+                      </h3>
+                      <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-xl bg-[#C7F303] text-[#0E1300]">
+                        Exclusivo Admin • Aislado por Empresa
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-200/90 mt-1.5 max-w-3xl leading-relaxed">
+                      Los creas aquí como Administrador, quedan disponibles globalmente para todos los usuarios al hablarle o chatear con Tenshi, y cada ejecución se procesa y registra estrictamente bajo la empresa (<code className="px-1 py-0.5 rounded bg-white/10 text-[#C7F303] font-mono text-[10px]">companyId</code>) activa de quien la solicita.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 p-1 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border border-[#C7F303]/40 shadow-md">
+                  <ExpandableButton
+                    type="button"
+                    variant="purple"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Nuevo Flujo Tenshi"
+                    title="Crear nuevo Flujo Interno de Tenshi disponible globalmente para voz y chat"
+                    onClick={handleCreateTenshiFlowOpen}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Chips de estado + Buscador rápido */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-5 py-1 px-1">
+              <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="purple"
+                  isActive={tenshiStatusFilter === 'all'}
+                  icon={<Zap className="w-3.5 h-3.5" />}
+                  badge={tenshiFlowCounts.total}
+                  label="Todos"
+                  onClick={() => setTenshiStatusFilter('all')}
+                />
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="emerald"
+                  isActive={tenshiStatusFilter === 'active'}
+                  icon={<CheckCircle className="w-3.5 h-3.5" />}
+                  badge={tenshiFlowCounts.active}
+                  label="Activos para Tenshi"
+                  onClick={() => setTenshiStatusFilter('active')}
+                />
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="amber"
+                  isActive={tenshiStatusFilter === 'paused'}
+                  icon={<ToggleLeft className="w-3.5 h-3.5" />}
+                  badge={tenshiFlowCounts.paused}
+                  label="Pausados"
+                  onClick={() => setTenshiStatusFilter('paused')}
+                />
+              </div>
+
+              <div className="relative w-full lg:w-80 shrink-0">
+                <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={tenshiSearchQuery}
+                  onChange={(e) => setTenshiSearchQuery(e.target.value)}
+                  placeholder="Buscar flujo, comando de voz o agente..."
+                  aria-label="Buscar Flujos Tenshi"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium bg-white dark:bg-gray-900 border border-border-medium/40 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all shadow-xs"
+                />
+                {tenshiSearchQuery.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTenshiSearchQuery('')}
+                    title="Limpiar búsqueda"
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {tenshiFlowsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+                <Loader2 className="w-10 h-10 text-purple-600 animate-spin mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Cargando Flujos Internos de Tenshi...
+                </p>
+              </div>
+            ) : tenshiFlows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm p-8">
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-2xl text-purple-600 dark:text-[#C7F303] mb-4">
+                  <Zap className="w-10 h-10" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  Aún no hay Flujos Tenshi configurados
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
+                  Crea automatizaciones instantáneas activadas por voz o chat con Tenshi. Los usuarios finales no verán tu arquitectura ni tu prompt maestro, y cada resultado quedará aislado en la empresa activa.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3 py-1 px-2">
+                  <ExpandableButton
+                    type="button"
+                    variant="purple"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Crear Primer Flujo Tenshi"
+                    onClick={handleCreateTenshiFlowOpen}
+                  />
+                </div>
+              </div>
+            ) : filteredTenshiFlows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+                <Search className="w-9 h-9 text-purple-500/70 mb-3" />
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-1">
+                  No se encontraron Flujos Tenshi con ese filtro
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-4">
+                  Prueba buscando otro comando de voz o limpia los filtros de estado.
+                </p>
+                <ExpandableButton
+                  type="button"
+                  size="sm"
+                  variant="indigo"
+                  icon={<X className="w-3.5 h-3.5" />}
+                  label="Limpiar filtros"
+                  onClick={() => {
+                    setTenshiSearchQuery('');
+                    setTenshiStatusFilter('all');
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {filteredTenshiFlows.map((flow) => {
+                  const isFlowActive =
+                    flow.isActive !== undefined
+                      ? Boolean(flow.isActive)
+                      : flow.status === 'active';
+                  const voiceCommand = getTenshiVoiceCommand(flow);
+                  const isRowBusy = actionLoadingId === flow._id;
+
+                  return (
+                    <div
+                      key={flow._id}
+                      className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-purple-400 dark:hover:border-purple-600/70 rounded-2xl shadow-sm transition-all duration-300 p-5 relative min-w-0"
+                    >
+                      {/* Badges superiores */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-3 min-w-0">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-wider border ${
+                            isFlowActive
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isFlowActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                            }`}
+                          />
+                          {isFlowActive ? 'Activo para Tenshi' : 'Pausado'}
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-extrabold tracking-tight bg-[#C7F303]/20 text-[#0E1300] dark:bg-[#C7F303]/15 dark:text-[#C7F303] border border-[#C7F303]/50">
+                          ⚡ Ejecución Instantánea
+                        </span>
+
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 max-w-full truncate"
+                          title={
+                            voiceCommand
+                              ? `Comando configurado en trigger_tenshi: "${voiceCommand}"`
+                              : 'Se dispara al hablar o chatear con Tenshi'
+                          }
+                        >
+                          <Mic className="w-3 h-3 shrink-0" />
+                          <span className="truncate">
+                            {voiceCommand
+                              ? `🎙️ "${voiceCommand}"`
+                              : '🎙️ Voz / Chat con Tenshi'}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* Título y Agente */}
+                      <div className="flex items-start gap-3 mb-2.5 min-w-0">
+                        <div className="p-2.5 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl mt-0.5 shrink-0">
+                          <Zap className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-extrabold text-gray-900 dark:text-white text-sm leading-snug break-words">
+                            {flow.name}
+                          </h3>
+                          <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5 truncate">
+                            Agente Asignado:{' '}
+                            {flow.agentName || '🐱 Tenshi Avatar (Voz y Orquestador 3D)'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {flow.presetDescription?.trim() && (
+                        <p className="text-xs text-gray-600 dark:text-gray-300 mb-3 leading-relaxed break-words">
+                          {flow.presetDescription.trim()}
+                        </p>
+                      )}
+
+                      {/* Vista previa del diagrama */}
+                      {renderWorkflowPipeline(flow.workflowNodes, flow.agentName)}
+
+                      {/* Vista previa del Prompt Maestro (solo visible aquí para Admin) */}
+                      <div className="bg-surface-secondary/20 dark:bg-gray-800/40 border border-purple-500/15 rounded-xl p-3 mb-4 flex-1 min-w-0">
+                        <p className="text-[10px] text-purple-600 dark:text-purple-300 font-bold mb-1 uppercase tracking-wider">
+                          Prompt Maestro Interno (Solo Admin):
+                        </p>
+                        <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-3 italic leading-relaxed break-words">
+                          "{flow.prompt || 'Instrucción generada dinámicamente desde los nodos.'}"
+                        </p>
+                      </div>
+
+                      {/* Barra de Acciones con ExpandableButton */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-800 pt-3.5 px-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <ExpandableButton
+                            type="button"
+                            size="sm"
+                            variant={isFlowActive ? 'amber' : 'emerald'}
+                            disabled={isRowBusy}
+                            icon={
+                              isRowBusy ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : isFlowActive ? (
+                                <ToggleRight className="w-3.5 h-3.5" />
+                              ) : (
+                                <ToggleLeft className="w-3.5 h-3.5" />
+                              )
+                            }
+                            label={isFlowActive ? 'Pausar Global' : 'Activar para Tenshi'}
+                            title={
+                              isFlowActive
+                                ? 'Pausar este flujo globalmente en Tenshi'
+                                : 'Activar este flujo globalmente para todos los usuarios en Tenshi'
+                            }
+                            onClick={() => void handleToggleTenshiFlow(flow)}
+                          />
+
+                          <ExpandableButton
+                            type="button"
+                            size="sm"
+                            variant="indigo"
+                            icon={<FlaskConical className="w-3.5 h-3.5" />}
+                            label="Probar en Sandbox / Editar"
+                            title="Abrir en el constructor visual, configurar comandos o probar en Sandbox"
+                            onClick={() =>
+                              handleEditOpen(flow, 'tenshi', { monitorMode: 'sandbox' })
+                            }
+                          />
+                        </div>
+
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="danger"
+                          disabled={isRowBusy}
+                          icon={<Trash2 className="w-3.5 h-3.5" />}
+                          label="Eliminar"
+                          title="Eliminar permanentemente este Flujo Tenshi"
+                          onClick={() => void handleDeleteTenshiFlow(flow._id, flow.name)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ) : (
           /* Logs History Tab */
           logsLoading ? (
@@ -2159,13 +2835,35 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       const cleanedSummary = stripNoiseEvidencesFromAgentResponse(
                         log.result || '',
                       );
+                      const isTenshiRun = Boolean(
+                        log.isTenshiFlow ||
+                          log.triggerSource === 'tenshi_flow_instant' ||
+                          log.triggerSource === 'tenshi_voice',
+                      );
                       return (
                         <tr key={log._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition">
                           <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap align-top">
                             {new Date(log.runAt).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 dark:text-white font-bold align-top">
-                            {log.agentName}
+                            <div className="flex flex-col items-start gap-1.5 min-w-0">
+                              <span className="leading-snug">{log.agentName}</span>
+                              {isTenshiRun && (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-[10px] font-extrabold tracking-wide bg-gradient-to-r from-purple-500/15 to-indigo-500/15 text-purple-700 dark:text-[#C7F303] border border-purple-500/30 dark:border-[#C7F303]/40 whitespace-nowrap">
+                                    ⚡ Flujo Tenshi
+                                  </span>
+                                  {log.tenshiFlowName?.trim() && (
+                                    <span
+                                      className="inline-flex items-center px-2 py-0.5 rounded-xl text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 max-w-[190px] truncate"
+                                      title={log.tenshiFlowName.trim()}
+                                    >
+                                      {log.tenshiFlowName.trim()}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs align-top" title={log.prompt}>
                             {log.prompt}
@@ -2435,16 +3133,22 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
                 <div>
                   <h2 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider">
-                    {isPresetModalMode
+                    {isTenshiModalMode
                       ? editingAutomation
-                        ? 'Editar Tarea Preestablecida Global (Admin)'
-                        : 'Nueva Tarea Preestablecida Global para Todos los Usuarios'
-                      : editingAutomation
-                        ? 'Editar Tarea y Flujo de Conectores WAPPY'
-                        : 'Nueva Tarea Autónoma & Flujo de Conectores WAPPY'}
+                        ? 'Editar Flujo Interno de Tenshi (Admin)'
+                        : 'Nuevo Flujo Interno de Tenshi (Admin)'
+                      : isPresetModalMode
+                        ? editingAutomation
+                          ? 'Editar Tarea Preestablecida Global (Admin)'
+                          : 'Nueva Tarea Preestablecida Global para Todos los Usuarios'
+                        : editingAutomation
+                          ? 'Editar Tarea y Flujo de Conectores WAPPY'
+                          : 'Nueva Tarea Autónoma & Flujo de Conectores WAPPY'}
                   </h2>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Conecta disparadores, herramientas de Google, APIs, MCP, Agentes IA y los 7 Hitos de Somos SST
+                    {isTenshiModalMode
+                      ? 'Configura el disparador de voz/chat en Tenshi, conectores, Hitos SST y ejecución instantánea aislada por empresa'
+                      : 'Conecta disparadores, herramientas de Google, APIs, MCP, Agentes IA y los 7 Hitos de Somos SST'}
                   </p>
                 </div>
               </div>
@@ -2463,17 +3167,21 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
             {/* Form */}
             <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-y-auto px-6 py-5 gap-4">
-              {/* Selector rápido de Plantilla Preestablecida (solo al crear tarea de empresa) */}
-              {!editingAutomation && !isPresetModalMode && presets.length > 0 && (
+              {/* Selector rápido de Plantilla Preestablecida (al crear tarea de empresa o Flujo Tenshi) */}
+              {!editingAutomation && (!isPresetModalMode || isTenshiModalMode) && presets.length > 0 && (
                 <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
                     <div>
                       <div className="text-xs font-extrabold text-teal-900 dark:text-teal-200">
-                        ¿Deseas partir de un Flujo Preestablecido del Sistema?
+                        {isTenshiModalMode
+                          ? '¿Deseas partir de una Plantilla Base para acelerar tu Flujo Tenshi?'
+                          : '¿Deseas partir de un Flujo Preestablecido del Sistema?'}
                       </div>
                       <div className="text-[11px] text-teal-700 dark:text-teal-400">
-                        Autocompleta los conectores, el agente especialista, el horario y el prompt con 1 clic.
+                        {isTenshiModalMode
+                          ? 'Importa conectores, Hitos y prompt manteniendo el disparador instantáneo de Tenshi.'
+                          : 'Autocompleta los conectores, el agente especialista, el horario y el prompt con 1 clic.'}
                       </div>
                     </div>
                   </div>
@@ -2481,11 +3189,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     defaultValue=""
                     onChange={(e) => {
                       const chosen = presets.find((p) => p._id === e.target.value);
-                      if (chosen) handleCustomizeFromPreset(chosen);
+                      if (chosen) {
+                        handleCustomizeFromPreset(chosen, isTenshiModalMode);
+                      }
+                      e.target.value = '';
                     }}
                     className="px-3 py-2 text-xs font-bold bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-xl text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-xs"
                   >
-                    <option value="">⚡ Cargar plantilla preestablecida...</option>
+                    <option value="">⚡ Cargar plantilla base...</option>
                     {presets.map((p) => (
                       <option key={p._id} value={p._id}>
                         {p.name}
@@ -2495,24 +3206,53 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 </div>
               )}
 
+              {/* Tarjeta informativa Modo Flujo Tenshi (sin programación horaria Cron ni cupo de tareas) */}
+              {isTenshiModalMode &&
+                !(
+                  Array.isArray(formWorkflowNodes.triggers)
+                    ? formWorkflowNodes.triggers
+                    : [formWorkflowNodes.trigger]
+                ).includes('schedule_cron') && (
+                  <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-[#C7F303]/10 flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-[#C7F303] shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs leading-relaxed text-slate-700 dark:text-slate-200 min-w-0">
+                      <p className="font-extrabold text-purple-800 dark:text-[#C7F303]">
+                        Ejecución Instantánea desde Tenshi • Cero Reloj Cron y Cero Consumo de Cupo
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                        Este flujo se activa instantáneamente cuando cualquier usuario hable o chatee con Tenshi (aislado bajo la empresa activa de quien solicita). No consume cupo de tareas ni corre por reloj Cron. Haz clic en el nodo <strong>Disparador Tenshi</strong> en el lienzo para definir el comando de voz o frase gatillo.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
               {/* Fila 1: Nombre de la Tarea / Flujo + Botón WAPPY ExpandableButton para Publicar en Catálogo Global */}
               <div className="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <label className="block text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Nombre de la Tarea / Flujo Autónomo <span className="text-red-500">*</span>
+                    {isTenshiModalMode
+                      ? 'Nombre Interno del Flujo Tenshi'
+                      : 'Nombre de la Tarea / Flujo Autónomo'}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="ej. Vigilancia Drive -> Registro ATEL e Inspecciones"
+                    placeholder={
+                      isTenshiModalMode
+                        ? 'ej. Consulta Rápida Vencimientos EMO por Voz'
+                        : 'ej. Vigilancia Drive -> Registro ATEL e Inspecciones'
+                    }
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     className="w-full px-3.5 py-2 text-sm font-semibold bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
                   />
                 </div>
 
-                {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema (Estilo Oficial ExpandableButton WAPPY) */}
-                {isAdmin && !isPresetModalMode && (
+                {/* Admin: Publicar o Editar como Tarea Preestablecida del Sistema (oculto en modo Flujo Tenshi) */}
+                {isAdmin && !isPresetModalMode && !isTenshiModalMode && (
                   <div className="flex items-center justify-end py-0.5 px-1 shrink-0">
                     <ExpandableButton
                       type="button"
@@ -2531,11 +3271,11 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 )}
               </div>
 
-              {isAdmin && (isPresetModalMode || formSaveAsSystemPreset) && (
+              {isAdmin && (isPresetModalMode || isTenshiModalMode || formSaveAsSystemPreset) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-teal-300/70 dark:border-teal-800/60 bg-teal-50/30 dark:bg-teal-950/20">
                   <div>
                     <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
-                      Categoría del Catálogo Global
+                      {isTenshiModalMode ? 'Categoría Interna' : 'Categoría del Catálogo Global'}
                     </label>
                     <select
                       value={formPresetCategory}
@@ -2551,11 +3291,17 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-teal-800 dark:text-teal-300 uppercase mb-1">
-                      Resumen para los usuarios
+                      {isTenshiModalMode
+                        ? 'Descripción interna para Administradores'
+                        : 'Resumen para los usuarios'}
                     </label>
                     <input
                       type="text"
-                      placeholder="Breve explicación del beneficio..."
+                      placeholder={
+                        isTenshiModalMode
+                          ? 'Cuándo se activa este flujo al hablar o chatear con Tenshi...'
+                          : 'Breve explicación del beneficio...'
+                      }
                       value={formPresetDescription}
                       onChange={(e) => setFormPresetDescription(e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-teal-300 dark:border-teal-700 rounded-lg dark:text-white"
@@ -2568,7 +3314,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <WappyWorkflowCanvas
                 workflowNodes={formWorkflowNodes}
                 onChange={setFormWorkflowNodes}
-                automationId={isPresetModalMode ? null : editingAutomation?._id || null}
+                automationId={
+                  isPresetModalMode || isTenshiModalMode ? null : editingAutomation?._id || null
+                }
+                companyId={activeCompanyId}
+                isAdmin={isAdmin}
+                workflowMode={isTenshiModalMode ? 'tenshi' : isPresetModalMode ? 'preset' : 'standard'}
                 agentId={formAgentId}
                 agentName={agents.find((a) => a.id === formAgentId)?.name || 'Consultor SG-SST'}
                 agents={agents}
@@ -2594,15 +3345,21 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   isPresetModalMode || !editingAutomation ? 'none' : initialCanvasMonitorMode
                 }
                 initialRunId={
-                  isPresetModalMode || !editingAutomation ? null : initialCanvasRunId
+                  isPresetModalMode || isTenshiModalMode || !editingAutomation
+                    ? null
+                    : initialCanvasRunId
                 }
                 lastRunStatus={
-                  isPresetModalMode || !editingAutomation
+                  isPresetModalMode || isTenshiModalMode || !editingAutomation
                     ? undefined
                     : editingAutomation.lastRunStatus
                 }
                 onAutomationStateChange={() => {
-                  void fetchAutomations(true);
+                  if (isTenshiModalMode) {
+                    void fetchTenshiFlows(true);
+                  } else {
+                    void fetchAutomations(true);
+                  }
                   if (activeTab === 'logs') {
                     void fetchLogs(true);
                   }
@@ -2613,7 +3370,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-800 pt-3.5 mt-1">
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300">
                   <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold">
-                    💡 Haz clic en cualquier nodo del lienzo (Cron, Agente IA, Hito SST, Gmail) para abrir su editor propio
+                    {isTenshiModalMode
+                      ? '💡 Haz clic en el nodo Disparador Tenshi para configurar el voiceCommand, y prueba tu flujo en Sandbox antes de activarlo'
+                      : '💡 Haz clic en cualquier nodo del lienzo (Cron, Agente IA, Hito SST, Gmail) para abrir su editor propio'}
                   </span>
                 </div>
 
@@ -2629,11 +3388,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     type="submit"
                     icon={<CheckCircle className="w-4 h-4" />}
                     text={
-                      isPresetModalMode
-                        ? 'Guardar Plantilla Global'
-                        : editingAutomation
-                          ? 'Guardar Cambios'
-                          : 'Guardar Tarea y Flujo'
+                      isTenshiModalMode
+                        ? editingAutomation
+                          ? 'Guardar Cambios Flujo Tenshi'
+                          : 'Guardar Flujo Tenshi'
+                        : isPresetModalMode
+                          ? 'Guardar Plantilla Global'
+                          : editingAutomation
+                            ? 'Guardar Cambios'
+                            : 'Guardar Tarea y Flujo'
                     }
                     variant="violet"
                   />

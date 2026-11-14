@@ -23,6 +23,7 @@ const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
+const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
 const TenshiPendingAction = require('../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
@@ -1187,15 +1188,19 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const isLockedSubUser = Boolean(req.user?.isSubUser && req.user?.assignedCompany);
         let companyInfo = null;
-        if (req.user?.isSubUser && req.user?.assignedCompany) {
+        if (isLockedSubUser) {
             companyInfo = await CompanyInfo.findOne({ _id: req.user.assignedCompany, user: targetUserId }).lean().catch(() => null);
         }
-        if (!companyInfo) {
+        if (!companyInfo && !isLockedSubUser) {
             companyInfo = await resolveActiveCompanyForUser(targetUserId, req.body?.companyId);
         }
-        if (!companyInfo) {
+        if (!companyInfo && !isLockedSubUser) {
             companyInfo = await CompanyInfo.findOne({ user: targetUserId }).lean().catch(() => null);
+        }
+        if (companyInfo?._id) {
+            req.companyId = String(companyInfo._id);
         }
 
         if (!req.body.conversationId) {
@@ -1226,6 +1231,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             proceduralBlock,
             nbSess,
             avatarProfileResult,
+            tenshiFlowsBlock,
         ] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
@@ -1297,6 +1303,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 config,
                 companyInfo?._id ? String(companyInfo._id) : null
             ),
+            buildTenshiFlowsPromptBlock().catch(() => ''),
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
@@ -1660,6 +1667,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
         if (skillInstructions) {
             systemMessage += `\n\n${skillInstructions}`;
+        }
+
+        if (tenshiFlowsBlock) {
+            systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.`;
         }
 
         if (browserState) {
@@ -2256,15 +2267,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const gestorAutomatizacionesDeclaration = {
                 name: 'gestor_automatizaciones',
-                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS en la sección 'Tareas' (/tareas). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea. Pasa exactamente el comando de voz Tenshi o código mencionado (ej: 'Activa el flujo 001' o '001') en automatizacion_id/nombre.",
+                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS en la sección 'Tareas' (/tareas), y ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea. Pasa exactamente el comando de voz Tenshi o código mencionado (ej: 'Activa el flujo 001' o '001') en automatizacion_id/nombre.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
+                        accion: { type: 'STRING', description: 'ejecutar_tenshi, crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
                         nombre: { type: 'STRING', description: 'Nombre del flujo o comando de voz Tenshi exacto dicho por el usuario (ej: "Activa el flujo 001").' },
                         nuevo_nombre: { type: 'STRING', description: 'Nuevo nombre si se desea renombrar la tarea.' },
                         agente_objetivo: { type: 'STRING', description: 'Agente que ejecutará la tarea periódica.' },
                         prompt_a_ejecutar: { type: 'STRING', description: 'Instrucción detallada a ejecutar periódicamente.' },
+                        instruccion_usuario: { type: 'STRING', description: 'Instrucción literal, pregunta o parámetro dicho por el usuario para alimentar el flujo interno Tenshi al ejecutarlo.' },
+                        esperar_resultado: { type: 'BOOLEAN', description: 'Si es true (por defecto en ejecutar_tenshi), espera de forma síncrona el resultado final del flujo para responder al instante en el mismo turno.' },
                         tipo_frecuencia: { type: 'STRING', description: 'daily, weekly, monthly, hourly' },
                         configuracion_horario: {
                             type: 'OBJECT',
@@ -2277,7 +2290,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         },
                         correos_notificacion: { type: 'ARRAY', items: { type: 'STRING' } },
-                        automatizacion_id: { type: 'STRING', description: 'ID de 24 caracteres, comando de voz Tenshi configurado (ej: "Activa el flujo 001" o "001"), título exacto de la tarea, o "todas".' },
+                        automatizacion_id: { type: 'STRING', description: 'ID de 24 caracteres, código o comando de voz Tenshi configurado (ej: "Activa el flujo 001" o "001"), título exacto de la tarea, o "todas".' },
                         nuevo_estado: { type: 'STRING', description: 'active (activar) o inactive (desactivar/pausar)' }
                     },
                     required: ['accion']
@@ -3415,6 +3428,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     toolsToAttach.push(decl);
                 }
             }
+            if (tenshiFlowsBlock && !toolsToAttach.some(d => d.name === 'gestor_automatizaciones')) {
+                toolsToAttach.push(gestorAutomatizacionesDeclaration);
+            }
             logger.info(`[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}): ${toolsToAttach.map(t => t.name).join(', ')}`);
 
             // Rotation loop: outer = models, inner = api keys
@@ -3576,6 +3592,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const MatrizCompatibilidad = require('../../app/clients/tools/structured/MatrizCompatibilidad');
                                     toolOutput = await new MatrizCompatibilidad({ req })._call(call.args);
                                 } else if (call.name === 'gestor_automatizaciones') {
+                                    if (companyInfo?._id && !req.companyId) {
+                                        req.companyId = String(companyInfo._id);
+                                    }
                                     const GestorAutomatizaciones = require('../../app/clients/tools/structured/GestorAutomatizaciones');
                                     toolOutput = await new GestorAutomatizaciones({ req })._call(call.args);
                                 } else if (call.name === 'google_sheets') {
@@ -4235,8 +4254,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         .trim()
                                         .substring(0, 700);
                                     rescuedText = `✅ **Revisión completada: ${lightResponse.titulo || 'Informe del Aplicativo'}**\n\n${cleanExtract ? `${cleanExtract}...\n\n` : ''}Ya tienes el documento técnico oficial adjunto aquí mismo en nuestro chat para que puedas abrirlo, revisarlo en detalle o descargarlo en PDF/Word.`;
-                                } else if (lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
-                                    rescuedText = String(lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
+                                } else if (lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
+                                    rescuedText = String(lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
                                 } else if (capturedFile || capturedHtmlReport) {
                                     rescuedText = `✅ Listo, he revisado y cargado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** directamente aquí en nuestro chat para tu revisión.`;
                                 } else {

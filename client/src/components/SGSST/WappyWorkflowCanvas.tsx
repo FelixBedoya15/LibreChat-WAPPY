@@ -665,6 +665,9 @@ interface WappyWorkflowCanvasProps {
   initialRunId?: string | null;
   lastRunStatus?: string;
   onAutomationStateChange?: () => void;
+  companyId?: string;
+  isAdmin?: boolean;
+  workflowMode?: 'standard' | 'preset' | 'tenshi';
 }
 
 interface VisualNodeInstance {
@@ -829,6 +832,9 @@ export default function WappyWorkflowCanvas({
   initialRunId = null,
   lastRunStatus,
   onAutomationStateChange,
+  companyId: explicitCompanyId,
+  isAdmin = false,
+  workflowMode = 'standard',
 }: WappyWorkflowCanvasProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -3579,11 +3585,15 @@ export default function WappyWorkflowCanvas({
       if (cfg?.upstreamSourceType?.trim()) {
         qs.set('upstreamSourceType', cfg.upstreamSourceType.trim());
       }
+      const resolvedCompanyId =
+        explicitCompanyId?.trim() ||
+        (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '');
+      if (resolvedCompanyId) qs.set('companyId', resolvedCompanyId);
       const ep = cfg?.endpointUrl?.trim() || cfg?.targetUrl?.trim();
       if (ep) qs.set('endpointUrl', ep);
       return `/api/sgsst/automatizaciones/node-live-inspector?${qs.toString()}`;
     },
-    [],
+    [explicitCompanyId],
   );
 
   // Estado y ejecución bajo demanda de Extracción Real IA + Visión OCR Multimodal (`runAiExtraction=1`)
@@ -4326,7 +4336,8 @@ export default function WappyWorkflowCanvas({
 
       onChange({
         ...workflowNodes,
-        trigger: nextTriggers[0] || 'schedule_cron',
+        trigger:
+          nextTriggers[0] || (workflowMode === 'tenshi' ? 'trigger_tenshi' : 'schedule_cron'),
         triggers: nextTriggers,
         extractors: nextExtractors,
         memoryNode: nextMemories[0] || '',
@@ -4720,7 +4731,8 @@ export default function WappyWorkflowCanvas({
       }
       onChange({
         ...workflowNodes,
-        trigger: nextTriggers[0] || 'schedule_cron',
+        trigger:
+          nextTriggers[0] || (workflowMode === 'tenshi' ? 'trigger_tenshi' : 'schedule_cron'),
         triggers: nextTriggers,
         canvasLayout: {
           ...(workflowNodes?.canvasLayout || {}),
@@ -5113,6 +5125,7 @@ export default function WappyWorkflowCanvas({
   const prevHadRunningRealRunRef = useRef<boolean>(false);
 
   const getActiveCompanyIdSafe = useCallback((): string => {
+    if (explicitCompanyId?.trim()) return explicitCompanyId.trim();
     try {
       return typeof window !== 'undefined'
         ? localStorage.getItem('wappy_active_company_id') || ''
@@ -5120,7 +5133,7 @@ export default function WappyWorkflowCanvas({
     } catch {
       return '';
     }
-  }, []);
+  }, [explicitCompanyId]);
 
   const scrollToMonitorPanel = useCallback(() => {
     if (typeof document === 'undefined') return;
@@ -5190,10 +5203,21 @@ export default function WappyWorkflowCanvas({
 
   // Auto-carga y auto-apertura en modo Monitor en Vivo cuando el usuario entra desde la tarjeta o la corrida está corriendo
   useEffect(() => {
-    if (!automationId || compact || readOnly) {
+    if (compact || readOnly) {
       setRealRuns([]);
       return;
     }
+
+    if (!automationId) {
+      setRealRuns([]);
+      if (initialMonitorMode === 'sandbox') {
+        setMonitorSourceMode('sandbox');
+        setSandboxOpen(true);
+        scrollToMonitorPanel();
+      }
+      return;
+    }
+
     prevHadRunningRealRunRef.current = lastRunStatus === 'running';
     void fetchRealRuns(false);
 
@@ -5411,6 +5435,7 @@ export default function WappyWorkflowCanvas({
     }
 
     try {
+      const activeCompId = getActiveCompanyIdSafe();
       const response = await fetch('/api/sgsst/automatizaciones/test-sandbox?stream=1', {
         method: 'POST',
         credentials: 'include',
@@ -5419,7 +5444,14 @@ export default function WappyWorkflowCanvas({
         },
         body: JSON.stringify({
           stream: true,
-          name: 'Simulación en Escenario de Desarrollo',
+          companyId: activeCompId || undefined,
+          workflowMode,
+          isTenshiFlow: workflowMode === 'tenshi',
+          isAdmin,
+          name:
+            workflowMode === 'tenshi'
+              ? 'Simulación Flujo Interno Tenshi'
+              : 'Simulación en Escenario de Desarrollo',
           agentId,
           agentName,
           prompt,
@@ -5525,6 +5557,9 @@ export default function WappyWorkflowCanvas({
     emailsStr,
     workflowNodes,
     mockTriggerInput,
+    getActiveCompanyIdSafe,
+    workflowMode,
+    isAdmin,
   ]);
 
   const doesCanvasNodeMatchKey = useCallback(

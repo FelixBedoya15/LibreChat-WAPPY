@@ -125,6 +125,19 @@ const automationLogSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    isTenshiFlow: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    tenshiFlowName: {
+      type: String,
+      default: '',
+    },
+    userInstruction: {
+      type: String,
+      default: '',
+    },
     processedEntityKeys: {
       type: [String],
       default: [],

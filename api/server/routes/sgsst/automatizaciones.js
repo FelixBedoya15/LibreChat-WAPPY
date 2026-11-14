@@ -26,6 +26,12 @@ const {
   reconcileOrphanedRunningRuns,
 } = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
+const {
+  resolveStrictExecutionContext,
+  listActiveTenshiFlows,
+  matchTenshiFlowByQuery,
+  executeTenshiFlowInstant,
+} = require('~/server/services/tenshiFlowService');
 
 const UserPlan = require('~/db/models/UserPlan');
 
@@ -67,11 +73,15 @@ async function handlePublicAutomationWebhook(req, res) {
       automation = await Automation.findOne({
         _id: automationId,
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       }).lean();
     } else if (candidateSecret) {
       const activeWebhooks = await Automation.find({
         status: 'active',
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       }).lean();
       for (const cand of activeWebhooks) {
         const candTriggers = getAutomationTriggersList(cand);
@@ -263,25 +273,33 @@ router.use(async (req, res, next) => {
   }
 });
 
-// Auxiliar para obtener el ID de la empresa objetivo/activa del usuario (respeta ?companyId= o body.companyId validando pertenencia)
-async function getActiveCompanyId(userId, explicitCompanyId = null, userRole = '') {
-  const cleanExplicit =
-    explicitCompanyId && String(explicitCompanyId).trim() !== 'SYSTEM_PRESET'
-      ? String(explicitCompanyId).trim()
-      : '';
-  if (cleanExplicit && mongoose.Types.ObjectId.isValid(cleanExplicit)) {
-    const query =
-      userRole === 'ADMIN'
-        ? { _id: cleanExplicit }
-        : { _id: cleanExplicit, user: userId };
-    const matched = await CompanyInfo.findOne(query).select('_id').lean();
-    if (matched?._id) {
-      return matched._id.toString();
-    }
-  }
-  let active = await CompanyInfo.findOne({ user: userId, isActive: true }).select('_id').lean();
-  if (!active) active = await CompanyInfo.findOne({ user: userId }).select('_id').lean();
-  return active ? active._id.toString() : null;
+// Auxiliar para obtener el ID de la empresa objetivo/activa del usuario (respeta aislamiento estricto de subusuarios y empresas)
+async function getActiveCompanyId(
+  userId,
+  explicitCompanyId = null,
+  userRole = '',
+  reqUser = null,
+  allowAdminCrossTenant = true,
+) {
+  const effectiveUser =
+    reqUser && typeof reqUser === 'object'
+      ? {
+          ...reqUser,
+          id: String(reqUser.id || reqUser._id || userId || ''),
+          role: reqUser.role || userRole || '',
+        }
+      : {
+          id: String(userId || ''),
+          role: userRole || '',
+        };
+
+  const ctx = await resolveStrictExecutionContext({
+    reqUser: effectiveUser,
+    explicitCompanyId,
+    allowAdminCrossTenant,
+  });
+
+  return ctx?.companyId || null;
 }
 
 // Catálogo oficial auditado de 15 Flujos Maestros del Sistema (Arquitectura DAG n8n de WAPPY IA)
@@ -369,7 +387,7 @@ async function ensureDefaultSystemPresets() {
         const resolvedSchedule = resolvePresetSchedule(preset);
         return {
           updateOne: {
-            filter: { isSystemPreset: true, presetKey: preset.presetKey },
+            filter: { isSystemPreset: true, isTenshiFlow: { $ne: true }, presetKey: preset.presetKey },
             update: {
               $set: {
                 presetCategory: preset.presetCategory,
@@ -385,6 +403,7 @@ async function ensureDefaultSystemPresets() {
               $setOnInsert: {
                 companyId: 'SYSTEM_PRESET',
                 isSystemPreset: true,
+                isTenshiFlow: false,
                 presetKey: preset.presetKey,
                 emails: [],
                 status: 'inactive',
@@ -403,6 +422,7 @@ async function ensureDefaultSystemPresets() {
       if (validPresetKeys.length > 0) {
         await Automation.deleteMany({
           isSystemPreset: true,
+          isTenshiFlow: { $ne: true },
           presetKey: { $nin: validPresetKeys },
         });
       }
@@ -426,6 +446,7 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
     const legacySamples = await Automation.find({
       companyId,
       isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
       name: /^\[Ejemplo Admin\]/i,
       presetKey: { $nin: ADMIN_SAMPLE_PRESET_KEYS },
     })
@@ -439,6 +460,7 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
       const existingCount = await Automation.countDocuments({
         companyId,
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
       });
       if (existingCount > 0) return;
     }
@@ -446,6 +468,7 @@ async function ensureAdminSampleAutomations(user, companyId, force = false) {
     // Si fuerza recarga desde el botón Admin, reemplazamos los ejemplos previos [Ejemplo Admin]
     const oldSamples = await Automation.find({
       companyId,
+      isTenshiFlow: { $ne: true },
       name: /^\[Ejemplo Admin\]/i,
     })
       .select('_id')
@@ -772,6 +795,7 @@ async function ensureSimpleAdminFlow(user, companyId) {
     const existingSimple = await Automation.findOne({
       companyId,
       isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
       $or: [
         { presetKey: 'admin_simple_flow_v1' },
         { adminOnly: true, name: /Flujo Simple/i },
@@ -889,7 +913,7 @@ router.get('/node-live-inspector', async (req, res) => {
       return res.status(400).json({ error: 'El parámetro nodeId es obligatorio.' });
     }
     const explicitCompanyId = req.query.companyId ? String(req.query.companyId).trim() : null;
-    const companyId = await getActiveCompanyId(req.user.id, explicitCompanyId, req.user?.role);
+    const companyId = await getActiveCompanyId(req.user.id, explicitCompanyId, req.user?.role, req.user);
 
     const optStr = (val) =>
       val !== undefined && val !== null && String(val).trim() !== ''
@@ -1021,11 +1045,13 @@ router.get('/node-live-inspector', async (req, res) => {
 
 /**
  * POST /api/sgsst/automatizaciones/trigger-tenshi
- * Dispara automatizaciones del usuario/empresa con `'trigger_tenshi'` cuyo `voiceCommand` o nombre de tarea coincida.
+ * Dispara automatizaciones del usuario/empresa con `'trigger_tenshi'` o Flujos Tenshi globales activos aislados por companyId.
  */
 router.post('/trigger-tenshi', async (req, res) => {
   try {
-    const commandText = String(req.body?.commandText || req.body?.text || '').trim();
+    const commandText = String(
+      req.body?.commandText || req.body?.text || req.body?.userInstruction || '',
+    ).trim();
     const explicitAutomationId = req.body?.automationId ? String(req.body.automationId).trim() : '';
     const requestedChannel = String(req.body?.channel || 'voice').trim().toLowerCase();
     const activateIfInactive = req.body?.activateIfInactive !== false;
@@ -1033,36 +1059,56 @@ router.post('/trigger-tenshi', async (req, res) => {
       return res.status(400).json({ error: 'El parámetro commandText es obligatorio.' });
     }
 
-    const companyId = await getActiveCompanyId(
-      req.user.id,
-      req.body?.companyId || req.query?.companyId,
-      req.user?.role,
-    );
+    const strictCtx = await resolveStrictExecutionContext({
+      reqUser: req.user,
+      reqObj: req,
+      explicitCompanyId: req.body?.companyId || req.query?.companyId,
+      allowAdminCrossTenant: false,
+    });
+    const companyId = strictCtx?.companyId || null;
 
     const queryFilter = {
       isSystemPreset: { $ne: true },
-      ...(companyId ? { companyId } : { user: req.user.id }),
+      isTenshiFlow: { $ne: true },
+      companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
+      ...(companyId ? { companyId } : { user: strictCtx?.tenantOwnerUserId || req.user.id }),
     };
 
     const candidates = await Automation.find(queryFilter).sort({ createdAt: -1 }).lean();
 
     let matched = [];
     let matchSource = null;
+    let companyScore = 0;
+    let selectedTenshiFlow = null;
+    let tenshiMatchSource = null;
 
     if (explicitAutomationId && mongoose.Types.ObjectId.isValid(explicitAutomationId)) {
       const exactDoc = candidates.find((a) => String(a._id) === explicitAutomationId);
       if (exactDoc) {
         matched = [exactDoc];
         matchSource = 'id';
+        companyScore = 100;
+      } else {
+        const tenshiDoc = await Automation.findOne({
+          _id: explicitAutomationId,
+          isTenshiFlow: true,
+          companyId: 'TENSHI_GLOBAL',
+          status: 'active',
+        }).lean();
+        if (tenshiDoc) {
+          selectedTenshiFlow = tenshiDoc;
+          tenshiMatchSource = 'id';
+        }
       }
     }
 
-    if (matched.length === 0 && commandText) {
+    if (matched.length === 0 && !selectedTenshiFlow && commandText) {
       const resolved = resolveAutomationByVoiceOrQuery(candidates, commandText, {
         requireTenshiTrigger: true,
       });
       if (resolved.matches && resolved.matches.length > 0) {
         matchSource = resolved.matchSource;
+        companyScore = Number(resolved.score || 0);
         matched = resolved.matches.filter((auto) => {
           const cfg = extractAutomationTriggerConfigs(auto);
           if (cfg.triggerChannel === 'voice' && requestedChannel === 'chat') return false;
@@ -1070,6 +1116,74 @@ router.post('/trigger-tenshi', async (req, res) => {
           return true;
         });
       }
+
+      const activeTenshiFlows = await listActiveTenshiFlows();
+      const tenshiResolved = await matchTenshiFlowByQuery(commandText, activeTenshiFlows);
+      if (tenshiResolved?.flow) {
+        const tenshiCfg = extractAutomationTriggerConfigs(tenshiResolved.flow);
+        const channelAllowed = !(
+          (tenshiCfg.triggerChannel === 'voice' && requestedChannel === 'chat') ||
+          (tenshiCfg.triggerChannel === 'chat' && requestedChannel === 'voice')
+        );
+        if (channelAllowed && (matched.length === 0 || Number(tenshiResolved.score || 0) > companyScore)) {
+          selectedTenshiFlow = tenshiResolved.flow;
+          tenshiMatchSource = tenshiResolved.matchSource;
+        }
+      }
+    }
+
+    if (selectedTenshiFlow) {
+      if (strictCtx.error || !strictCtx.companyId) {
+        return res.status(400).json({
+          success: false,
+          error: strictCtx.error || 'No hay una empresa activa registrada para tu usuario.',
+        });
+      }
+
+      const shouldWait =
+        req.query?.wait !== undefined
+          ? String(req.query.wait).toLowerCase() !== 'false' && String(req.query.wait) !== '0'
+          : req.body?.wait !== false && String(req.body?.wait || '').toLowerCase() !== 'false';
+      const parsedTimeout = Number(req.body?.waitTimeoutMs || req.query?.waitTimeoutMs);
+      const waitTimeoutMs = shouldWait
+        ? Number.isFinite(parsedTimeout) && parsedTimeout > 0
+          ? Math.min(parsedTimeout, 120000)
+          : 40000
+        : 0;
+
+      const execRes = await executeTenshiFlowInstant({
+        flow: selectedTenshiFlow,
+        context: strictCtx,
+        userInstruction: commandText || selectedTenshiFlow.name,
+        waitTimeoutMs,
+        triggerSource: requestedChannel === 'chat' ? 'tenshi_chat' : 'tenshi_voice',
+      });
+
+      return res.json({
+        success: true,
+        isTenshiFlow: true,
+        triggeredCount: 1,
+        flowId: execRes.flowId,
+        flowName: execRes.flowName,
+        logId: execRes.logId,
+        companyId: execRes.companyId,
+        companyName: execRes.companyName,
+        completedInTurn: execRes.completedInTurn,
+        status: execRes.status || (execRes.completedInTurn ? 'success' : 'running_background'),
+        resultText: execRes.resultText || '',
+        evidenceFiles: Array.isArray(execRes.evidenceFiles) ? execRes.evidenceFiles : [],
+        automations: [
+          {
+            _id: selectedTenshiFlow._id,
+            name: selectedTenshiFlow.name,
+            isTenshiFlow: true,
+            matchedBy: tenshiMatchSource,
+          },
+        ],
+        message: execRes.completedInTurn
+          ? `Flujo Tenshi «${selectedTenshiFlow.name}» ejecutado para ${execRes.companyName || 'tu empresa'}.`
+          : `Flujo Tenshi «${selectedTenshiFlow.name}» iniciado en segundo plano para ${execRes.companyName || 'tu empresa'}.`,
+      });
     }
 
     if (matched.length === 0) {
@@ -1096,6 +1210,8 @@ router.post('/trigger-tenshi', async (req, res) => {
         const activeCount = await Automation.countDocuments({
           user: req.user.id,
           isSystemPreset: { $ne: true },
+          isTenshiFlow: { $ne: true },
+          companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
           status: 'active',
         });
         if (activeCount >= effectiveLimit) {
@@ -1189,17 +1305,26 @@ router.post('/logs/:logId/approve', async (req, res) => {
       ? await Automation.findById(log.automation).lean()
       : null;
 
+    const safeTargetCompanyId =
+      log.companyId && log.companyId !== 'TENSHI_GLOBAL' && log.companyId !== 'SYSTEM_PRESET'
+        ? log.companyId
+        : automation?.companyId &&
+            automation.companyId !== 'TENSHI_GLOBAL' &&
+            automation.companyId !== 'SYSTEM_PRESET'
+          ? automation.companyId
+          : null;
+
     const outputSummary = await executeDownstreamOutputs({
       automation: automation || {
         _id: log.automation,
         name: 'Automatización Aprobada',
         user: log.user,
-        companyId: log.companyId,
+        companyId: safeTargetCompanyId,
         prompt: log.prompt || '',
         emails: req.user?.email ? [req.user.email] : [],
       },
       user: req.user,
-      companyId: log.companyId || automation?.companyId || null,
+      companyId: safeTargetCompanyId,
       outputsToExecute: Array.isArray(payload.outputsToExecute)
         ? payload.outputsToExecute
         : automation?.workflowNodes?.outputs || [],
@@ -1247,7 +1372,7 @@ router.post('/logs/:logId/approve', async (req, res) => {
     log.markModified('executionTrace');
     await log.save();
 
-    if (log.automation) {
+    if (log.automation && !log.isTenshiFlow) {
       await Automation.updateOne(
         { _id: log.automation },
         {
@@ -1261,7 +1386,7 @@ router.post('/logs/:logId/approve', async (req, res) => {
 
     return res.json({
       success: true,
-      log: log.toObject(),
+      log: normalizeAutomationLogRun(log.toObject(), new Set(), req.user?.role),
       outputSummary,
     });
   } catch (error) {
@@ -1322,7 +1447,7 @@ router.post('/logs/:logId/reject', async (req, res) => {
     log.markModified('executionTrace');
     await log.save();
 
-    if (log.automation) {
+    if (log.automation && !log.isTenshiFlow) {
       await Automation.updateOne(
         { _id: log.automation },
         {
@@ -1336,7 +1461,7 @@ router.post('/logs/:logId/reject', async (req, res) => {
 
     return res.json({
       success: true,
-      log: log.toObject(),
+      log: normalizeAutomationLogRun(log.toObject(), new Set(), req.user?.role),
     });
   } catch (error) {
     console.error('[API Automatizaciones] Error rechazando log:', error);
@@ -1373,15 +1498,29 @@ router.post('/test-sandbox', async (req, res) => {
       req.user.id,
       explicitCompanyId || req.query?.companyId,
       req.user?.role,
+      req.user,
+      false,
     );
 
     // Si se pasa un automationId opcional, usarlo como base de respaldo para campos no enviados en el body
     let existingDoc = null;
-    if (automationId) {
+    if (automationId && mongoose.Types.ObjectId.isValid(String(automationId))) {
       try {
-        existingDoc = await Automation.findById(automationId).lean();
+        const candidateDoc = await Automation.findById(automationId).lean();
+        if (candidateDoc && (!candidateDoc.isTenshiFlow || req.user?.role === 'ADMIN')) {
+          existingDoc = candidateDoc;
+        }
       } catch (_) {}
     }
+
+    const existingSafeCompanyId =
+      existingDoc?.companyId &&
+      existingDoc.companyId !== 'TENSHI_GLOBAL' &&
+      existingDoc.companyId !== 'SYSTEM_PRESET' &&
+      mongoose.Types.ObjectId.isValid(String(existingDoc.companyId))
+        ? String(existingDoc.companyId)
+        : null;
+    const effectiveSandboxCompanyId = resolvedCompanyId || existingSafeCompanyId || null;
 
     const writeStreamEvent = (evt) => {
       if (!isStreaming || res.writableEnded) return;
@@ -1415,7 +1554,7 @@ router.post('/test-sandbox', async (req, res) => {
     const simulationResult = await runWorkflowSandboxSimulation(
       {
         user: req.user,
-        companyId: resolvedCompanyId || existingDoc?.companyId || null,
+        companyId: effectiveSandboxCompanyId,
         name: name ?? existingDoc?.name ?? 'Prueba en Escenario de Desarrollo',
         agentId: agentId ?? existingDoc?.agentId ?? 'tenshi_avatar_3d',
         agentName: agentName ?? existingDoc?.agentName ?? 'Tenshi (Avatar 3D)',
@@ -1481,7 +1620,11 @@ router.post('/test-sandbox', async (req, res) => {
 router.get('/presets', async (req, res) => {
   try {
     await ensureDefaultSystemPresets();
-    const presets = await Automation.find({ isSystemPreset: true })
+    const presets = await Automation.find({
+      isSystemPreset: true,
+      isTenshiFlow: { $ne: true },
+      companyId: { $ne: 'TENSHI_GLOBAL' },
+    })
       .sort({ createdAt: 1 })
       .lean();
     res.json(presets);
@@ -1520,6 +1663,7 @@ router.post('/presets', async (req, res) => {
       user: req.user.id,
       companyId: 'SYSTEM_PRESET',
       isSystemPreset: true,
+      isTenshiFlow: false,
       presetKey: `custom_preset_${Date.now()}`,
       presetCategory: presetCategory || 'general',
       presetDescription: presetDescription || '',
@@ -1557,6 +1701,9 @@ router.put('/presets/:id', async (req, res) => {
       return res.status(403).json({ error: 'Solo los administradores pueden editar tareas preestablecidas globales.' });
     }
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de plantilla inválido.' });
+    }
     const {
       name,
       agentId,
@@ -1569,7 +1716,11 @@ router.put('/presets/:id', async (req, res) => {
       workflowNodes,
     } = req.body;
 
-    const preset = await Automation.findOne({ _id: id, isSystemPreset: true });
+    const preset = await Automation.findOne({
+      _id: id,
+      isSystemPreset: true,
+      isTenshiFlow: { $ne: true },
+    });
     if (!preset) {
       return res.status(404).json({ error: 'No se encontró la tarea preestablecida.' });
     }
@@ -1602,7 +1753,14 @@ router.delete('/presets/:id', async (req, res) => {
       return res.status(403).json({ error: 'Solo los administradores pueden eliminar tareas preestablecidas globales.' });
     }
     const { id } = req.params;
-    const result = await Automation.deleteOne({ _id: id, isSystemPreset: true });
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de plantilla inválido.' });
+    }
+    const result = await Automation.deleteOne({
+      _id: id,
+      isSystemPreset: true,
+      isTenshiFlow: { $ne: true },
+    });
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'No se encontró la tarea preestablecida para eliminar.' });
     }
@@ -1620,18 +1778,26 @@ router.delete('/presets/:id', async (req, res) => {
 router.post('/presets/:id/install', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de plantilla inválido.' });
+    }
     const { activateImmediately = false, emails, companyId: explicitCompanyId } = req.body || {};
 
     const companyId = await getActiveCompanyId(
       req.user.id,
       explicitCompanyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario. Registre su empresa primero.' });
     }
 
-    const preset = await Automation.findOne({ _id: id, isSystemPreset: true }).lean();
+    const preset = await Automation.findOne({
+      _id: id,
+      isSystemPreset: true,
+      isTenshiFlow: { $ne: true },
+    }).lean();
     if (!preset) {
       return res.status(404).json({ error: 'No se encontró la plantilla de tarea preestablecida.' });
     }
@@ -1640,6 +1806,8 @@ router.post('/presets/:id/install', async (req, res) => {
     const activeCount = await Automation.countDocuments({
       user: req.user.id,
       isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+      companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       status: 'active',
     });
 
@@ -1661,6 +1829,7 @@ router.post('/presets/:id/install', async (req, res) => {
       user: req.user.id,
       companyId,
       isSystemPreset: false,
+      isTenshiFlow: false,
       presetCategory: preset.presetCategory || 'general',
       presetDescription: preset.presetDescription || '',
       name: preset.name,
@@ -1693,13 +1862,348 @@ router.post('/presets/:id/install', async (req, res) => {
   }
 });
 
+// =========================================================================
+// RUTAS EXCLUSIVAS DE ADMINISTRADOR: FLUJOS INTERNOS GLOBALES TENSHI
+// =========================================================================
+
+/**
+ * GET /api/sgsst/automatizaciones/tenshi-flows
+ * Exclusivo ADMIN: Lista todos los Flujos Tenshi globales internos.
+ */
+router.get('/tenshi-flows', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: gestión de Flujos Tenshi.',
+      });
+    }
+    const flows = await Automation.find({
+      isTenshiFlow: true,
+      companyId: 'TENSHI_GLOBAL',
+    })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+    return res.json(flows);
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error listando:', error);
+    return res.status(500).json({ error: 'Error al listar los Flujos Tenshi globales.' });
+  }
+});
+
+/**
+ * POST /api/sgsst/automatizaciones/tenshi-flows
+ * Exclusivo ADMIN: Crea un Flujo Tenshi global (sin consumo de límite de plan ni vínculo a empresa).
+ */
+router.post('/tenshi-flows', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: creación de Flujos Tenshi.',
+      });
+    }
+    const {
+      name,
+      agentId,
+      agentName,
+      prompt,
+      scheduleType,
+      scheduleConfig,
+      presetCategory,
+      presetDescription,
+      workflowNodes,
+      status,
+      emails,
+    } = req.body || {};
+
+    if (!name || !String(name).trim() || !prompt || !String(prompt).trim()) {
+      return res.status(400).json({
+        error: 'Faltan campos obligatorios: name y prompt son necesarios para crear el Flujo Tenshi.',
+      });
+    }
+
+    const baseWorkflowNodes =
+      workflowNodes && typeof workflowNodes === 'object'
+        ? {
+            ...workflowNodes,
+            trigger: workflowNodes.trigger || 'trigger_tenshi',
+            triggers:
+              Array.isArray(workflowNodes.triggers) && workflowNodes.triggers.length > 0
+                ? workflowNodes.triggers
+                : [workflowNodes.trigger || 'trigger_tenshi'],
+          }
+        : {
+            trigger: 'trigger_tenshi',
+            triggers: ['trigger_tenshi'],
+            extractors: [],
+            inputs: [],
+            hitos: [],
+            outputs: [],
+          };
+
+    const flow = await Automation.create({
+      user: req.user.id,
+      companyId: 'TENSHI_GLOBAL',
+      isTenshiFlow: true,
+      isSystemPreset: false,
+      adminOnly: true,
+      presetKey: `tenshi_flow_${Date.now()}`,
+      presetCategory: presetCategory || 'tenshi_global',
+      presetDescription: presetDescription || '',
+      name: String(name).trim(),
+      agentId: (agentId && String(agentId).trim()) || 'tenshi_avatar_orchestrator',
+      agentName: (agentName && String(agentName).trim()) || '🐱 Tenshi Avatar (Voz y Orquestador 3D)',
+      prompt: String(prompt).trim(),
+      scheduleType: scheduleType || 'daily',
+      scheduleConfig: scheduleConfig || { hour: 8, minute: 0 },
+      workflowNodes: baseWorkflowNodes,
+      emails: Array.isArray(emails) ? emails : [],
+      status: status === 'inactive' ? 'inactive' : 'active',
+      nextRunAt: null,
+    });
+
+    return res.status(201).json(flow);
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error creando:', error);
+    return res.status(500).json({ error: 'Error al crear el Flujo Tenshi global.' });
+  }
+});
+
+/**
+ * PUT /api/sgsst/automatizaciones/tenshi-flows/:id
+ * Exclusivo ADMIN: Actualiza un Flujo Tenshi global interno.
+ */
+router.put('/tenshi-flows/:id', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: edición de Flujos Tenshi.',
+      });
+    }
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de Flujo Tenshi inválido.' });
+    }
+
+    const flow = await Automation.findOne({
+      _id: id,
+      isTenshiFlow: true,
+      companyId: 'TENSHI_GLOBAL',
+    });
+    if (!flow) {
+      return res.status(404).json({ error: 'Flujo Tenshi no encontrado.' });
+    }
+
+    const {
+      name,
+      agentId,
+      agentName,
+      prompt,
+      scheduleType,
+      scheduleConfig,
+      presetCategory,
+      presetDescription,
+      workflowNodes,
+      status,
+      emails,
+    } = req.body || {};
+
+    if (name !== undefined && String(name).trim()) flow.name = String(name).trim();
+    if (agentId !== undefined && String(agentId).trim()) flow.agentId = String(agentId).trim();
+    if (agentName !== undefined) flow.agentName = String(agentName || '').trim();
+    if (prompt !== undefined) flow.prompt = String(prompt || '').trim();
+    if (scheduleType !== undefined) flow.scheduleType = scheduleType;
+    if (scheduleConfig !== undefined) flow.scheduleConfig = scheduleConfig;
+    if (presetCategory !== undefined) flow.presetCategory = presetCategory;
+    if (presetDescription !== undefined) flow.presetDescription = presetDescription;
+    if (emails !== undefined && Array.isArray(emails)) flow.emails = emails;
+    if (workflowNodes !== undefined && workflowNodes && typeof workflowNodes === 'object') {
+      flow.workflowNodes = {
+        ...workflowNodes,
+        trigger: workflowNodes.trigger || 'trigger_tenshi',
+        triggers:
+          Array.isArray(workflowNodes.triggers) && workflowNodes.triggers.length > 0
+            ? workflowNodes.triggers
+            : [workflowNodes.trigger || 'trigger_tenshi'],
+      };
+    }
+    if (status === 'active' || status === 'inactive') {
+      flow.status = status;
+    }
+
+    flow.isTenshiFlow = true;
+    flow.isSystemPreset = false;
+    flow.companyId = 'TENSHI_GLOBAL';
+    flow.nextRunAt = null;
+
+    await flow.save();
+    return res.json(flow);
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error actualizando:', error);
+    return res.status(500).json({ error: 'Error al actualizar el Flujo Tenshi global.' });
+  }
+});
+
+/**
+ * PATCH /api/sgsst/automatizaciones/tenshi-flows/:id/toggle
+ * Exclusivo ADMIN: Alterna o fija el estado (active / inactive) de un Flujo Tenshi global.
+ */
+router.patch('/tenshi-flows/:id/toggle', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: activación de Flujos Tenshi.',
+      });
+    }
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de Flujo Tenshi inválido.' });
+    }
+
+    const flow = await Automation.findOne({
+      _id: id,
+      isTenshiFlow: true,
+      companyId: 'TENSHI_GLOBAL',
+    });
+    if (!flow) {
+      return res.status(404).json({ error: 'Flujo Tenshi no encontrado.' });
+    }
+
+    const requestedStatus = req.body?.status;
+    if (requestedStatus === 'active' || requestedStatus === 'inactive') {
+      flow.status = requestedStatus;
+    } else {
+      flow.status = flow.status === 'active' ? 'inactive' : 'active';
+    }
+    flow.nextRunAt = null;
+
+    await flow.save();
+    return res.json(flow);
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error en toggle:', error);
+    return res.status(500).json({ error: 'Error al cambiar el estado del Flujo Tenshi.' });
+  }
+});
+
+/**
+ * DELETE /api/sgsst/automatizaciones/tenshi-flows/:id
+ * Exclusivo ADMIN: Elimina un Flujo Tenshi global (conserva historial por defecto o limpia logs si ?deleteLogs=true).
+ */
+router.delete('/tenshi-flows/:id', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: eliminación de Flujos Tenshi.',
+      });
+    }
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de Flujo Tenshi inválido.' });
+    }
+
+    const result = await Automation.deleteOne({
+      _id: id,
+      isTenshiFlow: true,
+      companyId: 'TENSHI_GLOBAL',
+    });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Flujo Tenshi no encontrado para eliminar.' });
+    }
+
+    const shouldDeleteLogs =
+      String(req.query?.deleteLogs || req.body?.deleteLogs || '').toLowerCase() === 'true';
+    if (shouldDeleteLogs) {
+      await AutomationLog.deleteMany({ automation: id, isTenshiFlow: true });
+    }
+
+    return res.json({
+      success: true,
+      deletedLogs: shouldDeleteLogs,
+      message: 'Flujo Tenshi eliminado correctamente.',
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error eliminando:', error);
+    return res.status(500).json({ error: 'Error al eliminar el Flujo Tenshi global.' });
+  }
+});
+
+/**
+ * GET /api/sgsst/automatizaciones/tenshi-flows/:id/runs
+ * Exclusivo ADMIN: Historial de ejecuciones de un Flujo Tenshi global (opcional ?companyId= para filtrar por empresa).
+ */
+router.get('/tenshi-flows/:id/runs', async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Acceso exclusivo para administradores: historial de Flujos Tenshi.',
+      });
+    }
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de Flujo Tenshi inválido.' });
+    }
+
+    const flow = await Automation.findOne({
+      _id: id,
+      isTenshiFlow: true,
+      companyId: 'TENSHI_GLOBAL',
+    }).lean();
+    if (!flow) {
+      return res.status(404).json({ error: 'Flujo Tenshi no encontrado.' });
+    }
+
+    const rawCompanyFilter = String(req.query?.companyId || '').trim();
+    const companyFilter =
+      rawCompanyFilter &&
+      rawCompanyFilter !== 'TENSHI_GLOBAL' &&
+      rawCompanyFilter !== 'SYSTEM_PRESET' &&
+      mongoose.Types.ObjectId.isValid(rawCompanyFilter)
+        ? rawCompanyFilter
+        : null;
+
+    await reconcileOrphanedRunningRuns({
+      automationId: flow._id,
+      ...(companyFilter ? { companyId: companyFilter } : {}),
+    });
+
+    const parsedLimit = Number.parseInt(String(req.query?.limit || '50'), 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 50;
+
+    const logFilter = {
+      automation: flow._id,
+      ...(companyFilter ? { companyId: companyFilter } : {}),
+    };
+
+    const { activeLogIds } = getActiveRunningSnapshot();
+    const activeLogIdsSet = new Set(activeLogIds);
+
+    const rawLogs = await AutomationLog.find(logFilter)
+      .sort({ runAt: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return res.json({
+      flow,
+      automation: flow,
+      runs: rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet, req.user?.role)),
+    });
+  } catch (error) {
+    console.error('[API Automatizaciones TenshiFlows] Error listando corridas:', error);
+    return res.status(500).json({ error: 'Error al consultar las corridas del Flujo Tenshi.' });
+  }
+});
+
 /**
  * GET /api/sgsst/automatizaciones
  * Lista todas las automatizaciones configuradas para la empresa activa del usuario.
  */
 router.get('/', async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.query?.companyId,
+      req.user?.role,
+      req.user,
+    );
     if (!companyId) {
       return res.json([]);
     }
@@ -1709,6 +2213,7 @@ router.get('/', async (req, res) => {
       const hasLegacyAdminSamples = await Automation.exists({
         companyId,
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
         name: /^\[Ejemplo Admin\]/i,
         presetKey: { $nin: ADMIN_SAMPLE_PRESET_KEYS },
       });
@@ -1723,6 +2228,7 @@ router.get('/', async (req, res) => {
     const findQuery = {
       companyId,
       isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
       ...(req.user?.role !== 'ADMIN' ? { adminOnly: { $ne: true } } : {}),
     };
 
@@ -1781,6 +2287,8 @@ router.post('/', async (req, res) => {
     const activeCount = await Automation.countDocuments({
       user: req.user.id,
       isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+      companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       status: 'active',
     });
     if (activeCount >= effectiveLimit) {
@@ -1793,6 +2301,7 @@ router.post('/', async (req, res) => {
       req.user.id,
       explicitCompanyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario. Registre su empresa primero.' });
@@ -1812,6 +2321,7 @@ router.post('/', async (req, res) => {
       user: req.user.id,
       companyId,
       isSystemPreset: false,
+      isTenshiFlow: false,
       presetCategory: presetCategory || 'general',
       presetDescription: presetDescription || '',
       name,
@@ -1832,6 +2342,7 @@ router.post('/', async (req, res) => {
         user: req.user.id,
         companyId: 'SYSTEM_PRESET',
         isSystemPreset: true,
+        isTenshiFlow: false,
         presetKey: `custom_preset_${Date.now()}`,
         presetCategory: presetCategory || 'general',
         presetDescription: presetDescription || '',
@@ -1867,6 +2378,9 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de automatización inválido.' });
+    }
     const {
       name,
       agentId,
@@ -1886,17 +2400,26 @@ router.put('/:id', async (req, res) => {
       req.user.id,
       req.body?.companyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
-    let automation = await Automation.findOne({
-      _id: id,
-      companyId,
-      isSystemPreset: { $ne: true },
-    });
+    let automation = companyId
+      ? await Automation.findOne({
+          _id: id,
+          $and: [
+            { companyId },
+            { companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] } },
+          ],
+          isSystemPreset: { $ne: true },
+          isTenshiFlow: { $ne: true },
+        })
+      : null;
     if (!automation) {
       automation = await Automation.findOne({
         _id: id,
         ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       });
     }
 
@@ -1931,6 +2454,8 @@ router.put('/:id', async (req, res) => {
         const activeCount = await Automation.countDocuments({
           user: req.user.id,
           isSystemPreset: { $ne: true },
+          isTenshiFlow: { $ne: true },
+          companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
           status: 'active',
         });
         if (activeCount >= effectiveLimit) {
@@ -1963,6 +2488,7 @@ router.put('/:id', async (req, res) => {
         user: req.user.id,
         companyId: 'SYSTEM_PRESET',
         isSystemPreset: true,
+        isTenshiFlow: false,
         presetKey: `custom_preset_${Date.now()}`,
         presetCategory: automation.presetCategory || 'general',
         presetDescription: automation.presetDescription || '',
@@ -1993,18 +2519,29 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de automatización inválido.' });
+    }
     const companyId = await getActiveCompanyId(
       req.user.id,
       req.query?.companyId || req.body?.companyId,
       req.user?.role,
+      req.user,
     );
 
-    let result = await Automation.deleteOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    let result = await Automation.deleteOne({
+      _id: id,
+      companyId,
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    });
     if (result.deletedCount === 0) {
       result = await Automation.deleteOne({
         _id: id,
         ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       });
     }
     if (result.deletedCount === 0) {
@@ -2028,18 +2565,29 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/run', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de automatización inválido.' });
+    }
     const companyId = await getActiveCompanyId(
       req.user.id,
       req.body?.companyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
 
-    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    let automation = await Automation.findOne({
+      _id: id,
+      companyId,
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    });
     if (!automation) {
       automation = await Automation.findOne({
         _id: id,
         ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       });
     }
     if (!automation) {
@@ -2129,18 +2677,29 @@ router.post('/:id/run', async (req, res) => {
 router.post('/:id/stop', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id || ''))) {
+      return res.status(400).json({ error: 'ID de automatización inválido.' });
+    }
     const companyId = await getActiveCompanyId(
       req.user.id,
       req.body?.companyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
 
-    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } });
+    let automation = await Automation.findOne({
+      _id: id,
+      companyId,
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    });
     if (!automation) {
       automation = await Automation.findOne({
         _id: id,
         ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       });
     }
     if (!automation) {
@@ -2168,12 +2727,19 @@ router.post('/seed-admin-examples', async (req, res) => {
       req.user.id,
       req.body?.companyId || req.query?.companyId,
       req.user?.role,
+      req.user,
     );
     if (!companyId) {
       return res.status(400).json({ error: 'No se encontró una empresa asociada para su usuario.' });
     }
     await ensureAdminSampleAutomations(req.user, companyId, true);
-    const automations = await Automation.find({ companyId }).sort({ createdAt: -1 }).lean();
+    const automations = await Automation.find({
+      companyId,
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, automations });
   } catch (error) {
     console.error('[API Automatizaciones] Error seeding admin examples:', error);
@@ -2181,7 +2747,7 @@ router.post('/seed-admin-examples', async (req, res) => {
   }
 });
 
-function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set()) {
+function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set(), viewerRole = '') {
   if (!logDoc) return null;
   const files =
     Array.isArray(logDoc.evidenceFiles) && logDoc.evidenceFiles.length > 0
@@ -2189,6 +2755,29 @@ function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set()) {
       : Array.isArray(logDoc.evidences)
         ? logDoc.evidences
         : [];
+  const logIdStr = String(logDoc._id || '');
+  const isConfidentialTenshiRun = Boolean(logDoc.isTenshiFlow) && viewerRole !== 'ADMIN';
+
+  if (isConfidentialTenshiRun) {
+    return {
+      ...logDoc,
+      prompt: logDoc.userInstruction || logDoc.tenshiFlowName || 'Consulta ejecutada con Tenshi',
+      evidenceFiles: files,
+      evidences: files,
+      liveSteps: [],
+      executionTrace: null,
+      pendingApprovalPayload: null,
+      completedNodeKeys: [],
+      blockedNodeKeys: [],
+      skippedNodeKeys: [],
+      activeStepNodeKey: null,
+      currentStageLabel:
+        logDoc.status === 'running' ? 'Procesando consulta con Tenshi...' : 'Completado',
+      isActivelyRunningInProcess:
+        logDoc.status === 'running' && activeLogIdsSet.has(logIdStr),
+    };
+  }
+
   const liveSteps = Array.isArray(logDoc.liveSteps) ? logDoc.liveSteps : [];
   const completedNodeKeys = Array.isArray(logDoc.completedNodeKeys)
     ? logDoc.completedNodeKeys
@@ -2199,7 +2788,6 @@ function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set()) {
   const skippedNodeKeys = Array.isArray(logDoc.skippedNodeKeys)
     ? logDoc.skippedNodeKeys
     : [];
-  const logIdStr = String(logDoc._id || '');
   return {
     ...logDoc,
     evidenceFiles: files,
@@ -2219,7 +2807,12 @@ function normalizeAutomationLogRun(logDoc, activeLogIdsSet = new Set()) {
  */
 router.get('/logs', async (req, res) => {
   try {
-    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.query?.companyId,
+      req.user?.role,
+      req.user,
+    );
     if (!companyId) {
       return res.json([]);
     }
@@ -2240,7 +2833,9 @@ router.get('/logs', async (req, res) => {
       .limit(50) // Capped a las últimas 50 corridas
       .lean();
 
-    const logs = rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet));
+    const logs = rawLogs.map((l) =>
+      normalizeAutomationLogRun(l, activeLogIdsSet, req.user?.role),
+    );
 
     res.json(logs);
   } catch (error) {
@@ -2261,16 +2856,21 @@ router.get('/runs/:logId', async (req, res) => {
     }
 
     const prelimLog = await AutomationLog.findById(logId)
-      .select('_id automation user companyId status')
+      .select('_id automation user companyId status isTenshiFlow')
       .lean();
     if (!prelimLog) {
       return res.status(404).json({ error: 'Corrida de automatización no encontrada.' });
     }
 
-    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.query?.companyId,
+      req.user?.role,
+      req.user,
+    );
     const hasAccess =
       req.user?.role === 'ADMIN' ||
-      String(prelimLog.user || '') === String(req.user.id || '') ||
+      (!req.user?.isSubUser && String(prelimLog.user || '') === String(req.user.id || '')) ||
       (companyId && String(prelimLog.companyId || '') === String(companyId));
     if (!hasAccess) {
       return res.status(403).json({ error: 'No tienes permiso para consultar esta ejecución.' });
@@ -2290,7 +2890,7 @@ router.get('/runs/:logId', async (req, res) => {
       return res.status(404).json({ error: 'Corrida de automatización no encontrada.' });
     }
 
-    res.json(normalizeAutomationLogRun(freshLog, activeLogIdsSet));
+    res.json(normalizeAutomationLogRun(freshLog, activeLogIdsSet, req.user?.role));
   } catch (error) {
     console.error('[API Automatizaciones Runs] Error getting live run:', error);
     res.status(500).json({ error: 'Error al consultar el estado de la corrida.' });
@@ -2308,13 +2908,25 @@ router.get('/:id/runs', async (req, res) => {
       return res.status(400).json({ error: 'ID de automatización inválido.' });
     }
 
-    const companyId = await getActiveCompanyId(req.user.id, req.query?.companyId, req.user?.role);
-    let automation = await Automation.findOne({ _id: id, companyId, isSystemPreset: { $ne: true } }).lean();
+    const companyId = await getActiveCompanyId(
+      req.user.id,
+      req.query?.companyId,
+      req.user?.role,
+      req.user,
+    );
+    let automation = await Automation.findOne({
+      _id: id,
+      companyId,
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    }).lean();
     if (!automation) {
       automation = await Automation.findOne({
         _id: id,
         ...(req.user?.role === 'ADMIN' ? {} : { user: req.user.id }),
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
+        companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       }).lean();
     }
     if (!automation) {
@@ -2353,7 +2965,7 @@ router.get('/:id/runs', async (req, res) => {
               activeAutoSet.has(String(refreshedAutomation._id)),
           }
         : null,
-      runs: rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet)),
+      runs: rawLogs.map((l) => normalizeAutomationLogRun(l, activeLogIdsSet, req.user?.role)),
     });
   } catch (error) {
     console.error('[API Automatizaciones Runs] Error listing flow runs:', error);

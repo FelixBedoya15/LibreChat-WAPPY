@@ -10,11 +10,11 @@ class GestorAutomatizaciones extends Tool {
     super();
     this.name = 'gestor_automatizaciones';
     this.description =
-      'Permite al agente crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar TAREAS programadas (antes llamadas "Automatizaciones IA") en WAPPY. Se ven en la sección "Tareas" del menú lateral, justo debajo de "Centro de Control SST" (ruta /tareas; historial en /tareas?tab=historial). Úsala cuando el usuario te pida programar recordatorios, inspecciones, auditorías o tareas autónomas periódicas que deban ejecutarse en segundo plano.';
+      'Permite al agente ejecutar Flujos Tenshi internos al instante (accion="ejecutar_tenshi") y crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar TAREAS programadas (antes llamadas "Automatizaciones IA") en WAPPY (/tareas; historial en /tareas?tab=historial). Usa "ejecutar_tenshi" cuando la solicitud del usuario coincida con un flujo interno asignado; usa las demás acciones cuando pida gestionar o programar sus tareas periódicas.';
     this.req = fields.req;
     this.schema = z.object({
-      accion: z.string().describe('Acción a realizar: "crear", "listar", "actualizar", "activar", "desactivar", "pausar", "activar_todas", "desactivar_todas", "eliminar", "eliminar_todas", "ejecutar_ahora", "detener" o "ver_logs".'),
-      nombre: z.string().optional().describe('Nombre de la tarea/automatización (para crearla o para buscarla por su título en pantalla si no tienes el ID).'),
+      accion: z.string().describe('Acción a realizar: "ejecutar_tenshi", "crear", "listar", "actualizar", "activar", "desactivar", "pausar", "activar_todas", "desactivar_todas", "eliminar", "eliminar_todas", "ejecutar_ahora", "detener" o "ver_logs".'),
+      nombre: z.string().optional().describe('Nombre de la tarea/automatización o flujo Tenshi (para crearla o buscarla por su título/alias si no tienes el ID).'),
       nuevo_nombre: z.string().optional().describe('Nuevo nombre si deseas renombrar una tarea/automatización existente.'),
       agente_objetivo: z.string().optional().describe('Nombre o ID del agente que ejecutará la tarea (ej. "Consultor SG-SST", "Médico Laboral", "Auditor SG-SST" o "yo" para el agente actual). Si no se especifica, se asigna al agente actual o al Consultor SG-SST.'),
       prompt_a_ejecutar: z.string().optional().describe('Instrucción o prompt detallado y completo que el agente ejecutará en segundo plano cada vez que se dispare la tarea. OBLIGATORIO si accion="crear".'),
@@ -28,7 +28,9 @@ class GestorAutomatizaciones extends Tool {
       }).optional().describe('Configuración específica del horario de ejecución.'),
       correos_notificacion: z.array(z.string()).optional().describe('Lista de correos electrónicos a los que se enviará automáticamente el informe o resultado de la ejecución.'),
       automatizacion_id: z.string().optional().describe('ID de 24 caracteres, nombre/título de la tarea en pantalla, o "todas" para operar sobre todas las tareas.'),
-      nuevo_estado: z.string().optional().describe('Nuevo estado deseado: "active" (activada) o "inactive" (pausada/desactivada).')
+      nuevo_estado: z.string().optional().describe('Nuevo estado deseado: "active" (activada) o "inactive" (pausada/desactivada).'),
+      instruccion_usuario: z.string().optional().describe('Instrucción literal, pregunta o parámetro dicho por el usuario para alimentar el flujo al ejecutarlo'),
+      esperar_resultado: z.boolean().optional().describe('Si es true (por defecto en ejecutar_tenshi), espera de forma síncrona el resultado final del flujo para responder al instante en el mismo turno')
     });
   }
 
@@ -54,7 +56,9 @@ class GestorAutomatizaciones extends Tool {
     let forcedStatus = undefined;
     let forcedAll = false;
 
-    if (['crear', 'create', 'programar', 'nueva', 'agregar', 'anadir'].includes(act)) {
+    if (['ejecutar_tenshi', 'tenshi', 'flujo_tenshi', 'run_tenshi'].includes(act)) {
+      accion = 'ejecutar_tenshi';
+    } else if (['crear', 'create', 'programar', 'nueva', 'agregar', 'anadir'].includes(act)) {
       accion = 'crear';
     } else if (['listar', 'list', 'consultar', 'ver', 'mostrar'].includes(act)) {
       accion = 'listar';
@@ -100,15 +104,17 @@ class GestorAutomatizaciones extends Tool {
     return { accion, nuevo_estado, forcedAll };
   }
 
-  async _findCompanyAutomations(companyId, userId) {
-    let list = await Automation.find({ companyId, isSystemPreset: { $ne: true } }).sort({ createdAt: -1 });
-    if ((!list || list.length === 0) && userId) {
-      list = await Automation.find({
-        user: userId,
-        isSystemPreset: { $ne: true },
-        companyId: { $ne: 'SYSTEM_PRESET' },
-      }).sort({ createdAt: -1 });
-    }
+  _buildSafeCompanyFilter(companyId) {
+    return {
+      companyId: { $eq: String(companyId), $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
+      isSystemPreset: { $ne: true },
+      isTenshiFlow: { $ne: true },
+    };
+  }
+
+  async _findCompanyAutomations(companyId, _userId) {
+    if (!companyId) return [];
+    const list = await Automation.find(this._buildSafeCompanyFilter(companyId)).sort({ createdAt: -1 });
     return list || [];
   }
 
@@ -138,7 +144,7 @@ class GestorAutomatizaciones extends Tool {
       if (byId) {
         return { matches: [byId], isBulk: false, usedNameAsQuery: false, matchSource: 'id', matchedVoiceCommand: null };
       }
-      const directById = await Automation.findOne({ _id: rawId, $or: [{ companyId }, { user: userId }] });
+      const directById = await Automation.findOne({ _id: rawId, ...this._buildSafeCompanyFilter(companyId) });
       if (directById) {
         return { matches: [directById], isBulk: false, usedNameAsQuery: false, matchSource: 'id', matchedVoiceCommand: null };
       }
@@ -163,18 +169,67 @@ class GestorAutomatizaciones extends Tool {
   }
 
   async _getActiveCompanyId(userId) {
-    if (!userId) return null;
-    const explicitCompanyId =
-      this.req?.companyId ||
-      this.req?.body?.companyId ||
-      (this.req?.user?.isSubUser && this.req?.user?.assignedCompany ? this.req.user.assignedCompany : null);
-    if (explicitCompanyId && this._isObjectId(explicitCompanyId)) {
-      const explicit = await CompanyInfo.findOne({ _id: explicitCompanyId, user: userId });
-      if (explicit) return explicit._id.toString();
+    if (!userId && !this.req?.user) return null;
+    const { resolveStrictExecutionContext } = require('~/server/services/tenshiFlowService');
+    const reqUser = this.req?.user || { id: userId, _id: userId };
+    const ctx = await resolveStrictExecutionContext({ reqUser, reqObj: this.req });
+    return ctx?.companyId || null;
+  }
+
+  async _executeMatchedTenshiFlow({ flow, strictCtx, userInstruction = '', esperar_resultado = true }) {
+    const { executeTenshiFlowInstant } = require('~/server/services/tenshiFlowService');
+    const isVoice = Boolean(this.req?.isVoiceSession);
+    const waitTimeoutMs = esperar_resultado === false ? 0 : (isVoice ? 25000 : 45000);
+    const triggerSource = isVoice ? 'tenshi_voice' : 'tenshi_flow_instant';
+
+    try {
+      const execRes = await executeTenshiFlowInstant({
+        flow,
+        context: strictCtx,
+        userInstruction: String(userInstruction || '').trim(),
+        waitTimeoutMs,
+        triggerSource,
+      });
+
+      if (execRes?.completedInTurn === false || execRes?.status === 'running_background') {
+        return JSON.stringify({
+          success: true,
+          mode: 'background_continued',
+          flujo: execRes?.flowName || flow?.name || 'Flujo Tenshi',
+          empresa: strictCtx.companyName,
+          companyId: strictCtx.companyId,
+          logId: execRes?.logId || null,
+          mensaje:
+            'El flujo sigue procesando en segundo plano y quedará guardado en Historial de Ejecuciones de la empresa.',
+        });
+      }
+
+      if (execRes?.status === 'success') {
+        return JSON.stringify({
+          success: true,
+          mode: 'instant',
+          flujo: execRes.flowName || flow?.name || 'Flujo Tenshi',
+          empresa: strictCtx.companyName,
+          companyId: strictCtx.companyId,
+          logId: execRes.logId || null,
+          rama: execRes.branchTaken || null,
+          enlacesWorkspace: execRes.workspaceLinks || [],
+          evidencias: execRes.evidenceFiles || [],
+          resultado: execRes.resultText || '',
+          mensaje:
+            'Flujo ejecutado al instante. Usa el campo "resultado" para responderle directamente al usuario.',
+        });
+      }
+
+      return JSON.stringify({
+        error: execRes?.error || 'Error ejecutando el flujo interno.',
+        logId: execRes?.logId || null,
+      });
+    } catch (flowErr) {
+      return JSON.stringify({
+        error: flowErr?.message || 'Error ejecutando el flujo interno.',
+      });
     }
-    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
-    if (!active) active = await CompanyInfo.findOne({ user: userId });
-    return active ? active._id.toString() : null;
   }
 
   async _getEffectiveAutomationLimit(userId) {
@@ -253,19 +308,32 @@ class GestorAutomatizaciones extends Tool {
         hasCronTrigger,
         extractAutomationTriggerConfigs,
       } = require('~/server/services/automationScheduler');
-      const userId = this.req?.user?.id;
-      if (!userId) {
+      const {
+        resolveStrictExecutionContext,
+        listActiveTenshiFlows,
+        matchTenshiFlowByQuery,
+      } = require('~/server/services/tenshiFlowService');
+
+      const callerUserId = this.req?.user?.id || this.req?.user?._id;
+      if (!callerUserId) {
         return JSON.stringify({
           error: 'No se encontró un usuario autenticado para gestionar las automatizaciones.'
         });
       }
 
-      const companyId = await this._getActiveCompanyId(userId);
-      if (!companyId) {
+      const strictCtx = await resolveStrictExecutionContext({
+        reqUser: this.req?.user,
+        reqObj: this.req,
+      });
+      if (strictCtx?.error || !strictCtx?.companyId) {
         return JSON.stringify({
-          error: 'No se encontró una empresa asociada a tu usuario. Por favor registra los datos de tu empresa en WAPPY primero.'
+          error: strictCtx?.error || 'No se encontró una empresa asociada a tu usuario. Por favor registra los datos de tu empresa en WAPPY primero.'
         });
       }
+
+      const companyId = strictCtx.companyId;
+      const userId = strictCtx.tenantOwnerUserId || String(callerUserId);
+      const isAdminUser = String(this.req?.user?.role || '').toUpperCase() === 'ADMIN';
 
       const {
         accion: rawAccion,
@@ -273,6 +341,8 @@ class GestorAutomatizaciones extends Tool {
         nuevo_nombre,
         agente_objetivo,
         prompt_a_ejecutar,
+        instruccion_usuario,
+        esperar_resultado,
         tipo_frecuencia,
         configuracion_horario = {},
         correos_notificacion,
@@ -282,6 +352,34 @@ class GestorAutomatizaciones extends Tool {
 
       const { accion, nuevo_estado, forcedAll } = this._normalizeActionAndStatus(rawAccion, rawEstado);
       const currentAgentId = this.req?.body?.endpointOption?.agent_id;
+
+      // ── ACCIÓN: EJECUTAR FLUJO TENSHI INTERNO INSTANTÁNEO ───────────
+      if (accion === 'ejecutar_tenshi') {
+        const query = String(automatizacion_id || nombre || instruccion_usuario || '').trim();
+        if (!query) {
+          return JSON.stringify({
+            error: 'Debes indicar el nombre, código o comando del Flujo Tenshi a ejecutar.'
+          });
+        }
+        const activeFlows = await listActiveTenshiFlows();
+        if (!activeFlows || activeFlows.length === 0) {
+          return JSON.stringify({
+            error: 'No hay Flujos Tenshi activos disponibles en el sistema en este momento.'
+          });
+        }
+        const matchRes = await matchTenshiFlowByQuery(query, activeFlows);
+        if (!matchRes?.flow) {
+          return JSON.stringify({
+            error: `No se encontró ningún Flujo Tenshi activo que coincida con "${query}".`
+          });
+        }
+        return await this._executeMatchedTenshiFlow({
+          flow: matchRes.flow,
+          strictCtx,
+          userInstruction: instruccion_usuario || nombre || automatizacion_id || '',
+          esperar_resultado: esperar_resultado !== false,
+        });
+      }
 
       // ── ACCIÓN: LISTAR ──────────────────────────────────────────────
       if (accion === 'listar') {
@@ -335,7 +433,10 @@ class GestorAutomatizaciones extends Tool {
         }
 
         // Idempotencia: evitar duplicar una tarea con el mismo nombre o propósito idéntico en la misma empresa
-        const existingAutos = await Automation.find({ user: userId, companyId, isSystemPreset: { $ne: true } });
+        const existingAutos = await Automation.find({
+          user: userId,
+          ...this._buildSafeCompanyFilter(companyId),
+        });
         const normFinalName = this._normStr(finalName);
         const stopWords = new Set(['para', 'con', 'del', 'las', 'los', 'una', 'por', 'que', 'tarea', 'automatizacion', 'automatica', 'automatico', 'monitoreo', 'vigilancia', 'vigilar', 'revisar', 'revision', 'sincronizacion', 'diaria', 'diario', 'semanal', 'mensual', 'ejemplo', 'admin']);
         const newTokens = normFinalName.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w));
@@ -369,7 +470,12 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
-        const activeCount = await Automation.countDocuments({ user: userId, status: 'active' });
+        const activeCount = await Automation.countDocuments({
+          user: userId,
+          status: 'active',
+          isTenshiFlow: { $ne: true },
+          isSystemPreset: { $ne: true },
+        });
         if (activeCount >= effectiveLimit) {
           return JSON.stringify({
             error: `🔒 Límite de Automatizaciones Alcanzado: Tu plan actual (${userPlanName === 'pro' ? 'Wappy Pro' : userPlanName}) permite hasta ${effectiveLimit} automatización(es) activa(s) y ya tienes ${activeCount} configurada(s). Para habilitar más tareas periódicas en segundo plano, puedes adquirir un paquete de 5 automatizaciones adicionales por solo $25.000 COP/mes comunicándote con soporte de WAPPY.`,
@@ -436,7 +542,12 @@ class GestorAutomatizaciones extends Tool {
         }
 
         const { limit: effectiveLimit } = await this._getEffectiveAutomationLimit(userId);
-        let currentActiveCount = await Automation.countDocuments({ user: userId, status: 'active' });
+        let currentActiveCount = await Automation.countDocuments({
+          user: userId,
+          status: 'active',
+          isTenshiFlow: { $ne: true },
+          isSystemPreset: { $ne: true },
+        });
 
         const updatedItems = [];
         for (const automation of matches) {
@@ -583,6 +694,19 @@ class GestorAutomatizaciones extends Tool {
         });
         const automation = matches[0];
         if (!automation) {
+          const fallbackQuery = String(automatizacion_id || nombre || instruccion_usuario || '').trim();
+          if (fallbackQuery) {
+            const activeFlows = await listActiveTenshiFlows();
+            const matchRes = await matchTenshiFlowByQuery(fallbackQuery, activeFlows);
+            if (matchRes?.flow) {
+              return await this._executeMatchedTenshiFlow({
+                flow: matchRes.flow,
+                strictCtx,
+                userInstruction: instruccion_usuario || nombre || automatizacion_id || '',
+                esperar_resultado: esperar_resultado !== false,
+              });
+            }
+          }
           return JSON.stringify({
             error: `No se encontró la tarea/automatización "${automatizacion_id || nombre || ''}" para ejecutar.`
           });
@@ -598,7 +722,12 @@ class GestorAutomatizaciones extends Tool {
         const updateSet = { lastRunStatus: 'running' };
         if (automation.status !== 'active' && matchSource === 'voiceCommand') {
           const { limit: effectiveLimit } = await this._getEffectiveAutomationLimit(userId);
-          const currentActive = await Automation.countDocuments({ user: userId, status: 'active' });
+          const currentActive = await Automation.countDocuments({
+            user: userId,
+            status: 'active',
+            isTenshiFlow: { $ne: true },
+            isSystemPreset: { $ne: true },
+          });
           if (currentActive < effectiveLimit) {
             updateSet.status = 'active';
             updateSet.nextRunAt = hasCronTrigger(automation)
@@ -607,7 +736,7 @@ class GestorAutomatizaciones extends Tool {
           }
         }
 
-        await Automation.updateOne({ _id: automation._id }, { $set: updateSet });
+        await Automation.updateOne({ _id: automation._id, ...this._buildSafeCompanyFilter(companyId) }, { $set: updateSet });
 
         runAutomation(
           automation,
@@ -651,7 +780,7 @@ class GestorAutomatizaciones extends Tool {
         if (typeof stopAutomation === 'function') {
           await stopAutomation(automation._id.toString());
         } else {
-          await Automation.updateOne({ _id: automation._id }, { $set: { lastRunStatus: 'stopped' } });
+          await Automation.updateOne({ _id: automation._id, ...this._buildSafeCompanyFilter(companyId) }, { $set: { lastRunStatus: 'stopped' } });
         }
         return JSON.stringify({
           success: true,
@@ -678,8 +807,8 @@ class GestorAutomatizaciones extends Tool {
         const ids = matches.map((m) => m._id);
         const names = matches.map((m) => m.name);
 
-        await Automation.deleteMany({ _id: { $in: ids } });
-        await AutomationLog.deleteMany({ automation: { $in: ids } });
+        await Automation.deleteMany({ _id: { $in: ids }, ...this._buildSafeCompanyFilter(companyId) });
+        await AutomationLog.deleteMany({ automation: { $in: ids }, companyId: String(companyId) });
 
         return JSON.stringify({
           success: true,
@@ -694,7 +823,7 @@ class GestorAutomatizaciones extends Tool {
 
       // ── ACCIÓN: VER LOGS / HISTORIAL ────────────────────────────────
       if (accion === 'ver_logs') {
-        const query = { companyId };
+        const query = { companyId: String(companyId) };
         if (automatizacion_id || nombre) {
           const { matches } = await this._resolveTargetAutomations(companyId, userId, {
             automatizacion_id,
@@ -717,14 +846,22 @@ class GestorAutomatizaciones extends Tool {
           });
         }
 
-        const formattedLogs = logs.map(l => ({
-          id: l._id.toString(),
-          agente: l.agentName,
-          fechaEjecucion: new Date(l.runAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
-          estado: l.status,
-          resultadoResumido: l.result ? l.result.substring(0, 200) + '...' : (l.error || 'Sin detalles'),
-          conversacionId: l.conversationId || null
-        }));
+        const formattedLogs = logs.map((l) => {
+          const isMaskedTenshi = l.isTenshiFlow === true && !isAdminUser;
+          const displayFlow = isMaskedTenshi
+            ? (l.userInstruction || l.tenshiFlowName || 'Flujo ejecutado con Tenshi')
+            : (l.tenshiFlowName || l.agentName || 'Automatización');
+          return {
+            id: l._id.toString(),
+            flujo: displayFlow,
+            agente: l.agentName,
+            esFlujoTenshi: Boolean(l.isTenshiFlow),
+            fechaEjecucion: new Date(l.runAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+            estado: l.status,
+            resultadoResumido: l.result ? l.result.substring(0, 200) + '...' : (l.error || 'Sin detalles'),
+            conversacionId: l.conversationId || null,
+          };
+        });
 
         return JSON.stringify({
           mensaje: `Se recuperaron ${logs.length} ejecuciones recientes.`,
@@ -733,7 +870,7 @@ class GestorAutomatizaciones extends Tool {
       }
 
       return JSON.stringify({
-        error: `Acción no reconocida "${rawAccion}". Las acciones válidas son: crear, listar, actualizar, activar, desactivar, eliminar, ejecutar_ahora, detener, ver_logs.`
+        error: `Acción no reconocida "${rawAccion}". Las acciones válidas son: ejecutar_tenshi, crear, listar, actualizar, activar, desactivar, eliminar, ejecutar_ahora, detener, ver_logs.`
       });
 
     } catch (error) {

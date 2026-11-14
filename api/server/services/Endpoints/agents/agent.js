@@ -143,6 +143,13 @@ IMPORTANTE:
   });
 
   const provider = agent.provider;
+  if (!isPublicChat && req?.user?.id) {
+    if (req.user?.isSubUser && req.user?.assignedCompany) {
+      req.companyId = String(req.user.assignedCompany);
+    } else if (!req.companyId && req?.body?.companyId) {
+      req.companyId = String(req.body.companyId);
+    }
+  }
   if (!isPublicChat) {
     if (!Array.isArray(agent.tools)) {
       agent.tools = [];
@@ -353,27 +360,19 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
     agent.additional_instructions = (agent.additional_instructions ?? '') + '\n' + canvasStatusPrompt + '\n' + canvasPrompt;
   }
 
+  const isAutomationRun = Boolean(req?.isAutomation || req?.body?.isAutomation);
+
   // Inject Shared Procedural Memory & Generative UI Capabilities across all Specialist Agents (OpenBot Colmena)
   if (!isPublicChat && req?.user?.id) {
     try {
-      const mongoose = require('mongoose');
-      const CompanyInfo = require('~/models/CompanyInfo');
+      const { resolveStrictExecutionContext } = require('~/server/services/tenshiFlowService');
       const { getProceduralMemoryPromptBlock } = require('~/server/routes/voice/tenshiOpenBotEngine');
-      const explicitCompanyId =
-        req?.companyId ||
-        req?.body?.companyId ||
-        (req?.user?.isSubUser && req?.user?.assignedCompany ? req.user.assignedCompany : null);
-      let activeComp = null;
-      if (explicitCompanyId && mongoose.Types.ObjectId.isValid(String(explicitCompanyId))) {
-        activeComp = await CompanyInfo.findOne({ _id: explicitCompanyId, user: req.user.id }).lean();
+      const strictCtx = await resolveStrictExecutionContext({ reqUser: req.user, reqObj: req });
+      if (strictCtx?.companyId && !req.companyId) {
+        req.companyId = String(strictCtx.companyId);
       }
-      if (!activeComp) {
-        activeComp = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
-      }
-      if (!activeComp) {
-        activeComp = await CompanyInfo.findOne({ user: req.user.id }).sort({ updatedAt: -1 }).lean();
-      }
-      const procMemBlock = await getProceduralMemoryPromptBlock(req.user.id, activeComp?._id, 10);
+      const procUserId = strictCtx?.tenantOwnerUserId || req.user.id;
+      const procMemBlock = await getProceduralMemoryPromptBlock(procUserId, strictCtx?.companyId || null, 10);
       const openBotAgentInstructions = `
 # CAPACIDADES INTERACTIVAS OPENBOT (GENERATIVE UI & MEMORIA PROCEDURAL COMPARTIDA):
 1. **Widgets Interactivos en el Chat (\`wappy_renderizar_widget_interactivo\`)**:
@@ -394,7 +393,28 @@ Cuando el usuario pida EXPLÍCITAMENTE crear un archivo o lienzo nuevo (aplicati
     }
   }
 
-  const isAutomationRun = Boolean(req?.isAutomation || req?.body?.isAutomation);
+  // Inject Internal Tenshi Flows when Agent supports gestor_automatizaciones or is Tenshi (never on recursive automation runs)
+  if (!isPublicChat && !isAutomationRun && req?.user?.id) {
+    try {
+      const hasGestorAuto =
+        (Array.isArray(agent.tools) && agent.tools.includes('gestor_automatizaciones')) ||
+        (Array.isArray(tools) &&
+          tools.some((t) => (typeof t === 'string' ? t : t?.name) === 'gestor_automatizaciones'));
+      const isTenshiAgent = /tenshi/i.test(`${agent.name || ''} ${agent.id || ''}`);
+      if (hasGestorAuto || isTenshiAgent) {
+        const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
+        const tenshiFlowsBlock = await buildTenshiFlowsPromptBlock().catch(() => '');
+        if (tenshiFlowsBlock) {
+          agent.additional_instructions = (agent.additional_instructions ?? '') + '\n\n' + tenshiFlowsBlock;
+        }
+      }
+    } catch (tenshiFlowErr) {
+      if (req?.log) {
+        req.log.warn('[Tenshi Flows Agent Context Injection Error]', tenshiFlowErr.message);
+      }
+    }
+  }
+
   const finalTools = isAutomationRun && Array.isArray(tools)
     ? tools.filter((t) => {
         const name = typeof t === 'string' ? t : t?.name;

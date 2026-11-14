@@ -22,6 +22,7 @@ const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./tenshiMcpDispatcher');
+const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
 const {
     isGovernedTool,
     stageGovernedAction,
@@ -156,13 +157,25 @@ async function getActiveCompanyForUser(userId) {
     if (!userId) return null;
     try {
         let targetUserId = userId;
+        let assignedCompanyId = null;
+        let isSubUser = false;
         try {
             const User = mongoose.models.User || require('~/models/User');
-            const userDoc = await User.findById(userId).select('isSubUser parentUser').lean();
+            const userDoc = await User.findById(userId).select('isSubUser parentUser assignedCompany').lean();
             if (userDoc?.isSubUser && userDoc?.parentUser) {
+                isSubUser = true;
                 targetUserId = userDoc.parentUser.toString();
+                if (userDoc?.assignedCompany) {
+                    assignedCompanyId = userDoc.assignedCompany.toString();
+                }
             }
         } catch (_) {}
+        if (isSubUser && assignedCompanyId) {
+            return await CompanyInfo.findOne({ _id: assignedCompanyId, user: targetUserId })
+                .select('_id companyName nit')
+                .lean()
+                .catch(() => null);
+        }
         return await CompanyInfo.findOne({ user: targetUserId, isActive: true })
             .select('_id companyName nit')
             .lean()
@@ -849,6 +862,8 @@ class VoiceSession {
         this.currentTurnSpeechDetected = false;
         this.earlyCorrectionPromise = null;
         this.lastUserAudioAt = 0;
+        this.userMeta = null;
+        this.activeCompanyId = config?.companyId ? String(config.companyId) : null;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
@@ -1720,15 +1735,17 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas'. Sin coincidencia exacta NO elijas otro flujo.",
+                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas', y ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'). Sin coincidencia exacta NO elijas otro flujo.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: { type: "string", description: "'crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
+                                    accion: { type: "string", description: "'ejecutar_tenshi','crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
                                     nombre: { type: "string", description: "Título o código de activación" },
                                     nuevo_nombre: { type: "string" },
                                     agente_objetivo: { type: "string" },
                                     prompt_a_ejecutar: { type: "string" },
+                                    instruccion_usuario: { type: "string", description: "Instrucción literal, pregunta o parámetro dicho por el usuario para alimentar el flujo al ejecutarlo" },
+                                    esperar_resultado: { type: "boolean", description: "Si es true (por defecto en ejecutar_tenshi), espera de forma síncrona el resultado final del flujo para responder al instante" },
                                     tipo_frecuencia: { type: "string", description: "'daily'|'weekly'|'monthly'|'hourly'" },
                                     configuracion_horario: {
                                         type: "object",
@@ -2805,7 +2822,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - \`wappy_generar_qr\`, \`wappy_consultar_analitica_psicosocial\`, \`wappy_consultar_analitica_actos_condiciones\`, \`wappy_gestionar_agenda\`, \`google_calendar\`, \`google_gmail\` (\`batch_trash_emails\`/\`trash_email\`), \`google_sheets/docs/slides\`, \`onedrive\`, \`editor_rit\`, \`somos_sst\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`.
 6. **DRIVE IMPORT HITO 1 / SOCIODEMOGRÁFICO**: Si piden importar desde Drive el perfil sociodemográfico/salud -> \`wappy_importar_sociodemografico_drive\`. Si piden importar matrices/documentos del Hito 1 (gtc45, pesv, compatibilidad, vulnerabilidad, diagnostico, responsable) -> \`wappy_importar_hito1_drive\` (matriz legal en construcción).
 7. **NORMATIVIDAD VIGENTE**: Ante leyes/decretos/resoluciones/sentencias en Colombia, usa SIEMPRE \`web_search\` para verificar vigencia actual (ej: Res. 4272/2021 derogó 1409/2012; Res. 0312/2019 derogó 1111/2017).
-8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Ubicado en /tareas (menú 'Tareas', solo Admin y Wappy Pro). Usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
+8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para Flujos Tenshi internos instantáneos listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Para tareas de empresa (/tareas), usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
 9. **ACADEMIA VS TIENDA VS BLOG & MULTIMEDIA**: Academia (/academia?tab=cursos) = cursos interactivos; si piden "ábreme el curso X" invoca \`wappy_abrir_curso\` de inmediato. Tienda (/marketplace) = productos con precio COP. Blog = \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`. Tienes NotebookLM (\`notebooklm_*\`), MedlinePlus (\`wappy_consultar_rehabilitacion_medlineplus\`) y Google Flow (\`google_flow_*\`).
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
@@ -2862,6 +2879,37 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
     }
 
 
+    async _loadUserMetaOnce() {
+        if (this.userMeta) {
+            return this.userMeta;
+        }
+        try {
+            const User = mongoose.models.User || require('~/models/User');
+            const doc = await User.findById(this.userId)
+                .select('role isSubUser parentUser assignedCompany personalization')
+                .lean();
+            this.userMeta = {
+                role: doc?.role || this.userRole || 'USER',
+                isSubUser: Boolean(doc?.isSubUser),
+                parentUser: doc?.parentUser ? String(doc.parentUser) : null,
+                assignedCompany: doc?.assignedCompany ? String(doc.assignedCompany) : null,
+                memoriesEnabled: doc?.personalization?.memories !== false,
+            };
+            if (doc?.role) {
+                this.userRole = doc.role;
+            }
+        } catch (_err) {
+            this.userMeta = {
+                role: this.userRole || 'USER',
+                isSubUser: false,
+                parentUser: null,
+                assignedCompany: null,
+                memoriesEnabled: true,
+            };
+        }
+        return this.userMeta;
+    }
+
     /**
      * Initialize and start the session
      */
@@ -2903,23 +2951,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
             // Inyectar contexto de Empresa Activa y Memoria en modo Tenshi Voice
             if (this.config.mode === 'tenshi_voice') {
                 try {
-                    let targetUserId = this.userId;
-                    let isMemoryEnabled = true;
-                    try {
-                        const User = mongoose.models.User || require('~/models/User');
-                        const userDoc = await User.findById(this.userId).select('isSubUser parentUser assignedCompany personalization role').lean();
-                        if (userDoc?.role) {
-                            this.userRole = userDoc.role;
-                        }
-                        if (userDoc?.personalization?.memories === false) {
-                            isMemoryEnabled = false;
-                        }
-                        if (userDoc?.isSubUser && userDoc?.parentUser) {
-                            targetUserId = userDoc.parentUser.toString();
-                        }
-                    } catch (uErr) {
-                        targetUserId = this.userId;
-                    }
+                    const userMeta = await this._loadUserMetaOnce();
+                    const targetUserId = (userMeta.isSubUser && userMeta.parentUser) ? userMeta.parentUser : this.userId;
+                    const isMemoryEnabled = userMeta.memoriesEnabled !== false;
 
                     let companyAndMemoryPrompt = '';
                     if (this.userRole === 'ADMIN') {
@@ -3001,6 +3035,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     const userIds = [this.userId, targetUserId].filter(Boolean);
 
                     const companyInfo = await (async () => {
+                        if (userMeta.isSubUser && userMeta.assignedCompany) {
+                            return await CompanyInfo.findOne({ _id: userMeta.assignedCompany, user: targetUserId }).lean().catch(() => null);
+                        }
                         if (this.config.companyId && mongoose.isValidObjectId(this.config.companyId)) {
                             const byId = await CompanyInfo.findOne({ _id: this.config.companyId, user: targetUserId }).lean().catch(() => null);
                             if (byId) return byId;
@@ -3033,6 +3070,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         procMemBlock,
                         resolvedAvatar,
                         briefingResults,
+                        tenshiFlowsBlock,
                     ] = await Promise.all([
                         isMemoryEnabled ? getAllUserMemories(targetUserId).catch(() => []) : Promise.resolve([]),
                         (async () => {
@@ -3163,6 +3201,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                 return null;
                             }
                         })(),
+                        buildTenshiFlowsPromptBlock().catch(() => ''),
                     ]);
                     rawMemories = fetchedMemories;
 
@@ -3378,6 +3417,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 2. EN LOS TURNOS SIGUIENTES: Tu tema de trabajo está delimitado por la pantalla visible actual (${humanScreen}) y por lo que el usuario te pida en ese turno.
 3. ESCUCHA PACIENTE SIN CORTAR AL USUARIO: Si la frase del usuario quedó claramente inconclusa o termina en conector/preposición (ej: "Tengo una tarea, perdón, una tarea...", "tengo pendiente una actividad que es asistir a...", "quiero que..."), NO dispares navegaciones precipitadas ni cambies de pantalla antes de escuchar la idea completa; si ya estás en el módulo mencionado en pantalla, NO vuelvas a invocar \`wappy_navegar\` hacia ese mismo módulo. Si el usuario menciona una tarea o actividad del Centro de Control/Cronograma, consulta directamente sus tareas (\`wappy_consultar_cronograma_sst\` o \`somos_sst\`) en lugar de solo navegar.
 4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
+
+                    if (tenshiFlowsBlock) {
+                        companyAndMemoryPrompt += `\n\n${tenshiFlowsBlock}\nREGLA EN VOZ TENSHI: Cuando el usuario pida algo cubierto por cualquiera de estos Flujos Tenshi internos, ejecuta de inmediato \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado".`;
+                    }
 
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     this.initialBriefingSummary = {
@@ -3699,9 +3742,26 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             this.triggerEarlyUserTranscriptionCorrection('tool_call');
 
             if (toolCall.functionCalls) {
+                const userMeta = await this._loadUserMetaOnce();
+                const resolvedCompId = (userMeta.isSubUser && userMeta.assignedCompany)
+                    ? userMeta.assignedCompany
+                    : (this.activeCompanyId || (this.config?.companyId ? String(this.config.companyId) : null) || (await resolveActiveCompanyId(this.userId)));
+                if (resolvedCompId && !this.activeCompanyId) {
+                    this.activeCompanyId = String(resolvedCompId);
+                }
                 const toolReq = {
-                    user: { id: this.userId, _id: this.userId, role: this.userRole || 'ADMIN' },
+                    user: {
+                        id: this.userId,
+                        _id: this.userId,
+                        role: this.userRole || userMeta?.role || 'USER',
+                        isSubUser: Boolean(userMeta?.isSubUser),
+                        parentUser: userMeta?.parentUser || undefined,
+                        assignedCompany: userMeta?.assignedCompany || undefined,
+                    },
+                    companyId: resolvedCompId || undefined,
+                    isVoiceSession: true,
                     body: {
+                        companyId: resolvedCompId || undefined,
                         conversationId: this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`
                     }
                 };
@@ -3725,6 +3785,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         wappy_delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
                         delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
                         operar_interfaz_visual: '✨ Tenshi operando tu pantalla...',
+                        gestor_automatizaciones: fc.args?.accion === 'ejecutar_tenshi'
+                            ? '⚡ Ejecutando flujo instantáneo...'
+                            : '⚙️ Gestionando automatizaciones...',
                     };
                     const immediateLabel = immediateToolLabels[fc.name] || `⚡ Ejecutando ${fc.name.replace(/^wappy_/, '').replace(/_/g, ' ')}...`;
                     this.sendToClient({
@@ -5283,7 +5346,12 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         logger.info(`[VoiceSession] Gemini Live invoked tool "gestor_automatizaciones" with args:`, JSON.stringify(fc.args));
                         this.sendToClient({
                             type: 'status',
-                            data: { status: 'loading', message: 'Gestionando automatizaciones...' }
+                            data: {
+                                status: 'loading',
+                                message: fc.args?.accion === 'ejecutar_tenshi'
+                                    ? '⚡ Ejecutando flujo instantáneo...'
+                                    : 'Gestionando automatizaciones...'
+                            }
                         });
                         try {
                             const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');

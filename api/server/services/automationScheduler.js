@@ -165,6 +165,15 @@ function getHitoReportPipeline() {
       if (!AutomationLog.schema.path('companyName')) {
         extraLogFields.companyName = { type: String, default: '' };
       }
+      if (!AutomationLog.schema.path('isTenshiFlow')) {
+        extraLogFields.isTenshiFlow = { type: Boolean, default: false, index: true };
+      }
+      if (!AutomationLog.schema.path('tenshiFlowName')) {
+        extraLogFields.tenshiFlowName = { type: String, default: '' };
+      }
+      if (!AutomationLog.schema.path('userInstruction')) {
+        extraLogFields.userInstruction = { type: String, default: '' };
+      }
       if (Object.keys(extraLogFields).length > 0) {
         AutomationLog.schema.add(extraLogFields);
         if (AutomationLog.prototype) {
@@ -190,6 +199,11 @@ function getHitoReportPipeline() {
       if (!Automation.schema.path('lastRunLogId')) {
         Automation.schema.add({
           lastRunLogId: { type: mongoose.Schema.Types.ObjectId, ref: 'AutomationLog', default: null },
+        });
+      }
+      if (!Automation.schema.path('isTenshiFlow')) {
+        Automation.schema.add({
+          isTenshiFlow: { type: Boolean, default: false, index: true },
         });
       }
       const lastRunStatusPath = Automation.schema.path('lastRunStatus');
@@ -239,10 +253,12 @@ function withTimeout(promise, ms = 25000, label = 'operación') {
  */
 async function loadProcessedEntityKeysForAutomation({
   automationId,
+  companyId = null,
   nodeConfigs = {},
   excludeLogId = null,
 } = {}) {
   const safeConfigs = nodeConfigs && typeof nodeConfigs === 'object' ? nodeConfigs : {};
+  const cleanCompanyId = companyId ? String(companyId).trim() : '';
   const dedupWindow = String(
     safeConfigs.sub_memory_wappy_memory_antiduplicate?.dedupWindow ||
       safeConfigs.sub_memory?.dedupWindow ||
@@ -279,6 +295,7 @@ async function loadProcessedEntityKeysForAutomation({
   try {
     const query = {
       automation: automationId,
+      ...(cleanCompanyId ? { companyId: cleanCompanyId } : {}),
       status: { $in: ['success', 'awaiting_approval'] },
       ...(sinceDate ? { runAt: { $gte: sinceDate } } : {}),
       ...(excludeLogId && mongoose.Types.ObjectId.isValid(String(excludeLogId))
@@ -1407,13 +1424,19 @@ function getActiveRunningSnapshot() {
   const activeAutomationIds = [];
   const activeLogIds = [];
   const entries = [];
-  for (const [automationId, entry] of runningAutomations.entries()) {
-    activeAutomationIds.push(String(automationId));
+  for (const [lockKey, entry] of runningAutomations.entries()) {
+    const realAutoId = entry?.automationId ? String(entry.automationId) : String(lockKey);
+    if (!entry?.isTenshiFlow) {
+      activeAutomationIds.push(realAutoId);
+    }
     if (entry?.logId) {
       activeLogIds.push(String(entry.logId));
     }
     entries.push({
-      automationId: String(automationId),
+      automationId: realAutoId,
+      lockKey: String(lockKey),
+      companyId: entry?.companyId || null,
+      isTenshiFlow: Boolean(entry?.isTenshiFlow),
       logId: entry?.logId ? String(entry.logId) : null,
       startedAt: entry?.startedAt || null,
       automationName: entry?.automationName || '',
@@ -1517,9 +1540,13 @@ async function reconcileOrphanedRunningRuns({ companyId = null, automationId = n
       if (recoveredAutoIds.length > 0) {
         await Automation.updateMany(
           {
-            _id: { $in: recoveredAutoIds },
+            isTenshiFlow: { $ne: true },
+            companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
             lastRunStatus: 'running',
-            ...(activeAutoObjIds.length > 0 ? { _id: { $nin: activeAutoObjIds } } : {}),
+            $and: [
+              { _id: { $in: recoveredAutoIds } },
+              ...(activeAutoObjIds.length > 0 ? [{ _id: { $nin: activeAutoObjIds } }] : []),
+            ],
           },
           {
             $set: {
@@ -1534,13 +1561,17 @@ async function reconcileOrphanedRunningRuns({ companyId = null, automationId = n
     // Asegurar también Automations huérfanas cuyo lastRunStatus quedó en 'running' sin proceso activo
     await Automation.updateMany(
       {
+        isTenshiFlow: { $ne: true },
         lastRunStatus: 'running',
-        ...(companyId ? { companyId: String(companyId) } : {}),
-        ...(automationId && mongoose.Types.ObjectId.isValid(String(automationId))
-          ? { _id: new mongoose.Types.ObjectId(String(automationId)) }
-          : {}),
-        ...(activeAutoObjIds.length > 0 ? { _id: { $nin: activeAutoObjIds } } : {}),
         updatedAt: { $lt: orphanCutoff },
+        $and: [
+          { companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] } },
+          ...(companyId ? [{ companyId: String(companyId) }] : []),
+          ...(automationId && mongoose.Types.ObjectId.isValid(String(automationId))
+            ? [{ _id: new mongoose.Types.ObjectId(String(automationId)) }]
+            : []),
+          ...(activeAutoObjIds.length > 0 ? [{ _id: { $nin: activeAutoObjIds } }] : []),
+        ],
       },
       {
         $set: {
@@ -4551,7 +4582,7 @@ async function executeDownstreamOutputs({
   return { executedOutputs, workspaceLinks, errors };
 }
 
-async function runAutomation(automation, optionsOrIsManual = false) {
+async function runAutomation(rawAutomation, optionsOrIsManual = false) {
   const runOpts =
     typeof optionsOrIsManual === 'boolean'
       ? { isManual: optionsOrIsManual }
@@ -4566,10 +4597,118 @@ async function runAutomation(automation, optionsOrIsManual = false) {
   const gmailMessageId = runOpts.gmailMessageId ? String(runOpts.gmailMessageId) : '';
   const runStartedAtMs = Date.now();
 
-  const automationIdStr = automation._id.toString();
-  console.log(
-    `[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr}) [trigger=${triggerSource}]`,
+  const isGlobalTenshiFlow = Boolean(
+    runOpts.isTenshiFlowRun ||
+      rawAutomation?.isTenshiFlow ||
+      String(rawAutomation?.companyId || '') === 'TENSHI_GLOBAL',
   );
+  const sourceAutomationId = rawAutomation?._id;
+  const tenshiUserInstruction = String(
+    runOpts.userInstruction || eventPayload?.userMessage || '',
+  ).trim();
+  const scraperTriggerInput = String(
+    runOpts.userInstruction || eventPayload?.userMessage || eventPayload?.commandText || '',
+  ).trim();
+
+  let automation = rawAutomation;
+  let verifiedCompanyId = '';
+  let effectiveTenantUserId = String(rawAutomation?.user || '').trim();
+  let callerUserId = effectiveTenantUserId;
+  let ownedCompany = null;
+
+  if (isGlobalTenshiFlow) {
+    verifiedCompanyId = String(runOpts.companyId || '').trim();
+    effectiveTenantUserId = String(
+      runOpts.tenantUserId || runOpts.callerUserId || rawAutomation?.user || '',
+    ).trim();
+    callerUserId = String(runOpts.callerUserId || effectiveTenantUserId || '').trim();
+
+    const isValidVerifiedCompany =
+      Boolean(verifiedCompanyId) &&
+      verifiedCompanyId !== 'TENSHI_GLOBAL' &&
+      verifiedCompanyId !== 'SYSTEM_PRESET' &&
+      /^[a-f0-9]{24}$/i.test(verifiedCompanyId) &&
+      mongoose.Types.ObjectId.isValid(verifiedCompanyId);
+
+    if (isValidVerifiedCompany && effectiveTenantUserId) {
+      ownedCompany = await CompanyInfo.findOne({
+        _id: verifiedCompanyId,
+        user: effectiveTenantUserId,
+      })
+        .select('_id companyName')
+        .lean();
+    }
+
+    if (!isValidVerifiedCompany || !ownedCompany) {
+      const isolationErrorMsg =
+        'Aislamiento multi-empresa: la empresa activa no pudo verificarse para este usuario.';
+      if (runOpts.existingLogId && mongoose.Types.ObjectId.isValid(String(runOpts.existingLogId))) {
+        try {
+          await AutomationLog.updateOne(
+            { _id: runOpts.existingLogId },
+            {
+              $set: {
+                status: 'failed',
+                error: isolationErrorMsg,
+                currentStageLabel: 'Error de aislamiento multi-empresa',
+                activeStepNodeKey: null,
+                heartbeatAt: new Date(),
+                ...(isValidVerifiedCompany ? { companyId: verifiedCompanyId } : {}),
+                ...(callerUserId && mongoose.Types.ObjectId.isValid(callerUserId)
+                  ? { user: callerUserId }
+                  : {}),
+                isTenshiFlow: true,
+                tenshiFlowName: String(rawAutomation?.name || ''),
+                userInstruction: tenshiUserInstruction,
+              },
+            },
+          );
+        } catch (_) {}
+      }
+      return {
+        status: 'failed',
+        logId: runOpts.existingLogId || null,
+        error: isolationErrorMsg,
+        resultText: '',
+      };
+    }
+
+    const baseDoc =
+      rawAutomation && typeof rawAutomation.toObject === 'function'
+        ? rawAutomation.toObject()
+        : { ...(rawAutomation || {}) };
+
+    automation = {
+      ...baseDoc,
+      user: effectiveTenantUserId,
+      companyId: verifiedCompanyId,
+      lastRunResult: null,
+      lastRunLogId: null,
+      conversationId: null,
+      isSystemPreset: false,
+      isTenshiFlow: true,
+    };
+  }
+
+  const targetCompanyIdStr = automation.companyId ? String(automation.companyId) : null;
+  const automationIdStr = (sourceAutomationId || automation._id).toString();
+  const runningLockKey = isGlobalTenshiFlow
+    ? `tenshi:${automationIdStr}:${verifiedCompanyId}`
+    : automationIdStr;
+  console.log(
+    `[AutomationScheduler] Starting execution for automation "${automation.name}" (${automationIdStr}) [trigger=${triggerSource}${isGlobalTenshiFlow ? `, tenshiCompany=${verifiedCompanyId}` : ''}]`,
+  );
+
+  const tenshiLogMeta = isGlobalTenshiFlow
+    ? {
+        user: callerUserId,
+        companyId: verifiedCompanyId,
+        companyName: ownedCompany?.companyName || '',
+        isTenshiFlow: true,
+        tenshiFlowName: rawAutomation.name,
+        userInstruction: tenshiUserInstruction,
+      }
+    : {};
 
   // Create or hydrate pre-allocated log entry
   let log = null;
@@ -4584,6 +4723,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           durationMs: 0,
           currentStageLabel: 'Iniciando disparador del flujo...',
           activeStepNodeKey: 'trigger_root',
+          ...tenshiLogMeta,
           ...(gmailMessageId ? { gmailMessageId } : {}),
           ...(eventPayload ? { eventMetadata: eventPayload } : {}),
         },
@@ -4593,9 +4733,17 @@ async function runAutomation(automation, optionsOrIsManual = false) {
   }
   if (!log) {
     log = await AutomationLog.create({
-      automation: automation._id,
-      user: automation.user,
-      companyId: automation.companyId,
+      automation: sourceAutomationId || automation._id,
+      user: isGlobalTenshiFlow ? callerUserId : automation.user,
+      companyId: isGlobalTenshiFlow ? verifiedCompanyId : automation.companyId,
+      ...(isGlobalTenshiFlow
+        ? {
+            companyName: ownedCompany?.companyName || '',
+            isTenshiFlow: true,
+            tenshiFlowName: rawAutomation.name,
+            userInstruction: tenshiUserInstruction,
+          }
+        : {}),
       agentId: automation.agentId,
       agentName: automation.agentName,
       prompt: automation.prompt,
@@ -4610,11 +4758,13 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     });
   }
 
-  // Update Automation state to running & link active log
-  await Automation.updateOne(
-    { _id: automation._id },
-    { $set: { lastRunStatus: 'running', lastRunAt: new Date(), lastRunLogId: log._id } },
-  );
+  // Update Automation state to running & link active log (prohibido mutar flujo Tenshi global)
+  if (!isGlobalTenshiFlow) {
+    await Automation.updateOne(
+      { _id: automation._id },
+      { $set: { lastRunStatus: 'running', lastRunAt: new Date(), lastRunLogId: log._id } },
+    );
+  }
 
   const prelimAbortController = new AbortController();
   // 10 minutes timeout (600,000 ms) safety measure (armed through finally)
@@ -4623,11 +4773,14 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     prelimAbortController.abort();
   }, 600000);
 
-  runningAutomations.set(automationIdStr, {
+  runningAutomations.set(runningLockKey, {
     abortController: prelimAbortController,
     timeoutId,
     startedAt: new Date(),
     automationName: automation.name,
+    automationId: automationIdStr,
+    companyId: targetCompanyIdStr,
+    isTenshiFlow: isGlobalTenshiFlow,
     logId: log._id,
   });
 
@@ -4777,7 +4930,6 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     };
 
     // 4. Resolve target company for strict multi-company isolation
-    const targetCompanyIdStr = automation.companyId ? String(automation.companyId) : null;
     let automationCompany = null;
     if (targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
       try {
@@ -4826,12 +4978,14 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     if (activeMemories.includes('wappy_memory_antiduplicate')) {
       dedupLedger = await loadProcessedEntityKeysForAutomation({
         automationId: automation._id,
+        companyId: targetCompanyIdStr,
         nodeConfigs: allNodeCfg,
         excludeLogId: log._id,
       });
       try {
         const lastSuccessLog = await AutomationLog.findOne({
           automation: automation._id,
+          ...(targetCompanyIdStr ? { companyId: targetCompanyIdStr } : {}),
           status: { $in: ['success', 'awaiting_approval'] },
           _id: { $ne: log._id },
         })
@@ -4845,7 +4999,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         if (lastSuccessLog?.result) {
           previousRunMemoryBlock =
             `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS (${new Date(lastSuccessLog.runAt).toISOString()})${activeKeysNote}]: En la ejecución anterior ya se procesó lo siguiente (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(lastSuccessLog.result).substring(0, 600)}\n`;
-        } else if (automation.lastRunResult) {
+        } else if (!isGlobalTenshiFlow && automation.lastRunResult) {
           previousRunMemoryBlock =
             `- [MEMORIA DE BITÁCORA PREVIA — ANTI-DUPLICADOS${activeKeysNote}]: Último resultado procesado (NO volver a duplicar ni reprocesar los mismos registros/archivos): ${String(automation.lastRunResult).substring(0, 500)}\n`;
         }
@@ -5413,7 +5567,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             customNodeObj: sc.customNodeObj || {},
             nodeCfg: mergedNodeCfg,
             allNodeConfigs: allNodeCfg,
-            mockTriggerInput: '',
+            mockTriggerInput: scraperTriggerInput,
             promptText: automation.prompt || '',
           });
           if (Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0) {
@@ -5930,7 +6084,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         );
         const preSnap = liveTracker.getSnapshot();
 
-        await Promise.all([
+        const preNoDbOps = [
           AutomationLog.updateOne(
             { _id: log._id },
             {
@@ -5963,24 +6117,39 @@ async function runAutomation(automation, optionsOrIsManual = false) {
               },
             },
           ),
-          Automation.updateOne(
-            { _id: automation._id },
-            {
-              $set: {
-                lastRunAt: new Date(),
-                lastRunStatus: 'success',
-                lastRunLogId: log._id,
-                lastRunResult: preNoResultText.substring(0, 500),
-                ...cronNextRunPatchPre,
+        ];
+        if (!isGlobalTenshiFlow) {
+          preNoDbOps.push(
+            Automation.updateOne(
+              { _id: automation._id },
+              {
+                $set: {
+                  lastRunAt: new Date(),
+                  lastRunStatus: 'success',
+                  lastRunLogId: log._id,
+                  lastRunResult: preNoResultText.substring(0, 500),
+                  ...cronNextRunPatchPre,
+                },
               },
-            },
-          ),
-        ]);
+            ),
+          );
+        }
+        await Promise.all(preNoDbOps);
 
         console.log(
           `[AutomationScheduler] PRE-AGENT IF GATE -> Branch NO taken for "${automation.name}" (0 LLM tokens used). Outputs executed: [${(outResNo?.executedOutputs || []).join(', ')}]`,
         );
-        return;
+        return {
+          status: 'success',
+          logId: log._id,
+          branchTaken: 'no',
+          resultText: preNoResultText,
+          workspaceLinks: outResNo?.workspaceLinks || [],
+          evidenceFiles: cleanPreEvidenceFiles,
+          companyId: targetCompanyIdStr,
+          companyName: compDisplay,
+          conversationId: null,
+        };
       }
     }
 
@@ -6153,10 +6322,15 @@ async function runAutomation(automation, optionsOrIsManual = false) {
     const cleanExecutiveLanguageDirective =
       `- REGLA DE LENGUAJE EJECUTIVO LIMPIO (CERO IDs TÉCNICOS CRUDOS): En el texto final para el usuario usa SIEMPRE los nombres ejecutivos en español de los aplicativos, conectores y canales (por ejemplo: "Google Drive", "Extractor IA de Documentos", "Perfil Sociodemográfico y Condiciones de Salud", "Investigación de Accidentes ATEL"). ESTÁ ESTRICTAMENTE PROHIBIDO escribir identificadores técnicos internos de código (como \`extract_drive\`, \`extract_ai_doc_ocr\`, \`hito2_perfil_socio\`, \`hito7_investigacion_atel\`, \`somos_sst_update\`, \`wappy_notification\`, \`if_router\`, \`pre_agent\` o nombres crudos de funciones internas) en tu informe final.\n`;
 
-    const realTimeEventHeader = eventPayload
-      ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
-        `${typeof eventPayload === 'string' ? eventPayload : JSON.stringify(eventPayload, null, 2).slice(0, 8000)}\n\n`
+    const userInstructionBlock = tenshiUserInstruction
+      ? `[INSTRUCCIÓN ACTUAL DEL USUARIO]: "${tenshiUserInstruction}"\n` +
+        `- Opera estrictamente sobre la petición exacta de este turno (trabajador, documento, tema, filtro o parámetro indicado), manteniendo el aislamiento total de la empresa activa.\n\n`
       : '';
+    const realTimeEventHeader =
+      (eventPayload
+        ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
+          `${typeof eventPayload === 'string' ? eventPayload : JSON.stringify(eventPayload, null, 2).slice(0, 8000)}\n\n`
+        : '') + userInstructionBlock;
 
     const companyHeaderBlock = automationCompany
       ? `${realTimeEventHeader}[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
@@ -6898,7 +7072,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         `[AutomationScheduler] STEP 6 (HUMAN APPROVAL GATE): Deteniendo ${outputsToExecute.length} salida(s) de "${automation.name}" hasta Visto Bueno de ${approverEmail || approverRole}...`,
       );
 
-      await Promise.all([
+      const approvalDbOps = [
         AutomationLog.updateOne(
           { _id: log._id },
           {
@@ -6916,20 +7090,25 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             },
           },
         ),
-        Automation.updateOne(
-          { _id: automation._id },
-          {
-            $set: {
-              lastRunAt: new Date(),
-              lastRunStatus: 'awaiting_approval',
-              lastRunLogId: log._id,
-              lastRunResult: `[Pendiente de Visto Bueno Humano] ${resultText.substring(0, 440)}`,
-              conversationId: generatedConvoId,
-              ...cronNextRunPatch,
+      ];
+      if (!isGlobalTenshiFlow) {
+        approvalDbOps.push(
+          Automation.updateOne(
+            { _id: automation._id },
+            {
+              $set: {
+                lastRunAt: new Date(),
+                lastRunStatus: 'awaiting_approval',
+                lastRunLogId: log._id,
+                lastRunResult: `[Pendiente de Visto Bueno Humano] ${resultText.substring(0, 440)}`,
+                conversationId: generatedConvoId,
+                ...cronNextRunPatch,
+              },
             },
-          },
-        ),
-      ]);
+          ),
+        );
+      }
+      await Promise.all(approvalDbOps);
 
       setImmediate(async () => {
         if (generatedConvoId) {
@@ -7006,6 +7185,18 @@ async function runAutomation(automation, optionsOrIsManual = false) {
           }
         }
       });
+
+      return {
+        status: 'awaiting_approval',
+        logId: log._id,
+        branchTaken: activeBranch,
+        resultText,
+        workspaceLinks: [],
+        evidenceFiles: cleanRunEvidenceFiles,
+        companyId: targetCompanyIdStr,
+        companyName: automationCompany?.companyName || '',
+        conversationId: generatedConvoId,
+      };
     } else {
       if (generatedConvoId) {
         try {
@@ -7131,7 +7322,7 @@ async function runAutomation(automation, optionsOrIsManual = false) {
       console.log(
         `[AutomationScheduler] STEP 6: Updating AutomationLog ${log._id} (${cleanRunEvidenceFiles.length} evidenceFiles, branch=${activeBranch}) and Automation ${automation._id} to SUCCESS...`,
       );
-      await Promise.all([
+      const successDbOps = [
         AutomationLog.updateOne(
           { _id: log._id },
           {
@@ -7148,20 +7339,25 @@ async function runAutomation(automation, optionsOrIsManual = false) {
             },
           },
         ),
-        Automation.updateOne(
-          { _id: automation._id },
-          {
-            $set: {
-              lastRunAt: new Date(),
-              lastRunStatus: 'success',
-              lastRunLogId: log._id,
-              lastRunResult: resultText.substring(0, 500),
-              conversationId: generatedConvoId,
-              ...cronNextRunPatch,
+      ];
+      if (!isGlobalTenshiFlow) {
+        successDbOps.push(
+          Automation.updateOne(
+            { _id: automation._id },
+            {
+              $set: {
+                lastRunAt: new Date(),
+                lastRunStatus: 'success',
+                lastRunLogId: log._id,
+                lastRunResult: resultText.substring(0, 500),
+                conversationId: generatedConvoId,
+                ...cronNextRunPatch,
+              },
             },
-          },
-        ),
-      ]);
+          ),
+        );
+      }
+      await Promise.all(successDbOps);
 
       if (activeBranch === 'yes' || !includeIfNodeFlag) {
         dispatchAgentTriggeredAutomations({
@@ -7174,6 +7370,17 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         });
       }
       console.log(`[AutomationScheduler] ALL STEPS COMPLETED! Successfully finished execution for "${automation.name}"`);
+      return {
+        status: 'success',
+        logId: log._id,
+        branchTaken: activeBranch,
+        resultText,
+        workspaceLinks: outRes?.workspaceLinks || [],
+        evidenceFiles: cleanRunEvidenceFiles,
+        companyId: targetCompanyIdStr,
+        companyName: automationCompany?.companyName || '',
+        conversationId: generatedConvoId,
+      };
     }
 
   } catch (err) {
@@ -7250,11 +7457,23 @@ async function runAutomation(automation, optionsOrIsManual = false) {
         : null;
     }
 
-    await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
+    if (!isGlobalTenshiFlow) {
+      await Automation.updateOne({ _id: automation._id }, { $set: updateDoc });
+    }
+    return {
+      status: isStoppedManually ? 'stopped' : 'failed',
+      logId: log?._id || null,
+      branchTaken: null,
+      resultText: '',
+      error: isStoppedManually
+        ? 'Detenida manualmente por el usuario.'
+        : err?.message || 'Error desconocido',
+      companyId: targetCompanyIdStr,
+    };
   } finally {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     clearTimeout(timeoutId);
-    runningAutomations.delete(automationIdStr);
+    runningAutomations.delete(runningLockKey);
     // Drenaje continuo: apenas se libera una ventanilla, revisar si hay más tareas en la fila
     scheduleImmediateDrain(400);
   }
@@ -7262,54 +7481,104 @@ async function runAutomation(automation, optionsOrIsManual = false) {
 
 /**
  * Stops an active running automation immediately in real time.
+ * Soporta tanto automatizaciones de empresa (`automationId`) como Flujos Tenshi globales aislados (`tenshi:${id}:${companyId}`).
  * @param {string} automationId
+ * @param {string|null} companyId
  * @returns {Promise<{ success: boolean, message: string }>}
  */
-async function stopAutomation(automationId) {
-  const idStr = automationId ? automationId.toString() : '';
-  const running = runningAutomations.get(idStr);
+async function stopAutomation(automationId, companyId = null) {
+  const rawIdStr = automationId ? automationId.toString().trim() : '';
+  const companyIdStr = companyId ? String(companyId).trim() : '';
+  const exactTenshiKey =
+    rawIdStr && companyIdStr ? `tenshi:${rawIdStr}:${companyIdStr}` : null;
+  const tenshiPrefix = rawIdStr ? `tenshi:${rawIdStr}:` : null;
 
-  if (running) {
-    console.log(`[AutomationScheduler] Stopping running automation "${running.automationName || idStr}"...`);
-    if (running.timeoutId) {
-      clearTimeout(running.timeoutId);
+  const matchedEntries = [];
+  for (const [lockKey, entry] of runningAutomations.entries()) {
+    const matchesExact = lockKey === rawIdStr;
+    const matchesTenshiExact = Boolean(exactTenshiKey && lockKey === exactTenshiKey);
+    const matchesTenshiPrefix = Boolean(
+      !companyIdStr && tenshiPrefix && lockKey.startsWith(tenshiPrefix),
+    );
+    if (matchesExact || matchesTenshiExact || matchesTenshiPrefix) {
+      matchedEntries.push({ lockKey, entry });
     }
-    if (running.abortController && !running.abortController.signal.aborted) {
-      running.abortController.abort();
-    }
-    runningAutomations.delete(idStr);
   }
 
-  // Update MongoDB state to stopped
-  await Promise.all([
-    Automation.updateOne(
-      { _id: idStr },
-      {
-        $set: {
-          lastRunStatus: 'stopped',
-          lastRunResult: 'Detenida manualmente por el usuario en tiempo real.'
-        }
-      }
-    ),
-    AutomationLog.updateMany(
-      { automation: idStr, status: 'running' },
-      {
-        $set: {
-          status: 'failed',
-          activeStepNodeKey: null,
-          currentStageLabel: 'Detenida manualmente',
-          heartbeatAt: new Date(),
-          error: 'Detenida manualmente por el usuario.'
-        }
-      }
-    )
-  ]);
+  for (const { lockKey, entry } of matchedEntries) {
+    console.log(
+      `[AutomationScheduler] Stopping running automation "${entry?.automationName || lockKey}"...`,
+    );
+    if (entry?.timeoutId) {
+      clearTimeout(entry.timeoutId);
+    }
+    if (entry?.abortController && !entry.abortController.signal.aborted) {
+      entry.abortController.abort();
+    }
+    runningAutomations.delete(lockKey);
+  }
+
+  const running = matchedEntries.length > 0;
+  const stoppedTenshiOnly =
+    running &&
+    matchedEntries.every(({ lockKey, entry }) => lockKey.startsWith('tenshi:') || entry?.isTenshiFlow);
+
+  const effectiveAutoId =
+    rawIdStr.startsWith('tenshi:') && rawIdStr.split(':')[1]
+      ? rawIdStr.split(':')[1]
+      : rawIdStr;
+  const effectiveCompanyId =
+    companyIdStr ||
+    (rawIdStr.startsWith('tenshi:') && rawIdStr.split(':')[2] ? rawIdStr.split(':')[2] : '');
+
+  // Update MongoDB state to stopped (nunca mutar documento global Tenshi ni Preset)
+  const dbOps = [];
+  if (effectiveAutoId && mongoose.Types.ObjectId.isValid(effectiveAutoId)) {
+    if (!stoppedTenshiOnly) {
+      dbOps.push(
+        Automation.updateOne(
+          {
+            _id: effectiveAutoId,
+            isTenshiFlow: { $ne: true },
+            companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
+          },
+          {
+            $set: {
+              lastRunStatus: 'stopped',
+              lastRunResult: 'Detenida manualmente por el usuario en tiempo real.',
+            },
+          },
+        ),
+      );
+    }
+    dbOps.push(
+      AutomationLog.updateMany(
+        {
+          automation: effectiveAutoId,
+          ...(effectiveCompanyId ? { companyId: effectiveCompanyId } : {}),
+          status: 'running',
+        },
+        {
+          $set: {
+            status: 'failed',
+            activeStepNodeKey: null,
+            currentStageLabel: 'Detenida manualmente',
+            heartbeatAt: new Date(),
+            error: 'Detenida manualmente por el usuario.',
+          },
+        },
+      ),
+    );
+  }
+  if (dbOps.length > 0) {
+    await Promise.all(dbOps);
+  }
 
   return {
     success: true,
     message: running
       ? 'Automatización detenida inmediatamente en segundo plano.'
-      : 'Estado de la automatización actualizado a detenido.'
+      : 'Estado de la automatización actualizado a detenido.',
   };
 }
 
@@ -7394,10 +7663,15 @@ function dispatchQrWorkerAutomations({ companyId, portalType, submissionData = {
 
   setImmediate(async () => {
     try {
+      if (companyIdStr === 'SYSTEM_PRESET' || companyIdStr === 'TENSHI_GLOBAL') return;
       const candidates = await Automation.find({
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
         status: 'active',
-        companyId: companyIdStr,
+        $and: [
+          { companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] } },
+          { companyId: companyIdStr },
+        ],
         'workflowNodes.triggers': 'trigger_qr_worker',
       })
         .select(AUTOMATION_RUN_FIELDS)
@@ -7468,7 +7742,8 @@ async function checkEmailTriggeredAutomations(maxToDispatch = 2) {
   try {
     const emailAutomations = await Automation.find({
       isSystemPreset: { $ne: true },
-      companyId: { $ne: 'SYSTEM_PRESET' },
+      isTenshiFlow: { $ne: true },
+      companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       status: 'active',
       lastRunStatus: { $ne: 'running' },
       'workflowNodes.triggers': 'trigger_email',
@@ -7592,11 +7867,16 @@ function dispatchAgentTriggeredAutomations({
 
   setImmediate(async () => {
     try {
+      if (companyIdStr === 'SYSTEM_PRESET' || companyIdStr === 'TENSHI_GLOBAL') return;
       const candidates = await Automation.find({
         isSystemPreset: { $ne: true },
+        isTenshiFlow: { $ne: true },
         status: 'active',
         lastRunStatus: { $ne: 'running' },
-        companyId: companyIdStr,
+        $and: [
+          { companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] } },
+          { companyId: companyIdStr },
+        ],
         'workflowNodes.triggers': 'trigger_agent',
       })
         .select(AUTOMATION_RUN_FIELDS)
@@ -7662,7 +7942,8 @@ async function checkAndRunAutomations() {
     // 3. Ejecutar por reloj horario SOLO las automatizaciones con disparador Cron (`hasCronTrigger(auto) === true`)
     const pendingCandidates = await Automation.find({
       isSystemPreset: { $ne: true },
-      companyId: { $ne: 'SYSTEM_PRESET' },
+      isTenshiFlow: { $ne: true },
+      companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
       status: 'active',
       lastRunStatus: { $ne: 'running' },
       $and: [
@@ -7770,7 +8051,12 @@ function startAutomationScheduler() {
     try {
       const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
       await Automation.updateMany(
-        { lastRunStatus: 'running', updatedAt: { $lt: twoMinAgo } },
+        {
+          isTenshiFlow: { $ne: true },
+          companyId: { $nin: ['SYSTEM_PRESET', 'TENSHI_GLOBAL'] },
+          lastRunStatus: 'running',
+          updatedAt: { $lt: twoMinAgo },
+        },
         { $set: { lastRunStatus: 'failed', lastRunResult: 'Reinicio del servidor detectado.' } }
       );
       await AutomationLog.updateMany(
@@ -9639,7 +9925,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
   let automationCompany = null;
   let targetCompanyIdStr =
-    companyId && companyId !== 'SYSTEM_PRESET' && companyId !== 'default' ? String(companyId) : null;
+    companyId && companyId !== 'SYSTEM_PRESET' && companyId !== 'TENSHI_GLOBAL' && companyId !== 'default'
+      ? String(companyId)
+      : null;
   try {
     if (targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
       automationCompany = await CompanyInfo.findById(targetCompanyIdStr).lean();
@@ -9911,6 +10199,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
   if (hasSimAntiDuplicate && simAutomationId) {
     simDedupLedger = await loadProcessedEntityKeysForAutomation({
       automationId: simAutomationId,
+      companyId: targetCompanyIdStr,
       nodeConfigs,
     });
   }
