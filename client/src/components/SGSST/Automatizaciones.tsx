@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { 
   Play, 
@@ -3122,8 +3123,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       </div>
 
       {/* Modal Creación / Edición con Constructor Visual de Flujos y Conectores WAPPY */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      {isModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-gradient-to-r from-purple-950/10 via-transparent to-teal-950/10">
@@ -3247,7 +3250,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     }
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm font-semibold bg-white dark:bg-gray-855 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
+                    className="w-full px-3.5 py-2 text-sm font-semibold bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
@@ -3404,12 +3407,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
 
       {/* Modal Visor de Informe / Resultado (Con Bandeja Dedicada de Certificados `evidenceFiles`) */}
-      {viewResultModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      {viewResultModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 px-6 py-4 bg-surface-secondary/20">
@@ -3470,7 +3476,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 px-6 py-3.5 bg-gray-50/50 dark:bg-gray-850">
+            <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 px-6 py-3.5 bg-gray-50/50 dark:bg-gray-800/80">
               <div>
                 {viewResultModal.conversationId && (
                   <ExpandableButton
@@ -3495,8 +3501,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               />
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
 
       {/* Visor Modal Lightbox HD / PDF para Certificados de Bitácora Real */}
       <WorkflowEvidenceLightboxModal
