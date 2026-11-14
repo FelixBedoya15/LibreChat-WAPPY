@@ -13,126 +13,13 @@
  * 3. Carga no bloqueante de MediaPipe Pose y MediaPipe Hands (<400ms).
  */
 
-import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
-
 export interface BiomechanicAngles {
     neck: number | null;
     trunk: number | null;
     arm: number | null;
     elbow: number | null;
     knee: number | null;
-    wrist?: number | null;
-    jawOpen?: number;
     is3D: boolean;
-}
-
-export type BiomechanicVisionMode = 'xray_3d' | 'neon_2d';
-export type BiomechanicShaderStyle = 'xray_fresnel' | 'clinical_solid';
-
-export interface BiomechanicLayersConfig {
-    skull: boolean;
-    spine: boolean;
-    upperLimbs: boolean;
-    lowerLimbs: boolean;
-    clinicalLabels: boolean;
-}
-
-export interface BiomechanicVisionConfig {
-    mode: BiomechanicVisionMode;
-    shaderStyle: BiomechanicShaderStyle;
-    opacity: number;
-    layers: BiomechanicLayersConfig;
-}
-
-export const BIOMECH_STORAGE_KEY = 'wappy_biomech_xray_config_v1';
-export const BIOMECH_CONFIG_EVENT = 'wappy-biomech-config-change';
-
-export const DEFAULT_BIOMECH_VISION_CONFIG: BiomechanicVisionConfig = {
-    mode: 'xray_3d',
-    shaderStyle: 'xray_fresnel',
-    opacity: 0.88,
-    layers: {
-        skull: true,
-        spine: true,
-        upperLimbs: true,
-        lowerLimbs: true,
-        clinicalLabels: true,
-    },
-};
-
-export function normalizeBiomechanicConfig(raw: any): BiomechanicVisionConfig {
-    if (!raw || typeof raw !== 'object') {
-        return {
-            ...DEFAULT_BIOMECH_VISION_CONFIG,
-            layers: { ...DEFAULT_BIOMECH_VISION_CONFIG.layers },
-        };
-    }
-    const mode: BiomechanicVisionMode = raw.mode === 'neon_2d' ? 'neon_2d' : 'xray_3d';
-    const shaderStyle: BiomechanicShaderStyle =
-        raw.shaderStyle === 'clinical_solid' ? 'clinical_solid' : 'xray_fresnel';
-    const numOpacity = Number(raw.opacity);
-    const opacity = Number.isFinite(numOpacity)
-        ? Math.min(1, Math.max(0.3, numOpacity))
-        : DEFAULT_BIOMECH_VISION_CONFIG.opacity;
-    const rawLayers = raw.layers && typeof raw.layers === 'object' ? raw.layers : {};
-    return {
-        mode,
-        shaderStyle,
-        opacity,
-        layers: {
-            skull: rawLayers.skull !== undefined ? Boolean(rawLayers.skull) : true,
-            spine: rawLayers.spine !== undefined ? Boolean(rawLayers.spine) : true,
-            upperLimbs: rawLayers.upperLimbs !== undefined ? Boolean(rawLayers.upperLimbs) : true,
-            lowerLimbs: rawLayers.lowerLimbs !== undefined ? Boolean(rawLayers.lowerLimbs) : true,
-            clinicalLabels: rawLayers.clinicalLabels !== undefined ? Boolean(rawLayers.clinicalLabels) : true,
-        },
-    };
-}
-
-let inMemoryBiomechConfig: BiomechanicVisionConfig | null = null;
-
-export function getBiomechanicVisionConfig(): BiomechanicVisionConfig {
-    if (typeof window === 'undefined') {
-        return {
-            ...DEFAULT_BIOMECH_VISION_CONFIG,
-            layers: { ...DEFAULT_BIOMECH_VISION_CONFIG.layers },
-        };
-    }
-    try {
-        const stored = safeGetItem(BIOMECH_STORAGE_KEY);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            const normalized = normalizeBiomechanicConfig(parsed);
-            inMemoryBiomechConfig = normalized;
-            return normalized;
-        }
-    } catch {
-        // fallback to memory or default
-    }
-    if (inMemoryBiomechConfig) {
-        return {
-            ...inMemoryBiomechConfig,
-            layers: { ...inMemoryBiomechConfig.layers },
-        };
-    }
-    return {
-        ...DEFAULT_BIOMECH_VISION_CONFIG,
-        layers: { ...DEFAULT_BIOMECH_VISION_CONFIG.layers },
-    };
-}
-
-export function saveBiomechanicVisionConfig(next: BiomechanicVisionConfig): BiomechanicVisionConfig {
-    const normalized = normalizeBiomechanicConfig(next);
-    inMemoryBiomechConfig = normalized;
-    if (typeof window !== 'undefined') {
-        safeSetItem(BIOMECH_STORAGE_KEY, JSON.stringify(normalized));
-        try {
-            window.dispatchEvent(new CustomEvent(BIOMECH_CONFIG_EVENT, { detail: normalized }));
-        } catch {
-            // ignore event dispatch errors in restricted environments
-        }
-    }
-    return normalized;
 }
 
 /**
@@ -237,25 +124,12 @@ export const loadTasksVision = async (): Promise<any> => {
     return tasksVisionPromise;
 };
 
-let visionWasmFilesetPromise: Promise<any> | null = null;
-const getVisionWasmFileset = async (tasksVision: any): Promise<any> => {
-    if (!tasksVision?.FilesetResolver) return null;
-    if (!visionWasmFilesetPromise) {
-        visionWasmFilesetPromise = tasksVision.FilesetResolver.forVisionTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-        ).catch((err: unknown) => {
-            visionWasmFilesetPromise = null;
-            throw err;
-        });
-    }
-    return visionWasmFilesetPromise;
-};
-
 export const initPoseLandmarker = async (tasksVision: any) => {
     if (!tasksVision || !tasksVision.FilesetResolver || !tasksVision.PoseLandmarker) return null;
     try {
-        const vision = await getVisionWasmFileset(tasksVision);
-        if (!vision) return null;
+        const vision = await tasksVision.FilesetResolver.forVisionTasks(
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+        );
         return await tasksVision.PoseLandmarker.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
@@ -267,194 +141,6 @@ export const initPoseLandmarker = async (tasksVision: any) => {
             minPosePresenceConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
-    } catch {
-        return null;
-    }
-};
-
-export interface AuxiliaryVisionTrackers {
-    detectStep: (
-        video: HTMLVideoElement,
-        timestampMs?: number
-    ) => { multiHandLandmarks: any[][] | null; jawOpen: number };
-    close: () => void;
-}
-
-/**
- * Inicializador ligero opcional para HandLandmarker (21 pts manos + túnel carpiano)
- * y FaceLandmarker (apertura mandibular ATM en tiempo real con blendshape jawOpen).
- * Se ejecuta en cadencia alternada (~15-20 FPS) sin bloquear PoseLandmarker y degrada
- * silenciosamente si algún modelo tarda o falla en red.
- */
-export const initAuxiliaryVisionTrackers = async (
-    _video?: HTMLVideoElement | null
-): Promise<AuxiliaryVisionTrackers | null> => {
-    try {
-        const tasksVision =
-            (typeof window !== 'undefined' && (window as any).MediaPipeTasksVision) ||
-            (await loadTasksVision());
-        if (!tasksVision || !tasksVision.FilesetResolver) return null;
-
-        const vision = await getVisionWasmFileset(tasksVision);
-        if (!vision) return null;
-
-        let handLandmarker: any = null;
-        let faceLandmarker: any = null;
-
-        const createHandPromise = (async () => {
-            if (!tasksVision.HandLandmarker) return;
-            try {
-                handLandmarker = await tasksVision.HandLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath:
-                            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-                        delegate: 'GPU',
-                    },
-                    runningMode: 'VIDEO',
-                    numHands: 2,
-                    minHandDetectionConfidence: 0.45,
-                    minHandPresenceConfidence: 0.45,
-                    minTrackingConfidence: 0.45,
-                });
-            } catch {
-                try {
-                    handLandmarker = await tasksVision.HandLandmarker.createFromOptions(vision, {
-                        baseOptions: {
-                            modelAssetPath:
-                                'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-                        },
-                        runningMode: 'VIDEO',
-                        numHands: 2,
-                    });
-                } catch {
-                    handLandmarker = null;
-                }
-            }
-        })();
-
-        const createFacePromise = (async () => {
-            if (!tasksVision.FaceLandmarker) return;
-            try {
-                faceLandmarker = await tasksVision.FaceLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath:
-                            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-                        delegate: 'GPU',
-                    },
-                    runningMode: 'VIDEO',
-                    numFaces: 1,
-                    outputFaceBlendshapes: true,
-                    minFaceDetectionConfidence: 0.45,
-                    minFacePresenceConfidence: 0.45,
-                    minTrackingConfidence: 0.45,
-                });
-            } catch {
-                try {
-                    faceLandmarker = await tasksVision.FaceLandmarker.createFromOptions(vision, {
-                        baseOptions: {
-                            modelAssetPath:
-                                'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-                        },
-                        runningMode: 'VIDEO',
-                        numFaces: 1,
-                        outputFaceBlendshapes: true,
-                    });
-                } catch {
-                    faceLandmarker = null;
-                }
-            }
-        })();
-
-        await Promise.allSettled([createHandPromise, createFacePromise]);
-        if (!handLandmarker && !faceLandmarker) return null;
-
-        let stepCounter = 0;
-        let lastHandTs = 0;
-        let lastFaceTs = 0;
-        let lastAuxRunWall = 0;
-        let cachedHands: any[][] | null = null;
-        let cachedHandsAt = 0;
-        let cachedJawOpen = 0;
-        let closed = false;
-
-        return {
-            detectStep: (video: HTMLVideoElement, timestampMs?: number) => {
-                if (closed || !video || video.readyState < 2 || !video.videoWidth) {
-                    return { multiHandLandmarks: cachedHands, jawOpen: cachedJawOpen };
-                }
-                const nowPerf = typeof timestampMs === 'number' ? timestampMs : performance.now();
-                // Cadencia ligera (~18 FPS máx) alternando manos y rostro para 0 bloqueo
-                if (nowPerf - lastAuxRunWall < 52) {
-                    return { multiHandLandmarks: cachedHands, jawOpen: cachedJawOpen };
-                }
-                lastAuxRunWall = nowPerf;
-                const runHands = (stepCounter++ % 2 === 0 && Boolean(handLandmarker)) || !faceLandmarker;
-
-                if (runHands && handLandmarker) {
-                    try {
-                        const ts = Math.max(lastHandTs + 1, Math.floor(nowPerf));
-                        lastHandTs = ts;
-                        const hRes = handLandmarker.detectForVideo(video, ts);
-                        const detected = hRes?.landmarks || hRes?.multiHandLandmarks;
-                        if (Array.isArray(detected) && detected.length > 0) {
-                            cachedHands = detected;
-                            cachedHandsAt = nowPerf;
-                        } else if (nowPerf - cachedHandsAt > 450) {
-                            cachedHands = null;
-                        }
-                    } catch {
-                        // Degradar silenciosamente
-                    }
-                } else if (faceLandmarker) {
-                    try {
-                        const ts = Math.max(lastFaceTs + 1, Math.floor(nowPerf));
-                        lastFaceTs = ts;
-                        const fRes = faceLandmarker.detectForVideo(video, ts);
-                        const categories = fRes?.faceBlendshapes?.[0]?.categories;
-                        let nextJaw = 0;
-                        if (Array.isArray(categories)) {
-                            const jawCat = categories.find(
-                                (c: any) => c?.categoryName === 'jawOpen'
-                            );
-                            if (jawCat && typeof jawCat.score === 'number') {
-                                nextJaw = Math.min(1, Math.max(0, jawCat.score));
-                            }
-                        } else if (Array.isArray(fRes?.faceLandmarks?.[0])) {
-                            const fl = fRes.faceLandmarks[0];
-                            if (fl[13] && fl[14] && fl[10] && fl[152]) {
-                                const faceH = Math.hypot(fl[152].x - fl[10].x, fl[152].y - fl[10].y) || 0.2;
-                                const lipGap = Math.hypot(fl[14].x - fl[13].x, fl[14].y - fl[13].y);
-                                nextJaw = Math.min(1, Math.max(0, (lipGap / faceH - 0.02) * 4.2));
-                            }
-                        }
-                        cachedJawOpen = cachedJawOpen * 0.35 + nextJaw * 0.65;
-                    } catch {
-                        // Degradar silenciosamente
-                    }
-                }
-
-                return { multiHandLandmarks: cachedHands, jawOpen: cachedJawOpen };
-            },
-            close: () => {
-                closed = true;
-                if (handLandmarker) {
-                    try {
-                        handLandmarker.close();
-                    } catch {
-                        // ignore
-                    }
-                    handLandmarker = null;
-                }
-                if (faceLandmarker) {
-                    try {
-                        faceLandmarker.close();
-                    } catch {
-                        // ignore
-                    }
-                    faceLandmarker = null;
-                }
-            },
-        };
     } catch {
         return null;
     }
@@ -626,7 +312,7 @@ function drawFuturisticFaceHUD(
 }
 
 /**
- * Dibuja la mano completa de 21 articulaciones (MediaPipe Hands) o síntesis anatómica
+ * Dibuja la mano completa de 21 articulaciones (MediaPipe Hands) con falanges afiladas y cápsulas articulares
  */
 export function drawDetailedHand(
     ctx: CanvasRenderingContext2D,
@@ -637,8 +323,10 @@ export function drawDetailedHand(
     if (!handLandmarks || handLandmarks.length < 21) return;
 
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    // 1. Polígono de la palma con relleno sutil traslúcido neón
+    // 1. Polígono anatómico de la palma (Carpo + Metacarpo)
     const palmIndices = [0, 1, 5, 9, 13, 17];
     ctx.beginPath();
     for (let i = 0; i < palmIndices.length; i++) {
@@ -649,41 +337,71 @@ export function drawDetailedHand(
         else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.12)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.14)';
     ctx.fill();
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
+    ctx.stroke();
 
-    // 2. Líneas de los dedos y huesos
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#06b6d4';
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
+    // 2. Huesos metacarpianos y falanges (Proximal, Media y Distal) con grosor progresivo
+    const chains = [
+        [0, 1, 2, 3, 4],     // Pulgar
+        [0, 5, 6, 7, 8],     // Índice
+        [0, 9, 10, 11, 12],  // Medio
+        [0, 13, 14, 15, 16], // Anular
+        [0, 17, 18, 19, 20], // Meñique
+    ];
+    const segWidths = [2.4, 2.1, 1.75, 1.4];
 
-    for (const [i1, i2] of HAND_ANATOMY_CONNECTIONS) {
-        const p1 = handLandmarks[i1];
-        const p2 = handLandmarks[i2];
-        if (!p1 || !p2) continue;
+    for (const chain of chains) {
+        for (let s = 0; s < chain.length - 1; s++) {
+            const p1 = handLandmarks[chain[s]];
+            const p2 = handLandmarks[chain[s + 1]];
+            if (!p1 || !p2) continue;
+            const x1 = p1.x * width;
+            const y1 = p1.y * height;
+            const x2 = p2.x * width;
+            const y2 = p2.y * height;
 
-        ctx.beginPath();
-        ctx.moveTo(p1.x * width, p1.y * height);
-        ctx.lineTo(p2.x * width, p2.y * height);
-        ctx.stroke();
+            ctx.strokeStyle = '#06b6d4';
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 6;
+            ctx.lineWidth = segWidths[s] || 1.6;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
+            ctx.lineWidth = Math.max(0.7, (segWidths[s] || 1.6) * 0.42);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
     }
 
-    // 3. Articulaciones / Nudillos de los dedos
-    ctx.fillStyle = '#10b981';
-    ctx.shadowColor = '#10b981';
-    ctx.shadowBlur = 6;
-
+    // 3. Articulaciones interfalángicas y falanges distales (puntas de los dedos)
     for (let i = 0; i < handLandmarks.length; i++) {
         const pt = handLandmarks[i];
         const px = pt.x * width;
         const py = pt.y * height;
         const isTip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
+        const isKnuckle = i === 0 || i === 1 || i === 5 || i === 9 || i === 13 || i === 17;
+        const r = isTip ? 3.2 : isKnuckle ? 2.8 : 2.1;
 
+        ctx.fillStyle = isTip ? '#10b981' : '#06b6d4';
+        ctx.shadowColor = isTip ? '#10b981' : '#06b6d4';
+        ctx.shadowBlur = 5;
         ctx.beginPath();
-        ctx.arc(px, py, isTip ? 3.5 : 2.5, 0, 2 * Math.PI);
+        ctx.arc(px, py, r, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.45, 0, 2 * Math.PI);
         ctx.fill();
     }
 
@@ -691,8 +409,8 @@ export function drawDetailedHand(
 }
 
 /**
- * Síntesis anatómica de mano para cuando sólo Pose está disponible
- * Transforma los puntos 15/17/19/21 en una mano biomecánica con palma y 5 dedos
+ * Síntesis anatómica completa de mano de 21 articulaciones (Carpo, 5 Metacarpianos y 14 Falanges
+ * hasta la punta de los 5 dedos) calculada geométricamente en 0ms a partir de los puntos de Pose.
  */
 function drawSynthesizedPoseHand(
     ctx: CanvasRenderingContext2D,
@@ -704,63 +422,179 @@ function drawSynthesizedPoseHand(
     height: number
 ) {
     if (!wrist || !pinky || !index) return;
+    if ((wrist.visibility ?? 0) < 0.42 || (pinky.visibility ?? 0) < 0.38 || (index.visibility ?? 0) < 0.38) {
+        return;
+    }
+
     const wx = wrist.x * width;
     const wy = wrist.y * height;
     const ix = index.x * width;
     const iy = index.y * height;
     const px = pinky.x * width;
     const py = pinky.y * height;
-    const tx = thumb ? thumb.x * width : wx + (ix - wx) * 0.7 - (py - wy) * 0.3;
-    const ty = thumb ? thumb.y * height : wy + (iy - wy) * 0.7 + (px - wx) * 0.3;
 
-    // Nudillos intermedios sintetizados
-    const mx = ix + (px - ix) * 0.33;
-    const my = iy + (py - iy) * 0.33;
-    const rx = ix + (px - ix) * 0.66;
-    const ry = iy + (py - iy) * 0.66;
+    // Centro de nudillos (MCP) y longitud base de la palma (metacarpo)
+    const midKx = (ix + px) * 0.5;
+    const midKy = (iy + py) * 0.5;
+    const palmDx = midKx - wx;
+    const palmDy = midKy - wy;
+    const palmLen = Math.hypot(palmDx, palmDy);
+    if (palmLen < 6 || palmLen > Math.max(width, height) * 0.32) return;
+
+    const fwdX = palmDx / palmLen;
+    const fwdY = palmDy / palmLen;
+
+    // Vector transversal de índice a meñique
+    const spanDx = px - ix;
+    const spanDy = py - iy;
+    const spanLen = Math.hypot(spanDx, spanDy) || palmLen * 0.65;
+    const acrossX = spanLen > 2 ? spanDx / spanLen : -fwdY;
+    const acrossY = spanLen > 2 ? spanDy / spanLen : fwdX;
+
+    // Arco metacarpiano anatómico para los 4 nudillos (Índice, Medio, Anular, Meñique)
+    const knuckles = [
+        { t: 0.0, arch: 0.0, splay: -0.14, lenMul: 1.04 },  // Índice
+        { t: 0.33, arch: 0.11, splay: -0.04, lenMul: 1.18 }, // Medio (más largo)
+        { t: 0.67, arch: 0.07, splay: 0.05, lenMul: 1.08 },  // Anular
+        { t: 1.0, arch: -0.04, splay: 0.16, lenMul: 0.84 },  // Meñique
+    ].map((cfg) => {
+        const kx = ix + (px - ix) * cfg.t + fwdX * (palmLen * cfg.arch);
+        const ky = iy + (py - iy) * cfg.t + fwdY * (palmLen * cfg.arch);
+        // Dirección del rayo digital con ligera apertura natural (splay)
+        const rawDirX = fwdX + acrossX * cfg.splay;
+        const rawDirY = fwdY + acrossY * cfg.splay;
+        const dNorm = Math.hypot(rawDirX, rawDirY) || 1;
+        const dirX = rawDirX / dNorm;
+        const dirY = rawDirY / dNorm;
+        const fingerLen = palmLen * cfg.lenMul;
+
+        // 3 Falanges: Proximal (45%), Media (31%), Distal (24%)
+        const pip = { x: kx + dirX * (fingerLen * 0.45), y: ky + dirY * (fingerLen * 0.45) };
+        const dip = { x: kx + dirX * (fingerLen * 0.76), y: ky + dirY * (fingerLen * 0.76) };
+        const tip = { x: kx + dirX * fingerLen, y: ky + dirY * fingerLen };
+        return { mcp: { x: kx, y: ky }, pip, dip, tip };
+    });
+
+    // Pulgar articulado en 3 segmentos (CMC -> MCP -> IP -> Punta)
+    const radialDirX = -acrossX;
+    const radialDirY = -acrossY;
+    const cmc = {
+        x: wx + fwdX * (palmLen * 0.28) + radialDirX * (palmLen * 0.22),
+        y: wy + fwdY * (palmLen * 0.28) + radialDirY * (palmLen * 0.22),
+    };
+    const rawTx = thumb && (thumb.visibility ?? 0) > 0.35
+        ? thumb.x * width
+        : cmc.x + (fwdX * 0.65 + radialDirX * 0.75) * (palmLen * 0.48);
+    const rawTy = thumb && (thumb.visibility ?? 0) > 0.35
+        ? thumb.y * height
+        : cmc.y + (fwdY * 0.65 + radialDirY * 0.75) * (palmLen * 0.48);
+
+    let tDirX = rawTx - cmc.x;
+    let tDirY = rawTy - cmc.y;
+    const tDirLen = Math.hypot(tDirX, tDirY) || 1;
+    tDirX /= tDirLen;
+    tDirY /= tDirLen;
+
+    const thumbMcp = { x: cmc.x + tDirX * (palmLen * 0.38), y: cmc.y + tDirY * (palmLen * 0.38) };
+    // Curvar ligeramente la falange distal del pulgar hacia el eje frontal
+    const tTipDirX = (tDirX * 0.75 + fwdX * 0.25);
+    const tTipDirY = (tDirY * 0.75 + fwdY * 0.25);
+    const tTipNorm = Math.hypot(tTipDirX, tTipDirY) || 1;
+    const thumbIp = {
+        x: thumbMcp.x + (tTipDirX / tTipNorm) * (palmLen * 0.32),
+        y: thumbMcp.y + (tTipDirY / tTipNorm) * (palmLen * 0.32),
+    };
+    const thumbTip = {
+        x: thumbIp.x + (tTipDirX / tTipNorm) * (palmLen * 0.26),
+        y: thumbIp.y + (tTipDirY / tTipNorm) * (palmLen * 0.26),
+    };
 
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    // Relleno de palma
+    // 1. Cápsula palmar translúcida (Carpo -> CMC -> Nudillos MCP -> Carpo)
     ctx.beginPath();
     ctx.moveTo(wx, wy);
-    ctx.lineTo(tx, ty);
-    ctx.lineTo(ix, iy);
-    ctx.lineTo(mx, my);
-    ctx.lineTo(rx, ry);
-    ctx.lineTo(px, py);
+    ctx.lineTo(cmc.x, cmc.y);
+    for (const k of knuckles) {
+        ctx.lineTo(k.mcp.x, k.mcp.y);
+    }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.13)';
     ctx.fill();
 
-    // Conexiones de rayos digitales
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#06b6d4';
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
+    // Arco intermetacarpiano (conecta los 4 nudillos MCP)
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(cmc.x, cmc.y);
+    for (const k of knuckles) {
+        ctx.lineTo(k.mcp.x, k.mcp.y);
+    }
+    ctx.stroke();
 
-    const fingerBases = [
-        [tx, ty],
-        [ix, iy],
-        [mx, my],
-        [rx, ry],
-        [px, py],
-    ];
-
-    for (const [fx, fy] of fingerBases) {
+    // Helper para trazar hueso con halo cyan + núcleo óseo claro
+    const drawBoneSeg = (a: { x: number; y: number }, b: { x: number; y: number }, w: number) => {
+        ctx.strokeStyle = '#06b6d4';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 6;
+        ctx.lineWidth = w;
         ctx.beginPath();
-        ctx.moveTo(wx, wy);
-        ctx.lineTo(fx, fy);
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
         ctx.stroke();
 
-        // Nudo en la punta
-        ctx.fillStyle = '#10b981';
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
+        ctx.lineWidth = Math.max(0.7, w * 0.42);
         ctx.beginPath();
-        ctx.arc(fx, fy, 3, 0, 2 * Math.PI);
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+    };
+
+    // 2. Trazar los 4 dedos largos (Metacarpo + Falange Proximal + Media + Distal)
+    const wristPt = { x: wx, y: wy };
+    for (const k of knuckles) {
+        drawBoneSeg(wristPt, k.mcp, 2.2);
+        drawBoneSeg(k.mcp, k.pip, 2.0);
+        drawBoneSeg(k.pip, k.dip, 1.65);
+        drawBoneSeg(k.dip, k.tip, 1.35);
+    }
+
+    // 3. Trazar el pulgar (Carpo -> CMC -> MCP -> IP -> Punta)
+    drawBoneSeg(wristPt, cmc, 2.2);
+    drawBoneSeg(cmc, thumbMcp, 2.0);
+    drawBoneSeg(thumbMcp, thumbIp, 1.7);
+    drawBoneSeg(thumbIp, thumbTip, 1.4);
+
+    // 4. Nodos articulares (MCP, PIP, DIP y Puntas esmeralda)
+    const drawHandNode = (pt: { x: number; y: number }, r: number, isTip: boolean) => {
+        ctx.fillStyle = isTip ? '#10b981' : '#06b6d4';
+        ctx.shadowColor = isTip ? '#10b981' : '#06b6d4';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, r, 0, 2 * Math.PI);
         ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, r * 0.45, 0, 2 * Math.PI);
+        ctx.fill();
+    };
+
+    drawHandNode(cmc, 2.3, false);
+    drawHandNode(thumbMcp, 2.2, false);
+    drawHandNode(thumbIp, 1.9, false);
+    drawHandNode(thumbTip, 2.8, true);
+
+    for (const k of knuckles) {
+        drawHandNode(k.mcp, 2.5, false);
+        drawHandNode(k.pip, 2.1, false);
+        drawHandNode(k.dip, 1.8, false);
+        drawHandNode(k.tip, 2.8, true);
     }
 
     ctx.restore();
@@ -851,13 +685,9 @@ export const drawBiomechanicSkeleton = (
     // 2. HUD FACIAL FUTURISTA (BRACKETS SCI-FI & HORIZONTE)
     drawFuturisticFaceHUD(ctx, landmarks, width, height);
 
-    // 3. SEGMENTOS DEL CUERPO (Hombros, Brazos, Tronco, Piernas)
-    ctx.lineWidth = 3;
+    // 3. SEGMENTOS DEL CUERPO (Hombros, Brazos, Tronco, Piernas) con núcleo óseo brillante
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#06b6d4';
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
 
     for (const [idx1, idx2] of BODY_CONNECTIONS) {
         const p1 = landmarks[idx1];
@@ -868,17 +698,71 @@ export const drawBiomechanicSkeleton = (
         const v2 = p2.visibility !== undefined ? p2.visibility : 1;
         if (v1 < 0.35 || v2 < 0.35) continue;
 
+        const x1 = p1.x * width;
+        const y1 = p1.y * height;
+        const x2 = p2.x * width;
+        const y2 = p2.y * height;
+
+        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = '#06b6d4';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.moveTo(p1.x * width, p1.y * height);
-        ctx.lineTo(p2.x * width, p2.y * height);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(224, 242, 254, 0.82)';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
         ctx.stroke();
     }
 
-    // 4. ARTICULACIONES PRINCIPALES (Hombros, Codos, Caderas, Rodillas, Tobillos)
-    ctx.fillStyle = '#10b981';
-    ctx.shadowColor = '#10b981';
-    ctx.shadowBlur = 6;
+    // Columna Torácica-Lumbar central cuando hombros y caderas son visibles
+    const leftHip = landmarks[23];
+    const rightHip = landmarks[24];
+    if (
+        shouldersVisible &&
+        leftHip &&
+        rightHip &&
+        (leftHip.visibility ?? 0) > 0.35 &&
+        (rightHip.visibility ?? 0) > 0.35
+    ) {
+        const sx = ((leftShoulder.x + rightShoulder.x) / 2) * width;
+        const sy = ((leftShoulder.y + rightShoulder.y) / 2) * height;
+        const hx = ((leftHip.x + rightHip.x) / 2) * width;
+        const hy = ((rightHip.y + leftHip.y) / 2) * height;
 
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+
+        for (const t of [0.22, 0.45, 0.68, 0.88]) {
+            const vx = sx + (hx - sx) * t;
+            const vy = sy + (hy - sy) * t;
+            ctx.fillStyle = '#10b981';
+            ctx.shadowColor = '#10b981';
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.arc(vx, vy, 2.8, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(vx, vy, 1.2, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    // 4. ARTICULACIONES PRINCIPALES (Hombros, Codos, Muñecas, Caderas, Rodillas, Tobillos)
     const bodyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
     for (const idx of bodyJoints) {
         const p = landmarks[idx];
@@ -889,16 +773,18 @@ export const drawBiomechanicSkeleton = (
         const px = p.x * width;
         const py = p.y * height;
 
+        ctx.fillStyle = '#10b981';
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.arc(px, py, 4, 0, 2 * Math.PI);
+        ctx.arc(px, py, 4.2, 0, 2 * Math.PI);
         ctx.fill();
 
-        ctx.save();
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(px, py, 1.5, 0, 2 * Math.PI);
+        ctx.arc(px, py, 1.7, 0, 2 * Math.PI);
         ctx.fill();
-        ctx.restore();
     }
 
     // 5. TRACKING DETALLADO DE MANOS (21 ARTICULACIONES O SÍNTESIS ANATÓMICA)
@@ -966,21 +852,10 @@ export const calc3DVerticalAngle = (bottom: any, top: any): number | null => {
  */
 export const calculateBiomechanicAngles = (
     landmarks: any[],
-    worldLandmarks?: any[] | null,
-    multiHandLandmarks?: any[] | null,
-    jawOpenValue?: number
+    worldLandmarks?: any[] | null
 ): BiomechanicAngles => {
     if (!landmarks || landmarks.length < 25) {
-        return {
-            neck: null,
-            trunk: null,
-            arm: null,
-            elbow: null,
-            knee: null,
-            wrist: null,
-            jawOpen: jawOpenValue ?? 0,
-            is3D: false,
-        };
+        return { neck: null, trunk: null, arm: null, elbow: null, knee: null, is3D: false };
     }
 
     const nose = landmarks[0];
@@ -1122,656 +997,12 @@ export const calculateBiomechanicAngles = (
         }
     }
 
-    // 6. MUÑECA / TÚNEL CARPIANO (Extensión / desviación radiocarpiana RULA)
-    let wristDegVal: number | null = null;
-    const evalSingleWrist = (
-        poseElbow2D: any,
-        poseWrist2D: any,
-        poseIndex2D: any,
-        posePinky2D: any
-    ): number | null => {
-        if (!poseElbow2D || !poseWrist2D) return null;
-        if ((poseElbow2D.visibility ?? 0) < 0.35 || (poseWrist2D.visibility ?? 0) < 0.35) {
-            return null;
-        }
-        // Intentar cruzar con la mano detallada de 21 puntos más cercana
-        if (Array.isArray(multiHandLandmarks) && multiHandLandmarks.length > 0) {
-            let bestHand: any[] | null = null;
-            let bestDist = 0.16;
-            for (const h of multiHandLandmarks) {
-                if (!Array.isArray(h) || h.length < 18 || !h[0]) continue;
-                const d = Math.hypot(h[0].x - poseWrist2D.x, h[0].y - poseWrist2D.y);
-                if (d < bestDist) {
-                    bestDist = d;
-                    bestHand = h;
-                }
-            }
-            if (bestHand && bestHand[9]) {
-                const rawAng = calc3DAngle(poseElbow2D, bestHand[0], bestHand[9]);
-                if (rawAng !== null) {
-                    return Math.min(75, Math.max(0, Math.abs(180 - rawAng)));
-                }
-            }
-        }
-        // Respaldo anatómico con índices metacarpianos de MediaPipe Pose (17/19 o 18/20)
-        if (
-            poseIndex2D &&
-            posePinky2D &&
-            (poseIndex2D.visibility ?? 0) > 0.45 &&
-            (posePinky2D.visibility ?? 0) > 0.45
-        ) {
-            const handMid = {
-                x: (poseIndex2D.x + posePinky2D.x) / 2,
-                y: (poseIndex2D.y + posePinky2D.y) / 2,
-                z: ((poseIndex2D.z ?? 0) + (posePinky2D.z ?? 0)) / 2,
-            };
-            const rawAng = calc3DAngle(poseElbow2D, poseWrist2D, handMid);
-            if (rawAng !== null) {
-                return Math.min(65, Math.max(0, Math.abs(180 - rawAng)));
-            }
-        }
-        return null;
-    };
-
-    const wristL = evalSingleWrist(leftElbow, leftWrist, landmarks[19], landmarks[17]);
-    const wristR = evalSingleWrist(rightElbow, rightWrist, landmarks[20], landmarks[18]);
-    if (wristL !== null && wristR !== null) {
-        wristDegVal = Math.max(wristL, wristR);
-    } else {
-        wristDegVal = wristL ?? wristR;
-    }
-
     return {
         neck: neckDeg,
         trunk: trunkDeg,
         arm: armDeg,
         elbow: elbowDegVal,
         knee: kneeFlexVal,
-        wrist: wristDegVal,
-        jawOpen: jawOpenValue ?? 0,
-        is3D,
+        is3D
     };
-};
-
-export interface ClinicalXRayLabelOptions {
-    layers?: Partial<BiomechanicLayersConfig>;
-    multiHandLandmarks?: any[][] | null;
-    jawOpen?: number;
-}
-
-/**
- * Dibuja callouts clínicos limpios en español sobre el Canvas 2D cuando
- * layers.clinicalLabels === true en modo Rayos X 3D.
- */
-export const drawClinicalXRayLabels = (
-    ctx: CanvasRenderingContext2D,
-    landmarks: any[],
-    angles: Partial<BiomechanicAngles>,
-    options?: ClinicalXRayLabelOptions
-) => {
-    if (!ctx || !Array.isArray(landmarks) || landmarks.length < 25) return;
-    const layers = options?.layers || DEFAULT_BIOMECH_VISION_CONFIG.layers;
-    if (layers.clinicalLabels === false) return;
-
-    const width = ctx.canvas.width;
-    const height = ctx.canvas.height;
-    if (width <= 0 || height <= 0) return;
-
-    const scale = Math.max(0.78, Math.min(1.22, width / 640));
-    const fontSize = Math.round(10.5 * scale);
-    const padX = Math.round(7 * scale);
-    const pillH = Math.round(20 * scale);
-    const minYMargin = Math.round(48 * scale);
-    const maxYMargin = height - Math.round(52 * scale);
-
-    type CalloutTone = 'normal' | 'warn' | 'critical';
-    interface CalloutItem {
-        anchorX: number;
-        anchorY: number;
-        side: 'left' | 'right';
-        text: string;
-        tone: CalloutTone;
-    }
-
-    const items: CalloutItem[] = [];
-
-    const nose = landmarks[0];
-    const leftEar = landmarks[7];
-    const rightEar = landmarks[8];
-    const leftShoulder = landmarks[11];
-    const rightShoulder = landmarks[12];
-    const leftWrist = landmarks[15];
-    const rightWrist = landmarks[16];
-    const leftHip = landmarks[23];
-    const rightHip = landmarks[24];
-    const leftKnee = landmarks[25];
-    const rightKnee = landmarks[26];
-
-    const shouldersVis =
-        leftShoulder &&
-        rightShoulder &&
-        (leftShoulder.visibility ?? 0) > 0.35 &&
-        (rightShoulder.visibility ?? 0) > 0.35;
-
-    // 1. Cráneo / ATM
-    if (layers.skull !== false) {
-        let headX: number | null = null;
-        let headY: number | null = null;
-        if (leftEar && rightEar && (leftEar.visibility ?? 0) > 0.35 && (rightEar.visibility ?? 0) > 0.35) {
-            headX = ((leftEar.x + rightEar.x) / 2) * width;
-            headY = ((leftEar.y + rightEar.y) / 2) * height;
-        } else if (nose && (nose.visibility ?? 0) > 0.35) {
-            headX = nose.x * width;
-            headY = nose.y * height;
-        }
-        if (headX !== null && headY !== null) {
-            const jaw = options?.jawOpen ?? angles.jawOpen ?? 0;
-            items.push({
-                anchorX: headX,
-                anchorY: headY - 12 * scale,
-                side: headX > width * 0.52 ? 'left' : 'right',
-                text: jaw > 0.22 ? 'Cráneo / ATM Activa' : 'Cráneo / ATM',
-                tone: 'normal',
-            });
-        }
-    }
-
-    // 2. Columna Cervical C5-C7 y Lumbar L4-S1
-    if (layers.spine !== false && shouldersVis) {
-        const neckBaseX = ((leftShoulder.x + rightShoulder.x) / 2) * width;
-        const neckBaseY = ((leftShoulder.y + rightShoulder.y) / 2) * height;
-        const neckVal = angles.neck ?? null;
-        if (neckVal !== null) {
-            const tone: CalloutTone =
-                neckVal > 25 ? 'critical' : neckVal > 10 ? 'warn' : 'normal';
-            const text =
-                tone === 'critical'
-                    ? `⚠️ C5-C7 Sobrecarga (${neckVal}°)`
-                    : tone === 'warn'
-                      ? `⚠️ C5-C7 Flexión (${neckVal}°)`
-                      : `C1-C7 Alineada (${neckVal}°)`;
-            items.push({
-                anchorX: neckBaseX,
-                anchorY: neckBaseY - 10 * scale,
-                side: 'right',
-                text,
-                tone,
-            });
-        }
-
-        const hipsVis =
-            leftHip &&
-            rightHip &&
-            ((leftHip.visibility ?? 0) > 0.35 || (rightHip.visibility ?? 0) > 0.35);
-        const shoulderSpanPx = Math.max(
-            Math.hypot(
-                (leftShoulder.x - rightShoulder.x) * width,
-                (leftShoulder.y - rightShoulder.y) * height
-            ),
-            height * 0.18
-        );
-        const lumbarX = hipsVis
-            ? ((leftHip.x + rightHip.x) / 2) * width
-            : neckBaseX;
-        const lumbarY = hipsVis
-            ? (neckBaseY * 0.25 + ((leftHip.y + rightHip.y) / 2) * height * 0.75)
-            : Math.min(height - 64 * scale, neckBaseY + shoulderSpanPx * 1.12);
-
-        const trunkVal = angles.trunk ?? null;
-        if (trunkVal !== null) {
-            const tone: CalloutTone =
-                trunkVal > 22 ? 'critical' : trunkVal > 8 ? 'warn' : 'normal';
-            const text =
-                tone === 'critical'
-                    ? `⚠️ L4-S1 Compresión (${trunkVal}°)`
-                    : tone === 'warn'
-                      ? `⚠️ L4-S1 Carga (${trunkVal}°)`
-                      : `L1-S1 Neutra (${trunkVal}°)`;
-            items.push({
-                anchorX: lumbarX,
-                anchorY: lumbarY,
-                side: 'left',
-                text,
-                tone,
-            });
-        }
-    }
-
-    // 3. Brazos y Túnel Carpiano
-    if (layers.upperLimbs !== false) {
-        const wristVal = angles.wrist ?? null;
-        const activeWrist =
-            rightWrist && (rightWrist.visibility ?? 0) >= (leftWrist?.visibility ?? 0) && (rightWrist.visibility ?? 0) > 0.35
-                ? rightWrist
-                : leftWrist && (leftWrist.visibility ?? 0) > 0.35
-                  ? leftWrist
-                  : null;
-
-        if (activeWrist && wristVal !== null) {
-            const wx = activeWrist.x * width;
-            const wy = activeWrist.y * height;
-            const tone: CalloutTone =
-                wristVal > 25 ? 'critical' : wristVal > 15 ? 'warn' : 'normal';
-            const text =
-                tone === 'critical'
-                    ? `⚠️ Túnel Carpiano (${wristVal}°)`
-                    : tone === 'warn'
-                      ? `⚠️ Túnel Carpiano (${wristVal}°)`
-                      : `Carpo (${wristVal}°)`;
-            items.push({
-                anchorX: wx,
-                anchorY: wy,
-                side: wx < width * 0.5 ? 'left' : 'right',
-                text,
-                tone,
-            });
-        } else if (shouldersVis && angles.arm !== null && angles.arm !== undefined && angles.arm > 45) {
-            const sx = leftShoulder.x * width;
-            const sy = leftShoulder.y * height;
-            items.push({
-                anchorX: sx,
-                anchorY: sy + 8 * scale,
-                side: sx < width * 0.5 ? 'left' : 'right',
-                text: `⚠️ Hombro Abducción (${angles.arm}°)`,
-                tone: 'critical',
-            });
-        }
-    }
-
-    // 4. Tren Inferior (REBA/OWAS)
-    if (layers.lowerLimbs !== false && angles.knee !== null && angles.knee !== undefined && angles.knee > 25) {
-        const actKnee =
-            leftKnee && (leftKnee.visibility ?? 0) >= (rightKnee?.visibility ?? 0) && (leftKnee.visibility ?? 0) > 0.35
-                ? leftKnee
-                : rightKnee && (rightKnee.visibility ?? 0) > 0.35
-                  ? rightKnee
-                  : null;
-        if (actKnee) {
-            const kx = actKnee.x * width;
-            const ky = actKnee.y * height;
-            const tone: CalloutTone = angles.knee > 60 ? 'critical' : 'warn';
-            items.push({
-                anchorX: kx,
-                anchorY: ky,
-                side: kx < width * 0.5 ? 'left' : 'right',
-                text: `⚠️ Rodilla (${angles.knee}°)`,
-                tone,
-            });
-        }
-    }
-
-    if (items.length === 0) return;
-
-    ctx.save();
-    ctx.font = `700 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.textBaseline = 'middle';
-
-    const usedYBySide: { left: number[]; right: number[] } = { left: [], right: [] };
-
-    const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number) => {
-        const radius = Math.min(r, w / 2, h / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + w - radius, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-        ctx.lineTo(x + w, y + h - radius);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-        ctx.lineTo(x + radius, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-    };
-
-    for (const item of items) {
-        const palette =
-            item.tone === 'critical'
-                ? {
-                      stroke: '#EF4444',
-                      bg: 'rgba(40, 8, 12, 0.86)',
-                      text: '#FCA5A5',
-                      dot: '#EF4444',
-                  }
-                : item.tone === 'warn'
-                  ? {
-                        stroke: '#F59E0B',
-                        bg: 'rgba(38, 22, 6, 0.86)',
-                        text: '#FDE68A',
-                        dot: '#F59E0B',
-                    }
-                  : {
-                        stroke: 'rgba(0, 212, 255, 0.65)',
-                        bg: 'rgba(7, 20, 36, 0.80)',
-                        text: '#A5F3FC',
-                        dot: '#00D4FF',
-                    };
-
-        const textW = ctx.measureText(item.text).width;
-        const boxW = textW + padX * 2;
-        const dir = item.side === 'right' ? 1 : -1;
-        const elbowDx = 20 * scale * dir;
-        let boxYCenter = Math.max(minYMargin, Math.min(maxYMargin, item.anchorY - 8 * scale));
-
-        // Evitar solapamiento vertical con otras etiquetas del mismo lado
-        const sideList = usedYBySide[item.side];
-        for (let attempt = 0; attempt < 5; attempt++) {
-            const collision = sideList.find((y) => Math.abs(y - boxYCenter) < pillH + 5);
-            if (collision === undefined) break;
-            boxYCenter = Math.min(maxYMargin, collision + pillH + 6);
-        }
-        sideList.push(boxYCenter);
-
-        let boxX =
-            item.side === 'right'
-                ? item.anchorX + elbowDx + 8 * scale
-                : item.anchorX + elbowDx - 8 * scale - boxW;
-        boxX = Math.max(8, Math.min(width - boxW - 8, boxX));
-        const boxY = boxYCenter - pillH / 2;
-
-        const lineEndX = item.side === 'right' ? boxX : boxX + boxW;
-
-        // Línea guía quirúrgica + punto de anclaje
-        ctx.strokeStyle = palette.stroke;
-        ctx.lineWidth = 1.25 * scale;
-        ctx.beginPath();
-        ctx.moveTo(item.anchorX, item.anchorY);
-        ctx.lineTo(item.anchorX + elbowDx * 0.65, boxYCenter);
-        ctx.lineTo(lineEndX, boxYCenter);
-        ctx.stroke();
-
-        ctx.fillStyle = palette.dot;
-        ctx.beginPath();
-        ctx.arc(item.anchorX, item.anchorY, 2.6 * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Píldora clínica
-        drawRoundedRect(boxX, boxY, boxW, pillH, 6 * scale);
-        ctx.fillStyle = palette.bg;
-        ctx.fill();
-        ctx.strokeStyle = palette.stroke;
-        ctx.lineWidth = 1.1;
-        ctx.stroke();
-
-        ctx.fillStyle = palette.text;
-        ctx.textAlign = 'left';
-        ctx.fillText(item.text, boxX + padX, boxYCenter + 0.5);
-    }
-
-    ctx.restore();
-};
-
-export interface BiomechanicSnapshotPlateOptions {
-    video: HTMLVideoElement;
-    webglCanvas?: HTMLCanvasElement | null;
-    overlay2DCanvas?: HTMLCanvasElement | null;
-    zoom?: number;
-    maxDim?: number;
-    jpegQuality?: number;
-    is3DXRayMode?: boolean;
-    phaseTitle?: string;
-    perspectiveLabel?: string;
-    methodLabel?: string;
-    angles?: Partial<BiomechanicAngles>;
-    onBeforeWebGLCopy?: () => void;
-}
-
-/**
- * Composición clínica de 6 capas para evidencia fotográfica biomecánica:
- * 1. Frame real de video (respetando zoom digital)
- * 2. Velo radiográfico #0C192E al 22% cuando está activo Rayos X 3D
- * 3. Canvas WebGL 3D de BodyParts3D sincronizado
- * 4. Canvas 2D (etiquetas clínicas en 3D o esqueleto neón en 2D)
- * 5. Brackets tácticos HUD en las 4 esquinas
- * 6. Placa clínica inferior con píldoras coloreadas por severidad + atribución BodyParts3D © DBCLS
- */
-export const composeBiomechanicSnapshotPlate = (
-    opts: BiomechanicSnapshotPlateOptions
-): string | null => {
-    const {
-        video,
-        webglCanvas,
-        overlay2DCanvas,
-        zoom = 1,
-        maxDim = 720,
-        jpegQuality = 0.82,
-        is3DXRayMode = false,
-        phaseTitle = 'EVALUACIÓN POSTURAL',
-        perspectiveLabel,
-        methodLabel,
-        angles = {},
-        onBeforeWebGLCopy,
-    } = opts;
-
-    const w = video?.videoWidth || 0;
-    const h = video?.videoHeight || 0;
-    if (!w || !h) return null;
-
-    let targetW = w;
-    let targetH = h;
-    if (w > maxDim || h > maxDim) {
-        if (w > h) {
-            targetW = maxDim;
-            targetH = Math.round((h * maxDim) / w);
-        } else {
-            targetH = maxDim;
-            targetW = Math.round((w * maxDim) / h);
-        }
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const safeZoom = Math.max(1, zoom);
-    const sw = w / safeZoom;
-    const sh = h / safeZoom;
-    const sx = (w - sw) / 2;
-    const sy = (h - sh) / 2;
-
-    // Capa 1: Video base
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
-
-    // Capa 2: Velo radiográfico #0C192E al 22% en modo 3D
-    if (is3DXRayMode) {
-        ctx.fillStyle = 'rgba(12, 25, 46, 0.22)';
-        ctx.fillRect(0, 0, targetW, targetH);
-    }
-
-    const drawScaledOverlay = (srcCanvas?: HTMLCanvasElement | null) => {
-        if (!srcCanvas || srcCanvas.width <= 0 || srcCanvas.height <= 0) return;
-        const cw = srcCanvas.width;
-        const ch = srcCanvas.height;
-        const csw = cw / safeZoom;
-        const csh = ch / safeZoom;
-        const csx = (cw - csw) / 2;
-        const csy = (ch - csh) / 2;
-        try {
-            ctx.drawImage(srcCanvas, csx, csy, csw, csh, 0, 0, targetW, targetH);
-        } catch {
-            // ignore tainted/disposed canvas error
-        }
-    };
-
-    // Capa 3: Canvas WebGL 3D sincronizado
-    if (is3DXRayMode && webglCanvas) {
-        try {
-            onBeforeWebGLCopy?.();
-        } catch {
-            // ignore
-        }
-        drawScaledOverlay(webglCanvas);
-    }
-
-    // Capa 4: Canvas 2D (etiquetas clínicas en 3D o esqueleto neón en 2D)
-    drawScaledOverlay(overlay2DCanvas);
-
-    const uiScale = Math.max(0.76, Math.min(1.18, targetW / 640));
-    const plateH = Math.round(58 * uiScale);
-
-    // Capa 5: Brackets HUD quirúrgicos
-    const m = Math.round(12 * uiScale);
-    const bLen = Math.round(18 * uiScale);
-    const bottomBracketY = targetH - plateH - m;
-    ctx.save();
-    ctx.strokeStyle = is3DXRayMode ? 'rgba(0, 212, 255, 0.72)' : 'rgba(16, 185, 129, 0.72)';
-    ctx.lineWidth = Math.max(1.5, 1.8 * uiScale);
-    ctx.beginPath();
-    // Top-left
-    ctx.moveTo(m, m + bLen);
-    ctx.lineTo(m, m);
-    ctx.lineTo(m + bLen, m);
-    // Top-right
-    ctx.moveTo(targetW - m - bLen, m);
-    ctx.lineTo(targetW - m, m);
-    ctx.lineTo(targetW - m, m + bLen);
-    // Bottom-left
-    ctx.moveTo(m, bottomBracketY - bLen);
-    ctx.lineTo(m, bottomBracketY);
-    ctx.lineTo(m + bLen, bottomBracketY);
-    // Bottom-right
-    ctx.moveTo(targetW - m - bLen, bottomBracketY);
-    ctx.lineTo(targetW - m, bottomBracketY);
-    ctx.lineTo(targetW - m, bottomBracketY - bLen);
-    ctx.stroke();
-    ctx.restore();
-
-    // Capa 6: Placa clínica inferior con píldoras coloreadas + atribución DBCLS
-    const plateTop = targetH - plateH;
-    ctx.fillStyle = 'rgba(9, 18, 34, 0.90)';
-    ctx.fillRect(0, plateTop, targetW, plateH);
-
-    ctx.fillStyle = is3DXRayMode ? '#00D4FF' : '#10B981';
-    ctx.fillRect(0, plateTop, targetW, 2);
-
-    const resolvedMethod =
-        methodLabel || (angles.knee !== null && angles.knee !== undefined && angles.knee > 25 ? 'REBA' : 'RULA');
-    const modeTag = is3DXRayMode ? 'RAYOS X 3D' : 'NEÓN 2D';
-    const headerLeft = `${modeTag} • ${phaseTitle.toUpperCase()}${perspectiveLabel ? ` (${perspectiveLabel})` : ''} • ${resolvedMethod}`;
-
-    const headerFont = Math.round(10.5 * uiScale);
-    ctx.font = `700 ${headerFont}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = is3DXRayMode ? '#67E8F9' : '#6EE7B7';
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.fillText(headerLeft, Math.round(12 * uiScale), plateTop + Math.round(16 * uiScale));
-
-    if (is3DXRayMode) {
-        const wmFont = Math.max(8, Math.round(8.5 * uiScale));
-        ctx.font = `600 ${wmFont}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.85)';
-        ctx.textAlign = 'right';
-        ctx.fillText(
-            'BodyParts3D © DBCLS · CC BY-SA 2.1 JP',
-            targetW - Math.round(10 * uiScale),
-            plateTop + Math.round(16 * uiScale)
-        );
-    }
-
-    // Fila de píldoras coloreadas por severidad clínica
-    interface PillMetric {
-        label: string;
-        val: string;
-        severity: 'ok' | 'warn' | 'crit';
-    }
-    const pills: PillMetric[] = [];
-    if (angles.neck !== null && angles.neck !== undefined) {
-        pills.push({
-            label: 'Cuello',
-            val: `${angles.neck}°`,
-            severity: angles.neck > 25 ? 'crit' : angles.neck > 10 ? 'warn' : 'ok',
-        });
-    }
-    if (angles.trunk !== null && angles.trunk !== undefined) {
-        pills.push({
-            label: 'Tronco',
-            val: `${angles.trunk}°`,
-            severity: angles.trunk > 22 ? 'crit' : angles.trunk > 8 ? 'warn' : 'ok',
-        });
-    }
-    if (angles.arm !== null && angles.arm !== undefined) {
-        pills.push({
-            label: 'Brazo',
-            val: `${angles.arm}°`,
-            severity: angles.arm > 45 ? 'crit' : angles.arm > 20 ? 'warn' : 'ok',
-        });
-    }
-    if (angles.elbow !== null && angles.elbow !== undefined) {
-        const e = angles.elbow;
-        pills.push({
-            label: 'Codo',
-            val: `${e}°`,
-            severity: e < 30 || e > 130 ? 'crit' : e < 60 || e > 100 ? 'warn' : 'ok',
-        });
-    }
-    if (angles.wrist !== null && angles.wrist !== undefined) {
-        pills.push({
-            label: 'Muñeca',
-            val: `${angles.wrist}°`,
-            severity: angles.wrist > 25 ? 'crit' : angles.wrist > 15 ? 'warn' : 'ok',
-        });
-    }
-    if (angles.knee !== null && angles.knee !== undefined) {
-        pills.push({
-            label: 'Rodilla',
-            val: `${angles.knee}°`,
-            severity: angles.knee > 60 ? 'crit' : angles.knee > 25 ? 'warn' : 'ok',
-        });
-    }
-
-    const pillFont = Math.max(8.5, Math.round(9.5 * uiScale));
-    ctx.font = `700 ${pillFont}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    ctx.textAlign = 'left';
-
-    let cursorX = Math.round(12 * uiScale);
-    const pillCenterY = plateTop + Math.round(40 * uiScale);
-    const pillHeight = Math.round(18 * uiScale);
-    const pillPadX = Math.round(6 * uiScale);
-
-    if (pills.length === 0) {
-        ctx.fillStyle = '#CBD5E1';
-        ctx.fillText('Telemetría Biomecánica Activa', cursorX, pillCenterY);
-    } else {
-        for (const p of pills) {
-            const content = `${p.label}: ${p.val}`;
-            const wText = ctx.measureText(content).width;
-            const pw = wText + pillPadX * 2;
-            if (cursorX + pw > targetW - 10) break;
-
-            const colors =
-                p.severity === 'crit'
-                    ? { bg: 'rgba(239, 68, 68, 0.22)', border: 'rgba(239, 68, 68, 0.65)', fg: '#FCA5A5' }
-                    : p.severity === 'warn'
-                      ? { bg: 'rgba(245, 158, 11, 0.20)', border: 'rgba(245, 158, 11, 0.60)', fg: '#FDE68A' }
-                      : { bg: 'rgba(16, 185, 129, 0.16)', border: 'rgba(0, 212, 255, 0.45)', fg: '#A5F3FC' };
-
-            const py = pillCenterY - pillHeight / 2;
-            const r = Math.round(5 * uiScale);
-            ctx.beginPath();
-            ctx.moveTo(cursorX + r, py);
-            ctx.lineTo(cursorX + pw - r, py);
-            ctx.quadraticCurveTo(cursorX + pw, py, cursorX + pw, py + r);
-            ctx.lineTo(cursorX + pw, py + pillHeight - r);
-            ctx.quadraticCurveTo(cursorX + pw, py + pillHeight, cursorX + pw - r, py + pillHeight);
-            ctx.lineTo(cursorX + r, py + pillHeight);
-            ctx.quadraticCurveTo(cursorX, py + pillHeight, cursorX, py + pillHeight - r);
-            ctx.lineTo(cursorX, py + r);
-            ctx.quadraticCurveTo(cursorX, py, cursorX + r, py);
-            ctx.closePath();
-
-            ctx.fillStyle = colors.bg;
-            ctx.fill();
-            ctx.strokeStyle = colors.border;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            ctx.fillStyle = colors.fg;
-            ctx.fillText(content, cursorX + pillPadX, pillCenterY + 0.5);
-
-            cursorX += pw + Math.round(5 * uiScale);
-        }
-    }
-
-    return canvas.toDataURL('image/jpeg', jpegQuality);
 };
