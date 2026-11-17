@@ -1631,36 +1631,106 @@ ${availablePreview}
 
 
 
-        run = await createRun({
-          agents: agentsForRun,
-          indexTokenCountMap,
-          runId: this.responseMessageId,
-          signal: abortController.signal,
-          customHandlers: this.options.eventHandlers,
-          requestBody: config.configurable.requestBody,
-          tokenCounter: createTokenCounter(this.getEncoding()),
-        });
-
-        if (!run) {
-          throw new Error('Failed to create run');
+        const attemptAbortController = new AbortController();
+        let onParentAbort = null;
+        if (abortController?.signal) {
+          if (abortController.signal.aborted) {
+            attemptAbortController.abort(abortController.signal.reason);
+          } else {
+            onParentAbort = () => attemptAbortController.abort(abortController.signal.reason);
+            abortController.signal.addEventListener('abort', onParentAbort, { once: true });
+          }
         }
 
-        this.run = run;
-        if (userMCPAuthMap != null) {
-          config.configurable.userMCPAuthMap = userMCPAuthMap;
+        const FIRST_CHUNK_STALL_TIMEOUT_MS = 22000;
+        const partsAtAttemptStart = Array.isArray(this.contentParts) ? this.contentParts.length : 0;
+        let stalledWaitingFirstChunk = false;
+        const attemptStartMs = Date.now();
+        const stallCheckInterval = setInterval(() => {
+          const currentPartsLen = Array.isArray(this.contentParts) ? this.contentParts.length : 0;
+          if (currentPartsLen > partsAtAttemptStart) {
+            clearInterval(stallCheckInterval);
+            return;
+          }
+          if (Date.now() - attemptStartMs >= FIRST_CHUNK_STALL_TIMEOUT_MS) {
+            stalledWaitingFirstChunk = true;
+            clearInterval(stallCheckInterval);
+            try {
+              attemptAbortController.abort(new Error('MODEL_FIRST_CHUNK_STALL_TIMEOUT'));
+            } catch (_) {}
+          }
+        }, 500);
+        if (typeof stallCheckInterval.unref === 'function') {
+          stallCheckInterval.unref();
         }
 
-        /** @deprecated Agent Chain */
-        config.configurable.last_agent_id = agents[agents.length - 1].id;
-        await run.processStream({ messages }, config, {
-          callbacks: {
-            [Callback.TOOL_ERROR]: logToolError,
-          },
-        });
+        try {
+          run = await createRun({
+            agents: agentsForRun,
+            indexTokenCountMap,
+            runId: this.responseMessageId,
+            signal: attemptAbortController.signal,
+            customHandlers: this.options.eventHandlers,
+            requestBody: config.configurable.requestBody,
+            tokenCounter: createTokenCounter(this.getEncoding()),
+          });
 
+          if (!run) {
+            throw new Error('Failed to create run');
+          }
 
+          this.run = run;
+          if (userMCPAuthMap != null) {
+            config.configurable.userMCPAuthMap = userMCPAuthMap;
+          }
 
-        config.signal = null;
+          /** @deprecated Agent Chain */
+          config.configurable.last_agent_id = agents[agents.length - 1].id;
+          config.signal = attemptAbortController.signal;
+
+          const stallRacePromise = new Promise((_, reject) => {
+            const onStallAbort = () => {
+              if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
+                const stallErr = new Error(
+                  `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>22s without first token)`,
+                );
+                stallErr.status = 503;
+                stallErr.isStallTimeout = true;
+                reject(stallErr);
+              }
+            };
+            if (attemptAbortController.signal.aborted) {
+              onStallAbort();
+            } else {
+              attemptAbortController.signal.addEventListener('abort', onStallAbort, { once: true });
+            }
+          });
+
+          await Promise.race([
+            run.processStream({ messages }, config, {
+              callbacks: {
+                [Callback.TOOL_ERROR]: logToolError,
+              },
+            }),
+            stallRacePromise,
+          ]);
+        } catch (runErr) {
+          if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
+            const stallErr = new Error(
+              `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>22s without first token)`,
+            );
+            stallErr.status = 503;
+            stallErr.isStallTimeout = true;
+            throw stallErr;
+          }
+          throw runErr;
+        } finally {
+          clearInterval(stallCheckInterval);
+          if (onParentAbort && abortController?.signal) {
+            abortController.signal.removeEventListener('abort', onParentAbort);
+          }
+          config.signal = null;
+        }
       };
 
       memoryPromise = this.runMemory(initialMessages).catch((err) => {
@@ -2023,10 +2093,11 @@ ${availablePreview}
             break; // Exit key loop on success
           } catch (err) {
             if (
-              abortController?.signal?.aborted ||
-              err?.name === 'AbortError' ||
-              err?.name === 'CancelledError' ||
-              err?.message?.includes('aborted')
+              !err?.isStallTimeout &&
+              (abortController?.signal?.aborted ||
+                err?.name === 'AbortError' ||
+                err?.name === 'CancelledError' ||
+                err?.message?.includes('aborted'))
             ) {
               logger.info('[AgentClient] Request aborted by user/signal. Halting all retries and model rotations.');
               lastErr = err;
@@ -2191,10 +2262,12 @@ ${availablePreview}
               rotateToNextModel = true;
               break;
             } else if (isServiceUnavailable) {
-              const reason = err?.status === 503 || err?.message?.includes('503')
+              const reason = err?.isStallTimeout
+                ? 'Model endpoint stalled >22s without first token'
+                : err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
-              if (i < Math.min(prioritizedKeys.length - 1, 1) && !abortController?.signal?.aborted) {
+              if (!err?.isStallTimeout && i < Math.min(prioritizedKeys.length - 1, 1) && !abortController?.signal?.aborted) {
                 logger.warn(
                   `[AgentClient] Model "${currentModel}" returned transient high demand (${reason}) on Key ${i + 1}. ` +
                     `Pausing 1200ms for 1 quick retry with next API key ${i + 2} on "${currentModel}" before rotating model...`,

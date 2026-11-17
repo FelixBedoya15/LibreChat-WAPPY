@@ -1010,7 +1010,17 @@ function injectStandaloneCssIfMissing(html) {
   if (/<head[^>]*>/i.test(cleanedHtml)) {
     return cleanedHtml.replace(/<head[^>]*>/i, (m) => `${m}\n${standaloneCss}`);
   }
-  return `${standaloneCss}\n${cleanedHtml}`;
+  if (/<html[^>]*>/i.test(cleanedHtml)) {
+    return cleanedHtml.replace(/<html[^>]*>/i, (m) => `${m}\n<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${standaloneCss}</head>`);
+  }
+  const hasHtmlMarkup = /<(div|section|main|table|header|canvas|form|article|script|h1|h2)\b/i.test(cleanedHtml);
+  const bodyInner = hasHtmlMarkup
+    ? cleanedHtml
+    : `<main style="max-width:1100px;margin:24px auto;padding:24px;background:#0f172a;color:#f8fafc;border-radius:16px;border:1px solid #1e293b;">
+        <h1 style="margin:0 0 12px;font-size:22px;color:#2dd4bf;">Aplicativo Interactivo SG-SST</h1>
+        <p style="margin:0 0 16px;color:#cbd5e1;line-height:1.6;">${String(cleanedHtml || '').replace(/</g, '&lt;')}</p>
+      </main>`;
+  return `<!DOCTYPE html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<script src="https://cdn.tailwindcss.com"></script>\n${standaloneCss}\n</head>\n<body class="bg-slate-950 text-slate-100 min-h-screen">\n${bodyInner}\n</body>\n</html>`;
 }
 
 /**
@@ -2064,12 +2074,22 @@ class CanvasTool extends Tool {
 
   async _call(input, runManager) {
     try {
-      const conversationId =
-        runManager?.configurable?.thread_id ||
-        runManager?.metadata?.thread_id ||
-        this.req?.body?.conversationId;
+      const candidateConvoIds = [
+        runManager?.configurable?.thread_id,
+        runManager?.metadata?.thread_id,
+        this.req?.resolvedConversationId,
+        this.req?.body?.conversationId,
+      ];
+      const conversationId = candidateConvoIds.find(
+        (cid) =>
+          typeof cid === 'string' &&
+          cid.trim() !== '' &&
+          cid !== 'new' &&
+          cid !== 'null' &&
+          cid !== 'undefined',
+      );
 
-      if (!conversationId || conversationId === 'new') {
+      if (!conversationId) {
         return JSON.stringify({
           error:
             'No se encontró un ID de conversación válido. Asegúrate de que el chat esté iniciado.',

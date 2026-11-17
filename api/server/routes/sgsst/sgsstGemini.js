@@ -317,7 +317,15 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
   const mappedFallbacks = SGSST_FALLBACK_MODELS.map(m => mapToGoogleApiTextModel(m, 'gemini-3.6-flash'));
   const candidateFallbacks = [...new Set([...envModels, ...mappedFallbacks])].filter(Boolean);
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
-  const modelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
+  const rawModelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
+  const nowTs = Date.now();
+  if (!global.__sgsstModelOverloadCooldowns) {
+    global.__sgsstModelOverloadCooldowns = new Map();
+  }
+  const modelCooldownMap = global.__sgsstModelOverloadCooldowns;
+  const healthyModels = rawModelsToTry.filter(m => !modelCooldownMap.has(m) || modelCooldownMap.get(m) < nowTs);
+  const coolingModels = rawModelsToTry.filter(m => modelCooldownMap.has(m) && modelCooldownMap.get(m) >= nowTs);
+  const modelsToTry = healthyModels.length > 0 ? [...healthyModels, ...coolingModels] : rawModelsToTry;
 
   const apiKeys = await resolveApiKeys(userId);
 
@@ -463,20 +471,23 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const is404 = status === 404 || msg.includes('404') ||
           msg.includes('not found') || msg.includes('is not found for api version');
 
+        const isModelTimeout = msg.includes('request timeout');
+
         // Transient network / fetch failure — rotate key & model instead of aborting on first attempt
         const isTransientNet =
-          msg.includes('fetch failed') ||
-          msg.includes('etimedout') ||
-          msg.includes('econnreset') ||
-          msg.includes('socket hang up') ||
-          msg.includes('und_err') ||
-          msg.includes('timeout') ||
-          msg.includes('aborted');
+          !isModelTimeout &&
+          (msg.includes('fetch failed') ||
+            msg.includes('etimedout') ||
+            msg.includes('econnreset') ||
+            msg.includes('socket hang up') ||
+            msg.includes('und_err') ||
+            msg.includes('timeout') ||
+            msg.includes('aborted'));
 
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 
         geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
-          status,
+          status: isModelTimeout ? 503 : status,
           message: err.message,
           isDailyLimit: isDaily,
         });
@@ -484,6 +495,15 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         if (safeOpts.fastFallback) {
           logger.warn(`[SGSST Gemini] FastFallback activo. Falló intento único con "${currentModel}" (${status || 'error'}). Abortando rotación para dar paso a fallback determinista.`);
           throw err;
+        }
+
+        if (isModelTimeout) {
+          saw503AcrossModels = true;
+          modelCooldownMap.set(currentModel, Date.now() + 180000);
+          logger.warn(
+            `[SGSST Gemini] Modelo "${currentModel}" excedió timeout sin respuesta. Enfriando 3m y rotando inmediatamente a modelo de respaldo...`,
+          );
+          break;
         }
 
         if (isRateLimit || isQuotaExceeded || isInvalidKey || isTransientNet) {
@@ -510,6 +530,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         }
 
         if (is503 || is404) {
+          modelCooldownMap.set(currentModel, Date.now() + (is404 ? 3600000 : 180000));
           logger.warn(
             `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
             `Rotando a modelo de respaldo...`

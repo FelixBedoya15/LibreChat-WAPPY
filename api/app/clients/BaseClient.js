@@ -206,15 +206,29 @@ class BaseClient {
     this.user = user;
     const saveOptions = this.getSaveOptions();
     this.abortController = opts.abortController ?? new AbortController();
-    const requestConvoId = overrideConvoId ?? opts.conversationId;
+    const rawRequestConvoId = overrideConvoId ?? opts.conversationId;
+    const requestConvoId =
+      typeof rawRequestConvoId === 'string' &&
+      rawRequestConvoId.trim() !== '' &&
+      rawRequestConvoId !== 'new' &&
+      rawRequestConvoId !== 'null' &&
+      rawRequestConvoId !== 'undefined'
+        ? rawRequestConvoId.trim()
+        : null;
     const conversationId = requestConvoId ?? crypto.randomUUID();
     const parentMessageId = opts.parentMessageId ?? Constants.NO_PARENT;
     const userMessageId =
       overrideUserMessageId ?? opts.overrideParentMessageId ?? crypto.randomUUID();
     let responseMessageId = opts.responseMessageId ?? crypto.randomUUID();
     let head = isEdited ? responseMessageId : parentMessageId;
-    this.currentMessages = (await this.loadHistory(conversationId, head)) ?? [];
+    this.currentMessages = requestConvoId ? ((await this.loadHistory(conversationId, head)) ?? []) : [];
     this.conversationId = conversationId;
+    if (this.options?.req) {
+      this.options.req.resolvedConversationId = conversationId;
+      if (this.options.req.body && typeof this.options.req.body === 'object') {
+        this.options.req.body.conversationId = conversationId;
+      }
+    }
 
     if (isEdited && !isContinued) {
       responseMessageId = crypto.randomUUID();
