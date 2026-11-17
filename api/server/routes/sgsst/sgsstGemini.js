@@ -390,25 +390,35 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
 
     const abortCtrl = new AbortController();
     let attemptTimer = null;
+    let didAttemptTimeout = false;
     try {
       const genPromise = model.generateContent(contentPayload, {
-        timeout: perAttemptTimeoutMs,
         signal: abortCtrl.signal,
       });
       genPromise.catch(() => {});
       const timeoutPromise = new Promise((_, reject) => {
         attemptTimer = setTimeout(() => {
+          didAttemptTimeout = true;
           try {
             abortCtrl.abort();
           } catch (_) {}
-          reject(
-            new Error(
-              `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
-            ),
+          const timeoutErr = new Error(
+            `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
           );
+          timeoutErr.isModelTimeout = true;
+          reject(timeoutErr);
         }, perAttemptTimeoutMs);
       });
       return await Promise.race([genPromise, timeoutPromise]);
+    } catch (innerErr) {
+      if (didAttemptTimeout) {
+        const timeoutErr = new Error(
+          `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
+        );
+        timeoutErr.isModelTimeout = true;
+        throw timeoutErr;
+      }
+      throw innerErr;
     } finally {
       if (attemptTimer) {
         clearTimeout(attemptTimer);
@@ -471,9 +481,9 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const is404 = status === 404 || msg.includes('404') ||
           msg.includes('not found') || msg.includes('is not found for api version');
 
-        const isModelTimeout = msg.includes('request timeout');
+        const isModelTimeout = Boolean(err.isModelTimeout) || msg.includes('request timeout');
 
-        // Transient network / fetch failure — rotate key & model instead of aborting on first attempt
+        // Transient network / fetch failure on endpoint
         const isTransientNet =
           !isModelTimeout &&
           (msg.includes('fetch failed') ||
@@ -487,7 +497,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 
         geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
-          status: isModelTimeout ? 503 : status,
+          status: isModelTimeout || isTransientNet ? 503 : status,
           message: err.message,
           isDailyLimit: isDaily,
         });
@@ -497,45 +507,34 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           throw err;
         }
 
-        if (isModelTimeout) {
-          saw503AcrossModels = true;
-          modelCooldownMap.set(currentModel, Date.now() + 180000);
-          logger.warn(
-            `[SGSST Gemini] Modelo "${currentModel}" excedió timeout sin respuesta. Enfriando 3m y rotando inmediatamente a modelo de respaldo...`,
-          );
-          break;
-        }
-
-        if (isRateLimit || isQuotaExceeded || isInvalidKey || isTransientNet) {
+        // Rotate KEY only on key-specific errors (429 rate-limit, 403 quota/leaked, 400 invalid key)
+        if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(
             `[SGSST Gemini] Clave #${keyIdx + 1} rechazada ` +
-            `(${status || (isTransientNet ? 'red/fetch' : 'quota')} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : isTransientNet ? 'reintento red' : 'límite'}) ` +
+            `(${status || 'quota'} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : 'límite'}) ` +
             `para modelo "${currentModel}". Rotando API key...`
           );
           allKeysExhaustedDueTo429 = true; // mark; continues to next keyIdx automatically
           continue; // next key, same model
         }
 
-        if (is503) {
-          saw503AcrossModels = true;
-          if (!retried503OnCurrentModel && keyIdx < keysToTry.length - 1) {
-            retried503OnCurrentModel = true;
-            logger.warn(
-              `[SGSST Gemini] Modelo "${currentModel}" devolvió 503 Sobrecargado en Clave #${keyIdx + 1}/${keysToTry.length}. ` +
-              `Pausando 1000ms para intentar 1 clave adicional antes de rotar modelo...`
-            );
-            await sleepMs(1000);
-            continue;
+        // Rotate MODEL immediately on model/server unavailability (503, 404, timeout, network/fetch failure)
+        if (is503 || is404 || isModelTimeout || isTransientNet) {
+          if (is503 || isModelTimeout || isTransientNet) {
+            saw503AcrossModels = true;
           }
-        }
-
-        if (is503 || is404) {
-          modelCooldownMap.set(currentModel, Date.now() + (is404 ? 3600000 : 180000));
+          modelCooldownMap.set(currentModel, Date.now() + (is404 ? 3600000 : 120000));
+          const failLabel = is404
+            ? '404 No Encontrado'
+            : isModelTimeout
+            ? 'Timeout sin respuesta'
+            : isTransientNet
+            ? 'Fallo de red/endpoint'
+            : '503 Sobrecargado';
           logger.warn(
-            `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
-            `Rotando a modelo de respaldo...`
+            `[SGSST Gemini] Modelo "${currentModel}" falló (${failLabel}). Rotando inmediatamente al siguiente modelo de respaldo...`
           );
-          break; // break inner for → outer for advances modelIdx
+          break; // break inner for → outer for advances modelIdx immediately
         }
 
         // Any other error: fail fast
@@ -557,21 +556,23 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     // If we broke out due to 503 → outer for will also continue to next model
   } // end outer for (models)
 
-  // Final rescue pass on gemini-3.5-flash-lite if all models failed due to 503 overload
+  // Final rescue pass across fallback ladder if all models returned 503/timeout on first pass
   if (saw503AcrossModels && !safeOpts.fastFallback) {
-    const rescueModel = 'gemini-3.5-flash-lite';
+    const rescueLadder = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', ...modelsToTry])];
     logger.warn(
-      `[SGSST Gemini] Todos los modelos de respaldo reportaron sobrecarga (503). ` +
-      `Esperando 1800ms para ejecutar 1 último pase de rescate sobre "${rescueModel}"...`
+      `[SGSST Gemini] Primera vuelta reportó sobrecarga (503). ` +
+      `Esperando 2200ms para ejecutar segunda vuelta de rotación (${rescueLadder.join(' -> ')})...`
     );
-    await sleepMs(1800);
-    const rescueKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, rescueModel, userId);
-    const rescueKey = rescueKeys[0] || apiKeys[0];
-    if (rescueKey) {
+    await sleepMs(2200);
+    for (const rescueModel of rescueLadder) {
+      const rescueKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, rescueModel, userId);
+      const rescueKey = rescueKeys[0] || apiKeys[0];
+      if (!rescueKey) continue;
       try {
         const rescueResult = await executeModelAttempt(rescueModel, rescueKey);
         geminiPoolManager.reportKeySuccess(rescueKey, rescueModel);
-        logger.info(`[SGSST Gemini] Pase de rescate exitoso sobre "${rescueModel}".`);
+        modelCooldownMap.delete(rescueModel);
+        logger.info(`[SGSST Gemini] Segunda vuelta exitosa rotando a "${rescueModel}".`);
         return rescueResult;
       } catch (rescueErr) {
         lastError = rescueErr;
@@ -579,7 +580,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           status: rescueErr?.status || 0,
           message: rescueErr?.message,
         });
-        logger.error(`[SGSST Gemini] Pase de rescate sobre "${rescueModel}" falló: ${rescueErr.message}`);
+        logger.warn(`[SGSST Gemini] Segunda vuelta en "${rescueModel}" rechazó (${rescueErr?.status || 'net'}). Rotando al siguiente...`);
       }
     }
   }

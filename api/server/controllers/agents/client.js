@@ -1642,7 +1642,7 @@ ${availablePreview}
           }
         }
 
-        const FIRST_CHUNK_STALL_TIMEOUT_MS = 22000;
+        const FIRST_CHUNK_STALL_TIMEOUT_MS = 30000;
         const partsAtAttemptStart = Array.isArray(this.contentParts) ? this.contentParts.length : 0;
         let stalledWaitingFirstChunk = false;
         const attemptStartMs = Date.now();
@@ -1692,7 +1692,7 @@ ${availablePreview}
             const onStallAbort = () => {
               if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
                 const stallErr = new Error(
-                  `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>22s without first token)`,
+                  `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>30s without first token)`,
                 );
                 stallErr.status = 503;
                 stallErr.isStallTimeout = true;
@@ -1717,7 +1717,7 @@ ${availablePreview}
         } catch (runErr) {
           if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
             const stallErr = new Error(
-              `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>22s without first token)`,
+              `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>30s without first token)`,
             );
             stallErr.status = 503;
             stallErr.isStallTimeout = true;
@@ -1829,10 +1829,15 @@ ${availablePreview}
       const CANVAS_APP_TRIGGERS = [
         // Aplicativos HTML / Dashboards / Calculadoras
         'aplicativo interactivo', 'aplicacion interactiva', 'aplicación interactiva', 'dashboard interactivo',
+        'un aplicativo', 'el aplicativo', 'mi aplicativo', 'nuevo aplicativo',
+        'aplicativo sobre', 'aplicativo para', 'aplicativo de', 'aplicativo con', 'aplicativo que',
+        'aplicacion sobre', 'aplicación sobre', 'aplicacion para', 'aplicación para',
         'aplicativo de html', 'aplicativo html', 'aplicativo en html',
         'aplicacion html', 'aplicación html', 'aplicacion de html', 'aplicación de html', 'aplicacion en html', 'aplicación en html',
-        'app en html', 'app html', 'app de html',
-        'componente html', 'interfaz web', 'calculadora interactiva', 'simulador interactivo',
+        'app en html', 'app html', 'app de html', 'app interactiva',
+        'dashboard de', 'dashboard sobre', 'dashboard con', 'dashboard para',
+        'gráficas dinámicas', 'graficas dinamicas', 'gráficos dinámicos', 'graficos dinamicos',
+        'componente html', 'interfaz web', 'calculadora interactiva', 'calculadora de', 'simulador interactivo', 'simulador de',
         // Invocaciones explícitas a Canvas / Canva / Panel lateral derecho
         'en canvas', 'en canva', 'abrir canvas', 'abre canvas', 'abrir canva', 'abre canva',
         'herramienta canvas', 'herramienta canva', 'usar canvas', 'usa canvas', 'usar canva', 'usa canva',
@@ -2261,25 +2266,16 @@ ${availablePreview}
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${prioritizedKeys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isServiceUnavailable) {
+            } else if (isServiceUnavailable || isNetworkError) {
               const reason = err?.isStallTimeout
-                ? 'Model endpoint stalled >22s without first token'
+                ? 'Model endpoint stalled >30s without first token'
+                : isNetworkError
+                ? 'Network / Fetch failed on model endpoint'
                 : err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
-              if (!err?.isStallTimeout && i < Math.min(prioritizedKeys.length - 1, 1) && !abortController?.signal?.aborted) {
-                logger.warn(
-                  `[AgentClient] Model "${currentModel}" returned transient high demand (${reason}) on Key ${i + 1}. ` +
-                    `Pausing 1200ms for 1 quick retry with next API key ${i + 2} on "${currentModel}" before rotating model...`,
-                );
-                await sleep(1200, abortController?.signal);
-                if (abortController?.signal?.aborted) {
-                  break;
-                }
-                continue;
-              }
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
-              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating to next fallback model...`);
+              logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {
@@ -2385,7 +2381,7 @@ ${availablePreview}
         }
       }
 
-      // Final rescue attempt on gemini-3.5-flash-lite if all models failed due to transient 503/network overload
+      // Second rotation pass across all fallback models if first pass hit transient Google 503 wave
       const lastErrMsg = String(lastErr?.message || '');
       const isLastErrTransient503OrNet =
         lastErr?.status === 503 ||
@@ -2393,17 +2389,18 @@ ${availablePreview}
           lastErrMsg,
         );
       if (!success && lastErr && isLastErrTransient503OrNet && !abortController?.signal?.aborted) {
-        const rescueModel = 'gemini-3.5-flash-lite';
+        const rescueModels = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', ...agentModelFallbacks])];
         logger.warn(
-          `[AgentClient Rescue Pass] All fallback models failed due to transient 503/network (${lastErrMsg.slice(0, 120)}). ` +
-            `Waiting 2000ms for 1 final rescue attempt forcing "${rescueModel}"...`,
+          `[AgentClient Rescue Pass] First pass hit transient 503/network (${lastErrMsg.slice(0, 120)}). ` +
+            `Waiting 2500ms for second rotation pass across [${rescueModels.join(', ')}]...`,
         );
-        await sleep(2000, abortController?.signal);
-        if (!abortController?.signal?.aborted) {
+        await sleep(2500, abortController?.signal);
+        for (let rIdx = 0; rIdx < rescueModels.length && !success && !abortController?.signal?.aborted; rIdx++) {
+          const rescueModel = rescueModels[rIdx];
           try {
             const currentUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
             const rescuePrioritizedKeys = geminiPoolManager.getPrioritizedKeys(keys, rescueModel, currentUserId);
-            const rescueKey = rescuePrioritizedKeys[0] || keys[0];
+            const rescueKey = rescuePrioritizedKeys[rIdx % Math.max(rescuePrioritizedKeys.length, 1)] || keys[0];
 
             if (!this.options.agent.model_parameters) {
               this.options.agent.model_parameters = {};
@@ -2452,9 +2449,9 @@ ${availablePreview}
             }
             overloadedModelCooldowns.delete(rescueModel);
             success = true;
-            logger.info(`[AgentClient Rescue Pass] Final rescue attempt with "${rescueModel}" succeeded!`);
+            logger.info(`[AgentClient Rescue Pass] Second rotation pass succeeded on model "${rescueModel}"!`);
           } catch (rescueErr) {
-            logger.error(`[AgentClient Rescue Pass] Final rescue attempt with "${rescueModel}" failed: ${rescueErr?.message}`);
+            logger.warn(`[AgentClient Rescue Pass] Model "${rescueModel}" failed (${rescueErr?.message?.slice(0, 100)}). Rotating to next...`);
             lastErr = rescueErr;
           }
         }
