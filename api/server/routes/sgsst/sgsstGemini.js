@@ -33,6 +33,8 @@ const SGSST_FALLBACK_MODELS = [
   'gemini-3.8-flash',
 ];
 
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Translates WAPPY UI/preset legacy/non-text model IDs (e.g. 'gemini-3.7-flash', live/tts)
  * to real Google Generative Language API text model IDs BEFORE issuing network requests.
@@ -319,12 +321,102 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
 
   const apiKeys = await resolveApiKeys(userId);
 
+  const explicitTimeoutMs = Number(safeOpts.timeoutMs);
+  const perAttemptTimeoutMs =
+    explicitTimeoutMs > 0
+      ? safeOpts.fastFallback
+        ? explicitTimeoutMs
+        : Math.max(explicitTimeoutMs, 25000)
+      : 40000;
+
+  const executeModelAttempt = async (targetModel, apiKey) => {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const maxOut = 65536;
+
+    const explicitSmallMaxTokens =
+      safeOpts.generationConfig &&
+      typeof safeOpts.generationConfig.maxOutputTokens === 'number' &&
+      safeOpts.generationConfig.maxOutputTokens > 0;
+
+    const mergedGenConfig = {
+      maxOutputTokens: maxOut,
+      temperature: 0.1,
+      ...genConfig,
+      ...(safeOpts.generationConfig || {}),
+    };
+    if (!explicitSmallMaxTokens && mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
+      mergedGenConfig.maxOutputTokens = 65536;
+    }
+
+    if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
+      mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
+    }
+
+    const modelParams = { model: targetModel, generationConfig: mergedGenConfig };
+
+    const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
+    if (systemInstruction) {
+      modelParams.systemInstruction = systemInstruction;
+    }
+
+    if (safeOpts.useWebSearch) {
+      modelParams.tools = [{ googleSearch: {} }];
+    }
+
+    const model = genAI.getGenerativeModel(modelParams);
+
+    let contentPayload = promptText;
+    if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
+      contentPayload = { contents: promptText };
+    } else if (
+      Array.isArray(promptText) &&
+      promptText.length > 0 &&
+      promptText[0] &&
+      typeof promptText[0] === 'object' &&
+      (promptText[0].inlineData || promptText[0].text)
+    ) {
+      contentPayload = { contents: [{ role: 'user', parts: promptText }] };
+    } else if (typeof promptText === 'string') {
+      contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+    }
+
+    const abortCtrl = new AbortController();
+    let attemptTimer = null;
+    try {
+      const genPromise = model.generateContent(contentPayload, {
+        timeout: perAttemptTimeoutMs,
+        signal: abortCtrl.signal,
+      });
+      genPromise.catch(() => {});
+      const timeoutPromise = new Promise((_, reject) => {
+        attemptTimer = setTimeout(() => {
+          try {
+            abortCtrl.abort();
+          } catch (_) {}
+          reject(
+            new Error(
+              `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
+            ),
+          );
+        }, perAttemptTimeoutMs);
+      });
+      return await Promise.race([genPromise, timeoutPromise]);
+    } finally {
+      if (attemptTimer) {
+        clearTimeout(attemptTimer);
+        attemptTimer = null;
+      }
+    }
+  };
+
   let lastError;
+  let saw503AcrossModels = false;
 
   // Outer loop: iterate over models (move to next model on 503 or when all keys exhausted)
   for (let modelIdx = 0; modelIdx < modelsToTry.length; modelIdx++) {
     const currentModel = modelsToTry[modelIdx];
     let allKeysExhaustedDueTo429 = false;
+    let retried503OnCurrentModel = false;
 
     const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, currentModel, userId);
     const keysToTry = safeOpts.fastFallback ? prioritizedKeys.slice(0, 1) : prioritizedKeys;
@@ -341,86 +433,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           );
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const maxOut = 65536;
-
-        const explicitSmallMaxTokens =
-          safeOpts.generationConfig &&
-          typeof safeOpts.generationConfig.maxOutputTokens === 'number' &&
-          safeOpts.generationConfig.maxOutputTokens > 0;
-
-        const mergedGenConfig = {
-          maxOutputTokens: maxOut,
-          temperature: 0.1,
-          ...genConfig,
-          ...(safeOpts.generationConfig || {}),
-        };
-        if (!explicitSmallMaxTokens && mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
-          mergedGenConfig.maxOutputTokens = 65536;
-        }
-
-        if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
-          mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
-        }
-
-        const modelParams = { model: currentModel, generationConfig: mergedGenConfig };
-
-        const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
-        if (systemInstruction) {
-          modelParams.systemInstruction = systemInstruction;
-        }
-        
-        if (safeOpts.useWebSearch) {
-          modelParams.tools = [{ googleSearch: {} }];
-        }
-        
-        const model = genAI.getGenerativeModel(modelParams);
-        
-        let contentPayload = promptText;
-        if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
-          contentPayload = { contents: promptText };
-        } else if (
-          Array.isArray(promptText) &&
-          promptText.length > 0 &&
-          promptText[0] &&
-          typeof promptText[0] === 'object' &&
-          (promptText[0].inlineData || promptText[0].text)
-        ) {
-          contentPayload = { contents: [{ role: 'user', parts: promptText }] };
-        } else if (typeof promptText === 'string') {
-          contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
-        }
-
-        const perAttemptTimeoutMs =
-          Number(safeOpts.timeoutMs) > 0 ? Number(safeOpts.timeoutMs) : 15000;
-        const abortCtrl = new AbortController();
-        let attemptTimer = null;
-        let result;
-        try {
-          const genPromise = model.generateContent(contentPayload, {
-            timeout: perAttemptTimeoutMs,
-            signal: abortCtrl.signal,
-          });
-          genPromise.catch(() => {});
-          const timeoutPromise = new Promise((_, reject) => {
-            attemptTimer = setTimeout(() => {
-              try {
-                abortCtrl.abort();
-              } catch (_) {}
-              reject(
-                new Error(
-                  `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${currentModel}"`,
-                ),
-              );
-            }, perAttemptTimeoutMs);
-          });
-          result = await Promise.race([genPromise, timeoutPromise]);
-        } finally {
-          if (attemptTimer) {
-            clearTimeout(attemptTimer);
-            attemptTimer = null;
-          }
-        }
+        const result = await executeModelAttempt(currentModel, apiKey);
         geminiPoolManager.reportKeySuccess(apiKey, currentModel);
         return result; // ✅ success
 
@@ -442,7 +455,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const isInvalidKey = status === 400 &&
           (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
 
-        // 503 service unavailable — unique to SGSST: rotate model
+        // 503 service unavailable — unique to SGSST: retry 1 extra key after 1s, then rotate model
         const is503 = status === 503 || msg.includes('503') ||
           msg.includes('service unavailable') || msg.includes('overloaded');
 
@@ -468,7 +481,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           isDailyLimit: isDaily,
         });
 
-        if (options.fastFallback) {
+        if (safeOpts.fastFallback) {
           logger.warn(`[SGSST Gemini] FastFallback activo. Falló intento único con "${currentModel}" (${status || 'error'}). Abortando rotación para dar paso a fallback determinista.`);
           throw err;
         }
@@ -481,6 +494,19 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           );
           allKeysExhaustedDueTo429 = true; // mark; continues to next keyIdx automatically
           continue; // next key, same model
+        }
+
+        if (is503) {
+          saw503AcrossModels = true;
+          if (!retried503OnCurrentModel && keyIdx < keysToTry.length - 1) {
+            retried503OnCurrentModel = true;
+            logger.warn(
+              `[SGSST Gemini] Modelo "${currentModel}" devolvió 503 Sobrecargado en Clave #${keyIdx + 1}/${keysToTry.length}. ` +
+              `Pausando 1000ms para intentar 1 clave adicional antes de rotar modelo...`
+            );
+            await sleepMs(1000);
+            continue;
+          }
         }
 
         if (is503 || is404) {
@@ -509,6 +535,33 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     }
     // If we broke out due to 503 → outer for will also continue to next model
   } // end outer for (models)
+
+  // Final rescue pass on gemini-3.5-flash-lite if all models failed due to 503 overload
+  if (saw503AcrossModels && !safeOpts.fastFallback) {
+    const rescueModel = 'gemini-3.5-flash-lite';
+    logger.warn(
+      `[SGSST Gemini] Todos los modelos de respaldo reportaron sobrecarga (503). ` +
+      `Esperando 1800ms para ejecutar 1 último pase de rescate sobre "${rescueModel}"...`
+    );
+    await sleepMs(1800);
+    const rescueKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, rescueModel, userId);
+    const rescueKey = rescueKeys[0] || apiKeys[0];
+    if (rescueKey) {
+      try {
+        const rescueResult = await executeModelAttempt(rescueModel, rescueKey);
+        geminiPoolManager.reportKeySuccess(rescueKey, rescueModel);
+        logger.info(`[SGSST Gemini] Pase de rescate exitoso sobre "${rescueModel}".`);
+        return rescueResult;
+      } catch (rescueErr) {
+        lastError = rescueErr;
+        geminiPoolManager.reportKeyStatus(rescueKey, rescueModel, {
+          status: rescueErr?.status || 0,
+          message: rescueErr?.message,
+        });
+        logger.error(`[SGSST Gemini] Pase de rescate sobre "${rescueModel}" falló: ${rescueErr.message}`);
+      }
+    }
+  }
 
   // All keys AND all models exhausted
   logger.error('[SGSST Gemini] Se agotaron todas las claves y modelos de respaldo.');
@@ -740,7 +793,7 @@ async function callSgsstGemini({
   modelName = 'gemini-3.6-flash',
   systemInstruction,
   generationConfig = {},
-  timeoutMs = 35000,
+  timeoutMs = 40000,
   useWebSearch = false,
 } = {}) {
   const effectiveModel = mapToGoogleApiTextModel(modelName, 'gemini-3.6-flash');

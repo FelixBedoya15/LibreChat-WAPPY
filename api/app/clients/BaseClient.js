@@ -23,8 +23,15 @@ const { getMessages, saveMessage, updateMessage, saveConvo, getConvo } = require
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { checkBalance } = require('~/models/balanceMethods');
 const { truncateToolCallOutputs } = require('./prompts');
+const fs = require('fs');
+const mime = require('mime');
 const countTokens = require('~/server/utils/countTokens');
 const { getFiles } = require('~/models/File');
+const {
+  classifyFileAttachment,
+  resolveDiskPathForAttachment,
+  extractDocumentTextFromFile,
+} = require('~/server/services/Files/documentTextExtractor');
 const TextStream = require('./TextStream');
 
 class BaseClient {
@@ -1224,19 +1231,66 @@ class BaseClient {
   }
 
   async addDocuments(message, attachments) {
+    const provider = this.options.agent?.provider;
+    const useResponsesApi = this.options.agent?.model_parameters?.useResponsesApi;
+
+    // Pass shallow copies without pre-populated `text` so encodeAndFormatDocuments does not skip
+    // multimodal visual PDF encoding when `file.text` is also available as backup.
+    const sanitizedForEncoding = (attachments || []).map((file) => {
+      if (!file) return file;
+      const base = typeof file.toObject === 'function' ? file.toObject() : { ...file };
+      if (base.type === 'application/pdf') {
+        delete base.text;
+      }
+      return base;
+    });
+
     const documentResult = await encodeAndFormatDocuments(
       this.options.req,
-      attachments,
+      sanitizedForEncoding,
       {
-        provider: this.options.agent?.provider,
-        useResponsesApi: this.options.agent?.model_parameters?.useResponsesApi,
+        provider,
+        useResponsesApi,
       },
       getStrategyFunctions,
     );
-    message.documents =
-      documentResult.documents && documentResult.documents.length
-        ? documentResult.documents
-        : undefined;
+
+    const docs = Array.isArray(documentResult.documents) ? [...documentResult.documents] : [];
+    const MAX_INLINE_BASE64_LEN = 12_000_000; // ~9MB binary PDF (Gemini supports up to 20MB inline)
+
+    // Rescue 2.6MB–9MB PDFs that encodeAndFormatDocuments skipped due to its legacy 3.5M char cap
+    if (
+      (provider === 'google' || provider === 'vertexai') &&
+      Array.isArray(attachments) &&
+      docs.length < attachments.filter((f) => f?.type === 'application/pdf').length
+    ) {
+      for (const file of attachments) {
+        if (!file || file.type !== 'application/pdf') continue;
+        const diskPath = resolveDiskPathForAttachment(file, this.options?.req);
+        if (!diskPath) continue;
+        try {
+          const stat = await fs.promises.stat(diskPath);
+          // Only rescue files above ~2.5MB (already handled if smaller) and within ~9MB
+          if (stat.size > 2_500_000 && stat.size <= 9_000_000) {
+            const pdfBuf = await fs.promises.readFile(diskPath);
+            if (pdfBuf.length >= 5 && pdfBuf.subarray(0, 5).toString() === '%PDF-') {
+              const b64 = pdfBuf.toString('base64');
+              if (b64.length <= MAX_INLINE_BASE64_LEN && !docs.some((d) => d?.data === b64)) {
+                docs.push({
+                  type: 'application/pdf',
+                  mimeType: 'application/pdf',
+                  data: b64,
+                });
+              }
+            }
+          }
+        } catch (pdfReadErr) {
+          logger.warn(`[BaseClient.addDocuments] Could not encode large PDF "${file.filename}": ${pdfReadErr.message}`);
+        }
+      }
+    }
+
+    message.documents = docs.length ? docs : undefined;
     return documentResult.files;
   }
 
@@ -1266,14 +1320,77 @@ class BaseClient {
 
   /**
    * Extracts text context from attachments and sets it on the message.
-   * This handles text that was already extracted from files (OCR, transcriptions, document text, etc.)
+   * Hydrates missing text on the fly for Excel (.xlsx/.xls/.csv), Word (.docx/.doc),
+   * PowerPoint (.pptx), PDF (.pdf, supporting pdf-parse v2 & v1), and plain text,
+   * while filtering out pure multimedia files (image/video/audio) that have no OCR/STT text
+   * so they do not inject placeholder noise into `Attached document(s):`.
+   *
    * @param {TMessage} message - The message to add context to
    * @param {MongoFile[]} attachments - Array of file attachments
    * @returns {Promise<void>}
    */
   async addFileContextToMessage(message, attachments) {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+      return;
+    }
+
+    const contextAttachments = [];
+
+    for (const file of attachments) {
+      if (!file) continue;
+      const kind = classifyFileAttachment(file);
+
+      // Repair generic application/octet-stream MIME types from filename extension when possible
+      if ((!file.type || file.type === 'application/octet-stream') && (file.filename || file.filepath)) {
+        const inferredMime = mime.getType(file.filename || file.filepath);
+        if (inferredMime) {
+          file.type = inferredMime;
+        } else if (kind.isPdf) {
+          file.type = 'application/pdf';
+        }
+      }
+
+      const hasExistingText = typeof file.text === 'string' && file.text.trim().length > 0;
+
+      if (!hasExistingText && (kind.isOfficeOrText || kind.isPdf)) {
+        const { text: hydratedText } = await extractDocumentTextFromFile({
+          file,
+          req: this.options?.req,
+        });
+        if (hydratedText && hydratedText.trim().length > 0) {
+          file.text = hydratedText.trim();
+          if (kind.isOfficeOrText) {
+            file.source = FileSources.text;
+          }
+        }
+      }
+
+      const nowHasRealText = typeof file.text === 'string' && file.text.trim().length > 0;
+
+      // Filter out pure image/video/audio files that have no OCR/STT text (they go via native multimodal parts)
+      if (kind.isMultimediaOnly && !nowHasRealText) {
+        continue;
+      }
+
+      // Filter out scanned image-only PDFs that have no extractable text when they already exist on disk for multimodal PDF encoding
+      if (
+        kind.isPdf &&
+        !nowHasRealText &&
+        file.source !== FileSources.text &&
+        resolveDiskPathForAttachment(file, this.options?.req)
+      ) {
+        continue;
+      }
+
+      contextAttachments.push(file);
+    }
+
+    if (contextAttachments.length === 0) {
+      return;
+    }
+
     const fileContext = await extractFileContext({
-      attachments,
+      attachments: contextAttachments,
       req: this.options?.req,
       tokenCountFn: (text) => countTokens(text),
     });
@@ -1284,7 +1401,7 @@ class BaseClient {
   }
 
   async processAttachments(message, attachments) {
-    const pdfFiles = attachments.filter((file) => file?.type === 'application/pdf');
+    const pdfFiles = attachments.filter((file) => file?.type === 'application/pdf' || classifyFileAttachment(file).isPdf);
     const pdfsWithoutText = pdfFiles.filter((file) => !file.text || file.text.trim().length === 0);
     if (pdfsWithoutText.length > 0) {
       const pdfFileIds = pdfsWithoutText
@@ -1316,6 +1433,15 @@ class BaseClient {
     const allFiles = [];
 
     for (const file of attachments) {
+      if (!file) continue;
+      const kind = classifyFileAttachment(file);
+      if ((!file.type || file.type === 'application/octet-stream') && (file.filename || file.filepath)) {
+        const inferredMime = mime.getType(file.filename || file.filepath);
+        if (inferredMime) {
+          file.type = inferredMime;
+        }
+      }
+
       /** @type {FileSources} */
       const source = file.source ?? FileSources.local;
       if (source === FileSources.text) {
@@ -1327,16 +1453,26 @@ class BaseClient {
         continue;
       }
 
-      if (file.type.startsWith('image/')) {
+      const fileTypeStr = String(file.type || '');
+      if (fileTypeStr.startsWith('image/') || kind.isImage) {
         categorizedAttachments.images.push(file);
-      } else if (file.type === 'application/pdf') {
+      } else if (fileTypeStr === 'application/pdf' || kind.isPdf) {
+        file.type = 'application/pdf';
         categorizedAttachments.documents.push(file);
         allFiles.push(file);
-      } else if (file.type.startsWith('video/')) {
+      } else if (fileTypeStr.startsWith('video/') || kind.isVideo) {
+        if (!fileTypeStr.startsWith('video/')) {
+          file.type = mime.getType(file.filename || file.filepath || '') || 'video/mp4';
+        }
         categorizedAttachments.videos.push(file);
         allFiles.push(file);
-      } else if (file.type.startsWith('audio/')) {
+      } else if (fileTypeStr.startsWith('audio/') || kind.isAudio) {
+        if (!fileTypeStr.startsWith('audio/')) {
+          file.type = mime.getType(file.filename || file.filepath || '') || 'audio/mpeg';
+        }
         categorizedAttachments.audios.push(file);
+        allFiles.push(file);
+      } else if (kind.isOfficeOrText) {
         allFiles.push(file);
       }
     }

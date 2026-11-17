@@ -136,12 +136,14 @@ function stripHtmlTags(str: string): string {
 }
 
 function extractJsonArray(str: string): any[] | null {
-  if (!str) return null;
+  if (!str || typeof str !== 'string') return null;
 
   try {
     const parsed = JSON.parse(str);
     if (Array.isArray(parsed)) return parsed;
     if (parsed && Array.isArray(parsed.slides)) return parsed.slides;
+    if (parsed && Array.isArray(parsed.presentation)) return parsed.presentation;
+    if (parsed && Array.isArray(parsed.deck)) return parsed.deck;
   } catch (e) {
     // Continue to extract
   }
@@ -176,7 +178,12 @@ function extractJsonArray(str: string): any[] | null {
   return null;
 }
 
-function normalizeSlide(raw: any, idx: number): Slide {
+function normalizeSlide(rawInput: any, idx: number): Slide {
+  const raw =
+    rawInput && typeof rawInput === 'object' && !Array.isArray(rawInput)
+      ? rawInput
+      : { title: String(rawInput || `Diapositiva ${idx + 1}`) };
+
   const bulletsRaw = Array.isArray(raw?.bullets)
     ? raw.bullets.map((b: any) => String(b || '').trim()).filter(Boolean)
     : typeof raw?.content === 'string' && raw.content.trim()
@@ -187,49 +194,90 @@ function normalizeSlide(raw: any, idx: number): Slide {
       : ['Indicador clave de gestión SG-SST', 'Control operativo verificado en campo'];
 
   let chartConfig = raw?.chartConfig;
-  if (chartConfig) {
+  if (chartConfig && typeof chartConfig === 'object') {
     let dataArr = Array.isArray(chartConfig.data) ? chartConfig.data : [];
     if (
       dataArr.length === 0 &&
       Array.isArray(chartConfig.labels) &&
       Array.isArray(chartConfig.datasets) &&
-      chartConfig.datasets[0]?.data
+      Array.isArray(chartConfig.datasets[0]?.data)
     ) {
       dataArr = chartConfig.labels.map((lbl: string, i: number) => ({
-        label: String(lbl),
+        label: String(lbl ?? ''),
         val: Number(chartConfig.datasets[0].data[i] || 0),
       }));
     }
     chartConfig = {
       type: chartConfig.type === 'doughnut' ? 'pie' : chartConfig.type || 'bar',
-      title: chartConfig.title || raw?.title || 'Análisis Cuantitativo',
+      title: String(chartConfig.title || raw?.title || 'Análisis Cuantitativo'),
       data: dataArr,
       labels: chartConfig.labels,
       datasets: chartConfig.datasets,
     };
+  } else {
+    chartConfig = undefined;
   }
 
+  const rawKpis = Array.isArray(raw?.kpis)
+    ? raw.kpis
+    : Array.isArray(raw?.metrics)
+      ? raw.metrics
+      : undefined;
+
+  const normalizedKpis: SlideKpiItem[] | undefined = rawKpis
+    ? rawKpis
+        .filter((k: any) => k && typeof k === 'object')
+        .map((k: any) => ({
+          label: String(k.label ?? ''),
+          value: String(k.value ?? ''),
+          delta: k.delta != null ? String(k.delta) : undefined,
+          trend: k.trend,
+          description: k.description != null ? String(k.description) : undefined,
+        }))
+    : undefined;
+
+  const normalizedColumns: SlideColumnItem[] | undefined = Array.isArray(raw?.columns)
+    ? raw.columns
+        .filter((c: any) => c && typeof c === 'object')
+        .map((c: any) => ({
+          title: String(c.title ?? ''),
+          badge: c.badge != null ? String(c.badge) : undefined,
+          theme: c.theme,
+          items: Array.isArray(c.items)
+            ? c.items.map((it: any) => String(it ?? ''))
+            : typeof c.items === 'string' && c.items.trim()
+              ? [c.items.trim()]
+              : [],
+        }))
+    : undefined;
+
+  const normalizedSteps: SlideStepItem[] | undefined = Array.isArray(raw?.steps)
+    ? raw.steps
+        .filter((st: any) => st && typeof st === 'object')
+        .map((st: any, sIdx: number) => ({
+          phase: String(st.phase ?? `PASO 0${sIdx + 1}`),
+          title: String(st.title ?? ''),
+          detail: String(st.detail ?? st.description ?? ''),
+        }))
+    : undefined;
+
   return {
-    title: raw?.title || `Diapositiva ${idx + 1}`,
-    subtitle: raw?.subtitle || '',
-    kicker: raw?.kicker || raw?.badge || '',
+    title: String(raw?.title || `Diapositiva ${idx + 1}`),
+    subtitle: String(raw?.subtitle || ''),
+    kicker: String(raw?.kicker || raw?.badge || ''),
     bullets: bulletsRaw.length > 0 ? bulletsRaw : ['Punto estratégico'],
     theme: (raw?.theme as SlideThemeKey) || (idx === 0 ? 'wappy-dark' : 'cobalt'),
     layout: (raw?.layout as SlideLayoutKey) || (idx === 0 ? 'title' : 'bullets'),
-    imageUrl: raw?.imageUrl || '',
-    tableHtml: raw?.tableHtml || '',
+    imageUrl: String(raw?.imageUrl || ''),
+    tableHtml: String(raw?.tableHtml || ''),
     chartConfig,
-    kpis: Array.isArray(raw?.kpis)
-      ? raw.kpis
-      : Array.isArray(raw?.metrics)
-        ? raw.metrics
-        : undefined,
-    columns: Array.isArray(raw?.columns) ? raw.columns : undefined,
-    steps: Array.isArray(raw?.steps) ? raw.steps : undefined,
-    quote: raw?.quote || '',
-    citation: raw?.citation || raw?.normativeRef || '',
-    takeaway: raw?.takeaway || '',
-    speakerNotes: raw?.speakerNotes || '',
+    kpis: normalizedKpis,
+    columns: normalizedColumns,
+    steps: normalizedSteps,
+    quote: String(raw?.quote || ''),
+    citation: String(raw?.citation || raw?.normativeRef || ''),
+    takeaway: String(raw?.takeaway || ''),
+    speakerNotes: String(raw?.speakerNotes || ''),
   };
 }
 
@@ -914,6 +962,16 @@ const CanvasSlidesEditor: React.FC<CanvasSlidesEditorProps> = ({
       if (Array.isArray(initialContent) && initialContent.length > 0) {
         setSlides(initialContent.map((s, idx) => normalizeSlide(s, idx)));
         return;
+      }
+      if (typeof initialContent === 'object' && initialContent !== null) {
+        const objSlides =
+          (initialContent as any).slides ||
+          (initialContent as any).presentation ||
+          (initialContent as any).deck;
+        if (Array.isArray(objSlides) && objSlides.length > 0) {
+          setSlides(objSlides.map((s: any, idx: number) => normalizeSlide(s, idx)));
+          return;
+        }
       }
       if (typeof initialContent === 'string') {
         const parsed = extractJsonArray(initialContent);

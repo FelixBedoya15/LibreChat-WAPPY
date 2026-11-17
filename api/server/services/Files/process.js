@@ -36,6 +36,10 @@ const { getStrategyFunctions } = require('./strategies');
 const { determineFileType } = require('~/server/utils');
 const { STTService } = require('./Audio/STTService');
 const { convertPdfToImages } = require('./pdfToImages');
+const {
+  classifyFileAttachment,
+  extractDocumentTextFromFile,
+} = require('./documentTextExtractor');
 
 /**
  * Creates a modular file upload wrapper that ensures filename sanitization
@@ -477,8 +481,26 @@ const processFileUpload = async ({ req, res, metadata }) => {
     filepath = result.filepath;
   }
 
+  let extractedUploadText;
+  let finalUploadSource = source;
+  if (!isAssistantUpload) {
+    const uploadKind = classifyFileAttachment(file);
+    if (uploadKind.isOfficeOrText || uploadKind.isPdf) {
+      const { text: parsedUploadText } = await extractDocumentTextFromFile({
+        file: { ...file, filepath },
+        req,
+      });
+      if (parsedUploadText && parsedUploadText.trim()) {
+        extractedUploadText = parsedUploadText.trim();
+        if (uploadKind.isOfficeOrText) {
+          finalUploadSource = FileSources.text;
+        }
+      }
+    }
+  }
+
   const result = await createFile(
-    {
+    removeNullishValues({
       user: req.user.id,
       file_id: id ?? file_id,
       temp_file_id,
@@ -488,11 +510,12 @@ const processFileUpload = async ({ req, res, metadata }) => {
       context: isAssistantUpload ? FileContext.assistants : FileContext.message_attachment,
       model: isAssistantUpload ? req.body.model : undefined,
       type: file.mimetype,
+      text: extractedUploadText,
       embedded,
-      source,
+      source: finalUploadSource,
       height,
       width,
-    },
+    }),
     true,
   );
 
@@ -560,7 +583,10 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   let fileInfoMetadata;
   const entity_id = messageAttachment === true ? undefined : agent_id;
   const basePath = mime.getType(file.originalname)?.startsWith('image') ? 'images' : 'uploads';
-  if (tool_resource === EToolResources.execute_code) {
+  let effectiveToolResource = tool_resource;
+  let preExtractedPdfText = '';
+
+  if (effectiveToolResource === EToolResources.execute_code) {
     const isCodeEnabled = await checkCapability(req, AgentCapabilities.execute_code);
     if (!isCodeEnabled) {
       throw new Error('Code execution is not enabled for Agents');
@@ -576,13 +602,13 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
       entity_id,
     });
     fileInfoMetadata = { fileIdentifier };
-  } else if (tool_resource === EToolResources.file_search) {
+  } else if (effectiveToolResource === EToolResources.file_search) {
     const isFileSearchEnabled = await checkCapability(req, AgentCapabilities.file_search);
     if (!isFileSearchEnabled) {
       throw new Error('File search is not enabled for Agents');
     }
     // Note: File search processing continues to dual storage logic below
-  } else if (tool_resource === EToolResources.context) {
+  } else if (effectiveToolResource === EToolResources.context) {
     const { file_id, temp_file_id = null } = metadata;
 
     /**
@@ -608,12 +634,12 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
         context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
       });
 
-      if (!messageAttachment && tool_resource) {
+      if (!messageAttachment && effectiveToolResource) {
         await addAgentResourceFile({
           req,
           file_id,
           agent_id,
-          tool_resource,
+          tool_resource: effectiveToolResource,
         });
       }
       const result = await createFile(fileInfo, true);
@@ -623,6 +649,7 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     };
 
     const fileConfig = mergeFileConfig(appConfig.fileConfig);
+    const contextKind = classifyFileAttachment(file);
 
     const shouldUseOCR =
       appConfig?.ocr != null &&
@@ -643,7 +670,7 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
         return await createTextFile({ text, bytes, filepath: ocrFileURL });
       } catch (ocrError) {
         logger.error(
-          `[processAgentFileUpload] OCR processing failed for file "${file.originalname}", falling back to text extraction:`,
+          `[processAgentFileUpload] OCR processing failed for file "${file.originalname}", falling back to text/multimodal processing:`,
           ocrError,
         );
       }
@@ -655,22 +682,67 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     );
 
     if (shouldUseSTT) {
-      const sttService = await STTService.getInstance();
-      const { text, bytes } = await processAudioFile({ req, file, sttService });
-      return await createTextFile({ text, bytes });
+      try {
+        const sttService = await STTService.getInstance();
+        const { text, bytes } = await processAudioFile({ req, file, sttService });
+        return await createTextFile({ text, bytes });
+      } catch (sttErr) {
+        logger.warn(
+          `[processAgentFileUpload] STT failed for "${file.originalname}", falling back to multimodal audio storage: ${sttErr.message}`,
+        );
+      }
     }
 
-    const shouldUseText = fileConfig.checkType(
-      file.mimetype,
-      fileConfig.text?.supportedMimeTypes || [],
-    );
+    // Multimodal bypass: if an image (without OCR), video, or audio (without STT) arrives with tool_resource='context'
+    // (e.g. mixed batch upload), do NOT throw 500 — let it fall through to standard multimodal storage below.
+    if (
+      contextKind.isVideo ||
+      (contextKind.isImage && !shouldUseOCR) ||
+      (contextKind.isAudio && !shouldUseSTT)
+    ) {
+      logger.info(
+        `[processAgentFileUpload] Routing multimedia file "${file.originalname}" (${file.mimetype}) from context resource to native multimodal attachment storage.`,
+      );
+      effectiveToolResource = undefined;
+      messageAttachment = true;
+    } else if (contextKind.isPdf && messageAttachment) {
+      // For message-attached PDFs, fall through to local storage while ALSO extracting text so Gemini gets both visual PDF + text fallback
+      const { text: pdfText } = await extractDocumentTextFromFile({ file, req });
+      preExtractedPdfText = pdfText || '';
+      effectiveToolResource = undefined;
+    } else {
+      const shouldUseText = fileConfig.checkType(
+        file.mimetype,
+        fileConfig.text?.supportedMimeTypes || [],
+      );
 
-    if (!shouldUseText) {
-      throw new Error(`File type ${file.mimetype} is not supported for text parsing.`);
+      let parsedText = '';
+      let parsedBytes = file.size || 0;
+
+      if (contextKind.isOfficeOrText || contextKind.isPdf) {
+        const { text: richText } = await extractDocumentTextFromFile({ file, req });
+        if (richText && richText.trim()) {
+          parsedText = richText.trim();
+          parsedBytes = Buffer.byteLength(parsedText, 'utf8');
+        }
+      }
+
+      if (!parsedText && shouldUseText) {
+        const { text, bytes } = await parseText({ req, file, file_id });
+        parsedText = text || '';
+        parsedBytes = bytes || Buffer.byteLength(parsedText, 'utf8');
+      }
+
+      if (!parsedText && !shouldUseText && !contextKind.isOfficeOrText && !contextKind.isPdf) {
+        throw new Error(`File type ${file.mimetype} is not supported for text parsing.`);
+      }
+
+      return await createTextFile({
+        text: parsedText,
+        bytes: parsedBytes,
+        type: file.mimetype,
+      });
     }
-
-    const { text, bytes } = await parseText({ req, file, file_id });
-    return await createTextFile({ text, bytes, type: file.mimetype });
   }
 
   // Dual storage pattern for RAG files: Storage + Vector DB
@@ -678,7 +750,7 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   const isImageFile = file.mimetype.startsWith('image');
   const source = getFileStrategy(appConfig, { isImage: isImageFile });
 
-  if (tool_resource === EToolResources.file_search) {
+  if (effectiveToolResource === EToolResources.file_search) {
     // FIRST: Upload to Storage for permanent backup (S3/local/etc.)
     const { handleFileUpload } = getStrategyFunctions(source);
     const sanitizedUploadFn = createSanitizedUploadWrapper(handleFileUpload);
@@ -718,19 +790,19 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   let { bytes, filename, filepath: _filepath, height, width } = storageResult;
   // For RAG files, use embedding result; for others, use storage result
   let embedded = storageResult.embedded;
-  if (tool_resource === EToolResources.file_search) {
+  if (effectiveToolResource === EToolResources.file_search) {
     embedded = embeddingResult?.embedded;
     filename = embeddingResult?.filename || filename;
   }
 
   let filepath = _filepath;
 
-  if (!messageAttachment && tool_resource) {
+  if (!messageAttachment && effectiveToolResource) {
     await addAgentResourceFile({
       req,
       file_id,
       agent_id,
-      tool_resource,
+      tool_resource: effectiveToolResource,
     });
   }
 
@@ -744,6 +816,57 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     filepath = result.filepath;
   }
 
+  let extractedAttachmentText;
+  let finalSource = source;
+
+  if (
+    messageAttachment &&
+    effectiveToolResource !== EToolResources.file_search &&
+    effectiveToolResource !== EToolResources.execute_code
+  ) {
+    const attachmentKind = classifyFileAttachment(file);
+    if (attachmentKind.isOfficeOrText) {
+      let parsedOfficeText = '';
+      const { text: nativeText } = await extractDocumentTextFromFile({
+        file: { ...file, filepath },
+        req,
+      });
+      if (nativeText && nativeText.trim()) {
+        parsedOfficeText = nativeText.trim();
+      } else {
+        try {
+          const { text: fallbackText } = await parseText({ req, file, file_id });
+          if (fallbackText && fallbackText.trim()) {
+            parsedOfficeText = fallbackText.trim();
+          }
+        } catch (parseErr) {
+          logger.warn(
+            `[processAgentFileUpload] parseText fallback failed for "${file.originalname}": ${parseErr.message}`,
+          );
+        }
+      }
+
+      if (parsedOfficeText) {
+        extractedAttachmentText = parsedOfficeText;
+        finalSource = FileSources.text;
+        bytes = Buffer.byteLength(parsedOfficeText, 'utf8');
+      }
+    } else if (attachmentKind.isPdf) {
+      const pdfText =
+        preExtractedPdfText ||
+        (
+          await extractDocumentTextFromFile({
+            file: { ...file, filepath },
+            req,
+          })
+        ).text;
+      if (pdfText && pdfText.trim()) {
+        extractedAttachmentText = pdfText.trim();
+      }
+      // Keep finalSource = source ('local') and filepath so Gemini receives BOTH multimodal visual PDF + text backup!
+    }
+  }
+
   const fileInfo = removeNullishValues({
     user: req.user.id,
     file_id,
@@ -755,8 +878,9 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     model: messageAttachment ? undefined : req.body.model,
     metadata: fileInfoMetadata,
     type: file.mimetype,
+    text: extractedAttachmentText,
     embedded,
-    source,
+    source: finalSource,
     height,
     width,
   });

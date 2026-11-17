@@ -45,43 +45,85 @@ import { useQueryClient } from '@tanstack/react-query';
 import { QueryKeys } from 'librechat-data-provider';
 import { saveAs } from 'file-saver';
 
-const detectFileType = (content: any, defaultType = 'text') => {
+type CanvasFileType = 'text' | 'excel' | 'presentation' | 'html' | 'animo' | 'actos_condiciones';
+
+const VALID_CANVAS_TYPES = new Set<CanvasFileType>([
+  'text',
+  'excel',
+  'presentation',
+  'html',
+  'animo',
+  'actos_condiciones',
+]);
+
+const normalizeCanvasContentToString = (raw: unknown): string => {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'string') return raw;
+  if (typeof raw === 'object') {
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return '';
+    }
+  }
+  return String(raw);
+};
+
+const detectFileType = (content: any, defaultType: CanvasFileType = 'text'): CanvasFileType => {
   if (!content) return defaultType;
   if (Array.isArray(content)) {
     if (content.length === 0) return defaultType;
     if (Array.isArray(content[0])) return 'excel';
-    if (typeof content[0] === 'object') return 'presentation';
+    if (typeof content[0] === 'object' && content[0] !== null) {
+      if ('title' in content[0] || 'bullets' in content[0] || 'layout' in content[0]) {
+        return 'presentation';
+      }
+      return 'excel';
+    }
+    return defaultType;
+  }
+  if (typeof content === 'object') {
+    if (content.estadoAnimo || content.totalMuestras) return 'animo';
+    if (content.preliminarClasificacion || content.totalReportesBuzon) return 'actos_condiciones';
+    if (Array.isArray(content.slides) || Array.isArray(content.presentation)) return 'presentation';
+    if (Array.isArray(content.rows) || Array.isArray(content.data)) return 'excel';
+    const keys = Object.keys(content);
+    if (keys.length > 0 && keys.every((k) => Array.isArray(content[k]))) return 'excel';
     return defaultType;
   }
   if (typeof content === 'string') {
     const trimmed = content.trim();
+    const lower = trimmed.toLowerCase();
+    if (lower.includes('<!doctype html') || lower.includes('<html')) {
+      return 'html';
+    }
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       try {
         const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          if (parsed.length === 0) return defaultType;
-          if (Array.isArray(parsed[0])) return 'excel';
-          if (typeof parsed[0] === 'object') return 'presentation';
-        }
+        return detectFileType(parsed, defaultType);
       } catch (e) {}
     } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       try {
         const parsed = JSON.parse(trimmed);
         if (parsed && typeof parsed === 'object') {
-          if (parsed.estadoAnimo || parsed.totalMuestras) return 'animo';
-          if (parsed.preliminarClasificacion || parsed.totalReportesBuzon)
-            return 'actos_condiciones';
+          return detectFileType(parsed, defaultType);
         }
       } catch (e) {}
     }
-    if (
-      trimmed.toLowerCase().includes('<!doctype html>') ||
-      trimmed.toLowerCase().includes('<html')
-    ) {
-      return 'html';
-    }
   }
   return defaultType;
+};
+
+const resolveCanvasFileType = (explicitType: unknown, rawContent: unknown): CanvasFileType => {
+  const str = normalizeCanvasContentToString(rawContent);
+  const lower = str.trim().toLowerCase();
+  if (explicitType === 'html' || lower.includes('<!doctype html') || lower.includes('<html')) {
+    return 'html';
+  }
+  if (typeof explicitType === 'string' && VALID_CANVAS_TYPES.has(explicitType as CanvasFileType)) {
+    return explicitType as CanvasFileType;
+  }
+  return detectFileType(rawContent, 'text');
 };
 
 const DEFAULT_SIGNATURE_BLOCK = `
@@ -108,7 +150,7 @@ const DEFAULT_SIGNATURE_BLOCK = `
 </div>`;
 
 function appendSignatureIfMissing(html: string): string {
-  if (!html) return html;
+  if (typeof html !== 'string' || !html) return String(html ?? '');
   if (
     html.includes('signature-placeholder') ||
     html.includes('RESPONSABLE SST') ||
@@ -289,20 +331,12 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     return cleanCandidate || 'Documento SG-SST';
   }, []);
 
-  const initialStreamingType = React.useMemo(() => {
+  const initialStreamingType = React.useMemo<CanvasFileType>(() => {
     if (!streamingCanvas) return 'text';
-    const raw = String(streamingCanvas.content || '');
-    if (
-      streamingCanvas.fileType === 'html' ||
-      raw.includes('<!DOCTYPE html') ||
-      raw.includes('<html')
-    ) {
-      return 'html';
-    }
-    return (streamingCanvas.fileType as any) || 'text';
+    return resolveCanvasFileType(streamingCanvas.fileType, streamingCanvas.content);
   }, [streamingCanvas]);
 
-  const initialStreamingContent = streamingCanvas?.content || '';
+  const initialStreamingContent = normalizeCanvasContentToString(streamingCanvas?.content);
   const initialStreamingTitle = streamingCanvas
     ? extractSmartTitle(initialStreamingContent, streamingCanvas.title)
     : 'Archivo sin título';
@@ -477,7 +511,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   // The CanvasTool sends markdown; the LiveEditor renders HTML.
   // This lightweight converter handles the common cases produced by LLMs.
   const markdownToHtml = useCallback((md: string): string => {
-    if (!md) return md;
+    if (typeof md !== 'string' || !md) return String(md ?? '');
 
     // Helper to find matching tag depth-wise
     const findMatchingClosingTag = (html: string, startIndex: number, tagName: string): number => {
@@ -786,12 +820,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   // ── Sync streaming content in real-time ───────────────────────────────────
   useEffect(() => {
     if (streamingCanvas) {
-      const rawContent = String(streamingCanvas.content || '');
-      const isHtml =
-        streamingCanvas.fileType === 'html' ||
-        rawContent.includes('<!DOCTYPE html') ||
-        rawContent.includes('<html');
-      const resolvedFileType = isHtml ? 'html' : ((streamingCanvas.fileType as any) || 'text');
+      const rawContent = normalizeCanvasContentToString(streamingCanvas.content);
+      const resolvedFileType = resolveCanvasFileType(
+        streamingCanvas.fileType,
+        streamingCanvas.content,
+      );
       const resolvedTitle = extractSmartTitle(rawContent, streamingCanvas.title);
 
       // Convert markdown → HTML for text documents
@@ -857,7 +890,8 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           const isPsychologistActive = activeTools.includes('consultar_analitica_psicosocial');
           const isACIActive = activeTools.includes('consultar_analitica_actos_condiciones');
 
-          dbFileTypeRef.current = data.fileType || 'text';
+          const resolvedDbType = resolveCanvasFileType(data.fileType, data.content);
+          dbFileTypeRef.current = resolvedDbType;
           dbTitleRef.current = data.title || 'Archivo sin título';
 
           setFileType(
@@ -865,7 +899,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               ? 'animo'
               : isACIActive
                 ? 'actos_condiciones'
-                : data.fileType || 'text',
+                : resolvedDbType,
           );
           setTitle(
             isPsychologistActive
@@ -875,14 +909,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 : data.title || 'Archivo sin título',
           );
           setVersion(data.version || 1);
-          setHistory(data.history || []);
+          setHistory(Array.isArray(data.history) ? data.history : []);
 
           // Convert markdown → HTML for text documents written by the agent
-          const rawContent = data.content || '';
+          const rawContent = normalizeCanvasContentToString(data.content);
           let htmlContent =
-            data.fileType === 'text' || !data.fileType ? markdownToHtml(rawContent) : rawContent;
+            resolvedDbType === 'text' ? markdownToHtml(rawContent) : rawContent;
 
-          if (data.fileType === 'text' || !data.fileType) {
+          if (resolvedDbType === 'text') {
             htmlContent = appendSignatureIfMissing(htmlContent);
           }
 
@@ -1146,7 +1180,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     }, [editing]);
 
     const commit = () => {
-      const trimmed = draft.trim();
+      const trimmed = (draft ?? '').trim();
       if (trimmed) handleTitleRename(trimmed);
       setEditing(false);
     };
@@ -1303,15 +1337,18 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       );
       if (res.ok) {
         const data = await res.json();
-        setFileType(data.fileType);
-        fileTypeRef.current = data.fileType;
-        setContent(data.content);
-        contentRef.current = data.content;
-        setTitle(data.title);
-        titleRef.current = data.title;
-        setVersion(data.version);
-        setHistory(data.history || []);
-        lastUpdatedAtRef.current = data.updatedAt;
+        const restoredContent = normalizeCanvasContentToString(data.content);
+        const restoredType = resolveCanvasFileType(data.fileType, data.content);
+        const restoredTitle = data.title || 'Archivo sin título';
+        setFileType(restoredType);
+        fileTypeRef.current = restoredType;
+        setContent(restoredContent);
+        contentRef.current = restoredContent;
+        setTitle(restoredTitle);
+        titleRef.current = restoredTitle;
+        setVersion(data.version || 1);
+        setHistory(Array.isArray(data.history) ? data.history : []);
+        lastUpdatedAtRef.current = data.updatedAt || null;
         setIsHistoryOpen(false);
         showToast({ status: 'success', message: '¡Versión restaurada con éxito!' });
       }
@@ -1511,10 +1548,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (downloadRef.current) {
                     downloadRef.current();
                   } else if (content) {
+                    const strContent = normalizeCanvasContentToString(content);
                     const safeTitle = (title || 'archivo').replace(/[/\\?%*:|"<>]/g, '_').trim();
-                    const isHtml = fileType === 'html' || content.includes('<html') || content.includes('<!DOCTYPE');
+                    const isHtml =
+                      fileType === 'html' ||
+                      strContent.includes('<html') ||
+                      strContent.includes('<!DOCTYPE');
                     const ext = isHtml ? 'html' : fileType === 'excel' ? 'json' : 'txt';
-                    const blob = new Blob([content], { type: isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' });
+                    const blob = new Blob([strContent], {
+                      type: isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8',
+                    });
                     saveAs(blob, `${safeTitle}.${ext}`);
                   }
 

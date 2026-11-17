@@ -375,15 +375,19 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
     );
   }
 
-  const data = stats || {
-    totalReportesBuzon: 0,
-    periodoDias: filterDays,
-    pendientes: 0,
-    procesados: 0,
-    finalizadosPdf: 0,
-    preliminarClasificacion: { actos: 0, condiciones: 0, mixto_no_clasificado: 0 },
-    areasFrecuentes: [],
-    reportesRecientes: []
+  const data: StatsData = {
+    totalReportesBuzon: stats?.totalReportesBuzon ?? 0,
+    periodoDias: stats?.periodoDias ?? filterDays,
+    pendientes: stats?.pendientes ?? 0,
+    procesados: stats?.procesados ?? 0,
+    finalizadosPdf: stats?.finalizadosPdf ?? 0,
+    preliminarClasificacion: {
+      actos: stats?.preliminarClasificacion?.actos ?? 0,
+      condiciones: stats?.preliminarClasificacion?.condiciones ?? 0,
+      mixto_no_clasificado: stats?.preliminarClasificacion?.mixto_no_clasificado ?? 0,
+    },
+    areasFrecuentes: Array.isArray(stats?.areasFrecuentes) ? stats.areasFrecuentes : [],
+    reportesRecientes: Array.isArray(stats?.reportesRecientes) ? stats.reportesRecientes : [],
   };
 
   const actosPct = data.totalReportesBuzon > 0 ? ((data.preliminarClasificacion.actos / data.totalReportesBuzon) * 100).toFixed(1) : '0';

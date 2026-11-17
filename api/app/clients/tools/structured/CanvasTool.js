@@ -14,6 +14,41 @@ const { logger } = require('@librechat/data-schemas');
 const OUTPUT_MEDIA_DIR = path.join(process.cwd(), 'client', 'public', 'images');
 
 /**
+ * Extrae el contexto textual de documentos adjuntos del turno actual (PDF, Excel, Word, CSV, etc.)
+ * para enriquecer la generación de informes, hojas de cálculo, presentaciones y aplicativos HTML en Canvas.
+ */
+function extractAttachedFilesContextFromReq(req) {
+  try {
+    const raw = req?.activeAgentClient?.latestFileContext || req?.body?.fileContext || '';
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      return raw.trim().slice(0, 14000);
+    }
+  } catch (_) {}
+  return '';
+}
+
+/**
+ * Emite un evento SSE seguro al cliente cuando una sesión de Canvas se crea o actualiza en vivo.
+ */
+function emitCanvasSessionReady(req, sessionData = {}) {
+  try {
+    const res = req?.res || req?.activeAgentClient?.options?.res;
+    if (res && !res.writableEnded) {
+      const { sendEvent } = require('@librechat/api');
+      sendEvent(res, {
+        event: 'canvas_session_ready',
+        data: {
+          conversationId: sessionData.conversationId,
+          title: sessionData.title,
+          fileType: sessionData.fileType,
+          version: sessionData.version,
+        },
+      });
+    }
+  } catch (_) {}
+}
+
+/**
  * Clasifica una URL de recurso (/images/... o /api/notebooklm/download/...) en image, audio, video o document.
  */
 function classifyMediaUrlKind(rawUrl = '') {
@@ -211,7 +246,7 @@ async function buildMultimodalMediaContext(req, userId, stringContent = '', user
               try {
                 const attempt = await fetch(`${String(baseUrl).replace(/\/+$/, '')}/api/download-artifact?${dlQs.toString()}`, {
                   headers: userId ? { 'x-user-id': String(userId) } : {},
-                  signal: AbortSignal.timeout(12000),
+                  signal: AbortSignal.timeout(25000),
                 });
                 bgRes = attempt;
                 if (attempt.ok || attempt.status < 500) break;
@@ -651,6 +686,8 @@ ${userPrompt || title || 'Dashboard de Indicadores y Gestión SG-SST'}
 
 ${stringContent ? `## DATOS O LÓGICA BASE SUMINISTRADA (Conservar, enriquecer visualmente y nunca degradar):\n${stringContent.slice(0, 4000)}\n` : ''}
 
+${extractAttachedFilesContextFromReq(req) ? `## DOCUMENTOS Y ARCHIVOS SUBIDOS POR EL USUARIO (Integra sus cifras, tablas e indicadores reales):\n${extractAttachedFilesContextFromReq(req)}\n` : ''}
+
 ${toolsContext ? `## HERRAMIENTAS Y BASES DE DATOS VINCULADAS:\n${toolsContext}\n` : ''}
 ${mediaLibraryContext}
 
@@ -758,7 +795,12 @@ RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empeza
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Diseño WAPPY Premium)...');
     const htmlPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
-    const result = await generateWithKeyRotation('gemini-3.6-flash', userId, htmlPayload);
+    const result = await generateWithKeyRotation(
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      userId,
+      htmlPayload,
+      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+    );
     const response = await result?.response;
     let generatedHtml = response?.text ? response.text() : '';
 
@@ -1060,6 +1102,7 @@ ${userPrompt || title || 'Informe Técnico Especializado en SG-SST'}
 
 ${agentContext ? `## CONTEXTO DEL ESPECIALISTA / AGENTE:\n${agentContext}\n` : ''}
 ${screenContext ? `## CONTEXTO DE PANTALLA ACTIVA:\n${screenContext}\n` : ''}
+${extractAttachedFilesContextFromReq(req) ? `## DOCUMENTOS Y ARCHIVOS ADJUNTOS EN EL TURNO (Analiza e integra sus datos reales):\n${extractAttachedFilesContextFromReq(req)}\n` : ''}
 ${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext}\n` : ''}
 ${mediaLibraryContext}
 ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n` : ''}
@@ -1092,7 +1135,7 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
       { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
       userId,
       reportPayload,
-      { generationConfig: { maxOutputTokens: 65536 } }
+      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } }
     );
     const response = await result?.response;
     let generatedReport = response?.text ? response.text() : '';
@@ -1403,6 +1446,7 @@ ${companyContext}
 ## SOLICITUD DEL USUARIO / PROPÓSITO:
 ${userPrompt || title || 'Presentación Ejecutiva y Capacitación Técnica de SG-SST'}
 
+${extractAttachedFilesContextFromReq(req) ? `## DOCUMENTOS Y ARCHIVOS SUBIDOS POR EL USUARIO (Integra sus cifras, tablas y hallazgos reales):\n${extractAttachedFilesContextFromReq(req)}\n` : ''}
 ${toolsContext ? `## DATOS DE HERRAMIENTAS PREVIAS:\n${toolsContext.slice(0, 3000)}\n` : ''}
 ${mediaLibraryContext}
 ${seedDraftStr ? `## BORRADOR O IDEAS INICIALES A ENRIQUECER:\n${seedDraftStr}\n` : ''}
@@ -1436,7 +1480,7 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON válido \`[ { ... }, { 
       { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
       userId,
       presentationPayload,
-      { generationConfig: { maxOutputTokens: 65536 } },
+      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
     );
     const response = await result?.response;
     const generatedText = response?.text ? response.text() : '';
@@ -1478,6 +1522,270 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON válido \`[ { ... }, { 
 }
 
 /**
+ * Normaliza una matriz 2D de Excel garantizando que todas las filas tengan el mismo número de columnas
+ * y que todas las celdas sean cadenas válidas para CanvasExcelEditor.tsx.
+ */
+function normalizeExcelGrid2D(grid) {
+  if (!Array.isArray(grid) || grid.length === 0) {
+    return [];
+  }
+  const rows = grid.map((r) => {
+    if (Array.isArray(r)) {
+      return r.map((cell) => (cell !== undefined && cell !== null ? String(cell) : ''));
+    }
+    if (r && typeof r === 'object') {
+      return Object.values(r).map((cell) => (cell !== undefined && cell !== null ? String(cell) : ''));
+    }
+    return [String(r ?? '')];
+  });
+  const maxCols = rows.reduce((m, r) => Math.max(m, r.length), 1);
+  return rows.map((r) => {
+    if (r.length < maxCols) {
+      return [...r, ...Array(maxCols - r.length).fill('')];
+    }
+    return r;
+  });
+}
+
+/**
+ * Extrae una grilla 2D o diccionario multi-hoja desde session.content (sea Array, Objeto o JSON string).
+ */
+function parseExcelSessionContent(raw) {
+  if (!raw) return { isMultiSheet: false, grid: [], sheets: null };
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_) {
+      const arr = extractJsonArraySafe(raw);
+      if (arr) parsed = arr;
+    }
+  }
+  if (Array.isArray(parsed)) {
+    return { isMultiSheet: false, grid: normalizeExcelGrid2D(parsed), sheets: null };
+  }
+  if (parsed && typeof parsed === 'object') {
+    const keys = Object.keys(parsed);
+    if (keys.length > 0 && keys.every((k) => Array.isArray(parsed[k]))) {
+      const normalizedSheets = {};
+      for (const k of keys) {
+        normalizedSheets[k] = normalizeExcelGrid2D(parsed[k]);
+      }
+      return {
+        isMultiSheet: true,
+        grid: normalizedSheets[keys[0]] || [],
+        sheets: normalizedSheets,
+        firstKey: keys[0],
+      };
+    }
+  }
+  return { isMultiSheet: false, grid: [], sheets: null };
+}
+
+/**
+ * Extrae arreglo de diapositivas desde session.content (sea Array o JSON string).
+ */
+function parseSlidesSessionContent(raw, defaultTitle = 'Presentación SG-SST') {
+  const arr = extractJsonArraySafe(raw);
+  if (Array.isArray(arr) && arr.length > 0) {
+    return arr.map((s, i) => normalizeSlideItem(s, i, defaultTitle));
+  }
+  return [];
+}
+
+/**
+ * Construye o normaliza el payload JSON para el lienzo especializado "animo" (Termómetro Psicosocial).
+ */
+async function processAnimoDocument(content, title, userId, companyInfo) {
+  if (content && typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === 'object' && (parsed.estadoAnimo || parsed.totalMuestras !== undefined)) {
+        return JSON.stringify(parsed);
+      }
+    } catch (_) {}
+  } else if (content && typeof content === 'object' && (content.estadoAnimo || content.totalMuestras !== undefined)) {
+    return JSON.stringify(content);
+  }
+
+  const mongoose = require('mongoose');
+  const companyName = companyInfo?.companyName || 'Empresa Activa';
+  let happyCount = 0;
+  let neutralCount = 0;
+  let sadCount = 0;
+  let total = 0;
+  const stressorsMap = {};
+  const recentDetails = [];
+
+  try {
+    const MoodTelemetry =
+      mongoose.models.MoodTelemetry ||
+      (mongoose.connection?.readyState === 1 ? mongoose.connection.collection('moodtelemetries') : null);
+    if (MoodTelemetry && companyInfo?._id) {
+      const dateLimit = new Date();
+      dateLimit.setDate(dateLimit.getDate() - 30);
+      const query = { companyId: companyInfo._id, createdAt: { $gte: dateLimit } };
+      const records =
+        typeof MoodTelemetry.find === 'function' && MoodTelemetry.modelName
+          ? await MoodTelemetry.find(query).lean()
+          : MoodTelemetry.find
+          ? await MoodTelemetry.find(query).toArray()
+          : [];
+      total = Array.isArray(records) ? records.length : 0;
+      for (const rec of records || []) {
+        if (rec.mood === 'happy') happyCount++;
+        else if (rec.mood === 'neutral') neutralCount++;
+        else if (rec.mood === 'sad') sadCount++;
+        if (Array.isArray(rec.stressors)) {
+          for (const s of rec.stressors) {
+            stressorsMap[s] = (stressorsMap[s] || 0) + 1;
+          }
+        }
+        if (rec.details && String(rec.details).trim()) {
+          recentDetails.push({
+            date: rec.createdAt || rec.updatedAt || new Date(),
+            detail: String(rec.details).trim(),
+            dep: rec.department || 'General',
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[CanvasTool processAnimoDocument] Aviso consultando MoodTelemetry:', err.message);
+  }
+
+  const pct = (n) => (total > 0 ? ((n / total) * 100).toFixed(1) : '0.0');
+  const sortedStressors = Object.entries(stressorsMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, pct: pct(count) }));
+  const sortedDetails = recentDetails
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 8)
+    .map((d) => `- [Área: ${d.dep}]: "${d.detail}"`);
+
+  return JSON.stringify({
+    empresa: companyName,
+    totalMuestras: total,
+    periodoDias: 30,
+    filtroDepartamento: 'Todos',
+    estadoAnimo: {
+      feliz: `${happyCount} (${pct(happyCount)}%)`,
+      neutral: `${neutralCount} (${pct(neutralCount)}%)`,
+      triste_estresado: `${sadCount} (${pct(sadCount)}%)`,
+    },
+    estresoresPrincipales: sortedStressors,
+    detallesContextualesRecientes: sortedDetails,
+  });
+}
+
+/**
+ * Construye o normaliza el payload JSON para el lienzo especializado "actos_condiciones" (Analítica de Actos y Condiciones).
+ */
+async function processActosCondicionesDocument(content, title, userId, companyInfo) {
+  if (content && typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content);
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        (parsed.preliminarClasificacion || parsed.totalReportesBuzon !== undefined)
+      ) {
+        return JSON.stringify(parsed);
+      }
+    } catch (_) {}
+  } else if (
+    content &&
+    typeof content === 'object' &&
+    (content.preliminarClasificacion || content.totalReportesBuzon !== undefined)
+  ) {
+    return JSON.stringify(content);
+  }
+
+  const mongoose = require('mongoose');
+  const companyName = companyInfo?.companyName || 'Empresa Activa';
+  let total = 0;
+  let pendingCount = 0;
+  let processedCount = 0;
+  let totalFinalized = 0;
+  let actosCount = 0;
+  let condicionesCount = 0;
+  let mixtoCount = 0;
+  const locationMap = {};
+  let sortedRecents = [];
+
+  try {
+    const ReporteActosData = mongoose.models.ReporteActosData;
+    if (ReporteActosData && userId && companyInfo?._id) {
+      const doc = await ReporteActosData.findOne(
+        { user: userId, companyId: companyInfo._id },
+        { 'inboxPublico.id': 1, 'inboxPublico.trabajador': 1, 'inboxPublico.createdAt': 1, 'inboxPublico.status': 1, 'inboxPublico.data.fecha': 1, 'inboxPublico.data.hora': 1, 'inboxPublico.data.ubicacion': 1, 'inboxPublico.data.descripcion': 1 },
+      ).lean();
+      const dateLimit = new Date();
+      dateLimit.setDate(dateLimit.getDate() - 30);
+      const filteredRecords = (doc?.inboxPublico || []).filter((rec) => {
+        const recordDate = rec.createdAt ? new Date(rec.createdAt) : new Date();
+        return recordDate >= dateLimit;
+      });
+      total = filteredRecords.length;
+      pendingCount = filteredRecords.filter((r) => r.status !== 'processed').length;
+      processedCount = filteredRecords.filter((r) => r.status === 'processed').length;
+
+      const actRegex = /acto|comportamiento|persona|no uso|descuido|distraccion|negligencia|celular|EPP|afan|omitir/i;
+      const condRegex = /condicion|cable|piso|herramienta|iluminacion|obstaculo|daño|roto|aceite|mojado|riesgo|infraestructura/i;
+
+      for (const rec of filteredRecords) {
+        const loc = rec.data?.ubicacion?.trim() || 'General';
+        locationMap[loc] = (locationMap[loc] || 0) + 1;
+        const desc = rec.data?.descripcion || '';
+        const hasAct = actRegex.test(desc);
+        const hasCond = condRegex.test(desc);
+        if (hasAct && hasCond) mixtoCount++;
+        else if (hasAct) actosCount++;
+        else if (hasCond) condicionesCount++;
+        else mixtoCount++;
+      }
+
+      sortedRecents = [...filteredRecords]
+        .sort((a, b) => (a.createdAt ? new Date(b.createdAt || 0) - new Date(a.createdAt) : 0))
+        .slice(0, 8)
+        .map((r) => ({
+          id: r.id,
+          fecha: r.createdAt || r.data?.fecha || '',
+          trabajador: r.trabajador?.nombre || 'Anónimo',
+          cargo: r.trabajador?.cargo || 'No especificado',
+          descripcion: r.data?.descripcion || '',
+          ubicacion: r.data?.ubicacion || 'Sin ubicación',
+          status: r.status || 'pending',
+          hasFoto: false,
+          hasVideo: false,
+        }));
+    }
+  } catch (err) {
+    logger.warn('[CanvasTool processActosCondicionesDocument] Aviso consultando ReporteActosData:', err.message);
+  }
+
+  const sortedLocations = Object.entries(locationMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+
+  return JSON.stringify({
+    empresa: companyName,
+    totalReportesBuzon: total,
+    periodoDias: 30,
+    pendientes: pendingCount,
+    procesados: processedCount,
+    finalizadosPdf: totalFinalized,
+    preliminarClasificacion: {
+      actos: actosCount,
+      condiciones: condicionesCount,
+      mixto_no_clasificado: mixtoCount,
+    },
+    areasFrecuentes: sortedLocations,
+    reportesRecientes: sortedRecents,
+  });
+}
+
+/**
  * Camino B para Hojas de Cálculo (`fileType === 'excel'`):
  * Si el agente envía un Excel muy pequeño (< 5 filas) o vacío/texto plano,
  * lo enriquece con `gemini-3.6-flash` para producir una matriz o tabla profesional completa
@@ -1495,16 +1803,39 @@ async function processExcelDocument(content, fileType, title, userId, req, exist
   } else if (content && typeof content === 'object') {
     const keys = Object.keys(content);
     if (keys.length > 0 && keys.every((k) => Array.isArray(content[k]))) {
-      const firstSheet = content[keys[0]];
+      const normalizedSheets = {};
+      for (const k of keys) {
+        normalizedSheets[k] = normalizeExcelGrid2D(content[k]);
+      }
+      const firstSheet = normalizedSheets[keys[0]];
       if (firstSheet.length >= 6) {
-        return content;
+        // Serializar como JSON string para que CanvasExcelEditor.tsx parsee múltiples pestañas sin error
+        return JSON.stringify(normalizedSheets);
       }
       parsedGrid = firstSheet;
     }
   } else if (typeof content === 'string' && content.trim()) {
-    const extracted = extractJsonArraySafe(content);
-    if (Array.isArray(extracted)) {
-      parsedGrid = extracted;
+    try {
+      const directJson = JSON.parse(content.trim());
+      if (directJson && typeof directJson === 'object' && !Array.isArray(directJson)) {
+        const keys = Object.keys(directJson);
+        if (keys.length > 0 && keys.every((k) => Array.isArray(directJson[k]))) {
+          const normalizedSheets = {};
+          for (const k of keys) {
+            normalizedSheets[k] = normalizeExcelGrid2D(directJson[k]);
+          }
+          if (normalizedSheets[keys[0]].length >= 6) {
+            return JSON.stringify(normalizedSheets);
+          }
+          parsedGrid = normalizedSheets[keys[0]];
+        }
+      }
+    } catch (_) {}
+    if (!parsedGrid) {
+      const extracted = extractJsonArraySafe(content);
+      if (Array.isArray(extracted)) {
+        parsedGrid = extracted;
+      }
     }
   }
 
@@ -1518,7 +1849,7 @@ async function processExcelDocument(content, fileType, title, userId, req, exist
   }
 
   if (Array.isArray(parsedGrid) && parsedGrid.length >= 6 && Array.isArray(parsedGrid[0]) && parsedGrid[0].length >= 4) {
-    return parsedGrid;
+    return normalizeExcelGrid2D(parsedGrid);
   }
 
   let companyInfo = null;
@@ -1548,6 +1879,7 @@ async function processExcelDocument(content, fileType, title, userId, req, exist
     : typeof content === 'string'
     ? content.slice(0, 3000)
     : '';
+  const attachedFilesCtx = extractAttachedFilesContextFromReq(req);
 
   const prompt = `Eres un Consultor Senior en SG-SST y Analista Financiero/Estadístico de WAPPY IA.
 Construye una HOJA DE CÁLCULO PROFESIONAL EN EXCEL representada como una matriz bidimensional JSON (\`string[][]\`) lista para el motor de fórmulas de WAPPY Canvas.
@@ -1561,6 +1893,7 @@ ${companyContext}
 ## SOLICITUD DEL USUARIO:
 ${userPrompt || title || 'Hoja de cálculo técnica de Seguridad y Salud en el Trabajo'}
 
+${attachedFilesCtx ? `## DATOS DE ARCHIVOS SUBIDOS POR EL USUARIO (Usa fielmente sus registros y valores reales):\n${attachedFilesCtx}\n` : ''}
 ${seedStr ? `## DATOS INICIALES SUMINISTRADOS (Conservar y expandir):\n${seedStr}\n` : ''}
 
 ## REGLAS TÉCNICAS OBLIGATORIAS DE LA GRILLA:
@@ -1581,6 +1914,7 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON 2D \`[[...], [...]]\`, 
       { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 32768 } },
       userId,
       prompt,
+      { timeoutMs: 45000, generationConfig: { maxOutputTokens: 32768 } },
     );
     const response = await result?.response;
     const generatedText = response?.text ? response.text() : '';
@@ -1590,16 +1924,14 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON 2D \`[[...], [...]]\`, 
       logger.info(
         `[CanvasTool Camino B - Excel] Hoja de cálculo enriquecida con éxito (${enrichedGrid.length} filas).`,
       );
-      return enrichedGrid.map((row) =>
-        Array.isArray(row) ? row.map((cell) => (cell !== undefined && cell !== null ? String(cell) : '')) : [String(row)],
-      );
+      return normalizeExcelGrid2D(enrichedGrid);
     }
   } catch (err) {
     logger.error('[CanvasTool Camino B - Excel] Error delegando hoja de cálculo a gemini-3.6-flash:', err);
   }
 
   if (Array.isArray(parsedGrid) && parsedGrid.length > 0) {
-    return parsedGrid;
+    return normalizeExcelGrid2D(parsedGrid);
   }
 
   return [
@@ -1634,19 +1966,22 @@ class CanvasTool extends Tool {
 
     this.schema = z.object({
       accion: z
-        .enum(['crear', 'actualizar', 'leer', 'editar_seccion', 'buscar_reemplazar', 'insertar'])
+        .enum(['crear', 'escribir', 'actualizar', 'leer', 'editar_seccion', 'buscar_reemplazar', 'insertar'])
         .describe(
-          'Acción a realizar: "crear" para inicializar un archivo nuevo; "actualizar" para modificar el contenido completo; "leer" para inspeccionar el estado actual; "editar_seccion" para editar solo una sección por su título; "buscar_reemplazar" para buscar y reemplazar texto específico; "insertar" para inyectar contenido en una posición específica.',
+          'Acción a realizar: "crear" para inicializar un archivo nuevo; "escribir" o "actualizar" para escribir/modificar el contenido completo; "leer" para inspeccionar el estado actual; "editar_seccion" para editar solo una sección por su título; "buscar_reemplazar" para buscar y reemplazar texto específico; "insertar" para inyectar contenido en una posición específica.',
         ),
 
       fileType: z
-        .enum(['text', 'excel', 'presentation', 'html'])
+        .enum(['text', 'excel', 'presentation', 'html', 'animo', 'actos_condiciones'])
+        .optional()
         .describe(
           'Tipo de archivo/lienzo del Canvas a crear o gestionar. Selecciónalo según la solicitud del usuario:\n' +
             '- "text" (Word / Documento formal en Canvas): Úsalo si el usuario solicita crear un archivo en Word, un documento formal descargable o un documento en Canvas ("crea un archivo en word", "un documento en word", "redáctalo en un word", "créalo en canvas", "ábreme un lienzo de texto").\n' +
             '- "excel" (Hoja de cálculo en Canvas): Úsalo si el usuario solicita crear un archivo en Excel, una hoja de cálculo, tabla con fórmulas o presupuesto ("crea un archivo en excel", "haz un excel", "en una hoja de cálculo", "un excel de..."). (Para Matriz IPEVAR / GTC-45, usa matriz_ipevar).\n' +
             '- "presentation" (Presentación / Diapositivas en Canvas): Úsalo si el usuario solicita crear una presentación, diapositivas o material de capacitación ("crea una presentación", "haz diapositivas", "diseña una presentación", "powerpoint", "slides").\n' +
             '- "html" (Aplicativo interactivo / Código en Canvas): Úsalo si el usuario solicita crear un aplicativo, calculadora, simulador, formulario interactivo o código web ("crea un aplicativo", "un aplicativo interactivo", "una calculadora en html", "desarrolla un aplicativo").\n' +
+            '- "animo" (Termómetro Psicosocial en Canvas): Úsalo únicamente cuando el usuario solicite abrir el lienzo psicosocial o de estado de ánimo en Canvas.\n' +
+            '- "actos_condiciones" (Analítica de Actos y Condiciones en Canvas): Úsalo únicamente cuando el usuario solicite abrir el lienzo de actos y condiciones inseguras en Canvas.\n' +
             'IMPORTANTE: NUNCA uses ningún fileType si el usuario solo hace una pregunta o pide una explicación ordinaria en el chat.',
         ),
 
@@ -1801,23 +2136,18 @@ class CanvasTool extends Tool {
         });
       }
 
-      // ── CREAR / ACTUALIZAR ──────────────────────────────────────────────────
-      if (accion === 'crear') {
-        if (!content || (typeof content === 'string' && !content.trim())) {
-          return JSON.stringify({
-            error: 'No se puede crear un Canvas vacío. Debes proporcionar el contenido del archivo o aplicativo.',
-          });
-        }
-      }
-
+      // ── CREAR / ESCRIBIR / ACTUALIZAR ───────────────────────────────────────
       let session = await CanvasSession.findOne({ conversationId });
+      const normalizedAccion =
+        accion === 'escribir' ? (session ? 'actualizar' : 'crear') : accion;
+
       const isWriteAction = [
         'crear',
         'actualizar',
         'editar_seccion',
         'buscar_reemplazar',
         'insertar',
-      ].includes(accion);
+      ].includes(normalizedAccion);
       if (isWriteAction && session) {
         if (!isPro && (session.aiRewriteCount || 0) >= 3) {
           return JSON.stringify({
@@ -1826,13 +2156,47 @@ class CanvasTool extends Tool {
           });
         }
       }
+
+      const resolvedFileType = fileType || (session ? session.fileType : 'text');
+      const fallbackUserPrompt =
+        this.req?.body?.text ||
+        this.req?.body?.userRequestText ||
+        (Array.isArray(this.req?.body?.messages) && this.req.body.messages.length > 0
+          ? this.req.body.messages[this.req.body.messages.length - 1]?.text ||
+            this.req.body.messages[this.req.body.messages.length - 1]?.content ||
+            ''
+          : '');
+
       let parsedContent = content;
-      let activeTitle = title || (session ? session.title : 'Archivo sin título');
+      if (
+        normalizedAccion === 'crear' &&
+        resolvedFileType !== 'animo' &&
+        resolvedFileType !== 'actos_condiciones' &&
+        (!parsedContent || (typeof parsedContent === 'string' && !parsedContent.trim()))
+      ) {
+        const autoSeed = String(title || fallbackUserPrompt || '').trim();
+        if (!autoSeed) {
+          return JSON.stringify({
+            error: 'No se puede crear un Canvas vacío. Debes proporcionar el contenido o título del archivo o aplicativo.',
+          });
+        }
+        parsedContent = autoSeed;
+      }
+
+      let activeTitle =
+        title ||
+        (session
+          ? session.title
+          : resolvedFileType === 'animo'
+          ? 'Termómetro Psicosocial'
+          : resolvedFileType === 'actos_condiciones'
+          ? 'Analítica de Actos y Condiciones'
+          : 'Archivo sin título');
 
       // --- Dynamic Title Extraction ---
       if (
-        (accion === 'crear' || accion === 'actualizar') &&
-        (fileType === 'text' || (session && session.fileType === 'text')) &&
+        (normalizedAccion === 'crear' || normalizedAccion === 'actualizar') &&
+        resolvedFileType === 'text' &&
         typeof parsedContent === 'string'
       ) {
         const isDefaultTitle = (t) =>
@@ -1860,31 +2224,87 @@ class CanvasTool extends Tool {
       // ---------------------------------
 
       // Si es excel o presentation, intentar parsear el JSON de forma segura (aceptando strings, arreglos o borradores de texto que Camino B enriquecerá)
-      if (fileType === 'excel' || fileType === 'presentation' || (session && (session.fileType === 'excel' || session.fileType === 'presentation'))) {
-        if (content) {
-          if (typeof content === 'string') {
+      if (resolvedFileType === 'excel' || resolvedFileType === 'presentation') {
+        if (parsedContent) {
+          if (typeof parsedContent === 'string') {
             try {
-              parsedContent = JSON.parse(content);
+              parsedContent = JSON.parse(parsedContent);
             } catch (_) {
-              const extracted = extractJsonArraySafe(content);
-              parsedContent = extracted || content;
+              const extracted = extractJsonArraySafe(parsedContent);
+              parsedContent = extracted || parsedContent;
             }
-          } else {
-            parsedContent = content;
           }
         }
       }
 
-      if (accion === 'crear') {
-        if (session) {
-          // Si ya existe, nos comportamos como actualizar para no destruir el historial del usuario
-          const activeFileType = fileType || session.fileType;
+      const synthesizeCanvasByFileType = async (targetType, rawVal, targetTitle, existingVal) => {
+        if (targetType === 'text') {
+          const enriched = await processTextReportDocument(
+            rawVal ?? existingVal,
+            targetType,
+            targetTitle,
+            userId,
+            this.req,
+            existingVal,
+          );
+          return await processTextDocument(
+            enriched ?? existingVal,
+            targetType,
+            targetTitle,
+            userId,
+            existingVal,
+          );
+        }
+        if (targetType === 'html') {
+          return await processHtmlAppDocument(
+            rawVal ?? existingVal,
+            targetType,
+            targetTitle,
+            userId,
+            this.req,
+            existingVal,
+          );
+        }
+        if (targetType === 'presentation') {
+          return await processPresentationDocument(
+            rawVal ?? existingVal,
+            targetType,
+            targetTitle,
+            userId,
+            this.req,
+            existingVal,
+          );
+        }
+        if (targetType === 'excel') {
+          return await processExcelDocument(
+            rawVal ?? existingVal,
+            targetType,
+            targetTitle,
+            userId,
+            this.req,
+            existingVal,
+          );
+        }
+        if (targetType === 'animo') {
+          return await processAnimoDocument(rawVal, targetTitle, userId, companyInfo);
+        }
+        if (targetType === 'actos_condiciones') {
+          return await processActosCondicionesDocument(rawVal, targetTitle, userId, companyInfo);
+        }
+        return rawVal ?? existingVal ?? '';
+      };
 
-          // Safety Check: Prevent overwriting a larger text/html document with a very short one
+      if (normalizedAccion === 'crear' || normalizedAccion === 'actualizar') {
+        if (session) {
+          const activeFileType = fileType || session.fileType || 'text';
+          const isChangingFileType = Boolean(fileType && session.fileType && fileType !== session.fileType);
+
+          // Safety Check: Prevent overwriting a larger text/html document with a very short one of the SAME type
           if (
+            !isChangingFileType &&
             (activeFileType === 'text' || activeFileType === 'html') &&
-            session.content &&
-            parsedContent &&
+            typeof session.content === 'string' &&
+            typeof parsedContent === 'string' &&
             session.content.length > 800 &&
             parsedContent.length < session.content.length * 0.6
           ) {
@@ -1893,50 +2313,12 @@ class CanvasTool extends Tool {
             });
           }
 
-          if (activeFileType === 'text') {
-            parsedContent = await processTextReportDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-            parsedContent = await processTextDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              session.content,
-            );
-          } else if (activeFileType === 'html') {
-            parsedContent = await processHtmlAppDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          } else if (activeFileType === 'presentation') {
-            parsedContent = await processPresentationDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          } else if (activeFileType === 'excel') {
-            parsedContent = await processExcelDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          }
+          parsedContent = await synthesizeCanvasByFileType(
+            activeFileType,
+            parsedContent,
+            activeTitle,
+            isChangingFileType ? null : session.content,
+          );
 
           const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
           const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
@@ -1964,152 +2346,30 @@ class CanvasTool extends Tool {
           }
 
           await session.save();
+          emitCanvasSessionReady(this.req, session);
 
-          // Sincronizar a LiveEditor si es tipo text o html
           if (activeFileType === 'text' || activeFileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
           return JSON.stringify({
             success: true,
-            mensaje: `La sesión de Canvas ya existía. Se actualizó el archivo a la versión ${session.version} (preservando el historial).`,
+            mensaje:
+              accion === 'crear'
+                ? `La sesión de Canvas ya existía. Se actualizó el archivo "${session.title}" (${activeFileType}) a la versión ${session.version} (preservando el historial).`
+                : `Archivo Canvas actualizado correctamente a la versión ${session.version}.`,
             title: session.title,
+            fileType: session.fileType,
             version: session.version,
           });
         } else {
-          // Si no existe, crear de cero con versión 1
-          if (fileType === 'text') {
-            parsedContent = await processTextReportDocument(
-              parsedContent,
-              fileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-            parsedContent = await processTextDocument(
-              parsedContent,
-              fileType,
-              activeTitle,
-              userId,
-              null,
-            );
-          } else if (fileType === 'html') {
-            parsedContent = await processHtmlAppDocument(
-              parsedContent,
-              fileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          } else if (fileType === 'presentation') {
-            parsedContent = await processPresentationDocument(
-              parsedContent,
-              fileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          } else if (fileType === 'excel') {
-            parsedContent = await processExcelDocument(
-              parsedContent,
-              fileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          }
-
-          session = new CanvasSession({
-            user: userId,
-            conversationId,
-            content: parsedContent ?? '',
-            title: activeTitle,
-            fileType,
-            version: 1,
-            history: [
-              {
-                version: 1,
-                content: parsedContent ?? '',
-                title: activeTitle,
-                fileType,
-                updatedAt: new Date(),
-              },
-            ],
-          });
-
-          if (companyInfo) {
-            session.companyId = companyInfo._id;
-          }
-
-          await session.save();
-
-          // Sincronizar a LiveEditor si es tipo text o html
-          if (fileType === 'text' || fileType === 'html') {
-            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
-          }
-
-          return JSON.stringify({
-            success: true,
-            mensaje: `Archivo Canvas de tipo "${fileType}" creado exitosamente. El usuario puede verlo y descargarlo en la barra lateral derecha.`,
-            title: session.title,
-            version: session.version,
-          });
-        }
-      }
-
-      if (accion === 'actualizar') {
-        if (!session) {
-          // Si no existe, lo creamos automáticamente con versión 1
-          const activeFileType = fileType || 'text';
-
-          if (activeFileType === 'text') {
-            parsedContent = await processTextReportDocument(
-              parsedContent,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-            parsedContent = await processTextDocument(
-              parsedContent,
-              activeFileType,
-              activeTitle,
-              userId,
-              null,
-            );
-          } else if (activeFileType === 'html') {
-            parsedContent = await processHtmlAppDocument(
-              parsedContent,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          } else if (activeFileType === 'presentation') {
-            parsedContent = await processPresentationDocument(
-              parsedContent,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          } else if (activeFileType === 'excel') {
-            parsedContent = await processExcelDocument(
-              parsedContent,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              null,
-            );
-          }
+          const activeFileType = resolvedFileType;
+          parsedContent = await synthesizeCanvasByFileType(
+            activeFileType,
+            parsedContent,
+            activeTitle,
+            null,
+          );
 
           session = new CanvasSession({
             user: userId,
@@ -2134,123 +2394,24 @@ class CanvasTool extends Tool {
           }
 
           await session.save();
+          emitCanvasSessionReady(this.req, session);
 
-          // Sincronizar a LiveEditor si es tipo text o html
           if (activeFileType === 'text' || activeFileType === 'html') {
             await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
           }
 
           return JSON.stringify({
             success: true,
-            mensaje: `La sesión de Canvas no existía. Se creó automáticamente con versión 1.`,
+            mensaje: `Archivo Canvas de tipo "${activeFileType}" creado exitosamente. El usuario puede verlo y descargarlo en la barra lateral derecha.`,
             title: session.title,
-            version: session.version,
-          });
-        } else {
-          // Si existe, lo actualizamos normalmente
-          const activeFileType = fileType || session.fileType;
-
-          // Safety Check: Prevent overwriting a larger text/html document with a very short one
-          if (
-            (activeFileType === 'text' || activeFileType === 'html') &&
-            session.content &&
-            parsedContent &&
-            session.content.length > 800 &&
-            parsedContent.length < session.content.length * 0.6
-          ) {
-            return JSON.stringify({
-              error: `El Canvas ya contiene un documento de mayor tamaño (${session.content.length} caracteres) y estás intentando sobrescribirlo completamente con un contenido mucho más corto (${parsedContent.length} caracteres). Para evitar perder información o el diseño de la plantilla preestablecida, DEBES usar acciones granulares como "buscar_reemplazar", "editar_seccion" o "insertar" en lugar de "actualizar"/"crear".`,
-            });
-          }
-
-          if (activeFileType === 'text') {
-            parsedContent = await processTextReportDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-            parsedContent = await processTextDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              session.content,
-            );
-          } else if (activeFileType === 'html') {
-            parsedContent = await processHtmlAppDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          } else if (activeFileType === 'presentation') {
-            parsedContent = await processPresentationDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          } else if (activeFileType === 'excel') {
-            parsedContent = await processExcelDocument(
-              parsedContent ?? session.content,
-              activeFileType,
-              activeTitle,
-              userId,
-              this.req,
-              session.content,
-            );
-          }
-
-          const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
-          const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
-          const newHistoryItem = {
-            version: nextVersion,
-            content: parsedContent ?? session.content,
-            title: activeTitle,
-            fileType: activeFileType,
-            updatedAt: new Date(),
-          };
-
-          const maxHistory = isPro ? 20 : 5;
-          const updatedHistory = [...(session.history || []), newHistoryItem].slice(-maxHistory);
-
-          session.content = parsedContent ?? session.content;
-          session.title = activeTitle;
-          session.fileType = activeFileType;
-          session.version = nextVersion;
-          session.history = updatedHistory;
-          if (!isPro) {
-            session.aiRewriteCount = (session.aiRewriteCount || 0) + 1;
-          }
-          if (companyInfo) {
-            session.companyId = companyInfo._id;
-          }
-
-          await session.save();
-
-          // Sincronizar a LiveEditor si es tipo text o html
-          if (activeFileType === 'text' || activeFileType === 'html') {
-            await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
-          }
-
-          return JSON.stringify({
-            success: true,
-            mensaje: `Archivo Canvas actualizado correctamente a la versión ${session.version}.`,
-            title: session.title,
+            fileType: session.fileType,
             version: session.version,
           });
         }
       }
 
       // ── EDITAR SECCIÓN ────────────────────────────────────────────────────
-      if (accion === 'editar_seccion') {
+      if (normalizedAccion === 'editar_seccion') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
         if (!titulo_seccion || !nuevo_contenido_seccion) {
           return JSON.stringify({
@@ -2266,9 +2427,13 @@ class CanvasTool extends Tool {
 
         let updatedContent = session.content;
 
-        if (activeFileType === 'presentation' && Array.isArray(session.content)) {
+        if (activeFileType === 'presentation') {
+          const currentSlides = parseSlidesSessionContent(session.content, activeTitle);
+          if (currentSlides.length === 0) {
+            return JSON.stringify({ error: 'No se pudieron leer las diapositivas actuales del Canvas.' });
+          }
           const searchLower = titulo_seccion.toLowerCase();
-          const slideIdx = session.content.findIndex(
+          const slideIdx = currentSlides.findIndex(
             (s, i) =>
               (s?.title && String(s.title).toLowerCase().includes(searchLower)) ||
               (s?.kicker && String(s.kicker).toLowerCase().includes(searchLower)) ||
@@ -2284,23 +2449,28 @@ class CanvasTool extends Tool {
             newSlideObj = JSON.parse(nuevo_contenido_seccion);
           } catch (_) {
             newSlideObj = {
-              ...session.content[slideIdx],
+              ...currentSlides[slideIdx],
               bullets: nuevo_contenido_seccion
                 .split(/\n+/)
                 .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
                 .filter(Boolean),
             };
           }
-          const copySlides = [...session.content];
+          const copySlides = [...currentSlides];
           copySlides[slideIdx] = normalizeSlideItem(
             { ...copySlides[slideIdx], ...(Array.isArray(newSlideObj) ? newSlideObj[0] : newSlideObj) },
             slideIdx,
             activeTitle,
           );
           updatedContent = copySlides;
-        } else if (activeFileType === 'excel' && Array.isArray(session.content)) {
+        } else if (activeFileType === 'excel') {
+          const excelParsed = parseExcelSessionContent(session.content);
+          const currentGrid = excelParsed.grid;
+          if (currentGrid.length === 0) {
+            return JSON.stringify({ error: 'No se pudo leer la grilla actual del Canvas Excel.' });
+          }
           const searchLower = titulo_seccion.toLowerCase();
-          const rowIdx = session.content.findIndex(
+          const rowIdx = currentGrid.findIndex(
             (r) => Array.isArray(r) && r.some((cell) => String(cell).toLowerCase().includes(searchLower)),
           );
           if (rowIdx === -1) {
@@ -2312,16 +2482,24 @@ class CanvasTool extends Tool {
           try {
             const parsedRow = JSON.parse(nuevo_contenido_seccion);
             if (Array.isArray(parsedRow)) {
-              newRow = Array.isArray(parsedRow[0]) ? parsedRow[0] : parsedRow.map(String);
+              newRow = Array.isArray(parsedRow[0]) ? parsedRow[0].map(String) : parsedRow.map(String);
             }
           } catch (_) {
             newRow = nuevo_contenido_seccion.split(/[,\t|]/).map((c) => c.trim());
           }
-          const copyGrid = [...session.content];
+          const copyGrid = [...currentGrid];
           if (Array.isArray(newRow)) {
             copyGrid[rowIdx] = newRow;
           }
-          updatedContent = copyGrid;
+          const normalizedGrid = normalizeExcelGrid2D(copyGrid);
+          if (excelParsed.isMultiSheet && excelParsed.sheets && excelParsed.firstKey) {
+            updatedContent = JSON.stringify({
+              ...excelParsed.sheets,
+              [excelParsed.firstKey]: normalizedGrid,
+            });
+          } else {
+            updatedContent = normalizedGrid;
+          }
         } else {
           const escapedTitle = titulo_seccion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const sectionRegex = new RegExp(
@@ -2375,6 +2553,7 @@ class CanvasTool extends Tool {
         }
 
         await session.save();
+        emitCanvasSessionReady(this.req, session);
 
         if (activeFileType === 'text' || activeFileType === 'html') {
           await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
@@ -2384,12 +2563,13 @@ class CanvasTool extends Tool {
           success: true,
           mensaje: `Sección "${titulo_seccion}" actualizada en el Canvas (versión ${session.version}).`,
           title: session.title,
+          fileType: session.fileType,
           version: session.version,
         });
       }
 
       // ── BUSCAR Y REEMPLAZAR ───────────────────────────────────────────────
-      if (accion === 'buscar_reemplazar') {
+      if (normalizedAccion === 'buscar_reemplazar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
         if (!buscar || reemplazar === undefined) {
           return JSON.stringify({
@@ -2408,13 +2588,23 @@ class CanvasTool extends Tool {
         let matches = 0;
 
         if (activeFileType === 'presentation' || activeFileType === 'excel') {
-          const serialized = JSON.stringify(session.content);
+          let structuredObj = session.content;
+          if (typeof structuredObj === 'string') {
+            try {
+              structuredObj = JSON.parse(structuredObj);
+            } catch (_) {}
+          }
+          const serialized = JSON.stringify(structuredObj);
           matches = (serialized.match(searchRegex) || []).length;
           if (matches === 0) {
             return JSON.stringify({ error: `No se encontró el texto "${buscar}" en el archivo.` });
           }
           const safeReplacement = String(reemplazar).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          updatedContent = JSON.parse(serialized.replace(searchRegex, safeReplacement));
+          const replacedParsed = JSON.parse(serialized.replace(searchRegex, safeReplacement));
+          updatedContent =
+            activeFileType === 'excel' && !Array.isArray(replacedParsed)
+              ? JSON.stringify(replacedParsed)
+              : replacedParsed;
         } else {
           const strContent = String(session.content);
           matches = (strContent.match(searchRegex) || []).length;
@@ -2458,6 +2648,7 @@ class CanvasTool extends Tool {
         }
 
         await session.save();
+        emitCanvasSessionReady(this.req, session);
 
         if (activeFileType === 'text' || activeFileType === 'html') {
           await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
@@ -2467,13 +2658,14 @@ class CanvasTool extends Tool {
           success: true,
           mensaje: `Se reemplazaron ${matches} ocurrencia(s) de "${buscar}" por "${reemplazar}" en el Canvas (versión ${session.version}).`,
           title: session.title,
+          fileType: session.fileType,
           version: session.version,
           reemplazos: matches,
         });
       }
 
       // ── INSERTAR ──────────────────────────────────────────────────────────
-      if (accion === 'insertar') {
+      if (normalizedAccion === 'insertar') {
         const activeFileType = fileType || (session ? session.fileType : 'text');
         if (!insertar_contenido || !posicion) {
           return JSON.stringify({
@@ -2488,7 +2680,8 @@ class CanvasTool extends Tool {
 
         let updatedContent;
 
-        if (activeFileType === 'presentation' && Array.isArray(session.content)) {
+        if (activeFileType === 'presentation') {
+          const currentSlides = parseSlidesSessionContent(session.content, activeTitle);
           let slideToInsert = null;
           try {
             const parsed = JSON.parse(insertar_contenido);
@@ -2503,8 +2696,8 @@ class CanvasTool extends Tool {
                 .filter(Boolean),
             };
           }
-          const normalizedSlide = normalizeSlideItem(slideToInsert, session.content.length, activeTitle);
-          const copySlides = [...session.content];
+          const normalizedSlide = normalizeSlideItem(slideToInsert, currentSlides.length, activeTitle);
+          const copySlides = [...currentSlides];
           if (posicion === 'inicio') {
             copySlides.unshift(normalizedSlide);
           } else if (posicion === 'despues_de' && insertar_despues_de_texto) {
@@ -2521,21 +2714,31 @@ class CanvasTool extends Tool {
             copySlides.push(normalizedSlide);
           }
           updatedContent = copySlides;
-        } else if (activeFileType === 'excel' && Array.isArray(session.content)) {
+        } else if (activeFileType === 'excel') {
+          const excelParsed = parseExcelSessionContent(session.content);
+          const currentGrid = excelParsed.grid;
           let rowToInsert = null;
           try {
             const parsed = JSON.parse(insertar_contenido);
-            rowToInsert = Array.isArray(parsed[0]) ? parsed[0] : Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+            rowToInsert = Array.isArray(parsed[0]) ? parsed[0].map(String) : Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
           } catch (_) {
             rowToInsert = insertar_contenido.split(/[,\t|]/).map((c) => c.trim());
           }
-          const copyGrid = [...session.content];
+          const copyGrid = [...currentGrid];
           if (posicion === 'inicio') {
             copyGrid.splice(1, 0, rowToInsert);
           } else {
             copyGrid.push(rowToInsert);
           }
-          updatedContent = copyGrid;
+          const normalizedGrid = normalizeExcelGrid2D(copyGrid);
+          if (excelParsed.isMultiSheet && excelParsed.sheets && excelParsed.firstKey) {
+            updatedContent = JSON.stringify({
+              ...excelParsed.sheets,
+              [excelParsed.firstKey]: normalizedGrid,
+            });
+          } else {
+            updatedContent = normalizedGrid;
+          }
         } else {
           const currentContent = String(session.content || '');
           if (posicion === 'inicio') {
@@ -2627,6 +2830,7 @@ class CanvasTool extends Tool {
         }
 
         await session.save();
+        emitCanvasSessionReady(this.req, session);
 
         if (activeFileType === 'text' || activeFileType === 'html') {
           await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
@@ -2636,6 +2840,7 @@ class CanvasTool extends Tool {
           success: true,
           mensaje: `Contenido insertado correctamente en posición "${posicion}" en el Canvas (versión ${session.version}).`,
           title: session.title,
+          fileType: session.fileType,
           version: session.version,
         });
       }
@@ -2655,11 +2860,58 @@ class CanvasTool extends Tool {
  * Aplica directamente la modificación solicitada por el usuario sobre el Canvas existente.
  * Se usa como red de seguridad cuando el modelo leyó el Canvas pero terminó el turno sin escribir.
  */
-async function applyCanvasModification(conversationId, userRequest, userId) {
+async function applyCanvasModification(conversationId, userRequest, userId, req = null) {
   const session = await CanvasSession.findOne({ conversationId });
-  if (!session || !session.content || !['html', 'text'].includes(session.fileType)) {
+  if (!session || !session.content || !['html', 'text', 'presentation', 'excel'].includes(session.fileType)) {
     return null;
   }
+
+  const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
+
+  if (session.fileType === 'presentation' || session.fileType === 'excel') {
+    const existingJson =
+      typeof session.content === 'string' ? session.content : JSON.stringify(session.content);
+    const modJsonPrompt = `Eres un experto en ${session.fileType === 'presentation' ? 'presentaciones ejecutivas SG-SST (JSON array de diapositivas)' : 'hojas de cálculo Excel SG-SST (matriz JSON 2D string[][])'}.
+Aplica EXACTAMENTE la siguiente modificación solicitada por el usuario conservando el formato JSON válido y el resto de los datos existentes:
+
+## MODIFICACIÓN SOLICITADA:
+${userRequest}
+
+## CONTENIDO JSON ACTUAL:
+${existingJson}
+
+Responde ÚNICAMENTE con el JSON actualizado válido, sin bloques markdown (\`\`\`json) ni explicaciones.`;
+
+    const jsonRes = await generateWithKeyRotation(
+      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      userId,
+      modJsonPrompt,
+      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+    );
+    const rawJsonOut = jsonRes?.response?.text ? jsonRes.response.text() : '';
+    const parsedArr = extractJsonArraySafe(rawJsonOut);
+    if (!Array.isArray(parsedArr) || parsedArr.length === 0) {
+      return null;
+    }
+    const normalizedOut =
+      session.fileType === 'presentation'
+        ? parsedArr.map((s, i) => normalizeSlideItem(s, i, session.title))
+        : normalizeExcelGrid2D(parsedArr);
+
+    const maxHistoryVersion = (session.history || []).reduce((m, i) => Math.max(m, i.version || 0), 0);
+    const nextVersion = Math.max(maxHistoryVersion, session.version || 0) + 1;
+    session.content = normalizedOut;
+    session.version = nextVersion;
+    session.history = [
+      ...(session.history || []),
+      { version: nextVersion, content: normalizedOut, title: session.title, fileType: session.fileType, updatedAt: new Date() },
+    ];
+    session.markModified('history');
+    await session.save();
+    emitCanvasSessionReady(req, session);
+    return { title: session.title, version: nextVersion };
+  }
+
   const existing = String(session.content);
   const prompt = `Eres un desarrollador experto. Aplica EXACTAMENTE la siguiente modificación solicitada por el usuario al documento ${session.fileType === 'html' ? 'HTML (aplicativo single-file con Tailwind; si piden gráficas usa Chart.js vía <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> y conéctalas a los datos y a la función de render existente para que se actualicen en vivo)' : 'de texto/HTML'}.
 Conserva TODO lo demás (estructura, datos, scripts, estilos, copilot).
@@ -2673,7 +2925,7 @@ ${existing}
 Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdown ni explicaciones.`;
 
   const { mediaLibraryContext, inlineParts } = await buildMultimodalMediaContext(
-    null,
+    req,
     userId,
     existing,
     userRequest,
@@ -2682,12 +2934,12 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
   );
   const fullModPrompt = mediaLibraryContext ? `${prompt}\n\n${mediaLibraryContext}` : prompt;
 
-  const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
   const modPayload = inlineParts.length > 0 ? [{ text: fullModPrompt }, ...inlineParts] : fullModPrompt;
   const result = await generateWithKeyRotation(
     { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
     userId,
     modPayload,
+    { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
   );
   const response = await result?.response;
   let updated = response?.text ? response.text() : '';
@@ -2713,6 +2965,7 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
   ];
   session.markModified('history');
   await session.save();
+  emitCanvasSessionReady(req, session);
   await syncCanvasToLiveEditor(conversationId, session.content, session.title, userId);
   return { title: session.title, version: nextVersion };
 }
@@ -2721,7 +2974,12 @@ CanvasTool.processHtmlAppDocument = processHtmlAppDocument;
 CanvasTool.processTextReportDocument = processTextReportDocument;
 CanvasTool.processPresentationDocument = processPresentationDocument;
 CanvasTool.processExcelDocument = processExcelDocument;
+CanvasTool.processAnimoDocument = processAnimoDocument;
+CanvasTool.processActosCondicionesDocument = processActosCondicionesDocument;
 CanvasTool.normalizeSlideItem = normalizeSlideItem;
+CanvasTool.normalizeExcelGrid2D = normalizeExcelGrid2D;
+CanvasTool.parseExcelSessionContent = parseExcelSessionContent;
+CanvasTool.parseSlidesSessionContent = parseSlidesSessionContent;
 CanvasTool.syncCanvasToLiveEditor = syncCanvasToLiveEditor;
 CanvasTool.applyCanvasModification = applyCanvasModification;
 CanvasTool.injectStandaloneCssIfMissing = injectStandaloneCssIfMissing;

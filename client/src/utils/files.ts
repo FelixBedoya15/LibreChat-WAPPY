@@ -57,15 +57,102 @@ const videoFile = {
   title: 'Video',
 };
 
+export const extensionMimeMapping: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  doc: 'application/msword',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
+  csv: 'text/csv',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ppt: 'application/vnd.ms-powerpoint',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  markdown: 'text/markdown',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  svg: 'image/svg+xml',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  avi: 'video/avi',
+  mkv: 'video/mkv',
+  m4v: 'video/m4v',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  m4a: 'audio/m4a',
+};
+
+const browserMimeAliasMapping: Record<string, string> = {
+  'video/x-matroska': 'video/mkv',
+  'video/x-msvideo': 'video/avi',
+  'video/x-m4v': 'video/m4v',
+  'video/x-ms-wmv': 'video/wmv',
+  'video/x-flv': 'video/flv',
+  'video/3gpp': 'video/3gp',
+};
+
+export const inferMimeType = (fileName = '', currentType = ''): string => {
+  const trimmedType = (currentType || '').trim();
+  const hasExtension = fileName.includes('.');
+  const ext = hasExtension ? (fileName.split('.').pop()?.toLowerCase() ?? '') : '';
+
+  if (trimmedType && browserMimeAliasMapping[trimmedType]) {
+    return browserMimeAliasMapping[trimmedType];
+  }
+
+  const knownCodeType = ext ? codeTypeMapping[ext] : undefined;
+  if (
+    knownCodeType &&
+    (!trimmedType || trimmedType === 'application/octet-stream' || trimmedType !== knownCodeType)
+  ) {
+    return knownCodeType;
+  }
+
+  if (!trimmedType || trimmedType === 'application/octet-stream') {
+    return (ext && extensionMimeMapping[ext]) || '';
+  }
+
+  return trimmedType;
+};
+
 export const getVideoDuration = (file: File): Promise<number> => {
   return new Promise((resolve) => {
+    let settled = false;
+    const objectUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
     video.preload = 'metadata';
-    video.onloadedmetadata = function () {
-      window.URL.revokeObjectURL(video.src);
-      resolve(video.duration);
+
+    const finish = (duration: number) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeoutId);
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      window.URL.revokeObjectURL(objectUrl);
+      resolve(Number.isFinite(duration) && duration >= 0 ? duration : 0);
     };
-    video.src = URL.createObjectURL(file);
+
+    const timeoutId = setTimeout(() => finish(0), 4000);
+
+    video.onloadedmetadata = function () {
+      finish(video.duration);
+    };
+
+    video.onerror = function () {
+      finish(0);
+    };
+
+    video.src = objectUrl;
   });
 };
 
@@ -263,14 +350,9 @@ export const validateFiles = ({
 
   for (let i = 0; i < fileList.length; i++) {
     let originalFile = fileList[i];
-    let fileType = originalFile.type;
-    const extension = originalFile.name.split('.').pop() ?? '';
-    const knownCodeType = codeTypeMapping[extension];
-
-    // Infer MIME type for Known Code files when the type is empty or a mismatch
-    if (knownCodeType && (!fileType || fileType !== knownCodeType)) {
-      fileType = knownCodeType;
-    }
+    const hasExtension = originalFile.name.includes('.');
+    const extension = hasExtension ? (originalFile.name.split('.').pop()?.toLowerCase() ?? '') : '';
+    let fileType = inferMimeType(originalFile.name, originalFile.type);
 
     // Check if the file type is still empty after the extension check
     if (!fileType) {
@@ -278,20 +360,35 @@ export const validateFiles = ({
       return false;
     }
 
-    // Replace empty type with inferred type
+    let mimeTypesToCheck = supportedMimeTypes;
+    if (toolResource === EToolResources.context) {
+      const isMultimodalMedia =
+        fileType.startsWith('image/') ||
+        fileType.startsWith('video/') ||
+        fileType.startsWith('audio/');
+      mimeTypesToCheck = [
+        ...(fileConfig?.text?.supportedMimeTypes || defaultFileConfig.text.supportedMimeTypes || []),
+        ...(fileConfig?.ocr?.supportedMimeTypes || defaultFileConfig.ocr.supportedMimeTypes || []),
+        ...(fileConfig?.stt?.supportedMimeTypes || defaultFileConfig.stt.supportedMimeTypes || []),
+        ...(isMultimodalMedia
+          ? supportedMimeTypes || defaultFileConfig.endpoints.default.supportedMimeTypes || []
+          : []),
+      ];
+    }
+
+    // Fallback to canonical extension MIME if OS-supplied MIME does not match endpoint regexes
+    if (!checkType(fileType, mimeTypesToCheck) && extension && extensionMimeMapping[extension]) {
+      const canonicalExtMime = extensionMimeMapping[extension];
+      if (checkType(canonicalExtMime, mimeTypesToCheck)) {
+        fileType = canonicalExtMime;
+      }
+    }
+
+    // Replace empty/generic/mismatched type with inferred canonical type
     if (originalFile.type !== fileType) {
       const newFile = new File([originalFile], originalFile.name, { type: fileType });
       originalFile = newFile;
       fileList[i] = newFile;
-    }
-
-    let mimeTypesToCheck = supportedMimeTypes;
-    if (toolResource === EToolResources.context) {
-      mimeTypesToCheck = [
-        ...(fileConfig?.text?.supportedMimeTypes || []),
-        ...(fileConfig?.ocr?.supportedMimeTypes || []),
-        ...(fileConfig?.stt?.supportedMimeTypes || []),
-      ];
     }
 
     if (!checkType(originalFile.type, mimeTypesToCheck)) {
@@ -318,7 +415,7 @@ export const validateFiles = ({
     ),
     ...fileList.map(
       (file: File | undefined) =>
-        `${file?.name}-${file?.size}-${file?.type.split('/')[0] ?? 'file'}`,
+        `${file?.name}-${file?.size}-${file?.type?.split('/')[0] ?? 'file'}`,
     ),
   ];
 
