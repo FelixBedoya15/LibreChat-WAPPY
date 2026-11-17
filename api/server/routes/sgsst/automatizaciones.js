@@ -31,6 +31,7 @@ const {
   listActiveTenshiFlows,
   matchTenshiFlowByQuery,
   executeTenshiFlowInstant,
+  ensureDefaultTenshiFlows,
 } = require('~/server/services/tenshiFlowService');
 
 const UserPlan = require('~/db/models/UserPlan');
@@ -1148,7 +1149,9 @@ router.post('/trigger-tenshi', async (req, res) => {
       const waitTimeoutMs = shouldWait
         ? Number.isFinite(parsedTimeout) && parsedTimeout > 0
           ? Math.min(parsedTimeout, 120000)
-          : 40000
+          : requestedChannel === 'chat'
+            ? 60000
+            : 35000
         : 0;
 
       const execRes = await executeTenshiFlowInstant({
@@ -1877,6 +1880,7 @@ router.get('/tenshi-flows', async (req, res) => {
         error: 'Acceso exclusivo para administradores: gestión de Flujos Tenshi.',
       });
     }
+    await ensureDefaultTenshiFlows({ ownerUserId: req.user?.id });
     const flows = await Automation.find({
       isTenshiFlow: true,
       companyId: 'TENSHI_GLOBAL',

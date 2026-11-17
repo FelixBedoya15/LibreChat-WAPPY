@@ -129,3 +129,32 @@ node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.j
   - Pruebas negativas de regresión (5 aserciones): bloquea `hito1_matriz_legal` en `#16–#30` y `--file`, bloquea coexistencia `notebooklm + wappy_rag_documental`, bloquea `logic_merge` con `< 2` fuentes reales en Etapa 2, bloquea agente fuera de BD en `#16–#30` y bloquea mención engañosa (`Matriz Legal`).
 - **Suite lógica E2E contra MongoDB (`node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js`):**
   - Resultado: **`25/25 PRUEBAS LÓGICAS SUPERADAS AL 100% (4.53s)`** (`BLOQUE 1`..`BLOQUE 8`, incluyendo `CLEAN.1`: `0` documentos residuales en MongoDB).
+
+---
+
+## 📋 Registro de Auditoría #004 — Primer Flujo Tenshi Global (`TENSHI_GLOBAL`), Ejecución Paralela de Scrapers y Aislamiento Multi-Empresa
+
+- **Fecha:** `2026-11-13`
+- **Flujo Auditado:** `FIRST_GLOBAL_TENSHI_FLOW` (`presetKey: 'tenshi_flow_verificacion_alturas_arl_cedula'`, `isTenshiFlow: true`, `companyId: 'TENSHI_GLOBAL'`, `presetCategory: 'atel_inspecciones'`, modelo `gemini-3.6-flash` verificado en `.env`)
+- **Archivos Intervenidos:**
+  - `api/server/services/tenshiFlowService.js` (`FIRST_GLOBAL_TENSHI_FLOW`, `ensureDefaultTenshiFlows`, tolerancia de parámetros numéricos de 5–12 dígitos en `matchTenshiFlowByQuery`, `waitTimeoutMs: 55000`)
+  - `api/server/services/automationScheduler.js` (`Promise.all` en scrapers Etapa 2 + ingesta en `logic_merge_1`, extracción quirúrgica de cédulas con puntos/espacios sin escanear nómina completa cuando hay cédula explícita, recuperación de nombre real del titular desde portales, salida rápida `missingInputTarget` en `0 tokens LLM`, supresión de duplicación `TenshiMessage.create` en `tenshi_flow_instant` y tolerancia a parámetros 5–12 dígitos en `resolveAutomationByVoiceOrQuery`)
+  - `api/app/clients/tools/structured/GestorAutomatizaciones.js` (`waitTimeoutMs`: `35000 ms` voz / `60000 ms` chat en `_executeMatchedTenshiFlow`)
+  - `api/server/routes/sgsst/automatizaciones.js` (siembra idempotente `ensureDefaultTenshiFlows` en `GET /tenshi-flows` y timeout `60000 ms` en `POST /trigger-tenshi` chat)
+
+### 1. Validación Estática, Topológica DAG y Regresión del Catálogo
+- **`node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`:** `30/30 PASS · 0 errores · 0 advertencias` (`v=2026.11.13-v60-n8n-curated-30`).
+- **`node .agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js --file <first_tenshi_flow.json>`:** `1/1 PASS · 0 errores · 0 advertencias` (`IF: direct | Etapa2(Read): [scraper_agy_alto_riesgo, scraper_agy_arl_directo] | Herramienta+: [hito2_perfil_socio]` con `hitoRole: 'agent_tool'`, `appActionMode: 'read_only'`).
+- **`node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.js`:** `25/25 PRUEBAS LÓGICAS SUPERADAS AL 100% (4.99s)` (`0` regresiones; corregida visibilidad de `scraperStage2Results` fuera del bloque `try` de Stage 2 scrapers para `buildLivePreExtractionAndLogicBlocks`).
+
+### 2. Resultados Medidos de Verificación E2E del Primer Flujo Tenshi Global (`7/7 PASS`)
+
+| Escenario | Condición Probada en MongoDB Real | Resultado Medido | Estado |
+| :-: | :--- | :--- | :-: |
+| **F** | Seeding idempotente `ensureDefaultTenshiFlows` (`tenshi_flow_seeds`) | Siembra inicial única; preserva ediciones Admin; NO resucita si el Admin elimina el flujo | ✅ PASS |
+| **A** | Matching de 3 consultas naturales con cédula (`1037654321`, `1.037.654.321`) + guardia de códigos cortos (`001`/`002`/`003`) | `matchTenshiFlowByQuery` y `resolveAutomationByVoiceOrQuery` resuelven el flujo exacto; código `003` sigue bloqueado ante `001` | ✅ PASS |
+| **B** | Trabajador existente en nómina de 5 (`CC 80123456`) con `userInstruction` | Solo raspa `80123456` (`0` fugas de los otros `4`); hidrata `fechaNacimiento`; paralelismo confirmado (`overlap=378ms`, `elapsed=837ms`); `logic_merge_1` consolidado; `1` `Notification` y `0` `TenshiMessage` duplicado | ✅ PASS |
+| **C** | Cédula externa no registrada con puntos (`1.037.654.321`, texto incluye `año 2026` y `NIT 900111222-3`) | Limpia a `['1037654321']` filtrando año/NIT/nómina; recupera nombre real `VALERIA MONTOYA CUARTAS` en `liveSteps`, `outputItems` y prompt | ✅ PASS |
+| **D** | Solicitud interactiva sin cédula (`"Revisa alturas y ARL por favor"`) | `0` scrapes, `0` tokens LLM, `missingInputTarget=true`, `llmSkippedByMissingInput=true` y respuesta cortés pidiendo la cédula | ✅ PASS |
+| **E** | Aislamiento multi-empresa (`Empresa A` vs `Empresa B`) y cross-tenant override | Override ajeno bloqueado/aislado en `Empresa B`; subusuario con `assignedCompany` ajena rechazado; `0` hidratación cruzada desde `Empresa A` | ✅ PASS |
+| **G** | Invocación end-to-end por herramienta `GestorAutomatizaciones` (`accion="ejecutar_tenshi"`) | Respuesta síncrona en el mismo turno (`success=true`, `mode="instant"`, `companyId` aislado y hallazgos reales) | ✅ PASS |

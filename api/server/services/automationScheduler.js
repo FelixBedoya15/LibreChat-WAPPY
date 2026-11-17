@@ -687,8 +687,13 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
   const allTokens = Array.from(new Set([...qNorm.split(' '), ...qCore.split(' ')]))
     .map((t) => t.trim())
     .filter((t) => t && !TRIGGER_QUERY_STOP_WORDS.has(t));
-  const codeOrDigitTokens = allTokens.filter((t) => /\d/.test(t));
+  // Parámetros de entidad numéricos (cédulas, NITs de 5-12 dígitos) son argumentos de entrada en tiempo real, NO códigos de flujo ("001", "1401").
+  const isRuntimeParamNumToken = (tok) => /^\d{5,12}$/.test(String(tok || '').trim());
+  const codeOrDigitTokens = allTokens.filter((t) => /\d/.test(t) && !isRuntimeParamNumToken(t));
   const meaningfulTokens = allTokens.filter((t) => /\d/.test(t) || t.length >= 3);
+  const nonParamMeaningfulTokens = meaningfulTokens.filter((t) => !isRuntimeParamNumToken(t));
+  const scoringBaseTokens =
+    nonParamMeaningfulTokens.length > 0 ? nonParamMeaningfulTokens : meaningfulTokens;
 
   const scored = [];
   for (const auto of automations) {
@@ -762,23 +767,28 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
       }
     }
 
-    // 3. Coincidencia estricta por tokens discriminantes (excluyendo palabras vacías como "flujo")
-    if (bestScore === 0 && meaningfulTokens.length > 0 && !hasMissingCodeToken) {
-      const vcHaystack = normalizeTriggerMatchText(cfg.voiceCommands.join(' '));
-      const vcHits = vcHaystack
-        ? meaningfulTokens.filter((t) => vcHaystack.includes(t)).length
-        : 0;
-      if (vcHaystack && vcHits > 0 && (vcHits >= 2 || vcHits === meaningfulTokens.length)) {
-        bestScore = 65 + Math.round((vcHits / meaningfulTokens.length) * 15);
-        matchSource = 'voiceCommand';
-        matchedVoiceCommand = cfg.voiceCommands[0] || null;
-      } else {
-        const hits = meaningfulTokens.filter((t) => haystackNorm.includes(t)).length;
-        const ratio = hits / meaningfulTokens.length;
-        if (hits >= 2 || (meaningfulTokens.length === 1 && hits === 1 && ratio === 1)) {
-          bestScore = 50 + Math.round(ratio * 15);
-          matchSource = 'name';
-          matchedVoiceCommand = null;
+    // 3. Coincidencia estricta por tokens discriminantes (excluyendo palabras vacías como "flujo" y cédulas de entrada)
+    if (bestScore === 0 && scoringBaseTokens.length > 0 && !hasMissingCodeToken) {
+      const effectiveScoringTokens = scoringBaseTokens.filter(
+        (t) => !isRuntimeParamNumToken(t) || haystackNorm.includes(t),
+      );
+      if (effectiveScoringTokens.length > 0) {
+        const vcHaystack = normalizeTriggerMatchText(cfg.voiceCommands.join(' '));
+        const vcHits = vcHaystack
+          ? effectiveScoringTokens.filter((t) => vcHaystack.includes(t)).length
+          : 0;
+        if (vcHaystack && vcHits > 0 && (vcHits >= 2 || vcHits === effectiveScoringTokens.length)) {
+          bestScore = 65 + Math.round((vcHits / effectiveScoringTokens.length) * 15);
+          matchSource = 'voiceCommand';
+          matchedVoiceCommand = cfg.voiceCommands[0] || null;
+        } else {
+          const hits = effectiveScoringTokens.filter((t) => haystackNorm.includes(t)).length;
+          const ratio = hits / effectiveScoringTokens.length;
+          if (hits >= 2 || (effectiveScoringTokens.length === 1 && hits === 1 && ratio === 1)) {
+            bestScore = 50 + Math.round(ratio * 15);
+            matchSource = 'name';
+            matchedVoiceCommand = null;
+          }
         }
       }
     }
@@ -2675,6 +2685,7 @@ async function buildLivePreExtractionAndLogicBlocks({
   automationCompany,
   effectiveAiModel,
   alreadyProcessedKeysSet = new Set(),
+  scraperStage2Results = [],
 }) {
   const wf = automation?.workflowNodes || {};
   const extractors = Array.isArray(wf.extractors) ? wf.extractors : [];
@@ -3441,6 +3452,54 @@ async function buildLivePreExtractionAndLogicBlocks({
         } catch (_) {}
       }
 
+      if (Array.isArray(scraperStage2Results) && scraperStage2Results.length > 0) {
+        for (const scRes of scraperStage2Results) {
+          const items = Array.isArray(scRes?.outputItems) ? scRes.outputItems : [];
+          for (const item of items.slice(0, 150)) {
+            if (!item || typeof item !== 'object') continue;
+            const docStr = String(
+              item.cedula || item['Cédula / Documento'] || item.documento || item.id || '',
+            ).trim();
+            const personName = String(
+              item.colaborador || item.nombre || item['Nombre Completo'] || '',
+            ).trim();
+            const portalStatus = String(
+              item.estadoPortal || item.estado || item.badge || 'Verificado',
+            ).trim();
+            const portalDetail = String(
+              item.detalleOficial || item.extracto || item.sublabel || '',
+            ).trim();
+            const isCriticalScraperItem =
+              Boolean(item.isCritical) ||
+              /sin\s+registro|sin\s+curso|vencid|no\s+afiliad|inactiv|comparendo|multa|brecha|cr[ií]tic|no\s+encontrad/i.test(
+                `${portalStatus} ${portalDetail}`.toLowerCase(),
+              );
+            collectedRecords.push({
+              _sourceModule: scRes.portalLabel || formatHumanWorkflowNodeTitle(scRes.nodeId || 'scraper'),
+              _canonicalSourceId: String(scRes.nodeId || scRes.nodeKey || 'scraper_agy'),
+              id: docStr || String(item.index || collectedRecords.length + 1),
+              cedula: docStr,
+              documento: docStr,
+              nombre: personName,
+              cargo: String(item.cargo || '').trim(),
+              arl: String(item.arl || '').trim(),
+              eps: String(item.eps || '').trim(),
+              afp: String(item.afp || '').trim(),
+              fechaNacimiento: String(item.fechaNacimiento || '').trim(),
+              estadoPortal: portalStatus,
+              detalleOficial: portalDetail,
+              certificado: String(item.certificado || '').trim(),
+              fuente: String(item.fuente || scRes.portalLabel || '').trim(),
+              label: personName ? `${personName}${docStr ? ` (CC ${docStr})` : ''}` : docStr || 'Registro',
+              sublabel: `${portalStatus}${portalDetail ? ` · ${portalDetail}` : ''}`,
+              badge: portalStatus,
+              isCritical: isCriticalScraperItem,
+            });
+          }
+        }
+      }
+
+      traceMeta.rawCollectedForLogicCount = collectedRecords.length;
       let workingRecords = collectedRecords;
 
       const formatMergedSourceFinding = (rec) => {
@@ -3455,6 +3514,11 @@ async function buildLivePreExtractionAndLogicBlocks({
         }
         if (cId === 'hito3_epp') {
           return `[${rec._sourceModule}]: EPP «${rec['Elemento de Protección Personal Entregado y Norma Técnica'] || rec.label}» — Estado: ${rec.badge || 'Alerta'} (${rec['Talla, Cantidad, Fecha de Entrega y Fecha de Próxima Reposición'] || rec.sublabel || ''})`;
+        }
+        if (cId.startsWith('scraper_agy_') || rec.estadoPortal || rec.detalleOficial) {
+          const certNote =
+            rec.certificado && rec.certificado !== 'Sin certificado' ? ` · ${rec.certificado}` : '';
+          return `[${rec._sourceModule}]: ${rec.estadoPortal || rec.badge || 'Consultado'} — ${rec.detalleOficial || rec.sublabel || ''}${certNote}`;
         }
         return `[${rec._sourceModule}]: ${rec.label || rec.id} — ${rec.sublabel || ''} (${rec.badge || 'Alerta'})`;
       };
@@ -3507,9 +3571,16 @@ async function buildLivePreExtractionAndLogicBlocks({
               if (!nextFindings.includes(findingLine)) {
                 nextFindings.push(findingLine);
               }
+              const bestMergedNombre =
+                [prev.nombre, rec.nombre].find(
+                  (n) => n && !/^C[eé]dula solicitada\s*\(/i.test(String(n).trim()),
+                ) ||
+                prev.nombre ||
+                rec.nombre;
               mergedMap.set(key, {
                 ...rec,
                 ...prev,
+                ...(bestMergedNombre ? { nombre: bestMergedNombre } : {}),
                 isCritical: Boolean(prev.isCritical || rec.isCritical),
                 _mergedSources: Array.from(new Set([...(prev._mergedSources || []), rec._sourceModule])),
                 _mergedFindings: nextFindings,
@@ -3526,6 +3597,12 @@ async function buildLivePreExtractionAndLogicBlocks({
         }
 
         traceMeta.mergedRecordsCount = workingRecords.length;
+        traceMeta.mergedRecordsPreview = workingRecords.slice(0, 15).map((r) => ({
+          Persona: r['Nombre Completo'] || r.nombre || r.label || r.id,
+          Documento: r['Cédula / Documento'] || r.cedula || r.documento || '',
+          Fuentes: (r._mergedSources || [r._sourceModule]).join(' + '),
+          Consolidado: Array.isArray(r._mergedFindings) ? r._mergedFindings.join(' | ') : formatMergedSourceFinding(r),
+        }));
         const mergeLines = workingRecords.slice(0, 80).map((r, idx) => {
           const personName = String(r['Nombre Completo'] || r.nombre || '').trim();
           const personDoc = String(
@@ -3636,6 +3713,8 @@ async function executeDownstreamOutputs({
   generatedConvoId = null,
   hasCriticalSignal = true,
   logId = null,
+  triggerSource = 'manual',
+  notificationUserId = null,
 } = {}) {
   const executedOutputs = [];
   const workspaceLinks = [];
@@ -3675,10 +3754,11 @@ async function executeDownstreamOutputs({
   if (outputsToExecute.includes('wappy_notification') || outputsToExecute.includes('tenshi_alert')) {
     try {
       const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
+      const effectiveNotifUserId = notificationUserId || automation.user || userId;
       await withTimeout(
         Notification.create({
-          user: automation.user || userId,
-          companyId: automation.companyId || targetCompanyIdStr || null,
+          user: effectiveNotifUserId,
+          companyId: targetCompanyIdStr || automation.companyId || null,
           title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
           body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
           type: 'system_update',
@@ -3687,18 +3767,25 @@ async function executeDownstreamOutputs({
         12000,
         'Notification.create',
       );
-      await withTimeout(
-        TenshiMessage.create({
-          user: automation.user || userId,
-          companyId: targetCompanyIdStr || null,
-          role: 'assistant',
-          content:
-            `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
-            `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
-        }),
-        12000,
-        'TenshiMessage.create',
-      );
+      const isInteractiveTenshiTurn = [
+        'tenshi_flow_instant',
+        'tenshi_voice',
+        'tenshi_chat',
+      ].includes(String(triggerSource || '').toLowerCase());
+      if (!isInteractiveTenshiTurn) {
+        await withTimeout(
+          TenshiMessage.create({
+            user: effectiveNotifUserId,
+            companyId: targetCompanyIdStr || null,
+            role: 'assistant',
+            content:
+              `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
+              `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
+          }),
+          12000,
+          'TenshiMessage.create',
+        );
+      }
       executedOutputs.push('wappy_notification');
     } catch (notifErr) {
       errors.push(`wappy_notification: ${notifErr.message}`);
@@ -5493,6 +5580,8 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     const runScraperCandidateKeys = [];
     const scraperLiveSteps = [];
     const scraperTraceSummaries = [];
+    const scraperStage2Results = [];
+    let scraperMissingInputTargetCount = 0;
     try {
       const wfCustomNodes = Array.isArray(automation.workflowNodes?.canvasLayout?.customNodes)
         ? automation.workflowNodes.canvasLayout.customNodes
@@ -5551,28 +5640,60 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       });
 
       if (scraperCandidates.length > 0) {
+        const wfHitosForScraper = Array.isArray(automation.workflowNodes?.hitos)
+          ? automation.workflowNodes.hitos
+          : [];
+        const hasWorkerSourceStage2 =
+          wfExtractors.includes('extract_sst_workers') ||
+          wfExtractors.includes('somos_sst_trabajadores') ||
+          wfHitosForScraper.some(
+            (hId) =>
+              resolveWorkflowHitoRole(allNodeCfg, hId) === 'source_read' &&
+              (hId === 'hito2_perfil_socio' || hId === 'hito2_condiciones_salud'),
+          );
+
+        const scrapeExecList = await Promise.all(
+          scraperCandidates.map(async (sc) => {
+            const mergedNodeCfg = {
+              ...(sc.customNodeObj?.config || {}),
+              ...(allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {}),
+            };
+            const scrapeRes = await executeRealAntigravityScraperVerification({
+              userIdStr: String(automation.user),
+              targetCompanyIdStr,
+              companyName: automationCompany?.companyName || 'Empresa Activa',
+              companyNit: automationCompany?.nit || '',
+              nodeKey: sc.nodeKey,
+              nodeId: sc.nodeId,
+              nodeTitle: sc.customNodeObj?.title || mergedNodeCfg.customTitle || '',
+              customNodeObj: sc.customNodeObj || {},
+              nodeCfg: mergedNodeCfg,
+              allNodeConfigs: allNodeCfg,
+              mockTriggerInput: scraperTriggerInput,
+              promptText: automation.prompt || '',
+              isTenshiFlowRun: isGlobalTenshiFlow,
+              triggerSource,
+              hasWorkerSourceStage2,
+            });
+            return { sc, mergedNodeCfg, scrapeRes };
+          }),
+        );
+
         const previewBlocks = [];
-        for (const sc of scraperCandidates) {
-          const mergedNodeCfg = {
-            ...(sc.customNodeObj?.config || {}),
-            ...(allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {}),
-          };
-          const scrapeRes = await executeRealAntigravityScraperVerification({
-            userIdStr: String(automation.user),
-            targetCompanyIdStr,
-            companyName: automationCompany?.companyName || 'Empresa Activa',
-            nodeKey: sc.nodeKey,
-            nodeId: sc.nodeId,
-            nodeTitle: sc.customNodeObj?.title || mergedNodeCfg.customTitle || '',
-            customNodeObj: sc.customNodeObj || {},
-            nodeCfg: mergedNodeCfg,
-            allNodeConfigs: allNodeCfg,
-            mockTriggerInput: scraperTriggerInput,
-            promptText: automation.prompt || '',
-          });
+        for (const { sc, mergedNodeCfg, scrapeRes } of scrapeExecList) {
+          if (scrapeRes?.missingInputTarget) {
+            scraperMissingInputTargetCount += 1;
+          }
           if (Array.isArray(scrapeRes?.evidences) && scrapeRes.evidences.length > 0) {
             runCapturedEvidences.push(...scrapeRes.evidences);
           }
+
+          scraperStage2Results.push({
+            nodeKey: sc.nodeKey,
+            nodeId: sc.nodeId,
+            portalLabel: scrapeRes?.portalLabel || formatHumanWorkflowNodeTitle(sc.nodeId),
+            outputItems: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems : [],
+          });
 
           const isGenericScraperResult = Boolean(scrapeRes?.isGenericWebScraper);
           let hasCriticalItemInScrape = false;
@@ -5688,6 +5809,67 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       console.warn('[AutomationScheduler] Aviso en verificación real Antigravity Scraper:', scErr?.message || scErr);
     }
 
+    // Guardia determinista para Flujos Tenshi orientados a cédula cuando no llegó ni cédula ni trabajador nombrado
+    if (
+      isGlobalTenshiFlow &&
+      scraperMissingInputTargetCount > 0 &&
+      scraperMissingInputTargetCount === scraperLiveSteps.length &&
+      runCapturedEvidences.length === 0 &&
+      (!structuredSourceRes?.allRecords || structuredSourceRes.allRecords.length === 0)
+    ) {
+      const compDisplayMissing = automationCompany?.companyName || 'tu empresa activa';
+      const missingCedulaPromptResult =
+        `Para consultar en tiempo real el certificado de Trabajo Seguro en Alturas (MinTrabajo/SENA) y la afiliación directa en ARL, por favor indícame el **número de cédula** (o el nombre completo del trabajador de **${compDisplayMissing}**, o dime explícitamente si deseas auditar toda la nómina registrada).`;
+
+      liveTracker.upsertStep({
+        nodeKey: 'agent_root',
+        nodeId: automation.agentId || 'ai_agent_root',
+        title: automation.agentName || 'Tenshi',
+        category: 'agent',
+        status: 'skipped',
+        durationMs: 0,
+        outputPreview: 'Omitido (0 tokens LLM): falta número de cédula en la solicitud del usuario.',
+      });
+      liveTracker.setActiveStage(null, 'Esperando número de cédula del usuario');
+      const missingSnap = liveTracker.getSnapshot();
+      await AutomationLog.updateOne(
+        { _id: log._id },
+        {
+          $set: {
+            status: 'success',
+            result: missingCedulaPromptResult,
+            conversationId: null,
+            evidenceFiles: [],
+            evidences: [],
+            modelUsed: '',
+            companyName: compDisplayMissing,
+            ...missingSnap,
+            executionTrace: {
+              triggerSource,
+              activeBranch: 'direct',
+              missingInputTarget: true,
+              llmSkippedByMissingInput: true,
+              executedOutputs: [],
+              scraperStepsExecuted: scraperLiveSteps.length,
+              scraperSummaries: scraperTraceSummaries,
+            },
+          },
+        },
+      );
+      return {
+        status: 'success',
+        logId: log._id,
+        branchTaken: 'direct',
+        resultText: missingCedulaPromptResult,
+        workspaceLinks: [],
+        evidenceFiles: [],
+        companyId: targetCompanyIdStr,
+        companyName: compDisplayMissing,
+        conversationId: null,
+        missingInputTarget: true,
+      };
+    }
+
     // 4.9. Pre-extracción en vivo (Drive folder, Gmail, Web Search, Webhook API, Clima, Perfiles, EPP, Exámenes, LMS) + Loop & Merge
     let livePreExtractionBlock = '';
     let preExtractionTraceMeta = {};
@@ -5700,6 +5882,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         automationCompany,
         effectiveAiModel,
         alreadyProcessedKeysSet: dedupLedger.keysSet,
+        scraperStage2Results,
       });
       livePreExtractionBlock = preRes?.contextBlock || preRes?.block || '';
       preExtractionTraceMeta = preRes?.traceMeta || {};
@@ -5787,6 +5970,17 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       : [];
     for (const ln of preLogicNodesList) {
       if (!ln?.key) continue;
+      const logicRawIn = Number(
+        preRes?.traceMeta?.rawCollectedForLogicCount ||
+          (Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 0) ||
+          scraperLiveSteps.length ||
+          1,
+      );
+      const logicOutCount = Number(
+        preRes?.traceMeta?.mergedRecordsCount ||
+          (Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 0) ||
+          1,
+      );
       liveTracker.upsertStep({
         nodeKey: ln.key,
         nodeId: `logic_${ln.logicType || 'merge'}`,
@@ -5794,9 +5988,13 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         category: 'logic',
         status: 'done',
         durationMs: 45,
-        inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
-        outputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 1,
-        outputPreview: 'Ramas y fuentes consolidadas determinísticamente antes de la compuerta.',
+        inputCount: logicRawIn,
+        outputCount: logicOutCount,
+        outputPreview: `Ramas y fuentes consolidadas determinísticamente (${logicRawIn} entrada(s) ➔ ${logicOutCount} registro(s) unificado(s)).`,
+        ...(Array.isArray(preRes?.traceMeta?.mergedRecordsPreview) &&
+        preRes.traceMeta.mergedRecordsPreview.length > 0
+          ? { outputItems: preRes.traceMeta.mergedRecordsPreview }
+          : {}),
       });
     }
 
@@ -6023,6 +6221,8 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                 generatedConvoId: null,
                 hasCriticalSignal: false,
                 logId: log._id,
+                triggerSource,
+                notificationUserId: callerUserId || automation.user || reqUser?.id,
               }),
               75000,
               'executeDownstreamOutputs(pre_agent NO)',
@@ -7251,6 +7451,8 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               generatedConvoId,
               hasCriticalSignal: hasCriticalSignalInResult,
               logId: log._id,
+              triggerSource,
+              notificationUserId: callerUserId || automation.user || reqUser?.id,
             }),
             95000,
             'executeDownstreamOutputs',
@@ -8067,6 +8269,14 @@ function startAutomationScheduler() {
     } catch (e) {}
   }, 2000);
 
+  // Sembrar idempotentemente Flujos Tenshi iniciales al iniciar el servidor (sin sobreescribir ni resucitar ediciones/eliminaciones)
+  setTimeout(() => {
+    try {
+      const { ensureDefaultTenshiFlows } = require('./tenshiFlowService');
+      ensureDefaultTenshiFlows().catch(() => {});
+    } catch (_) {}
+  }, 3500);
+
   // Quick initial check 15 seconds after boot
   setTimeout(checkAndRunAutomations, 15000);
 
@@ -8119,11 +8329,103 @@ function isAntigravityScraperIdentifier(nodeKey, nodeId, customNodeObj = null) {
  * SENA Sofia Plus, Rama Judicial, ARL, Pensiones, Salud ReTHUS, Vial PESV, Carpeta Local PC y Scraper Web)
  * despachando la consulta a través del puente Google Antigravity (`wappy-push-daemon.js`) o del motor OSINT en vivo (`osintWorkerService.js`).
  */
+function extractExplicitCedulasFromText(rawText = '', { companyNit = '' } = {}) {
+  const src = String(rawText || '');
+  if (!src.trim()) return [];
+  const nitExcludedDigits = new Set(['901437310']);
+  const nitStr = String(companyNit || '').trim();
+  if (nitStr) {
+    const nitBeforeDash = nitStr.split('-')[0].replace(/\D/g, '');
+    const nitAllDigits = nitStr.replace(/\D/g, '');
+    if (nitBeforeDash.length >= 6) nitExcludedDigits.add(nitBeforeDash);
+    if (nitAllDigits.length >= 6) nitExcludedDigits.add(nitAllDigits);
+  }
+  // Colapsa separadores de miles comunes en cédulas colombianas (ej. `1.037.654.321`, `1 037 654 321`, `1,037,654,321`)
+  const collapsed = src.replace(/(?<=\d)[.,\s](?=\d{3}(?:[.,\s]\d{3})*(?!\d))/g, '');
+  const matches = [];
+  const cedRx = /(?:^|[^a-zA-Z0-9]|(?<=cc|ce|ti|ppt|doc))(\d{6,11})(?![a-zA-Z0-9])/gi;
+  for (const m of collapsed.matchAll(cedRx)) {
+    const startIdx = m.index || 0;
+    const prefixSlice = collapsed.slice(Math.max(0, startIdx - 14), startIdx + 2);
+    if (/\bnit\s*[:#.\-]?\s*\d*$/i.test(prefixSlice)) {
+      nitExcludedDigits.add(m[1]);
+      continue;
+    }
+    const clean = String(m[1] || '').trim();
+    if (!clean) continue;
+    if (nitExcludedDigits.has(clean)) continue;
+    if (/^202\d/.test(clean)) continue;
+    if (/^(\d)\1{5,}$/.test(clean)) continue;
+    matches.push(clean);
+  }
+  return Array.from(new Set(matches));
+}
+
+function resolvePortalRecoveredDisplayName(target, primaryRes, secondaryRes = null) {
+  const currentName = String(target?.nombre || '').trim();
+  const isPlaceholder = !currentName || /^C[eé]dula solicitada\s*\(/i.test(currentName);
+  if (!isPlaceholder) return currentName;
+  const recovered = String(
+    primaryRes?.titular ||
+      primaryRes?.nombre ||
+      primaryRes?.nombreCompleto ||
+      primaryRes?.trabajador ||
+      primaryRes?.afiliado ||
+      primaryRes?.cursos?.[0]?.titular ||
+      primaryRes?.cursos?.[0]?.nombre ||
+      secondaryRes?.titular ||
+      secondaryRes?.nombre ||
+      secondaryRes?.nombreCompleto ||
+      '',
+  ).trim();
+  return recovered || currentName || `Cédula ${target?.cleanCedula || ''}`;
+}
+
+function findWorkersNamedInInstruction(instructionText = '', workers = []) {
+  const normInstr = normalizeTriggerMatchText(instructionText);
+  if (!normInstr || !Array.isArray(workers) || workers.length === 0) return [];
+  const instrTokens = new Set(
+    normInstr
+      .split(' ')
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !TRIGGER_QUERY_STOP_WORDS.has(t)),
+  );
+  if (instrTokens.size === 0) return [];
+
+  const matched = [];
+  for (const w of workers) {
+    const rawName = String(w?.nombre || w?.fullName || '').trim();
+    if (!rawName || /^(colaborador|trabajador)\b/i.test(rawName)) continue;
+    const normName = normalizeTriggerMatchText(rawName);
+    if (!normName || normName.length < 4) continue;
+    if (normInstr.includes(normName)) {
+      matched.push(w);
+      continue;
+    }
+    const nameTokens = Array.from(
+      new Set(
+        normName
+          .split(' ')
+          .map((t) => t.trim())
+          .filter((t) => t.length >= 3),
+      ),
+    );
+    if (nameTokens.length >= 2) {
+      const hits = nameTokens.filter((nt) => instrTokens.has(nt)).length;
+      if (hits >= 2 && hits >= Math.min(2, nameTokens.length)) {
+        matched.push(w);
+      }
+    }
+  }
+  return matched;
+}
+
 async function executeRealAntigravityScraperVerification({
   userIdStr,
   companyId: rawCompanyId,
   targetCompanyIdStr,
   companyName = 'Empresa Activa',
+  companyNit = '',
   nodeKey = '',
   nodeId = '',
   nodeTitle = '',
@@ -8134,6 +8436,9 @@ async function executeRealAntigravityScraperVerification({
   promptText = '',
   upstreamInputItems = [],
   upstreamSourceTitle = '',
+  isTenshiFlowRun = false,
+  triggerSource = 'manual',
+  hasWorkerSourceStage2 = false,
 }) {
   const companyId = rawCompanyId || targetCompanyIdStr || '';
   const t0 = Date.now();
@@ -8700,30 +9005,29 @@ async function executeRealAntigravityScraperVerification({
     };
   }
 
-  // 1. Extraer cédulas explícitas escritas en el prompt, caso de prueba o configuración del nodo (6 a 11 dígitos)
-  const explicitText = [
+  // 1. Extraer cédulas explícitas priorizando la instrucción/trigger del usuario sobre configuraciones estáticas (soporta puntos/comas/espacios)
+  const triggerExplicitText = [
     mockTriggerInput,
-    promptText,
     nodeCfg?.cedula,
     nodeCfg?.documento,
-    nodeCfg?.customInstruction,
-    nodeCfg?.inputContext,
-    nodeCfg?.targetUrl,
     customNodeObj?.config?.cedula,
     customNodeObj?.config?.documento,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const promptExplicitText = [
+    promptText,
+    nodeCfg?.customInstruction,
+    nodeCfg?.inputContext,
     customNodeObj?.content,
-    customNodeObj?.targetUrl,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const explicitCedulas = Array.from(
-    new Set(
-      (explicitText.match(/\b\d{6,11}\b/g) || [])
-        .map((c) => c.trim())
-        .filter((c) => c !== '901437310' && !/^202\d/.test(c)),
-    ),
-  );
+  const triggerExplicitCedulas = extractExplicitCedulasFromText(triggerExplicitText, { companyNit });
+  const promptExplicitCedulas = extractExplicitCedulasFromText(promptExplicitText, { companyNit });
+  const explicitCedulas =
+    triggerExplicitCedulas.length > 0 ? triggerExplicitCedulas : promptExplicitCedulas;
 
   // 2. Prioridad #1 (Flujo real entre nodos estilo n8n):
   // Si `upstreamInputItems` trae registros del nodo anterior (ej. Paso #2: Extraer Trabajadores), extraer de ahí mismo
@@ -9000,47 +9304,101 @@ async function executeRealAntigravityScraperVerification({
 
   // 3. Construir lista unificada de personas/cédulas a consultar en vivo
   const targetsMap = new Map();
-
-  for (const ced of explicitCedulas) {
-    const matchedWorker = companyWorkers.find(
-      (w) => String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').replace(/\D/g, '') === ced,
+  const wantsAllCompanyWorkers =
+    /\b(todos\s+los\s+trabajadores|toda\s+la\s+n[oó]mina|todo\s+el\s+personal|n[oó]mina\s+completa|planta\s+de\s+personal|todos\s+mis\s+trabajadores|mis\s+trabajadores|toda\s+la\s+empresa)\b/i.test(
+      String(mockTriggerInput || ''),
     );
-    targetsMap.set(ced, {
-      rawDoc: ced,
-      cleanCedula: ced,
-      isNumericValid: true,
-      nombre: matchedWorker?.nombre || matchedWorker?.fullName || `Cédula solicitada (${ced})`,
-      cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
-      riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
-      placa: matchedWorker?.placa || '',
-      arl: matchedWorker?.arl || matchedWorker?.arlName || '',
-      eps: matchedWorker?.eps || matchedWorker?.epsName || '',
-      afp: matchedWorker?.afp || matchedWorker?.fondoPensiones || '',
-      fechaNacimiento: normalizeAnyDateYmd(
-        matchedWorker?.fechaNacimiento || matchedWorker?.birthDate || '',
-      ),
-    });
-  }
+  const isInteractiveTenshiRequest =
+    Boolean(isTenshiFlowRun) || String(triggerSource || '').toLowerCase().startsWith('tenshi');
 
-  for (const w of companyWorkers) {
-    const rawDoc = String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').trim();
-    const cleanCedula = rawDoc.replace(/\D/g, '');
-    const isNumericValid = /^\d{5,12}$/.test(cleanCedula);
-    const key = isNumericValid ? cleanCedula : rawDoc || String(w._id || w.id);
-    if (!targetsMap.has(key)) {
-      targetsMap.set(key, {
-        rawDoc: rawDoc || 'S/D',
-        cleanCedula,
-        isNumericValid,
-        nombre: w.nombre || w.fullName || 'Colaborador',
-        cargo: w.cargo || w.position || 'Operativo',
-        riesgo: w.nivelRiesgo || w.riskLevel || 'I',
-        placa: w.placa || '',
-        arl: w.arl || w.arlName || '',
-        eps: w.eps || w.epsName || '',
-        afp: w.afp || w.fondoPensiones || '',
-        fechaNacimiento: normalizeAnyDateYmd(w.fechaNacimiento || w.birthDate || ''),
+  if (explicitCedulas.length > 0) {
+    // Modo consulta puntual: usar companyWorkers ÚNICAMENTE para hidratar ficha interna si existe en Hito 2; PROHIBIDO escanear el resto de la nómina.
+    for (const ced of explicitCedulas) {
+      const matchedWorker = companyWorkers.find(
+        (w) =>
+          String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').replace(/\D/g, '') ===
+          ced,
+      );
+      targetsMap.set(ced, {
+        rawDoc: ced,
+        cleanCedula: ced,
+        isNumericValid: true,
+        nombre: matchedWorker?.nombre || matchedWorker?.fullName || `Cédula solicitada (${ced})`,
+        cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
+        riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
+        placa: matchedWorker?.placa || '',
+        arl: matchedWorker?.arl || matchedWorker?.arlName || '',
+        eps: matchedWorker?.eps || matchedWorker?.epsName || '',
+        afp: matchedWorker?.afp || matchedWorker?.fondoPensiones || '',
+        fechaNacimiento: normalizeAnyDateYmd(
+          matchedWorker?.fechaNacimiento || matchedWorker?.birthDate || '',
+        ),
       });
+    }
+    addLog(
+      'info',
+      `Consulta puntual directa: ${explicitCedulas.length} cédula(s) solicitada(s) (${explicitCedulas.join(', ')}) sin escanear el resto de la nómina de "${companyName}".`,
+    );
+  } else {
+    let workersToScan = companyWorkers;
+
+    if (isInteractiveTenshiRequest && !wantsAllCompanyWorkers && !hasWorkerSourceStage2) {
+      const namedWorkers = findWorkersNamedInInstruction(mockTriggerInput, companyWorkers);
+      if (namedWorkers.length > 0) {
+        workersToScan = namedWorkers;
+        addLog(
+          'info',
+          `Coincidencia nominal puntual en nómina de "${companyName}": ${namedWorkers.length} trabajador(es) (${namedWorkers.map((w) => w.nombre).join(', ')}).`,
+        );
+      } else {
+        const durationMsMissing = Math.max(1, Date.now() - t0);
+        addLog(
+          'warn',
+          `Falta número de cédula en la solicitud para "${nodeTitle || 'Consulta por Cédula'}": no se escaneó la nómina de "${companyName}".`,
+        );
+        return {
+          durationMs: durationMsMissing,
+          missingInputTarget: true,
+          recordsCount: 0,
+          relayUsedCount: 0,
+          verifiedWithCoursesCount: 0,
+          verifiedNoCoursesCount: 0,
+          antigravityMode,
+          portalLabel: nodeTitle || 'Consulta por Cédula',
+          inputSummary: 'Falta número de cédula o trabajador específico en la solicitud.',
+          outputPreview:
+            `⚠️ **FALTA CÉDULA PARA CONSULTA EN VIVO (${nodeTitle || 'Antigravity'}):**\n` +
+            `- La solicitud actual no incluye un número de cédula (CC/CE/PPT) ni nombra a un trabajador específico registrado en **${companyName}**.\n` +
+            `- No se escaneó la nómina completa ni se realizaron consultas externas. Solicita amablemente al usuario el número de cédula.`,
+          inputItems: [],
+          outputItems: [],
+          evidences: [],
+          logs: stepLogs,
+          error: null,
+        };
+      }
+    }
+
+    for (const w of workersToScan) {
+      const rawDoc = String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').trim();
+      const cleanCedula = rawDoc.replace(/\D/g, '');
+      const isNumericValid = /^\d{5,12}$/.test(cleanCedula);
+      const key = isNumericValid ? cleanCedula : rawDoc || String(w._id || w.id);
+      if (!targetsMap.has(key)) {
+        targetsMap.set(key, {
+          rawDoc: rawDoc || 'S/D',
+          cleanCedula,
+          isNumericValid,
+          nombre: w.nombre || w.fullName || 'Colaborador',
+          cargo: w.cargo || w.position || 'Operativo',
+          riesgo: w.nivelRiesgo || w.riskLevel || 'I',
+          placa: w.placa || '',
+          arl: w.arl || w.arlName || '',
+          eps: w.eps || w.epsName || '',
+          afp: w.afp || w.fondoPensiones || '',
+          fechaNacimiento: normalizeAnyDateYmd(w.fechaNacimiento || w.birthDate || ''),
+        });
+      }
     }
   }
 
@@ -9333,6 +9691,8 @@ async function executeRealAntigravityScraperVerification({
           ? `Certificado Oficial — ${pRes.entidadDetectada}`
           : pRes.tituloCertificado || 'Certificado / Constancia Oficial';
 
+        const effectivePortalName = resolvePortalRecoveredDisplayName(target, pRes, null);
+        target.nombre = effectivePortalName;
         const evMeta = persistAndAttachRowEvidence({
           primaryRes: pRes,
           secondaryRes: null,
@@ -9341,10 +9701,10 @@ async function executeRealAntigravityScraperVerification({
           title: certTitle,
         });
         verificationRows.push({
-          nombre: target.nombre,
+          nombre: effectivePortalName,
           documento: target.cleanCedula,
           cargo: target.cargo,
-          arl: target.arl || '',
+          arl: target.arl || pRes.entidadDetectada || '',
           eps: target.eps || '',
           afp: target.afp || '',
           fechaNacimiento: target.fechaNacimiento || '',
@@ -9362,7 +9722,7 @@ async function executeRealAntigravityScraperVerification({
               : hasPositiveRecord
                 ? 'success'
                 : 'info',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
+          `CC ${target.cleanCedula} (${effectivePortalName}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;
@@ -9391,6 +9751,8 @@ async function executeRealAntigravityScraperVerification({
         const rjCertTitle = rjRes.entidadDetectada
           ? `Certificado Oficial — ${rjRes.entidadDetectada}`
           : rjRes.tituloCertificado || 'Constancia de Consulta Rama Judicial / Antecedentes';
+        const effectiveRjName = resolvePortalRecoveredDisplayName(target, rjRes, null);
+        target.nombre = effectiveRjName;
         const evMeta = persistAndAttachRowEvidence({
           primaryRes: rjRes,
           secondaryRes: null,
@@ -9400,7 +9762,7 @@ async function executeRealAntigravityScraperVerification({
         });
         const displayDoc = target.isNumericValid ? target.cleanCedula : target.rawDoc;
         verificationRows.push({
-          nombre: target.nombre,
+          nombre: effectiveRjName,
           documento: displayDoc,
           cargo: target.cargo,
           arl: target.arl || '',
@@ -9415,7 +9777,7 @@ async function executeRealAntigravityScraperVerification({
         });
         addLog(
           rjRes.error ? 'error' : hasProcs ? 'warn' : 'success',
-          `CC ${displayDoc} (${target.nombre}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
+          `CC ${displayDoc} (${effectiveRjName}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;
@@ -9425,6 +9787,8 @@ async function executeRealAntigravityScraperVerification({
       if (String(mtRes?.fuente || '').includes('Antigravity') || mtRes?.viaAntigravityDaemon) {
         relayUsedCount++;
       }
+      const effectiveMtName = resolvePortalRecoveredDisplayName(target, mtRes, rjRes);
+      target.nombre = effectiveMtName;
       const cursos = Array.isArray(mtRes?.cursos) ? mtRes.cursos : [];
       if (cursos.length > 0) {
         verifiedWithCoursesCount++;
@@ -9447,7 +9811,7 @@ async function executeRealAntigravityScraperVerification({
             'Certificado / Constancia Oficial',
         });
         verificationRows.push({
-          nombre: target.nombre,
+          nombre: effectiveMtName,
           documento: target.cleanCedula,
           cargo: target.cargo,
           arl: target.arl || '',
@@ -9462,7 +9826,7 @@ async function executeRealAntigravityScraperVerification({
         });
         addLog(
           mtRes.status === 'warning' ? 'warn' : 'success',
-          `CC ${target.cleanCedula} (${target.nombre}): ${badge}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Certificado descargado]' : ''}`,
+          `CC ${target.cleanCedula} (${effectiveMtName}): ${badge}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Certificado descargado]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalle}`,
         );
       } else {
@@ -9483,7 +9847,7 @@ async function executeRealAntigravityScraperVerification({
           title: 'Constancia de Verificación MinTrabajo / SENA',
         });
         verificationRows.push({
-          nombre: target.nombre,
+          nombre: effectiveMtName,
           documento: target.cleanCedula,
           cargo: target.cargo,
           arl: target.arl || '',
@@ -9502,7 +9866,7 @@ async function executeRealAntigravityScraperVerification({
             : mtRes?.status === 'blocked' || mtRes?.status === 'warning'
               ? 'warn'
               : 'error',
-          `CC ${target.cleanCedula} (${target.nombre}): ${estadoLabel}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
+          `CC ${target.cleanCedula} (${effectiveMtName}): ${estadoLabel}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleMsg}`,
         );
       }

@@ -179,7 +179,7 @@ class GestorAutomatizaciones extends Tool {
   async _executeMatchedTenshiFlow({ flow, strictCtx, userInstruction = '', esperar_resultado = true }) {
     const { executeTenshiFlowInstant } = require('~/server/services/tenshiFlowService');
     const isVoice = Boolean(this.req?.isVoiceSession);
-    const waitTimeoutMs = esperar_resultado === false ? 0 : (isVoice ? 25000 : 45000);
+    const waitTimeoutMs = esperar_resultado === false ? 0 : (isVoice ? 35000 : 60000);
     const triggerSource = isVoice ? 'tenshi_voice' : 'tenshi_flow_instant';
 
     try {
