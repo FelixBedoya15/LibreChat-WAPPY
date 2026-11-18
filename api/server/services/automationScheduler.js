@@ -585,13 +585,46 @@ function normalizeTriggerMatchText(str = '') {
 function stripTriggerCommandVerbs(normStr = '') {
   let out = normalizeTriggerMatchText(normStr);
   const leadRx =
-    /^(?:suri|siri|sur|tenshi|wappy|por favor|oye|ey|para|activar|activa|activame|encender|enciende|prender|prende|ejecutar|ejecuta|correr|corre|disparar|dispara|iniciar|inicia|arrancar|arranca|pon en marcha|lanzar|lanza|el|la|los|las|un|una|este|esta|ese|esa|flujo|tarea|automatizacion|robot)\b\s*/i;
-  for (let i = 0; i < 6; i++) {
+    /^(?:surin|suri|siri|sur|tenshi|wappy|por favor|oye|ey|para|activar|activa|activame|encender|enciende|prender|prende|ejecutar|ejecuta|correr|corre|disparar|dispara|iniciar|inicia|arrancar|arranca|pon en marcha|lanzar|lanza|el|la|los|las|un|una|este|esta|ese|esa|mi|mis|de|flujo|flujos|tarea|tareas|automatizacion|automatizaciones|robot)\b\s*/i;
+  for (let i = 0; i < 8; i++) {
     const next = out.replace(leadRx, '').trim();
     if (next === out) break;
     out = next;
   }
   return out;
+}
+
+function stripLeadingFlowEmojis(rawName = '') {
+  return String(rawName || '')
+    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')
+    .trim();
+}
+
+function lightStemSpanishToken(tok = '') {
+  const clean = String(tok || '').trim().toLowerCase();
+  if (clean.length < 5) return clean;
+  const stemmed = clean.replace(/(?:iones|ciones|es|os|as|o|a|s)$/i, '');
+  return stemmed.length >= 4 ? stemmed : clean;
+}
+
+function tokenizeTriggerMatchText(normStr = '') {
+  return String(normStr || '')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function tokenMatchesTokenList(queryTok = '', haystackTokens = []) {
+  if (!queryTok || !Array.isArray(haystackTokens) || haystackTokens.length === 0) return false;
+  const qStem = lightStemSpanishToken(queryTok);
+  for (const ht of haystackTokens) {
+    if (ht === queryTok) return true;
+    if (queryTok.length >= 4 && ht.length >= 4) {
+      if (ht.startsWith(queryTok) || queryTok.startsWith(ht)) return true;
+      if (lightStemSpanishToken(ht) === qStem) return true;
+    }
+  }
+  return false;
 }
 
 function getAutomationTriggersList(automation) {
@@ -671,9 +704,25 @@ function extractAutomationTriggerConfigs(automation) {
     }
   }
 
+  if (triggers.includes('trigger_tenshi')) {
+    const cleanFlowName = stripLeadingFlowEmojis(automation?.name || '');
+    if (cleanFlowName) {
+      const cleanNorm = normalizeTriggerMatchText(cleanFlowName);
+      const alreadyHasCleanName = Array.from(voiceCmdSet).some(
+        (existing) => normalizeTriggerMatchText(existing) === cleanNorm,
+      );
+      if (voiceCmdSet.size === 0 || !alreadyHasCleanName) {
+        voiceCmdSet.add(cleanFlowName);
+      }
+    }
+  }
+
+  const voiceCommands = Array.from(voiceCmdSet);
+
   return {
     triggers,
-    voiceCommands: Array.from(voiceCmdSet),
+    voiceCommand: voiceCommands[0] || '',
+    voiceCommands,
     triggerChannel: String(tenshiCfg?.triggerChannel || 'both').toLowerCase(),
     emailSubjectFilter: String(emailCfg?.emailSubjectFilter || '').trim(),
     emailSenderFilter: String(emailCfg?.emailSenderFilter || '').trim(),
@@ -687,10 +736,14 @@ function extractAutomationTriggerConfigs(automation) {
 }
 
 const TRIGGER_QUERY_STOP_WORDS = new Set([
-  'para', 'con', 'del', 'las', 'los', 'una', 'por', 'que', 'tarea', 'flujo',
-  'automatizacion', 'activar', 'activa', 'activame', 'ejecutar', 'ejecuta',
+  'para', 'con', 'del', 'de', 'la', 'el', 'un', 'las', 'los', 'una', 'mi', 'mis',
+  'por', 'que', 'tarea', 'tareas', 'flujo', 'flujos', 'automatizacion', 'automatizaciones',
+  'activar', 'activa', 'activame', 'ejecutar', 'ejecuta',
   'encender', 'enciende', 'iniciar', 'inicia', 'disparar', 'dispara',
-  'suri', 'siri', 'sur', 'tenshi', 'wappy', 'este', 'esta', 'ese', 'esa',
+  'surin', 'suri', 'siri', 'sur', 'tenshi', 'wappy', 'este', 'esta', 'ese', 'esa',
+  'vigilancia', 'control', 'seguimiento', 'monitoreo', 'revision', 'revisar',
+  'diario', 'diaria', 'semanal', 'mensual', 'reporte', 'alerta', 'sst', 'sgsst',
+  'correo', 'email',
 ]);
 
 function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requireTenshiTrigger = false } = {}) {
@@ -735,6 +788,10 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
     const haystackNorm = normalizeTriggerMatchText(
       `${cfg.voiceCommands.join(' ')} ${auto?.name || ''} ${auto?.agentName || ''}`,
     );
+    const haystackTokens = tokenizeTriggerMatchText(haystackNorm);
+    const nameMeaningfulTokens = tokenizeTriggerMatchText(nameNorm).filter(
+      (t) => !TRIGGER_QUERY_STOP_WORDS.has(t) && (/\d/.test(t) || t.length >= 3),
+    );
 
     // Si la petición menciona un código numérico específico (ej. "001", "1401"), ningún flujo que NO contenga ese código puede ganar por accidente
     const hasMissingCodeToken =
@@ -742,7 +799,7 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
       codeOrDigitTokens.some((tok) => {
         const strippedZero = tok.replace(/^0+(?=\d)/, '');
         return (
-          !haystackNorm.includes(tok) &&
+          !haystackTokens.includes(tok) &&
           !(strippedZero && new RegExp(`\\b0*${strippedZero}\\b`).test(haystackNorm))
         );
       });
@@ -763,20 +820,35 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
           matchSource = 'voiceCommand';
           matchedVoiceCommand = vc;
         }
-      } else if (
-        (qNorm.length >= 2 && vcNorm.includes(qNorm)) ||
-        (vcNorm.length >= 2 && qNorm.includes(vcNorm)) ||
-        (qCore && vcCore && qCore.length >= 2 && (vcCore.includes(qCore) || qCore.includes(vcCore)))
-      ) {
-        if (!hasMissingCodeToken && 85 > bestScore) {
-          bestScore = 85;
-          matchSource = 'voiceCommand';
-          matchedVoiceCommand = vc;
+      } else {
+        const vcMeaningfulTokens = tokenizeTriggerMatchText(vcNorm).filter(
+          (t) => !TRIGGER_QUERY_STOP_WORDS.has(t) && (/\d/.test(t) || t.length >= 3),
+        );
+        const vcIncludesQuery =
+          (qNorm.length >= 4 && vcNorm.includes(qNorm)) ||
+          (qCore && vcCore && qCore.length >= 4 && vcCore.includes(qCore));
+        const queryIncludesVc =
+          vcNorm.length >= 4
+            ? qNorm.includes(vcNorm) || (qCore && vcCore && vcCore.length >= 4 && qCore.includes(vcCore))
+            : vcNorm.length >= 2 && new RegExp(`\\b${vcNorm}\\b`).test(qNorm);
+
+        if ((vcIncludesQuery || queryIncludesVc) && !hasMissingCodeToken && vcMeaningfulTokens.length > 0) {
+          const overlapCount =
+            scoringBaseTokens.length > 0
+              ? scoringBaseTokens.filter((t) => tokenMatchesTokenList(t, vcMeaningfulTokens)).length
+              : 1;
+          const overlapRatio =
+            scoringBaseTokens.length > 0 ? overlapCount / scoringBaseTokens.length : 1;
+          if (overlapRatio >= 0.5 && 85 > bestScore) {
+            bestScore = 85;
+            matchSource = 'voiceCommand';
+            matchedVoiceCommand = vc;
+          }
         }
       }
     }
 
-    // 2. Coincidencia exacta o de subcadena por Nombre de la Tarea (solo si no faltan códigos numéricos)
+    // 2. Coincidencia exacta o de subcadena por Nombre de la Tarea (solo si no faltan códigos numéricos y mantiene >= 50% de tokens temáticos)
     if (bestScore < 95 && nameNorm && !hasMissingCodeToken) {
       if (nameNorm === qNorm || (qCore && nameCore && nameCore === qCore)) {
         bestScore = 95;
@@ -787,7 +859,13 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
         (qNorm.length >= 4 && nameNorm.includes(qNorm)) ||
         (nameNorm.length >= 5 && qNorm.includes(nameNorm))
       ) {
-        if (75 > bestScore) {
+        const nameOverlapCount =
+          scoringBaseTokens.length > 0
+            ? scoringBaseTokens.filter((t) => tokenMatchesTokenList(t, nameMeaningfulTokens)).length
+            : 1;
+        const nameOverlapRatio =
+          scoringBaseTokens.length > 0 ? nameOverlapCount / scoringBaseTokens.length : 1;
+        if (nameMeaningfulTokens.length > 0 && nameOverlapRatio >= 0.5 && 75 > bestScore) {
           bestScore = 75;
           matchSource = 'name';
           matchedVoiceCommand = null;
@@ -795,25 +873,39 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
       }
     }
 
-    // 3. Coincidencia estricta por tokens discriminantes (excluyendo palabras vacías como "flujo" y cédulas de entrada)
+    // 3. Coincidencia estricta por tokens temáticos reales (>= 50% de tokens temáticos requeridos)
     if (bestScore === 0 && scoringBaseTokens.length > 0 && !hasMissingCodeToken) {
       const effectiveScoringTokens = scoringBaseTokens.filter(
-        (t) => !isRuntimeParamNumToken(t) || haystackNorm.includes(t),
+        (t) => !isRuntimeParamNumToken(t) || tokenMatchesTokenList(t, haystackTokens),
       );
       if (effectiveScoringTokens.length > 0) {
         const vcHaystack = normalizeTriggerMatchText(cfg.voiceCommands.join(' '));
-        const vcHits = vcHaystack
-          ? effectiveScoringTokens.filter((t) => vcHaystack.includes(t)).length
+        const vcTokens = tokenizeTriggerMatchText(vcHaystack);
+        const vcHits = vcTokens.length
+          ? effectiveScoringTokens.filter((t) => tokenMatchesTokenList(t, vcTokens)).length
           : 0;
-        if (vcHaystack && vcHits > 0 && (vcHits >= 2 || vcHits === effectiveScoringTokens.length)) {
-          bestScore = 65 + Math.round((vcHits / effectiveScoringTokens.length) * 15);
+        const vcRatio = vcHits / effectiveScoringTokens.length;
+
+        if (
+          vcTokens.length > 0 &&
+          vcHits > 0 &&
+          vcRatio >= 0.5 &&
+          (vcHits >= 2 || effectiveScoringTokens.length === 1)
+        ) {
+          bestScore = Math.round(55 + vcRatio * 25);
           matchSource = 'voiceCommand';
           matchedVoiceCommand = cfg.voiceCommands[0] || null;
         } else {
-          const hits = effectiveScoringTokens.filter((t) => haystackNorm.includes(t)).length;
+          const hits = effectiveScoringTokens.filter((t) =>
+            tokenMatchesTokenList(t, haystackTokens),
+          ).length;
           const ratio = hits / effectiveScoringTokens.length;
-          if (hits >= 2 || (effectiveScoringTokens.length === 1 && hits === 1 && ratio === 1)) {
-            bestScore = 50 + Math.round(ratio * 15);
+          if (
+            hits > 0 &&
+            ratio >= 0.5 &&
+            (hits >= 2 || effectiveScoringTokens.length === 1)
+          ) {
+            bestScore = Math.round(45 + ratio * 25);
             matchSource = 'name';
             matchedVoiceCommand = null;
           }
@@ -3780,13 +3872,17 @@ async function executeDownstreamOutputs({
   logId = null,
   triggerSource = 'manual',
   notificationUserId = null,
+  isTenshiFlowRun = false,
+  userInstruction = '',
+  eventPayload = null,
 } = {}) {
   const executedOutputs = [];
   const workspaceLinks = [];
+  let emailedRecipients = [];
   const errors = [];
 
   if (!automation || !Array.isArray(outputsToExecute) || outputsToExecute.length === 0) {
-    return { executedOutputs, workspaceLinks, errors };
+    return { executedOutputs, workspaceLinks, emailedRecipients, errors };
   }
 
   const userId = user?.id || user?._id || automation.user;
@@ -4483,18 +4579,58 @@ async function executeDownstreamOutputs({
     }
   }
 
-  // 9. Correo Electrónico (`email_report`) — honrando `emailRecipientsOverride` + Informes Oficiales Universales HTML
+  // 9. Correo Electrónico (`email_report`) — honrando `emailRecipientsOverride`, correos en instrucción del usuario, respaldo empresa activa en Flujos Tenshi e Informes Oficiales Universales HTML
   const emailCfg = postNodeConfigs.out_email_report || postNodeConfigs.email_report || {};
   const shouldSendEmailReport = outputsToExecute.includes('email_report');
 
   if (shouldSendEmailReport) {
     try {
+      const isEffectiveTenshiFlowRun = Boolean(
+        isTenshiFlowRun ||
+          automation?.isTenshiFlow ||
+          String(automation?.companyId || '') === 'TENSHI_GLOBAL' ||
+          String(triggerSource || '').toLowerCase().startsWith('tenshi'),
+      );
+      const inlineEmailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const inlineInstructionSource = [
+        userInstruction,
+        eventPayload?.userMessage,
+        eventPayload?.commandText,
+      ]
+        .filter((s) => typeof s === 'string' && s.trim())
+        .join(' ');
+      const inlineExtractedEmails = parseEmailList(
+        inlineInstructionSource ? inlineInstructionSource.match(inlineEmailRegex) || [] : [],
+      );
       const overrideEmails = parseEmailList(emailCfg.emailRecipientsOverride);
       const baseEmails = parseEmailList([
         ...(Array.isArray(automation.emails) ? automation.emails : []),
         ...(Array.isArray(automation.emailRecipients) ? automation.emailRecipients : []),
       ]);
-      const validEmails = parseEmailList([...overrideEmails, ...baseEmails]);
+      let validEmails = parseEmailList([
+        ...inlineExtractedEmails,
+        ...overrideEmails,
+        ...baseEmails,
+      ]);
+
+      if (validEmails.length === 0 && isEffectiveTenshiFlowRun) {
+        let fallbackUserEmail = user?.email || '';
+        if (!fallbackUserEmail && userIdStr && mongoose.Types.ObjectId.isValid(userIdStr)) {
+          try {
+            const UserModel = mongoose.models.User;
+            if (UserModel) {
+              const uDoc = await UserModel.findById(userIdStr).select('email').lean();
+              fallbackUserEmail = uDoc?.email || '';
+            }
+          } catch (_) {}
+        }
+        validEmails = parseEmailList([
+          resolvedCompany?.email,
+          resolvedCompany?.responsibleEmail,
+          resolvedCompany?.sstEmail,
+          fallbackUserEmail,
+        ]);
+      }
 
       if (validEmails.length > 0) {
         const chatUrl = generatedConvoId ? `https://wappy.club/c/${generatedConvoId}` : null;
@@ -4694,13 +4830,17 @@ async function executeDownstreamOutputs({
           'email_report',
         );
         const failedRecipients = [];
+        const succeededRecipients = [];
         emailSettled.forEach((resItem, idx) => {
           if (resItem.status === 'rejected') {
             const errMsg = resItem.reason?.message || String(resItem.reason || 'Error SMTP');
             failedRecipients.push(`${validEmails[idx]}: ${errMsg}`);
             console.warn(`[AutomationScheduler] Non-blocking email error for ${validEmails[idx]}:`, errMsg);
+          } else {
+            succeededRecipients.push(validEmails[idx]);
           }
         });
+        emailedRecipients = succeededRecipients;
         if (failedRecipients.length === validEmails.length) {
           errors.push(`email_report: ${failedRecipients.join(' | ')}`);
         } else {
@@ -4715,23 +4855,29 @@ async function executeDownstreamOutputs({
     }
   }
 
-  // Si se crearon enlaces en Google Workspace y tenemos logId, anexarlos al resultado del log en Historial
-  if (workspaceLinks.length > 0 && logId) {
+  // Si se crearon enlaces en Google Workspace o se notificaron correos y tenemos logId, registrar trazabilidad en el log
+  if ((workspaceLinks.length > 0 || emailedRecipients.length > 0) && logId) {
     try {
-      const linksMd =
-        `\n\n---\n### 🔗 Salidas Generadas en Google Workspace\n` +
-        workspaceLinks.map((wl) => `- [${wl.label}](${wl.url})`).join('\n');
-      const existingLog = await AutomationLog.findById(logId).select('result').lean();
-      if (existingLog && !String(existingLog.result || '').includes(workspaceLinks[0].url)) {
-        await AutomationLog.updateOne(
-          { _id: logId },
-          { $set: { result: `${existingLog.result || safeResponseText}${linksMd}` } },
-        );
+      const logPatch = {};
+      if (emailedRecipients.length > 0) {
+        logPatch['executionTrace.emailedRecipients'] = emailedRecipients;
+      }
+      if (workspaceLinks.length > 0) {
+        const linksMd =
+          `\n\n---\n### 🔗 Salidas Generadas en Google Workspace\n` +
+          workspaceLinks.map((wl) => `- [${wl.label}](${wl.url})`).join('\n');
+        const existingLog = await AutomationLog.findById(logId).select('result').lean();
+        if (existingLog && !String(existingLog.result || '').includes(workspaceLinks[0].url)) {
+          logPatch.result = `${existingLog.result || safeResponseText}${linksMd}`;
+        }
+      }
+      if (Object.keys(logPatch).length > 0) {
+        await AutomationLog.updateOne({ _id: logId }, { $set: logPatch });
       }
     } catch (_) {}
   }
 
-  return { executedOutputs, workspaceLinks, errors };
+  return { executedOutputs, workspaceLinks, emailedRecipients, errors };
 }
 
 async function runAutomation(rawAutomation, optionsOrIsManual = false) {
@@ -7240,7 +7386,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         }
 
         const cleanPreEvidenceFiles = sanitizePublicEvidenceList(runCapturedEvidences);
-        let outResNo = { executedOutputs: [], workspaceLinks: [], errors: [] };
+        let outResNo = { executedOutputs: [], workspaceLinks: [], emailedRecipients: [], errors: [] };
         if (outputsToExecuteNo.length > 0) {
           try {
             outResNo = await withTimeout(
@@ -7260,6 +7406,9 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                 logId: log._id,
                 triggerSource,
                 notificationUserId: callerUserId || automation.user || reqUser?.id,
+                isTenshiFlowRun: isGlobalTenshiFlow,
+                userInstruction: tenshiUserInstruction || scraperTriggerInput,
+                eventPayload,
               }),
               75000,
               'executeDownstreamOutputs(pre_agent NO)',
@@ -7348,6 +7497,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                   deduplicatedCount: totalDedupSkipped,
                   executedOutputs: outResNo?.executedOutputs || [],
                   workspaceLinks: outResNo?.workspaceLinks || [],
+                  emailedRecipients: outResNo?.emailedRecipients || [],
                   ...(outResNo?.errors?.length ? { outputWarnings: outResNo.errors } : {}),
                   ...preExtractionTraceMeta,
                 },
@@ -7382,6 +7532,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           branchTaken: 'no',
           resultText: preNoResultText,
           workspaceLinks: outResNo?.workspaceLinks || [],
+          emailedRecipients: outResNo?.emailedRecipients || [],
           evidenceFiles: cleanPreEvidenceFiles,
           companyId: targetCompanyIdStr,
           companyName: compDisplay,
@@ -8633,7 +8784,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         await liveTracker.flush();
       }
 
-      let outRes = { executedOutputs: [], workspaceLinks: [], errors: [] };
+      let outRes = { executedOutputs: [], workspaceLinks: [], emailedRecipients: [], errors: [] };
       if (outputsToExecute.length > 0) {
         try {
           outRes = await withTimeout(
@@ -8653,6 +8804,9 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               logId: log._id,
               triggerSource,
               notificationUserId: callerUserId || automation.user || reqUser?.id,
+              isTenshiFlowRun: isGlobalTenshiFlow,
+              userInstruction: tenshiUserInstruction || scraperTriggerInput,
+              eventPayload,
             }),
             95000,
             'executeDownstreamOutputs',
@@ -8670,6 +8824,10 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         const outWarn = (outRes?.errors || []).find((e) => String(e).includes(outId));
         const wsLink = (outRes?.workspaceLinks || []).find((l) => l.type === outId);
         const didRun = Array.isArray(outRes?.executedOutputs) && outRes.executedOutputs.includes(outId);
+        const emailedList =
+          outId === 'email_report' && Array.isArray(outRes?.emailedRecipients)
+            ? outRes.emailedRecipients
+            : [];
         liveTracker.upsertStep({
           nodeKey: `out_${outId}`,
           nodeId: outId,
@@ -8683,16 +8841,19 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           ...(outWarn ? { error: outWarn } : {}),
           outputPreview: wsLink
             ? `${wsLink.label}: ${wsLink.url}`
-            : outWarn
-              ? `Aviso en salida: ${outWarn}`
-              : didRun
-                ? `Salida ejecutada correctamente (${formatHumanWorkflowNodeTitle(outId)}).`
-                : `Canal ${formatHumanWorkflowNodeTitle(outId)} procesado.`,
+            : emailedList.length > 0
+              ? `Correo enviado a: ${emailedList.join(', ')}`
+              : outWarn
+                ? `Aviso en salida: ${outWarn}`
+                : didRun
+                  ? `Salida ejecutada correctamente (${formatHumanWorkflowNodeTitle(outId)}).`
+                  : `Canal ${formatHumanWorkflowNodeTitle(outId)} procesado.`,
           outputItems: [
             {
               Canal: formatHumanWorkflowNodeTitle(outId),
               Rama: String(activeBranch || 'direct').toUpperCase(),
               Estado: outWarn && !didRun ? `Advertencia (${outWarn})` : didRun ? 'Ejecutado' : 'Procesado',
+              ...(emailedList.length > 0 ? { Destinatarios: emailedList.join(', ') } : {}),
               ...(wsLink ? { Enlace: wsLink.url } : {}),
             },
           ],
@@ -8714,6 +8875,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
 
       executionTraceSummary.executedOutputs = outRes?.executedOutputs || [];
       executionTraceSummary.workspaceLinks = outRes?.workspaceLinks || [];
+      executionTraceSummary.emailedRecipients = outRes?.emailedRecipients || [];
       if (Array.isArray(outRes?.errors) && outRes.errors.length > 0) {
         executionTraceSummary.outputWarnings = outRes.errors;
       }
@@ -8778,6 +8940,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         branchTaken: activeBranch,
         resultText,
         workspaceLinks: outRes?.workspaceLinks || [],
+        emailedRecipients: outRes?.emailedRecipients || [],
         evidenceFiles: cleanRunEvidenceFiles,
         companyId: targetCompanyIdStr,
         companyName: automationCompany?.companyName || '',

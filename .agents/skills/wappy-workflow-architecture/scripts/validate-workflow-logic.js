@@ -12,7 +12,9 @@ const path = require('path');
 const fs = require('fs');
 
 const EXPECTED_CATALOG_COUNT = 30;
-const EXPECTED_CATALOG_VERSION = '2026.11.13-v60-n8n-curated-30';
+const EXPECTED_CATALOG_VERSION = '2026.11.18-v61-n8n-curated-30';
+const EXPECTED_TENSHI_FLOW_COUNT = 16;
+const EXPECTED_TENSHI_SEED_VERSION = '2026-11-18-v7';
 const EXPECTED_CATEGORY_COUNTS = {
   salud_vencimientos: 5,
   drive_sincronizacion: 5,
@@ -436,13 +438,49 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
     errors.push(`[Inv-00 / META] \`workflowNodes.aiEngine\` debe ser "wappy" (actual: "${wf.aiEngine}").`);
   }
 
-  // Invariante 1: Disparadores válidos
+  // Invariante 1: Disparadores válidos + obligatoriedad de `trigger_tenshi` con `voiceCommand` en los 30 presets y flujos Tenshi
   if (triggers.length === 0) {
     errors.push('[Inv-01] El flujo no tiene ningún disparador en `triggers[]`.');
   }
   for (const t of triggers) {
     if (!VALID_TRIGGERS.has(t)) {
       errors.push(`[Inv-01] Disparador inválido o bloqueado: "${t}".`);
+    }
+  }
+  if (!isCustomFile && !triggers.includes('trigger_tenshi')) {
+    errors.push(
+      '[Inv-01 / TENSHI_TRIGGER_REQUIRED] Todos los 30 presets del sistema deben incluir `"trigger_tenshi"` en `workflowNodes.triggers`.',
+    );
+  }
+  if (triggers.includes('trigger_tenshi')) {
+    const tenshiCfgPrefixed = nodeConfigs.trigger_trigger_tenshi;
+    const tenshiCfgDirect = nodeConfigs.trigger_tenshi;
+    if (!tenshiCfgPrefixed || typeof tenshiCfgPrefixed !== 'object') {
+      errors.push(
+        '[Inv-01 / TENSHI_VOICE_COMMAND_REQUIRED] Falta `nodeConfigs.trigger_trigger_tenshi` con `voiceCommand` no vacío.',
+      );
+    }
+    if (!tenshiCfgDirect || typeof tenshiCfgDirect !== 'object') {
+      errors.push(
+        '[Inv-01 / TENSHI_VOICE_COMMAND_REQUIRED] Falta `nodeConfigs.trigger_tenshi` con `voiceCommand` no vacío.',
+      );
+    }
+    const resolvedTenshiCfg = tenshiCfgPrefixed || tenshiCfgDirect || {};
+    if (
+      typeof resolvedTenshiCfg.voiceCommand !== 'string' ||
+      resolvedTenshiCfg.voiceCommand.trim().length < 3
+    ) {
+      errors.push(
+        '[Inv-01 / TENSHI_VOICE_COMMAND_REQUIRED] El nodo `trigger_tenshi` debe definir `voiceCommand` no vacío (>= 3 caracteres).',
+      );
+    }
+    if (
+      !Array.isArray(resolvedTenshiCfg.voiceCommands) ||
+      resolvedTenshiCfg.voiceCommands.filter((v) => typeof v === 'string' && v.trim().length >= 3).length === 0
+    ) {
+      errors.push(
+        '[Inv-01 / TENSHI_VOICE_COMMAND_REQUIRED] El nodo `trigger_tenshi` debe definir `voiceCommands` con al menos 1 frase natural válida.',
+      );
     }
   }
 
@@ -1196,9 +1234,14 @@ function main() {
       seenNames.add(w.name);
     }
   } else if (isTenshiAudit && !presetFilter) {
-    if (workflows.length !== 6) {
+    if (catalogVersion !== EXPECTED_TENSHI_SEED_VERSION) {
       catalogGlobalErrors.push(
-        `[Tenshi Global] Se exigen exactamente 6 Flujos Globales Oficiales de Tenshi (actual: ${workflows.length}).`,
+        `[Tenshi Global] DEFAULT_TENSHI_FLOW_SEED_VERSION debe ser "${EXPECTED_TENSHI_SEED_VERSION}" (actual: "${catalogVersion}").`,
+      );
+    }
+    if (workflows.length !== EXPECTED_TENSHI_FLOW_COUNT) {
+      catalogGlobalErrors.push(
+        `[Tenshi Global] Se exigen exactamente ${EXPECTED_TENSHI_FLOW_COUNT} Flujos Globales Oficiales de Tenshi (actual: ${workflows.length}).`,
       );
     }
     const seenTenshiKeys = new Set();
@@ -1213,6 +1256,11 @@ function main() {
         catalogGlobalErrors.push(`[Tenshi Global] Nombre de flujo duplicado: "${w?.name}".`);
       }
       seenTenshiNames.add(w?.name);
+      if (!w?.isTenshiFlow || w?.companyId !== 'TENSHI_GLOBAL' || w?.status !== 'active') {
+        catalogGlobalErrors.push(
+          `[Tenshi Global] El flujo "${k}" debe declarar isTenshiFlow=true, companyId="TENSHI_GLOBAL" y status="active".`,
+        );
+      }
     }
   }
 

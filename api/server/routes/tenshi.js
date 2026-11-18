@@ -16,6 +16,7 @@ const { logger } = require('~/config');
 const { generateShortLivedToken, Tokenizer } = require('@librechat/api');
 const { getAllUserMemories, setMemory, deleteMemory } = require('~/models');
 const CompanyInfo = require('../../models/CompanyInfo');
+const Automation = require('../../models/Automation');
 const { syncCompanyMemory } = require('./sgsst/companyInfo');
 const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const GoogleDrive = require('../../app/clients/tools/structured/GoogleDrive');
@@ -2251,6 +2252,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         const isMemoryEnabled = req.user?.personalization?.memories !== false;
 
+        const activeCompanyId = companyInfo?._id ? String(companyInfo._id) : null;
+
         // Fetch dynamic knowledge & user context concurrently via Promise.all for maximum response speed
         const [
             latestBlogs,
@@ -2264,6 +2267,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             avatarProfileResult,
             tenshiFlowsBlock,
             systemActivityResult,
+            companyAutomationsList,
         ] = await Promise.all([
             BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3).lean().catch(() => []),
             Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(2).lean().catch(() => []),
@@ -2343,6 +2347,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 limit: 6,
                 timeoutMs: 2000,
             }).catch(() => null),
+            (async () => {
+                try {
+                    if (!activeCompanyId) return [];
+                    return await Automation.find({
+                        companyId: activeCompanyId,
+                        isSystemPreset: { $ne: true },
+                        isTenshiFlow: { $ne: true },
+                    })
+                        .select('_id name status workflowNodes.canvasLayout.nodeConfigs')
+                        .sort({ createdAt: -1 })
+                        .limit(40)
+                        .lean();
+                } catch (_) {
+                    return [];
+                }
+            })(),
         ]);
 
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
@@ -2751,6 +2771,25 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
                 : '';
             systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.${attachedHint}\n- ENTREGA DE CERTIFICADOS EN CHAT: Cuando el flujo emita certificados (\`evidencias\`/\`evidenceFiles\`), confírmale explícitamente al usuario que el certificado (o certificados) fue emitido, que ya lo recibió en este chat y que ya puede abrirlo o descargarlo (sin pegar rutas \`/api/...\` crudas); y si en una consulta ARL no aparece en otras ARLs, avísale que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) la solicite o indique para consultarla.\n- ARLs CON PROTECCIÓN reCAPTCHA (PRIVACIDAD Y ACCESO DIRECTO DEL USUARIO): Siempre que una consulta de ARL recaiga en una administradora protegida por \`reCAPTCHA\` —como **ARL Colmena Seguros** (\`https://www.colmenaseguros.com/certificados-de-afiliacion\`), **ARL AXA Colpatria** cuando active \`reCAPTCHA\` (\`https://www.axacolpatria.co/arl/certificacion-afiliacion-arl\`), o cualquier portal reportado en \`portalesArlConRecaptcha\`— DEBES enviarle al usuario el **enlace oficial clicable** en Markdown acompañado de los **datos listos para ingresar** (**Tipo de documento**, **Número de documento** y **Fecha de nacimiento** si se conoce, o indicar que ingrese \`DD/MM/AAAA\`), informándole claramente que **por políticas de privacidad y protección de seguridad (\`reCAPTCHA\`) no es posible acceder automáticamente a ese sistema, por lo que puede ingresar directamente en el enlace oficial con esos datos o solicitar autorización directa a la ARL**.`;
         }
+
+        const safeCompanyAutos = Array.isArray(companyAutomationsList) ? companyAutomationsList : [];
+        const companyAutosLines = safeCompanyAutos.length > 0
+            ? safeCompanyAutos.map((a) => {
+                const nc = a?.workflowNodes?.canvasLayout?.nodeConfigs || {};
+                const vc = String(
+                    nc?.trigger_trigger_tenshi?.voiceCommand ||
+                    nc?.trigger_tenshi?.voiceCommand ||
+                    ''
+                ).trim();
+                return `- id=${String(a._id)} | nombre="${a.name}" | estado=${a.status || 'inactive'}${vc ? ` | comando="${vc}"` : ''}`;
+            }).join('\n')
+            : '- (La empresa activa aún no tiene flujos propios instalados en /tareas.)';
+
+        systemMessage +=
+            `\n\n[TAREAS/AUTOMATIZACIONES PROPIAS DE LA EMPRESA EN /tareas]\n` +
+            `${companyAutosLines}\n` +
+            `- REGLA ANTI-CONFUSIÓN DE FLUJOS: Para activar, pausar, ejecutar, editar o eliminar un flujo de esta lista pasa SIEMPRE su \`id\` exacto o el nombre temático real pedido por el usuario (ej: "Vigilancia de Exámenes Médicos"). NUNCA inventes códigos numéricos como "001" ni actives un flujo de otro tema por error. Si el usuario pide activar un flujo preestablecido que todavía no aparece en la lista de su empresa, invoca \`gestor_automatizaciones\` con \`accion: "activar"\` y \`nombre\` igual al tema pedido para que el motor lo clone y active automáticamente desde el catálogo oficial de 30 presets.\n` +
+            `- HABILIDAD DE CREAR FLUJOS PROPIOS: Cuando el usuario te pida crear un nuevo flujo o automatización (personal de su empresa o flujo global Tenshi si es admin con \`crear_como_flujo_tenshi: true\`), diseña un DAG 100% lógico y coherente (sin mezclar temas incompatibles como SOAT con clima), incluyendo siempre \`trigger_tenshi\` con comando por defecto = nombre del flujo, y créalo directamente con \`gestor_automatizaciones\` (\`accion: "crear"\`, configurando \`nombre\`, \`prompt_a_ejecutar\`, \`disparadores\`, \`comando_tenshi\`, \`hitos_fuente\`, \`herramientas_ia\`, \`extractores\`, \`incluir_condicion_if\`, \`condicion_if\`, \`salidas\` y \`modelo_ia\`).`;
 
         const workflowNodesOverviewBlock = safeGetWorkflowNodesOverviewPromptBlock();
         systemMessage +=
@@ -3359,16 +3398,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const gestorAutomatizacionesDeclaration = {
                 name: 'gestor_automatizaciones',
-                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS en la sección 'Tareas' (/tareas), ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'), y consulta la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea. Pasa exactamente el comando de voz Tenshi o código mencionado (ej: 'Activa el flujo 001' o '001') en automatizacion_id/nombre.",
+                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS DAG completos en la sección 'Tareas' (/tareas), ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'), y consulta la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo). Pasa SIEMPRE el nombre exacto o palabras clave temáticas del flujo solicitado (ej: 'Vigilancia de Exámenes Médicos'); NUNCA inventes códigos como '001' ni actives un flujo diferente al pedido. También tienes facultad plena para CREAR tus propios flujos DAG completos (accion='crear') cuando el usuario lo pida, diseñando nodos 100% coherentes sin mezclar dominios incompatibles (jamás mezclar clima con SOAT/EMO).",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         accion: { type: 'STRING', description: 'ejecutar_tenshi, consultar_documentacion_nodos, crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
                         busqueda_nodo: { type: 'STRING', description: 'Nombre, ID técnico, categoría, Hito o palabra clave del nodo o grupo de nodos a consultar en la Enciclopedia SmartDown (ej. "forense incapacidad", "condicion si no", "alturas", "rethus", "disparadores", "todos").' },
-                        nombre: { type: 'STRING', description: 'Nombre del flujo o comando de voz Tenshi exacto dicho por el usuario (ej: "Activa el flujo 001").' },
+                        nombre: { type: 'STRING', description: 'Nombre exacto o palabras clave temáticas del flujo solicitado (ej: "Vigilancia de Exámenes Médicos"). NUNCA inventes códigos numéricos como "001".' },
                         nuevo_nombre: { type: 'STRING', description: 'Nuevo nombre si se desea renombrar la tarea.' },
                         agente_objetivo: { type: 'STRING', description: 'Agente que ejecutará la tarea periódica.' },
-                        prompt_a_ejecutar: { type: 'STRING', description: 'Instrucción detallada a ejecutar periódicamente.' },
+                        prompt_a_ejecutar: { type: 'STRING', description: 'Instrucción detallada a ejecutar periódicamente o al dispararse el flujo.' },
                         instruccion_usuario: { type: 'STRING', description: 'Instrucción literal, pregunta o parámetro dicho por el usuario para alimentar el flujo interno Tenshi al ejecutarlo.' },
                         esperar_resultado: { type: 'BOOLEAN', description: 'Si es true (por defecto en ejecutar_tenshi), espera de forma síncrona el resultado final del flujo para responder al instante en el mismo turno.' },
                         tipo_frecuencia: { type: 'STRING', description: 'daily, weekly, monthly, hourly' },
@@ -3383,8 +3422,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             }
                         },
                         correos_notificacion: { type: 'ARRAY', items: { type: 'STRING' } },
-                        automatizacion_id: { type: 'STRING', description: 'ID de 24 caracteres, código o comando de voz Tenshi configurado (ej: "Activa el flujo 001" o "001"), título exacto de la tarea, o "todas".' },
-                        nuevo_estado: { type: 'STRING', description: 'active (activar) o inactive (desactivar/pausar)' }
+                        automatizacion_id: { type: 'STRING', description: 'ID de 24 caracteres del flujo, nombre exacto o palabras clave temáticas del flujo pedido (ej: "Vigilancia de Exámenes Médicos"), o "todas" solo si el usuario pidió explícitamente todas.' },
+                        nuevo_estado: { type: 'STRING', description: 'active (activar) o inactive (desactivar/pausar)' },
+                        disparadores: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Lista de disparadores del flujo DAG (ej: ["trigger_tenshi", "schedule_cron"]). Siempre se incluye "trigger_tenshi" por defecto.' },
+                        comando_tenshi: { type: 'STRING', description: 'Frase o comando de voz/chat en Tenshi que dispara el flujo. Por defecto toma el nombre limpio del flujo.' },
+                        hitos_fuente: { type: 'ARRAY', items: { type: 'STRING' }, description: 'IDs reales de Aplicativos Hito de Somos SST en modo lectura de fuente (ej: ["hito2_perfil_socio"], ["hito3_vehiculos"], ["hito5_capacitaciones"], ["hito7_acpm"], ["hito3_epp"], ["hito4_actos_condiciones"], ["hito4_comites"], ["hito1_diagnostico_0312"], ["hito5_registro_quimico"]).' },
+                        herramientas_ia: { type: 'ARRAY', items: { type: 'STRING' }, description: 'IDs válidos de herramientas conectadas al Agente IA en Herramienta + (ej: ["web_search", "cursos_lms", "matriz_pesv", "matriz_compatibilidad", "consultar_pubchem_quimico", "consultar_medlineplus_rehabilitacion", "notebooklm", "google_flow", "hito2_condiciones_salud", "hito2_perfiles_cargo"]).' },
+                        extractores: { type: 'ARRAY', items: { type: 'STRING' }, description: 'IDs válidos de extractores documentales u OSINT (ej: ["extract_drive", "extract_gmail", "extract_ai_doc_ocr", "extract_pc_folder", "scraper_agy_arl_directo", "scraper_agy_alto_riesgo", "scraper_agy_vial_pesv", "scraper_agy_antecedentes"]).' },
+                        salidas: { type: 'ARRAY', items: { type: 'STRING' }, description: 'IDs de nodos de salida/acción del flujo (ej: ["email_report", "wappy_notification", "acpm_task", "canvas_doc", "google_calendar"]). Siempre se incluye "wappy_notification" para reportar de vuelta a Tenshi.' },
+                        incluir_condicion_if: { type: 'BOOLEAN', description: 'Si es true (por defecto), incluye nodo condicional Sí/No (if_router) en el lienzo DAG.' },
+                        condicion_if: { type: 'STRING', description: 'Etiqueta o criterio claro del nodo condicional Sí/No (ej: "¿Existen vencimientos o hallazgos críticos?").' },
+                        modelo_ia: { type: 'STRING', description: 'Modelo de IA del Agente en el flujo: "gemini-3.5-flash-lite" (por defecto), "gemini-3.6-flash" o "gemini-3.8-flash".' },
+                        crear_como_flujo_tenshi: { type: 'BOOLEAN', description: 'Si es true y el usuario es ADMIN, crea un Flujo Global Tenshi en TENSHI_GLOBAL activo para todos los usuarios; si no es admin, crea un flujo propio de su empresa con trigger_tenshi activo.' }
                     },
                     required: ['accion']
                 }
@@ -4524,6 +4573,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             if (
                 (tenshiFlowsBlock ||
                     workflowNodesOverviewBlock ||
+                    safeCompanyAutos.length > 0 ||
                     /\b(nodo|nodos|flujo|flujos|automatizaci|tareas|lienzo|disparador|extractor|rethus|adres|incapacidad|gu[ií]a\s+de\s+nodos)\b/i.test(lastUserLower)) &&
                 !toolsToAttach.some(d => d.name === 'gestor_automatizaciones')
             ) {

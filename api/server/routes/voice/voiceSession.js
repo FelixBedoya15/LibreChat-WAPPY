@@ -1772,16 +1772,16 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas', ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'), y consulta la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo). Sin coincidencia exacta NO elijas otro flujo.",
+                            description: "Gestiona Tareas/Flujos en /tareas (activar, pausar/desactivar, listar, actualizar, ejecutar o eliminar) pasando SIEMPRE el nombre exacto o palabras temáticas dichas por el usuario (o ID / 'todas') sin inventar códigos ni activar un flujo distinto si no hay coincidencia exacta; ejecuta al instante cualquiera de los 16 Flujos Tenshi globales (accion='ejecutar_tenshi' — 6 OSINT/Forense + 10 Somos SST activos para todos los usuarios); crea flujos DAG completos coherentes (accion='crear' solo cuando el usuario lo pida explícitamente) con disparadores, comando Tenshi, Hitos fuente, herramientas IA, extractores, condición SI/NO, salidas y modelo IA vigente; y consulta la Enciclopedia SmartDown oficial de Nodos de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo).",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     accion: { type: "string", description: "'ejecutar_tenshi','consultar_documentacion_nodos','crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
                                     busqueda_nodo: { type: "string", description: "Nombre, ID técnico, categoría, Hito o palabra clave del nodo o grupo de nodos a consultar en la Enciclopedia SmartDown (ej. 'forense incapacidad', 'condicion si no', 'alturas', 'rethus', 'disparadores', 'todos')" },
-                                    nombre: { type: "string", description: "Título o código de activación" },
-                                    nuevo_nombre: { type: "string" },
-                                    agente_objetivo: { type: "string" },
-                                    prompt_a_ejecutar: { type: "string" },
+                                    nombre: { type: "string", description: "Nombre exacto, frase temática o comando de activación dicho por el usuario (o título del nuevo flujo al crear). Jamás inventar códigos." },
+                                    nuevo_nombre: { type: "string", description: "Nuevo nombre si se desea renombrar un flujo existente" },
+                                    agente_objetivo: { type: "string", description: "Agente IA que ejecutará el flujo (ej. 'Consultor SG-SST', 'Médico Laboral', 'Auditor SG-SST', 'Tenshi')" },
+                                    prompt_a_ejecutar: { type: "string", description: "Instrucción técnica detallada que ejecutará el Agente IA dentro del flujo DAG al crear o actualizar" },
                                     instruccion_usuario: { type: "string", description: "Instrucción literal, pregunta o parámetro dicho por el usuario para alimentar el flujo al ejecutarlo" },
                                     esperar_resultado: { type: "boolean", description: "Si es true (por defecto en ejecutar_tenshi), espera de forma síncrona el resultado final del flujo para responder al instante" },
                                     tipo_frecuencia: { type: "string", description: "'daily'|'weekly'|'monthly'|'hourly'" },
@@ -1796,8 +1796,53 @@ class VoiceSession {
                                         }
                                     },
                                     correos_notificacion: { type: "array", items: { type: "string" } },
-                                    automatizacion_id: { type: "string", description: "ID, comando Tenshi ('001'), título o 'todas'" },
-                                    nuevo_estado: { type: "string", description: "'active'|'inactive'" }
+                                    automatizacion_id: { type: "string", description: "ID de 24 caracteres, nombre exacto, comando Tenshi o palabras temáticas dichas por el usuario, o 'todas'. Jamás inventar códigos ni elegir un flujo diferente." },
+                                    nuevo_estado: { type: "string", description: "'active'|'inactive'" },
+                                    disparadores: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "Lista de disparadores del flujo DAG al crear (ej. 'schedule_cron', 'trigger_tenshi', 'trigger_email', 'trigger_qr_worker', 'trigger_webhook')."
+                                    },
+                                    comando_tenshi: {
+                                        type: "string",
+                                        description: "Frase o comando descriptivo de voz/chat Tenshi para invocar el nuevo flujo cuando usa 'trigger_tenshi' (sin códigos inventados)."
+                                    },
+                                    hitos_fuente: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "IDs de Hitos/módulos de Somos SST a conectar como fuentes del DAG (ej. 'hito1_diagnostico_0312', 'hito2_perfil_socio', 'hito2_condiciones_salud', 'hito2_matriz_ipevar', 'hito3_epp', 'hito3_alturas', 'hito4_actos_condiciones', 'hito5_capacitaciones', 'hito7_estadisticas_atel', 'hito7_acpm')."
+                                    },
+                                    herramientas_ia: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "IDs de herramientas especializadas conectadas al Agente IA en el DAG (ej. 'scraper_agy_arl_directo', 'scraper_agy_alto_riesgo', 'scraper_agy_vial_pesv', 'scraper_agy_antecedentes', 'forensic_doc_verifier', 'google_drive', 'google_gmail', 'google_calendar', 'google_flow', 'web_search')."
+                                    },
+                                    extractores: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "Nodos extractores previos al Agente IA en el DAG (ej. 'extract_drive', 'extract_gmail', 'extract_ai_doc_ocr', 'extract_pc_folder')."
+                                    },
+                                    salidas: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        description: "Nodos de salida/acción al completar el DAG (ej. 'wappy_notification', 'email_report', 'acpm_task', 'canvas_doc', 'google_calendar', 'google_sheets')."
+                                    },
+                                    incluir_condicion_if: {
+                                        type: "boolean",
+                                        description: "Si es true, inserta una compuerta lógica Condición SI/NO (if_router) en el flujo DAG."
+                                    },
+                                    condicion_if: {
+                                        type: "string",
+                                        description: "Condición o regla lógica de la compuerta SI/NO del DAG (ej. '¿Existen vencimientos críticos o hallazgos abiertos?')."
+                                    },
+                                    modelo_ia: {
+                                        type: "string",
+                                        description: "Modelo Gemini vigente del sistema para el nodo LLM del DAG: 'gemini-3.5-flash-lite' (por defecto), 'gemini-3.6-flash' o 'gemini-3.8-flash'."
+                                    },
+                                    crear_como_flujo_tenshi: {
+                                        type: "boolean",
+                                        description: "Si es true (requiere permiso), crea el flujo DAG como Flujo Tenshi instantáneo; por defecto false (flujo en /tareas de la empresa activa)."
+                                    }
                                 },
                                 required: ["accion"]
                             }
@@ -2861,7 +2906,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - \`wappy_generar_qr\`, \`wappy_consultar_analitica_psicosocial\`, \`wappy_consultar_analitica_actos_condiciones\`, \`wappy_gestionar_agenda\`, \`google_calendar\`, \`google_gmail\` (\`batch_trash_emails\`/\`trash_email\`), \`google_sheets/docs/slides\`, \`onedrive\`, \`editor_rit\`, \`somos_sst\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`.
 6. **DRIVE IMPORT HITO 1 / SOCIODEMOGRÁFICO**: Si piden importar desde Drive el perfil sociodemográfico/salud -> \`wappy_importar_sociodemografico_drive\`. Si piden importar matrices/documentos del Hito 1 (gtc45, pesv, compatibilidad, vulnerabilidad, diagnostico, responsable) -> \`wappy_importar_hito1_drive\` (matriz legal en construcción).
 7. **NORMATIVIDAD VIGENTE**: Ante leyes/decretos/resoluciones/sentencias en Colombia, usa SIEMPRE \`web_search\` para verificar vigencia actual (ej: Res. 4272/2021 derogó 1409/2012; Res. 0312/2019 derogó 1111/2017).
-8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para Flujos Tenshi internos instantáneos listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Si preguntan por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), conexiones, puertos, casillas, estado \`Operativo\` vs \`En Construcción\` o ejemplos/diseño de flujos, invoca \`accion: 'consultar_documentacion_nodos'\` con \`busqueda_nodo\` y recuérdale el botón "Guía de Nodos" al lado izquierdo de "Flujos Preestablecidos" en \`/tareas\`. Para tareas de empresa (/tareas), usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
+8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para cualquiera de los 16 Flujos Tenshi globales (6 OSINT/Forense + 10 Somos SST activos para todos los usuarios) listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Si preguntan por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), conexiones, puertos, casillas, estado \`Operativo\` vs \`En Construcción\` o ejemplos/diseño de flujos, invoca \`accion: 'consultar_documentacion_nodos'\` con \`busqueda_nodo\` y recuérdale el botón "Guía de Nodos" al lado izquierdo de "Flujos Preestablecidos" en \`/tareas\`. Para activar, pausar o ejecutar tareas de empresa en \`/tareas\`, pasa SIEMPRE el nombre exacto o las palabras temáticas dichas por el usuario en \`automatizacion_id\`/\`nombre\` SIN inventar códigos ni activar un flujo distinto; usa \`accion: 'crear'\` (construyendo flujos DAG completos con \`disparadores\`, \`comando_tenshi\`, \`hitos_fuente\`, \`herramientas_ia\`, \`extractores\`, \`salidas\`, \`incluir_condicion_if\`, \`condicion_if\`, \`modelo_ia\`, \`crear_como_flujo_tenshi\`) solo cuando el usuario pida crear un flujo nuevo; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
 9. **ACADEMIA VS TIENDA VS BLOG & MULTIMEDIA**: Academia (/academia?tab=cursos) = cursos interactivos; si piden "ábreme el curso X" invoca \`wappy_abrir_curso\` de inmediato. Tienda (/marketplace) = productos con precio COP. Blog = \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`. Tienes NotebookLM (\`notebooklm_*\`), MedlinePlus (\`wappy_consultar_rehabilitacion_medlineplus\`) y Google Flow (\`google_flow_*\`).
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
@@ -3521,7 +3566,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
 
                     if (tenshiFlowsBlock) {
-                        companyAndMemoryPrompt += `\n\n${tenshiFlowsBlock}\nREGLA EN VOZ TENSHI: Cuando el usuario pida algo cubierto por cualquiera de estos Flujos Tenshi internos, ejecuta de inmediato \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado".`;
+                        companyAndMemoryPrompt += `\n\n${tenshiFlowsBlock}\nREGLA EN VOZ TENSHI: Cuando el usuario pida algo cubierto por cualquiera de estos 16 Flujos Tenshi globales (6 OSINT/Forense + 10 Somos SST), ejecuta de inmediato \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado".\n- ACTIVACIÓN EXACTA EN /tareas: Al activar, pausar o ejecutar un flujo en /tareas, usa siempre el nombre exacto mencionado por el usuario sin inventar códigos ni activar flujos diferentes.\n- CREACIÓN DE FLUJOS DAG POR VOZ: También puedes crear nuevos flujos DAG coherentes bajo pedido del usuario usando \`gestor_automatizaciones\` (\`accion: "crear"\`).`;
                     }
 
                     const workflowNodesOverviewBlock = safeGetWorkflowNodesOverviewPromptBlock();

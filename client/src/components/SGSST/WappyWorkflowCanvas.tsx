@@ -83,6 +83,8 @@ import {
   History,
   Square,
   XCircle,
+  Mic,
+  MessageSquare,
 } from 'lucide-react';
 import ExpandableButton from '~/components/Common/ExpandableButton';
 import WappyNodeCustomEditor from './WappyNodeCustomEditors';
@@ -674,6 +676,7 @@ interface WappyWorkflowCanvasProps {
   companyId?: string;
   isAdmin?: boolean;
   workflowMode?: 'standard' | 'preset' | 'tenshi';
+  flowName?: string;
 }
 
 interface VisualNodeInstance {
@@ -784,6 +787,56 @@ function resolveEffectiveNodeCfg(
   return nodeConfigsMap[node.key] || nodeConfigsMap[node.nodeId] || {};
 }
 
+export function getCleanFlowName(name?: string | null): string {
+  const raw = typeof name === 'string' ? name.trim() : '';
+  if (!raw) return '';
+  const cleaned = raw
+    .replace(
+      /^(?:[\p{Extended_Pictographic}\u2600-\u27BF\u{1F1E6}-\u{1F1FF}]|[0-9#*]\uFE0F?\u20E3|\uFE0E|\uFE0F|\u200D|\s)+/gu,
+      '',
+    )
+    .trim();
+  return cleaned || raw;
+}
+
+export function resolveTenshiVoiceCommand(
+  cfg?: CanvasNodeConfig | Record<string, any> | null,
+  flowName?: string | null,
+): { command: string; isDefault: boolean; extraCommands: string[] } {
+  const cleanFlowName = getCleanFlowName(flowName);
+  const rawCfg = (cfg || {}) as Record<string, any>;
+  const hasVoiceCommandKey = typeof rawCfg.voiceCommand === 'string';
+  const explicitVoiceCommand = hasVoiceCommandKey ? rawCfg.voiceCommand.trim() : '';
+  const voiceCommandsArr: string[] = Array.isArray(rawCfg.voiceCommands)
+    ? rawCfg.voiceCommands
+        .map((v: any) => (typeof v === 'string' ? v.trim() : ''))
+        .filter(Boolean)
+    : [];
+
+  let command = '';
+  let isDefault = false;
+
+  if (explicitVoiceCommand) {
+    command = explicitVoiceCommand;
+    isDefault = false;
+  } else if (!hasVoiceCommandKey && voiceCommandsArr.length > 0) {
+    command = voiceCommandsArr[0];
+    isDefault = false;
+  } else {
+    command = cleanFlowName;
+    isDefault = true;
+  }
+
+  const normalizedPrimary = command.toLowerCase();
+  const extraCommands = voiceCommandsArr.filter(
+    (phrase, idx, arr) =>
+      phrase.toLowerCase() !== normalizedPrimary &&
+      arr.findIndex((p) => p.toLowerCase() === phrase.toLowerCase()) === idx,
+  );
+
+  return { command, isDefault, extraCommands };
+}
+
 export function resolveReadableIfSubtitle(
   ifCfg?: Record<string, any> | null,
   placement: 'pre_source' | 'pre_agent' | 'post_agent' = 'pre_agent',
@@ -892,6 +945,7 @@ export default function WappyWorkflowCanvas({
   companyId: explicitCompanyId,
   isAdmin = false,
   workflowMode = 'standard',
+  flowName = '',
 }: WappyWorkflowCanvasProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -970,6 +1024,8 @@ export default function WappyWorkflowCanvas({
   });
   const [ndvCopiedExpr, setNdvCopiedExpr] = useState<string | null>(null);
   const [ndvEvidenceStripOpen, setNdvEvidenceStripOpen] = useState<boolean>(true);
+  const [tenshiVoiceDraft, setTenshiVoiceDraft] = useState<string>('');
+  const tenshiDraftNodeKeyRef = useRef<string | null>(null);
   const [previewEvidence, setPreviewEvidence] = useState<{
     title: string;
     workerName?: string;
@@ -3430,6 +3486,10 @@ export default function WappyWorkflowCanvas({
     const extractorRawId = nodeKey.startsWith('extractor_')
       ? nodeKey.replace(/^extractor_/, '')
       : null;
+    const isTenshiTriggerKey =
+      nodeKey === 'trigger_tenshi' ||
+      nodeKey === 'trigger_trigger_tenshi' ||
+      (nodeKey === 'trigger_root' && activeTriggers[0] === 'trigger_tenshi');
     const baseMergedPrev: CanvasNodeConfig = hitoRawId
       ? {
           ...(prevConfigs[hitoRawId] || {}),
@@ -3449,12 +3509,21 @@ export default function WappyWorkflowCanvas({
               ...(prevConfigs[extractorRawId] || {}),
               ...(prevConfigs[nodeKey] || {}),
             }
-          : nodeKey === 'if_router' || nodeKey === 'if_condition'
+          : isTenshiTriggerKey
             ? {
-                ...(prevConfigs['if_condition'] || {}),
-                ...(prevConfigs['if_router'] || {}),
+                ...(prevConfigs['trigger_tenshi'] || {}),
+                ...(prevConfigs['trigger_trigger_tenshi'] || {}),
+                ...(activeTriggers[0] === 'trigger_tenshi'
+                  ? prevConfigs['trigger_root'] || {}
+                  : {}),
+                ...(prevConfigs[nodeKey] || {}),
               }
-            : prevConfigs[nodeKey] || {};
+            : nodeKey === 'if_router' || nodeKey === 'if_condition'
+              ? {
+                  ...(prevConfigs['if_condition'] || {}),
+                  ...(prevConfigs['if_router'] || {}),
+                }
+              : prevConfigs[nodeKey] || {};
 
     const nextConfig: CanvasNodeConfig = {
       ...baseMergedPrev,
@@ -3483,6 +3552,17 @@ export default function WappyWorkflowCanvas({
     }
     if (extractorRawId) {
       syncedConfigs[extractorRawId] = nextConfig;
+    }
+    if (isTenshiTriggerKey) {
+      syncedConfigs['trigger_tenshi'] = nextConfig;
+      if (activeTriggers[0] === 'trigger_tenshi') {
+        syncedConfigs['trigger_root'] = nextConfig;
+        if (prevConfigs['trigger_trigger_tenshi']) {
+          syncedConfigs['trigger_trigger_tenshi'] = nextConfig;
+        }
+      } else {
+        syncedConfigs['trigger_trigger_tenshi'] = nextConfig;
+      }
     }
     if (nodeKey === 'if_router' || nodeKey === 'if_condition') {
       syncedConfigs['if_condition'] = nextConfig;
@@ -3577,6 +3657,53 @@ export default function WappyWorkflowCanvas({
       },
     });
   };
+
+  // Inicializar el borrador del comando Tenshi al abrir el inspector del nodo `trigger_tenshi`
+  useEffect(() => {
+    if (!activeConfigNodeKey) {
+      tenshiDraftNodeKeyRef.current = null;
+      return;
+    }
+    if (tenshiDraftNodeKeyRef.current === activeConfigNodeKey) {
+      return;
+    }
+    const targetNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+    if (
+      targetNode &&
+      targetNode.shape === 'trigger' &&
+      targetNode.nodeId.toLowerCase().includes('tenshi')
+    ) {
+      const cfg = resolveEffectiveNodeCfg(targetNode, workflowNodes?.canvasLayout?.nodeConfigs);
+      const resolved = resolveTenshiVoiceCommand(cfg, flowName);
+      setTenshiVoiceDraft(resolved.command);
+      tenshiDraftNodeKeyRef.current = activeConfigNodeKey;
+    } else {
+      tenshiDraftNodeKeyRef.current = null;
+    }
+  }, [activeConfigNodeKey, visualNodes, workflowNodes?.canvasLayout?.nodeConfigs, flowName]);
+
+  // Al cerrar el inspector del nodo `trigger_tenshi`, si quedó en blanco persiste automáticamente el nombre limpio del flujo
+  const handleCloseNodeInspector = () => {
+    if (activeConfigNodeKey && !readOnly && onChange) {
+      const targetNode = visualNodes.find((n) => n.key === activeConfigNodeKey);
+      if (
+        targetNode &&
+        targetNode.shape === 'trigger' &&
+        targetNode.nodeId.toLowerCase().includes('tenshi')
+      ) {
+        const cleanDefault = getCleanFlowName(flowName);
+        const cfg = resolveEffectiveNodeCfg(targetNode, workflowNodes?.canvasLayout?.nodeConfigs);
+        const currentCmd = typeof cfg.voiceCommand === 'string' ? cfg.voiceCommand.trim() : '';
+        if (!currentCmd && cleanDefault) {
+          handleUpdateNodeConfig(targetNode.key, { voiceCommand: cleanDefault });
+        }
+      }
+    }
+    tenshiDraftNodeKeyRef.current = null;
+    setActiveConfigNodeKey(null);
+  };
+  const closeInspectorRef = useRef<() => void>(handleCloseNodeInspector);
+  closeInspectorRef.current = handleCloseNodeInspector;
 
   // Agregar un nodo de Skill, Sub-Agente, Regla, Web Scraping con Antigravity o Búsqueda Web al lienzo
   const handleAddCustomNodeToCanvas = (
@@ -5024,7 +5151,7 @@ export default function WappyWorkflowCanvas({
         return;
       }
       if (ev.key === 'Escape' && activeConfigNodeKey) {
-        setActiveConfigNodeKey(null);
+        closeInspectorRef.current();
         return;
       }
       if (ev.key === 'Escape' && isCanvasFullscreen) {
@@ -5320,6 +5447,10 @@ export default function WappyWorkflowCanvas({
       if (exists && activeTriggers.length > 1) {
         delete nextPositions[removedKey];
         delete nextNodeConfigs[removedKey];
+        if (nodeId === 'trigger_tenshi') {
+          delete nextNodeConfigs['trigger_tenshi'];
+          delete nextNodeConfigs['trigger_trigger_tenshi'];
+        }
         nextEdges = nextEdges.filter(
           (ed: any) =>
             ed.from !== removedKey &&
@@ -5356,6 +5487,23 @@ export default function WappyWorkflowCanvas({
 
       const targetTriggerKey =
         nextTriggers.indexOf(nodeId) === 0 ? 'trigger_root' : `trigger_${nodeId}`;
+      if (!exists && nodeId === 'trigger_tenshi') {
+        const cleanDefault = getCleanFlowName(flowName);
+        const existingTenshi = {
+          ...(nextNodeConfigs['trigger_tenshi'] || {}),
+          ...(nextNodeConfigs[targetTriggerKey] || {}),
+        };
+        const seededTenshiCfg: CanvasNodeConfig = {
+          ...existingTenshi,
+          triggerChannel: existingTenshi.triggerChannel || 'both',
+          voiceCommand:
+            typeof existingTenshi.voiceCommand === 'string' && existingTenshi.voiceCommand.trim()
+              ? existingTenshi.voiceCommand.trim()
+              : cleanDefault,
+        };
+        nextNodeConfigs[targetTriggerKey] = seededTenshiCfg;
+        nextNodeConfigs['trigger_tenshi'] = seededTenshiCfg;
+      }
       if (!exists && dropPos) {
         nextPositions[targetTriggerKey] = {
           x: Math.max(20, Math.round(dropPos.x - 36)),
@@ -8554,13 +8702,25 @@ export default function WappyWorkflowCanvas({
 
               // 1. ETAPA 1: FIGURA TRIGGER NODE (Forma en "D" con rayo ⚡ a la izquierda y puerto circular derecho)
               if (node.shape === 'trigger') {
+                const isTenshiTriggerNode =
+                  node.nodeId === 'trigger_tenshi' ||
+                  node.nodeId.toLowerCase().includes('tenshi');
+                const tenshiCmdInfo = isTenshiTriggerNode
+                  ? resolveTenshiVoiceCommand(nodeCfg, flowName)
+                  : null;
+                const triggerHoverTitle =
+                  isTenshiTriggerNode && tenshiCmdInfo?.command
+                    ? `Disparador Tenshi IA · Comando: "${tenshiCmdInfo.command}"${
+                        tenshiCmdInfo.isDefault ? ' (por defecto: nombre del flujo)' : ''
+                      }. Haz clic para editar.`
+                    : 'Haz clic sobre este nodo para editar su configuración';
                 return (
                   <div
                     key={node.key}
                     onPointerDown={(e) => handleNodePointerDown(e, node)}
                     onPointerUp={(e) => handleCanvasPointerUp(node.key, e)}
                     style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                    title="Haz clic sobre este nodo para editar su configuración"
+                    title={triggerHoverTitle}
                     className={`absolute z-20 group/node select-none ${
                       readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                     }`}
@@ -8608,13 +8768,23 @@ export default function WappyWorkflowCanvas({
                     />
 
                     {/* Etiqueta inferior */}
-                    <div className="mt-1.5 w-[120px] -ml-[22px] text-center pointer-events-none">
+                    <div className="mt-1.5 w-[136px] -ml-[33px] text-center pointer-events-none">
                       <div className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
                         {node.title}
                       </div>
-                      <div className="text-[9.5px] font-medium text-slate-400">
+                      <div className="text-[9.5px] font-medium text-slate-400 truncate">
                         {node.subtitle}
                       </div>
+                      {isTenshiTriggerNode && (
+                        <div className="mt-0.5 flex justify-center">
+                          <span className="inline-flex items-center gap-0.5 max-w-[132px] px-1.5 py-0.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-[8.5px] font-bold truncate">
+                            🎙️{' '}
+                            {tenshiCmdInfo?.command
+                              ? `"${tenshiCmdInfo.command}"`
+                              : 'Nombre del flujo'}
+                          </span>
+                        </div>
+                      )}
                       {showAntigravityBadge && (
                         <div className="mt-0.5 flex justify-center">
                           <span
@@ -10273,14 +10443,20 @@ export default function WappyWorkflowCanvas({
 
             if (cleanTrigId.includes('tenshi')) {
               const ch = String(trigCfg.triggerChannel || 'both');
+              const tenshiResolved = resolveTenshiVoiceCommand(trigCfg, flowName);
               trigDetails.Modalidad =
                 ch === 'voice'
                   ? 'Voz 3D (Suri / Tenshi Live)'
                   : ch === 'chat'
                     ? 'Chat de Texto Tenshi'
                     : 'Voz 3D (Suri) y Chat Tenshi';
-              trigDetails.ComandoVoz =
-                trigCfg.voiceCommand?.trim() || 'Coincidencia por nombre del flujo';
+              trigDetails.ComandoVoz = tenshiResolved.command || 'Nombre del flujo';
+              if (tenshiResolved.isDefault && tenshiResolved.command) {
+                trigDetails.OrigenComando = 'Por defecto (nombre del flujo)';
+              }
+              if (tenshiResolved.extraCommands.length > 0) {
+                trigDetails.FrasesAdicionales = tenshiResolved.extraCommands.join(' · ');
+              }
             } else if (cleanTrigId.includes('email')) {
               trigDetails.Modalidad = 'Correo Entrante Gmail';
               trigDetails.FiltroAsunto = trigCfg.emailSubjectFilter || 'Cualquier asunto';
@@ -11117,7 +11293,7 @@ export default function WappyWorkflowCanvas({
             ? createPortal(
                 <div
                   className="fixed inset-0 z-[10020] bg-slate-950/75 backdrop-blur-md flex flex-col p-2 sm:p-4 animate-in fade-in duration-150"
-                  onClick={() => setActiveConfigNodeKey(null)}
+                  onClick={handleCloseNodeInspector}
                 >
                   <div
                     className="flex flex-col flex-1 min-h-0 w-full max-w-[1920px] mx-auto"
@@ -11133,7 +11309,7 @@ export default function WappyWorkflowCanvas({
                           icon={<ArrowLeft className="w-3.5 h-3.5" />}
                           label="Volver al Lienzo"
                           title="Cerrar popup y volver al lienzo de flujo (Esc)"
-                          onClick={() => setActiveConfigNodeKey(null)}
+                          onClick={handleCloseNodeInspector}
                         />
 
                         <div className="h-5 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block" />
@@ -11224,7 +11400,7 @@ export default function WappyWorkflowCanvas({
                           icon={<X className="w-3.5 h-3.5" />}
                           label="Cerrar"
                           title="Cerrar Inspector de Nodo (Esc)"
-                          onClick={() => setActiveConfigNodeKey(null)}
+                          onClick={handleCloseNodeInspector}
                         />
                       </div>
                     </div>
@@ -11753,55 +11929,199 @@ export default function WappyWorkflowCanvas({
                         {/* Cuerpo con scroll de CONFIGURACIÓN DEL NODO */}
                         <div className="flex-1 overflow-y-auto p-3.5">
                           {ndvCenterTab === 'parameters' ? (
-                            <WappyNodeCustomEditor
-                              activeNode={activeNode}
-                              currentCfg={currentCfg}
-                              onUpdateNodeConfig={handleUpdateNodeConfig}
-                              workflowNodes={workflowNodes}
-                              activeCompanyInfo={activeCompanyInfo}
-                              agentId={agentId}
-                              onSelectAgent={onSelectAgent}
-                              availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}
-                              aiEngine={aiEngine}
-                              aiModel={aiModel}
-                              onSelectAiEngineModel={handleSelectAiEngineModel}
-                              prompt={prompt}
-                              onChangePrompt={onChangePrompt}
-                              onAutoBuildPrompt={onAutoBuildPrompt}
-                              extraAgentObj={extraAgentObj}
-                              onUpdateExtraAgent={handleUpdateExtraAgent}
-                              customNodeObj={customNodeObj}
-                              scheduleType={scheduleType}
-                              onChangeScheduleType={onChangeScheduleType}
-                              hour={hour}
-                              onChangeHour={onChangeHour}
-                              minute={minute}
-                              onChangeMinute={onChangeMinute}
-                              daysOfWeek={daysOfWeek}
-                              onChangeDaysOfWeek={onChangeDaysOfWeek}
-                              dayOfMonth={dayOfMonth}
-                              onChangeDayOfMonth={onChangeDayOfMonth}
-                              intervalHours={intervalHours}
-                              onChangeIntervalHours={onChangeIntervalHours}
-                              emailsStr={emailsStr}
-                              onChangeEmailsStr={onChangeEmailsStr}
-                              antigravityStatus={antigravityStatus}
-                              nodeLiveInspectorData={nodeLiveInspectorData}
-                              nodeReportHistory={nodeReportHistory}
-                              onPreviewNodeReport={handlePreviewNodeReport}
-                              onCloseReportPreview={() =>
-                                setNodeReportHistory((prev) => ({
-                                  ...prev,
-                                  previewConvId: null,
-                                  previewTitle: null,
-                                  previewText: null,
-                                }))
-                              }
-                              resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
-                              onRunLiveAiExtraction={handleRunLiveAiDocExtraction}
-                              runningLiveAiExtraction={runningLiveAiExtraction}
-                              automationId={automationId}
-                            />
+                            activeNode.shape === 'trigger' &&
+                            activeNode.nodeId.toLowerCase().includes('tenshi') ? (
+                              (() => {
+                                const cleanDefaultFlowName = getCleanFlowName(flowName);
+                                const tenshiResolved = resolveTenshiVoiceCommand(
+                                  currentCfg,
+                                  flowName,
+                                );
+                                const isDraftBlank = !tenshiVoiceDraft.trim();
+                                const isCustomizedDistinct =
+                                  Boolean(cleanDefaultFlowName) &&
+                                  !isDraftBlank &&
+                                  tenshiVoiceDraft.trim() !== cleanDefaultFlowName;
+                                return (
+                                  <div className="space-y-4 min-w-0">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 min-w-0">
+                                      <div className="min-w-0 space-y-1.5">
+                                        <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                                          🎙️ Frase o Comando para activar este flujo con Tenshi
+                                        </label>
+                                        <input
+                                          type="text"
+                                          disabled={readOnly}
+                                          value={tenshiVoiceDraft}
+                                          onChange={(e) => {
+                                            const nextVal = e.target.value;
+                                            setTenshiVoiceDraft(nextVal);
+                                            handleUpdateNodeConfig(activeNode.key, {
+                                              voiceCommand: nextVal,
+                                            });
+                                          }}
+                                          placeholder={
+                                            cleanDefaultFlowName ||
+                                            'Ej: Vigilancia de Exámenes Médicos'
+                                          }
+                                          className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 disabled:opacity-60"
+                                        />
+                                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                          Por defecto usa el nombre del flujo si se deja en blanco
+                                        </p>
+
+                                        {cleanDefaultFlowName && (
+                                          <div className="flex flex-wrap items-center gap-2 pt-1 min-w-0">
+                                            <span className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-[10.5px] font-bold min-w-0">
+                                              <Mic className="w-3 h-3 shrink-0" />
+                                              <span className="truncate">
+                                                {isDraftBlank
+                                                  ? `Usará por defecto: "${cleanDefaultFlowName}"`
+                                                  : tenshiVoiceDraft.trim() ===
+                                                      cleanDefaultFlowName
+                                                    ? `Activo con nombre del flujo: "${cleanDefaultFlowName}"`
+                                                    : `Comando personalizado activo`}
+                                              </span>
+                                            </span>
+                                            {isCustomizedDistinct && !readOnly && (
+                                              <ExpandableButton
+                                                type="button"
+                                                size="sm"
+                                                variant="indigo"
+                                                icon={<RotateCcw className="w-3.5 h-3.5" />}
+                                                label="Usar nombre del flujo"
+                                                title={`Restaurar "${cleanDefaultFlowName}" como comando Tenshi`}
+                                                onClick={() => {
+                                                  setTenshiVoiceDraft(cleanDefaultFlowName);
+                                                  handleUpdateNodeConfig(activeNode.key, {
+                                                    voiceCommand: cleanDefaultFlowName,
+                                                  });
+                                                }}
+                                              />
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="min-w-0 space-y-1.5">
+                                        <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                                          📡 Canal de Escucha de Tenshi
+                                        </label>
+                                        <div className="flex flex-wrap items-center gap-2 py-1 px-1">
+                                          {[
+                                            {
+                                              id: 'both',
+                                              label: '⚡ Voz 3D Live + Chat Escrito',
+                                              variant: 'teal' as const,
+                                            },
+                                            {
+                                              id: 'voice',
+                                              label: '🎙️ Solo Voz Live Multimodal',
+                                              variant: 'purple' as const,
+                                            },
+                                            {
+                                              id: 'chat',
+                                              label: '💬 Solo Chat Escrito en WAPPY',
+                                              variant: 'cyan' as const,
+                                            },
+                                          ].map((ch) => {
+                                            const active =
+                                              (currentCfg.triggerChannel || 'both') === ch.id;
+                                            return (
+                                              <ExpandableButton
+                                                key={ch.id}
+                                                type="button"
+                                                size="sm"
+                                                disabled={readOnly}
+                                                variant={active ? ch.variant : 'neutral'}
+                                                isActive={active}
+                                                icon={<MessageSquare className="w-3.5 h-3.5" />}
+                                                label={ch.label}
+                                                onClick={() =>
+                                                  handleUpdateNodeConfig(activeNode.key, {
+                                                    triggerChannel: ch.id as any,
+                                                  })
+                                                }
+                                              />
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {tenshiResolved.extraCommands.length > 0 && (
+                                      <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/5 p-3 space-y-2 min-w-0">
+                                        <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                                          🎯 Frases adicionales reconocidas por Tenshi (
+                                          {tenshiResolved.extraCommands.length})
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 min-w-0">
+                                          {tenshiResolved.extraCommands.map((phrase, pIdx) => (
+                                            <span
+                                              key={`tenshi_alias_${pIdx}`}
+                                              className="inline-flex items-center px-2.5 py-1 rounded-xl border border-indigo-400/30 bg-white/80 dark:bg-slate-900/80 text-[10.5px] font-semibold text-slate-700 dark:text-slate-200 max-w-full truncate"
+                                              title={phrase}
+                                            >
+                                              “{phrase}”
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <WappyNodeCustomEditor
+                                activeNode={activeNode}
+                                currentCfg={currentCfg}
+                                onUpdateNodeConfig={handleUpdateNodeConfig}
+                                workflowNodes={workflowNodes}
+                                activeCompanyInfo={activeCompanyInfo}
+                                agentId={agentId}
+                                onSelectAgent={onSelectAgent}
+                                availableAgentsWithTenshiAvatar={availableAgentsWithTenshiAvatar}
+                                aiEngine={aiEngine}
+                                aiModel={aiModel}
+                                onSelectAiEngineModel={handleSelectAiEngineModel}
+                                prompt={prompt}
+                                onChangePrompt={onChangePrompt}
+                                onAutoBuildPrompt={onAutoBuildPrompt}
+                                extraAgentObj={extraAgentObj}
+                                onUpdateExtraAgent={handleUpdateExtraAgent}
+                                customNodeObj={customNodeObj}
+                                scheduleType={scheduleType}
+                                onChangeScheduleType={onChangeScheduleType}
+                                hour={hour}
+                                onChangeHour={onChangeHour}
+                                minute={minute}
+                                onChangeMinute={onChangeMinute}
+                                daysOfWeek={daysOfWeek}
+                                onChangeDaysOfWeek={onChangeDaysOfWeek}
+                                dayOfMonth={dayOfMonth}
+                                onChangeDayOfMonth={onChangeDayOfMonth}
+                                intervalHours={intervalHours}
+                                onChangeIntervalHours={onChangeIntervalHours}
+                                emailsStr={emailsStr}
+                                onChangeEmailsStr={onChangeEmailsStr}
+                                antigravityStatus={antigravityStatus}
+                                nodeLiveInspectorData={nodeLiveInspectorData}
+                                nodeReportHistory={nodeReportHistory}
+                                onPreviewNodeReport={handlePreviewNodeReport}
+                                onCloseReportPreview={() =>
+                                  setNodeReportHistory((prev) => ({
+                                    ...prev,
+                                    previewConvId: null,
+                                    previewTitle: null,
+                                    previewText: null,
+                                  }))
+                                }
+                                resolveRecordSurgicalPreview={resolveRecordSurgicalPreview}
+                                onRunLiveAiExtraction={handleRunLiveAiDocExtraction}
+                                runningLiveAiExtraction={runningLiveAiExtraction}
+                                automationId={automationId}
+                              />
+                            )
                           ) : (
                             /* ─── PESTAÑA `AJUSTES` CON SECCIONES DESPLEGABLES (ACCORDIONS) ─── */
                             <div className="space-y-3">

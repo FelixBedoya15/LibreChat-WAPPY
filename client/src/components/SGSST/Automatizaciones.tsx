@@ -64,8 +64,13 @@ import {
   sanitizeWorkflowNodesForActiveUse,
   buildPromptFromWorkflowNodes,
   type WorkflowNodesConfig,
+  type CanvasNodeConfig,
 } from './workflowNodesCatalog';
-import WappyWorkflowCanvas, { renderOfficialNodeSvg } from './WappyWorkflowCanvas';
+import WappyWorkflowCanvas, {
+  renderOfficialNodeSvg,
+  getCleanFlowName,
+  resolveTenshiVoiceCommand,
+} from './WappyWorkflowCanvas';
 import {
   type ScraperCapturedEvidence,
   collectUniqueScraperEvidences,
@@ -178,21 +183,121 @@ const normalizeSearchText = (val?: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
-const getTenshiVoiceCommand = (flow?: Partial<Automation> | null): string => {
-  const nodeConfigs = flow?.workflowNodes?.canvasLayout?.nodeConfigs;
-  if (!nodeConfigs || typeof nodeConfigs !== 'object') return '';
-  const rootCmd = nodeConfigs.trigger_root?.voiceCommand?.trim();
-  if (rootCmd) return rootCmd;
-  const tenshiCmd =
-    nodeConfigs.trigger_trigger_tenshi?.voiceCommand?.trim() ||
-    nodeConfigs.trigger_tenshi?.voiceCommand?.trim();
-  if (tenshiCmd) return tenshiCmd;
+const hasTenshiTrigger = (nodes?: WorkflowNodesConfig | null): boolean => {
+  if (!nodes) return false;
+  const triggersList = normalizeTriggersList(nodes);
+  return triggersList.some((t) => t === 'trigger_tenshi' || t.includes('tenshi'));
+};
+
+const getTenshiTriggerNodeCfg = (
+  nodes?: WorkflowNodesConfig | null,
+): CanvasNodeConfig | null => {
+  const nodeConfigs = nodes?.canvasLayout?.nodeConfigs;
+  if (!nodeConfigs || typeof nodeConfigs !== 'object') return null;
+  const triggersList = nodes ? normalizeTriggersList(nodes) : [];
+  const tenshiIdx = triggersList.findIndex((t) => t === 'trigger_tenshi' || t.includes('tenshi'));
+  const merged: CanvasNodeConfig = {
+    ...(nodeConfigs.trigger_tenshi || {}),
+    ...(nodeConfigs.trigger_trigger_tenshi || {}),
+    ...(tenshiIdx === 0 ? nodeConfigs.trigger_root || {} : {}),
+  };
+  if (
+    typeof merged.voiceCommand === 'string' ||
+    Array.isArray((merged as Record<string, any>).voiceCommands) ||
+    merged.triggerChannel
+  ) {
+    return merged;
+  }
+  if (
+    nodeConfigs.trigger_root &&
+    (typeof nodeConfigs.trigger_root.voiceCommand === 'string' ||
+      Array.isArray((nodeConfigs.trigger_root as Record<string, any>).voiceCommands))
+  ) {
+    return nodeConfigs.trigger_root;
+  }
   for (const [key, cfg] of Object.entries(nodeConfigs)) {
-    if (key.startsWith('trigger') && (cfg as any)?.voiceCommand?.trim()) {
-      return String((cfg as any).voiceCommand).trim();
+    if (
+      key.startsWith('trigger') &&
+      cfg &&
+      (typeof (cfg as any).voiceCommand === 'string' ||
+        Array.isArray((cfg as any).voiceCommands))
+    ) {
+      return cfg as CanvasNodeConfig;
     }
   }
-  return '';
+  return null;
+};
+
+const getTenshiVoiceCommandInfo = (
+  flow?: Partial<Automation> | null,
+): { command: string; isDefault: boolean; extraCommands: string[] } => {
+  const trigCfg = getTenshiTriggerNodeCfg(flow?.workflowNodes);
+  return resolveTenshiVoiceCommand(trigCfg, flow?.name);
+};
+
+const getTenshiVoiceCommand = (flow?: Partial<Automation> | null): string =>
+  getTenshiVoiceCommandInfo(flow).command;
+
+const applyDefaultTenshiVoiceCommand = (
+  nodes: WorkflowNodesConfig,
+  flowName: string,
+  options?: { syncIfMatches?: string; allowEmptyOnMatch?: boolean },
+): WorkflowNodesConfig => {
+  if (!hasTenshiTrigger(nodes)) return nodes;
+  const cleanName = getCleanFlowName(flowName);
+  const triggersList = normalizeTriggersList(nodes);
+  const tenshiIdx = triggersList.findIndex((t) => t === 'trigger_tenshi' || t.includes('tenshi'));
+  const primaryKey = tenshiIdx === 0 ? 'trigger_root' : 'trigger_trigger_tenshi';
+  const prevConfigs = nodes.canvasLayout?.nodeConfigs || {};
+  const existingCfg: CanvasNodeConfig = {
+    ...(prevConfigs.trigger_tenshi || {}),
+    ...(prevConfigs.trigger_trigger_tenshi || {}),
+    ...(tenshiIdx === 0 ? prevConfigs.trigger_root || {} : {}),
+  };
+
+  const hasVoiceCommandKey = typeof existingCfg.voiceCommand === 'string';
+  const existingCmd = hasVoiceCommandKey ? existingCfg.voiceCommand!.trim() : '';
+  const existingArrFirst =
+    !hasVoiceCommandKey && Array.isArray((existingCfg as Record<string, any>).voiceCommands)
+      ? String(
+          ((existingCfg as Record<string, any>).voiceCommands as any[]).find(
+            (v) => typeof v === 'string' && v.trim(),
+          ) || '',
+        ).trim()
+      : '';
+  const effectiveCurrent = existingCmd || existingArrFirst;
+
+  const matchesPreviousAuto =
+    options?.syncIfMatches !== undefined && effectiveCurrent === options.syncIfMatches;
+  const shouldSync = !effectiveCurrent || matchesPreviousAuto;
+
+  if (!shouldSync) return nodes;
+  if (!cleanName && !(options?.allowEmptyOnMatch && matchesPreviousAuto)) {
+    return nodes;
+  }
+
+  const nextTenshiCfg: CanvasNodeConfig = {
+    ...existingCfg,
+    triggerChannel: existingCfg.triggerChannel || 'both',
+    voiceCommand: cleanName,
+  };
+
+  const nextConfigs: Record<string, CanvasNodeConfig> = {
+    ...prevConfigs,
+    [primaryKey]: nextTenshiCfg,
+    trigger_tenshi: nextTenshiCfg,
+  };
+  if (primaryKey === 'trigger_root' && prevConfigs.trigger_trigger_tenshi) {
+    nextConfigs.trigger_trigger_tenshi = nextTenshiCfg;
+  }
+
+  return {
+    ...nodes,
+    canvasLayout: {
+      ...(nodes.canvasLayout || {}),
+      nodeConfigs: nextConfigs,
+    },
+  };
 };
 
 interface AutomatizacionesProps {
@@ -330,11 +435,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const [formSaveAsSystemPreset, setFormSaveAsSystemPreset] = useState(false);
   const [formWorkflowNodes, setFormWorkflowNodes] = useState<WorkflowNodesConfig>({
     trigger: 'schedule_cron',
+    triggers: ['schedule_cron', 'trigger_tenshi'],
     inputs: ['somos_sst_empresa'],
     hitos: ['hito1_diagnostico_0312'],
     outputs: ['email_report'],
   });
+  const lastAutoSyncedFlowNameRef = useRef<string>('');
   const [activeNodeBuilderTab, setActiveNodeBuilderTab] = useState<'trigger' | 'inputs' | 'hitos' | 'outputs'>('inputs');
+
+  const handleFormNameChange = useCallback((nextName: string) => {
+    setFormName(nextName);
+    const prevClean = lastAutoSyncedFlowNameRef.current;
+    const nextClean = getCleanFlowName(nextName);
+    setFormWorkflowNodes((prev) =>
+      applyDefaultTenshiVoiceCommand(prev, nextName, {
+        syncIfMatches: prevClean,
+        allowEmptyOnMatch: true,
+      }),
+    );
+    lastAutoSyncedFlowNameRef.current = nextClean;
+  }, []);
 
   // Dropdown open states
   const [isAgentOpen, setIsAgentOpen] = useState(false);
@@ -378,7 +498,15 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const mapCatalogPresetsToAutomations = useCallback(
     (disabledList: string[]): Automation[] =>
       WORKFLOW_PRESETS.map((p) => {
-        const sanitizedNodes = sanitizeWorkflowNodesForActiveUse(p.workflowNodes, disabledList);
+        const baseSanitized = sanitizeWorkflowNodesForActiveUse(p.workflowNodes, disabledList);
+        const normalizedTrigs = normalizeTriggersList(baseSanitized);
+        const withTenshiTrigger: WorkflowNodesConfig = normalizedTrigs.includes('trigger_tenshi')
+          ? baseSanitized
+          : {
+              ...baseSanitized,
+              triggers: [...normalizedTrigs, 'trigger_tenshi'],
+            };
+        const sanitizedNodes = applyDefaultTenshiVoiceCommand(withTenshiTrigger, p.name);
         return {
           _id: p.presetKey,
           name: p.name,
@@ -750,6 +878,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         p.agentName,
         p.presetCategory,
         catObj?.label,
+        getTenshiVoiceCommand(p),
       ]
         .map(normalizeText)
         .join(' ');
@@ -836,6 +965,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory('salud_vencimientos');
     setFormPresetDescription('');
     setFormSaveAsSystemPreset(false);
+    lastAutoSyncedFlowNameRef.current = '';
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
@@ -848,7 +978,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       inputs: ['somos_sst_empresa'],
       hitos: ['hito1_diagnostico_0312'],
       outputs: ['email_report', 'wappy_notification'],
-      canvasLayout: null,
+      canvasLayout: {
+        nodeConfigs: {
+          trigger_tenshi: { triggerChannel: 'both', voiceCommand: '' },
+          trigger_trigger_tenshi: { triggerChannel: 'both', voiceCommand: '' },
+        },
+      },
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -878,6 +1013,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory('salud_vencimientos');
     setFormPresetDescription('');
     setFormSaveAsSystemPreset(true);
+    lastAutoSyncedFlowNameRef.current = '';
     setFormWorkflowNodes({
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
@@ -890,7 +1026,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       inputs: ['google_drive', 'somos_sst_empresa'],
       hitos: ['hito2_perfil_socio'],
       outputs: ['somos_sst_update', 'email_report', 'wappy_notification'],
-      canvasLayout: null,
+      canvasLayout: {
+        nodeConfigs: {
+          trigger_tenshi: { triggerChannel: 'both', voiceCommand: '' },
+          trigger_trigger_tenshi: { triggerChannel: 'both', voiceCommand: '' },
+        },
+      },
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -921,6 +1062,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     setFormPresetCategory('salud_vencimientos');
     setFormPresetDescription('');
     setFormSaveAsSystemPreset(false);
+    lastAutoSyncedFlowNameRef.current = '';
     setFormWorkflowNodes({
       trigger: 'trigger_tenshi',
       triggers: ['trigger_tenshi'],
@@ -933,7 +1075,12 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       inputs: ['somos_sst_empresa'],
       hitos: [],
       outputs: ['wappy_notification'],
-      canvasLayout: null,
+      canvasLayout: {
+        nodeConfigs: {
+          trigger_root: { triggerChannel: 'both', voiceCommand: '' },
+          trigger_tenshi: { triggerChannel: 'both', voiceCommand: '' },
+        },
+      },
     });
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -995,20 +1142,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       automation.workflowNodes,
       disabledSgsstApps,
     );
+    lastAutoSyncedFlowNameRef.current = getCleanFlowName(automation.name);
     if (resolvedIsTenshi) {
       const existingTriggers = Array.isArray(sanitizedEditNodes.triggers)
         ? sanitizedEditNodes.triggers
         : [];
       const resolvedTriggers =
         existingTriggers.length > 0 ? existingTriggers : ['trigger_tenshi'];
-      setFormWorkflowNodes({
-        ...sanitizedEditNodes,
-        trigger: sanitizedEditNodes.trigger || resolvedTriggers[0] || 'trigger_tenshi',
-        triggers: resolvedTriggers,
-        aiModel: sanitizedEditNodes.aiModel || 'gemini-3.6-flash',
-      });
+      setFormWorkflowNodes(
+        applyDefaultTenshiVoiceCommand(
+          {
+            ...sanitizedEditNodes,
+            trigger: sanitizedEditNodes.trigger || resolvedTriggers[0] || 'trigger_tenshi',
+            triggers: resolvedTriggers,
+            aiModel: sanitizedEditNodes.aiModel || 'gemini-3.6-flash',
+          },
+          automation.name,
+        ),
+      );
     } else {
-      setFormWorkflowNodes(sanitizedEditNodes);
+      setFormWorkflowNodes(applyDefaultTenshiVoiceCommand(sanitizedEditNodes, automation.name));
     }
     setActiveNodeBuilderTab('inputs');
     setIsAgentOpen(false);
@@ -1057,6 +1210,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       preset.workflowNodes,
       disabledSgsstApps,
     );
+    lastAutoSyncedFlowNameRef.current = getCleanFlowName(preset.name);
     if (keepTenshiMode) {
       const existingTriggers = Array.isArray(sanitizedPresetNodes.triggers)
         ? sanitizedPresetNodes.triggers
@@ -1065,23 +1219,29 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       const tenshiTriggers = withoutCron.includes('trigger_tenshi')
         ? withoutCron
         : ['trigger_tenshi', ...withoutCron];
-      setFormWorkflowNodes({
-        ...sanitizedPresetNodes,
-        trigger: 'trigger_tenshi',
-        triggers: tenshiTriggers,
-        aiModel: sanitizedPresetNodes.aiModel || 'gemini-3.6-flash',
-        memories:
-          Array.isArray(sanitizedPresetNodes.memories) && sanitizedPresetNodes.memories.length > 0
-            ? sanitizedPresetNodes.memories
-            : ['wappy_memory_company'],
-        includeIfNode: Boolean(sanitizedPresetNodes.includeIfNode),
-        outputs:
-          Array.isArray(sanitizedPresetNodes.outputs) && sanitizedPresetNodes.outputs.length > 0
-            ? sanitizedPresetNodes.outputs
-            : ['wappy_notification'],
-      });
+      setFormWorkflowNodes(
+        applyDefaultTenshiVoiceCommand(
+          {
+            ...sanitizedPresetNodes,
+            trigger: 'trigger_tenshi',
+            triggers: tenshiTriggers,
+            aiModel: sanitizedPresetNodes.aiModel || 'gemini-3.6-flash',
+            memories:
+              Array.isArray(sanitizedPresetNodes.memories) &&
+              sanitizedPresetNodes.memories.length > 0
+                ? sanitizedPresetNodes.memories
+                : ['wappy_memory_company'],
+            includeIfNode: Boolean(sanitizedPresetNodes.includeIfNode),
+            outputs:
+              Array.isArray(sanitizedPresetNodes.outputs) && sanitizedPresetNodes.outputs.length > 0
+                ? sanitizedPresetNodes.outputs
+                : ['wappy_notification'],
+          },
+          preset.name,
+        ),
+      );
     } else {
-      setFormWorkflowNodes(sanitizedPresetNodes);
+      setFormWorkflowNodes(applyDefaultTenshiVoiceCommand(sanitizedPresetNodes, preset.name));
     }
     setActiveNodeBuilderTab('inputs');
     setIsModalOpen(true);
@@ -1091,9 +1251,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   const handleInstallPreset = async (preset: Automation) => {
     setActionLoadingId(preset._id);
     try {
-      const sanitizedNodes = sanitizeWorkflowNodesForActiveUse(
-        preset.workflowNodes,
-        disabledSgsstApps,
+      const sanitizedNodes = applyDefaultTenshiVoiceCommand(
+        sanitizeWorkflowNodesForActiveUse(preset.workflowNodes, disabledSgsstApps),
+        preset.name,
       );
       const res = await axios.post(`/api/sgsst/automatizaciones/presets/${preset._id}/install`, {
         activateImmediately: false,
@@ -1182,13 +1342,16 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     const selectedAgent = agents.find(a => a.id === formAgentId);
     const agentName = selectedAgent ? selectedAgent.name : 'Consultor SG-SST';
 
+    // Garantizar que si `trigger_tenshi` está activo sin comando personalizado, persista el nombre limpio del flujo
+    const finalWorkflowNodes = applyDefaultTenshiVoiceCommand(formWorkflowNodes, formName.trim());
+
     // Si el prompt está vacío o el usuario editó nodos directamente en el lienzo, autogenerarlo
     const finalPrompt =
       formPrompt.trim() ||
       buildPromptFromWorkflowNodes(
         formName.trim() || 'Flujo Automatizado SG-SST',
         agentName,
-        formWorkflowNodes,
+        finalWorkflowNodes,
       );
     if (!formPrompt.trim()) {
       setFormPrompt(finalPrompt);
@@ -1217,7 +1380,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       emails,
       presetCategory: formPresetCategory,
       presetDescription: formPresetDescription.trim(),
-      workflowNodes: formWorkflowNodes,
+      workflowNodes: finalWorkflowNodes,
       saveAsSystemPreset: isAdmin && !isTenshiModalMode && formSaveAsSystemPreset,
     };
 
@@ -1571,14 +1734,19 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
     }
   };
 
-  const renderWorkflowPipeline = (nodes?: WorkflowNodesConfig, agentLabel?: string) => {
+  const renderWorkflowPipeline = (
+    nodes?: WorkflowNodesConfig,
+    agentLabel?: string,
+    flowName?: string,
+  ) => {
     const safeNodes = sanitizeWorkflowNodesForActiveUse(nodes, disabledSgsstApps);
 
     return (
-      <div className="mb-3.5">
+      <div className="mb-3.5 min-w-0">
         <WappyWorkflowCanvas
           workflowNodes={safeNodes}
           agentName={agentLabel || 'Consultor SG-SST'}
+          flowName={flowName || ''}
           companyId={activeCompanyId}
           isAdmin={isAdmin}
           readOnly={true}
@@ -1589,7 +1757,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto pb-12">
+    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto overflow-x-hidden min-w-0 pb-12">
       {/* Upper header - Estilo ACPM */}
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${hideMainHeader ? 'py-3.5 px-6' : ''}`}>
         {!hideMainHeader ? (
@@ -1974,11 +2142,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {automations.map((auto) => (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
+              {automations.map((auto) => {
+                const autoHasTenshi = hasTenshiTrigger(auto.workflowNodes);
+                const autoTenshiCmd = autoHasTenshi ? getTenshiVoiceCommandInfo(auto) : null;
+                return (
                 <div 
                   key={auto._id}
-                  className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-purple-300 dark:hover:border-purple-900/50 rounded-2xl shadow-sm transition-all duration-300 p-5 group relative"
+                  className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-purple-300 dark:hover:border-purple-900/50 rounded-2xl shadow-sm transition-all duration-300 p-5 group relative min-w-0"
                 >
                   {/* Status Switch Indicator */}
                   <div className="absolute top-5 right-5 flex items-center gap-2">
@@ -2001,24 +2172,41 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </div>
 
                   {/* Title */}
-                  <div className="flex items-start gap-3 pr-12 mb-3">
-                    <div className="p-2.5 bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 rounded-xl mt-0.5">
+                  <div className="flex items-start gap-3 pr-12 mb-3 min-w-0">
+                    <div className="p-2.5 bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 rounded-xl mt-0.5 shrink-0">
                       <Bot className="w-5 h-5" />
                     </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <h3 className="font-extrabold text-gray-900 dark:text-white group-hover:text-purple-600 transition duration-200 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                        <h3 className="font-extrabold text-gray-900 dark:text-white group-hover:text-purple-600 transition duration-200 text-sm break-words">
                           {auto.name}
                         </h3>
                         {auto.presetKey && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-[9px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shrink-0">
                             <Sparkles className="w-2.5 h-2.5" /> Flujo WAPPY
                           </span>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5">
+                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5 truncate">
                         Asignado a: {auto.agentName}
                       </p>
+                      {autoHasTenshi && autoTenshiCmd?.command && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-[10px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 max-w-full min-w-0"
+                            title={
+                              autoTenshiCmd.isDefault
+                                ? `Comando Tenshi por defecto (nombre del flujo): "${autoTenshiCmd.command}"`
+                                : `Comando configurado en Tenshi IA: "${autoTenshiCmd.command}"`
+                            }
+                          >
+                            <Mic className="w-3 h-3 shrink-0" />
+                            <span className="truncate">
+                              Tenshi: &ldquo;{autoTenshiCmd.command}&rdquo;
+                            </span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2038,7 +2226,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         : 'Haz clic para abrir el flujo, editar nodos o ver su histórico real'
                     }
                   >
-                    {renderWorkflowPipeline(auto.workflowNodes, auto.agentName)}
+                    {renderWorkflowPipeline(auto.workflowNodes, auto.agentName, auto.name)}
                   </div>
 
                   {/* Prompt Details */}
@@ -2259,29 +2447,30 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )
         ) : activeTab === 'presets' ? (
           /* System Presets (WAPPY Flows Catalog) Tab */
-          <div>
+          <div className="min-w-0">
             {/* Banner informativo */}
-            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-teal-900/90 via-slate-900 to-indigo-950 text-white border border-teal-500/30 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5">
+            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-teal-900/90 via-slate-900 to-indigo-950 text-white border border-teal-500/30 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 min-w-0">
+              <div className="flex items-start gap-3.5 min-w-0">
                 <div className="p-3 rounded-2xl bg-teal-500/20 border border-teal-400/30 text-teal-300 shrink-0">
                   <Workflow className="w-6 h-6" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-extrabold tracking-tight text-white">
                       Catálogo Oficial de Tareas Preestablecidas & Flujos WAPPY
                     </h3>
-                    <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full bg-[#C7F303] text-[#0E1300]">
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-xl bg-[#C7F303] text-[#0E1300]">
                       Disponible para todos los usuarios
                     </span>
                   </div>
                   <p className="text-xs text-teal-100/90 mt-1 max-w-3xl leading-relaxed">
-                    Flujos autónomos preconfigurados que encadenan <strong>Google Workspace (Drive, Calendar, Gmail)</strong>, <strong>NotebookLM</strong>, <strong>Google Flow</strong>, <strong>Google Antigravity</strong>, <strong>OpenWeather / PubChem / MedlinePlus</strong>, <strong>Búsqueda Web Legal</strong> y los <strong>7 Hitos + 20 Aplicativos de Somos SST</strong>. Instálalos en 1 clic o personaliza sus nodos.
+                    Flujos autónomos preconfigurados con <strong>Disparador Tenshi IA (voz y chat)</strong> y reloj programado que encadenan <strong>Google Workspace (Drive, Calendar, Gmail)</strong>, <strong>NotebookLM</strong>, <strong>Google Flow</strong>, <strong>Google Antigravity</strong>, <strong>OpenWeather / PubChem / MedlinePlus</strong>, <strong>Búsqueda Web Legal</strong> y los <strong>8 Hitos de Somos SST</strong>. Instálalos en 1 clic o personaliza sus nodos.
                   </p>
                 </div>
               </div>
@@ -2384,27 +2573,31 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
                 {filteredPresets.map((preset) => {
                   const alreadyInstalled = automations.some(
                     (a) => (preset.presetKey && a.presetKey === preset.presetKey) || a.name === preset.name
                   );
                   const catObj = PRESET_CATEGORIES.find((c) => c.id === preset.presetCategory);
                   const usesIfRouter = Boolean(preset.workflowNodes?.includeIfNode);
+                  const presetHasTenshi = hasTenshiTrigger(preset.workflowNodes);
+                  const presetTenshiCmd = presetHasTenshi
+                    ? getTenshiVoiceCommandInfo(preset)
+                    : null;
                   return (
                     <div
                       key={preset._id}
-                      className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-teal-400 dark:hover:border-teal-700 rounded-2xl shadow-sm transition-all duration-300 p-5 relative"
+                      className="flex flex-col bg-white dark:bg-gray-900 border border-border-medium/30 hover:border-teal-400 dark:hover:border-teal-700 rounded-2xl shadow-sm transition-all duration-300 p-5 relative min-w-0"
                     >
                       {/* Top category badge, routing mode badge & admin actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
                             <span>{catObj?.icon || '⚡'}</span>
                             <span>{catObj?.label || 'Flujo Oficial SG-SST'}</span>
                           </span>
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-tight border ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-extrabold tracking-tight border ${
                               usesIfRouter
                                 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/80'
                                 : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800/80'
@@ -2419,9 +2612,9 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                             {alreadyInstalled && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircle className="w-3 h-3" /> En Mis Tareas
                               </span>
                             )}
@@ -2450,29 +2643,47 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                           </div>
                         </div>
 
+                        {presetHasTenshi && presetTenshiCmd?.command && (
+                          <div className="mb-2.5 flex items-center min-w-0">
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 max-w-full min-w-0"
+                              title={
+                                presetTenshiCmd.isDefault
+                                  ? `Comando Tenshi por defecto (nombre del flujo): "${presetTenshiCmd.command}"`
+                                  : `Comando configurado en trigger_tenshi: "${presetTenshiCmd.command}"`
+                              }
+                            >
+                              <Mic className="w-3 h-3 shrink-0" />
+                              <span className="truncate">
+                                Tenshi: &ldquo;{presetTenshiCmd.command}&rdquo;
+                              </span>
+                            </span>
+                          </div>
+                        )}
+
                         {/* Title & Agent */}
-                        <div className="flex items-start gap-3 mb-2.5">
+                        <div className="flex items-start gap-3 mb-2.5 min-w-0">
                           <div className="p-2.5 bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 rounded-xl mt-0.5 shrink-0">
                             <Layers className="w-5 h-5" />
                           </div>
-                          <div>
-                            <h3 className="font-extrabold text-gray-900 dark:text-white text-sm leading-snug">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-extrabold text-gray-900 dark:text-white text-sm leading-snug break-words">
                               {preset.name}
                             </h3>
-                            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mt-0.5">
+                            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mt-0.5 truncate">
                               Agente Especialista: {preset.agentName} • {formatScheduleText(preset)}
                             </p>
                           </div>
                         </div>
 
                         {preset.presetDescription && (
-                          <p className="text-xs text-gray-600 dark:text-gray-300 mb-3 leading-relaxed">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mb-3 leading-relaxed break-words">
                             {preset.presetDescription}
                           </p>
                         )}
 
                         {/* Visual Workflow Pipeline */}
-                        {renderWorkflowPipeline(preset.workflowNodes, preset.agentName)}
+                        {renderWorkflowPipeline(preset.workflowNodes, preset.agentName, preset.name)}
 
                         {/* Prompt preview */}
                         <div className="bg-surface-secondary/20 dark:bg-gray-800/40 rounded-xl p-3 mb-4 flex-1">
@@ -2536,18 +2747,36 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   <div className="p-3 rounded-2xl bg-[#C7F303]/15 border border-[#C7F303]/40 text-[#C7F303] shrink-0">
                     <Zap className="w-6 h-6" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-white">
                         Flujos Internos de Tenshi (Parte no visible para usuarios)
                       </h3>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-xl bg-emerald-500/20 text-emerald-200 border border-emerald-400/40">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Activos automáticamente para todos los usuarios
+                      </span>
                       <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-xl bg-[#C7F303] text-[#0E1300]">
                         Exclusivo Admin • Aislado por Empresa
                       </span>
                     </div>
-                    <p className="text-xs text-slate-200/90 mt-1.5 max-w-3xl leading-relaxed">
-                      Los creas aquí como Administrador, quedan disponibles globalmente para todos los usuarios al hablarle o chatear con Tenshi, y cada ejecución se procesa y registra estrictamente bajo la empresa (<code className="px-1 py-0.5 rounded bg-white/10 text-[#C7F303] font-mono text-[10px]">companyId</code>) activa de quien la solicita.
+                    <p className="text-xs text-slate-200/90 max-w-3xl leading-relaxed">
+                      Los creas o ajustas aquí como Administrador (OSINT / Portales Oficiales + Somos SST) y quedan disponibles al instante al hablarle o chatear con Tenshi.
                     </p>
+                    <div className="flex items-start gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/95 max-w-3xl min-w-0">
+                      <ShieldCheck className="w-4 h-4 text-[#C7F303] shrink-0 mt-0.5" />
+                      <span className="leading-relaxed break-words">
+                        <strong>Activación global automática:</strong> Estos flujos internos están{' '}
+                        <strong className="text-[#C7F303]">
+                          activos automáticamente para todos los usuarios
+                        </strong>{' '}
+                        sin requerir instalación manual. Cada empresa ejecuta y guarda resultados estrictamente sobre sus propios datos aislados de Somos SST (
+                        <code className="px-1 py-0.5 rounded bg-white/10 text-[#C7F303] font-mono text-[10px]">
+                          companyId
+                        </code>
+                        ).
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -2673,13 +2902,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
                 {filteredTenshiFlows.map((flow) => {
                   const isFlowActive =
                     flow.isActive !== undefined
                       ? Boolean(flow.isActive)
                       : flow.status === 'active';
-                  const voiceCommand = getTenshiVoiceCommand(flow);
+                  const tenshiCmdInfo = getTenshiVoiceCommandInfo(flow);
+                  const voiceCommand = tenshiCmdInfo.command || getCleanFlowName(flow.name);
                   const isRowBusy = actionLoadingId === flow._id;
 
                   return (
@@ -2709,18 +2939,20 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         </span>
 
                         <span
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 max-w-full truncate"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 max-w-full min-w-0"
                           title={
                             voiceCommand
-                              ? `Comando configurado en trigger_tenshi: "${voiceCommand}"`
+                              ? tenshiCmdInfo.isDefault
+                                ? `Comando Tenshi por defecto (nombre del flujo): "${voiceCommand}"`
+                                : `Comando configurado en trigger_tenshi: "${voiceCommand}"`
                               : 'Se dispara al hablar o chatear con Tenshi'
                           }
                         >
                           <Mic className="w-3 h-3 shrink-0" />
                           <span className="truncate">
                             {voiceCommand
-                              ? `🎙️ "${voiceCommand}"`
-                              : '🎙️ Voz / Chat con Tenshi'}
+                              ? `Tenshi: "${voiceCommand}"`
+                              : 'Voz / Chat con Tenshi'}
                           </span>
                         </span>
                       </div>
@@ -2748,7 +2980,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       )}
 
                       {/* Vista previa del diagrama */}
-                      {renderWorkflowPipeline(flow.workflowNodes, flow.agentName)}
+                      {renderWorkflowPipeline(flow.workflowNodes, flow.agentName, flow.name)}
 
                       {/* Vista previa del Prompt Maestro (solo visible aquí para Admin) */}
                       <div className="bg-surface-secondary/20 dark:bg-gray-800/40 border border-purple-500/15 rounded-xl p-3 mb-4 flex-1 min-w-0">
@@ -3263,7 +3495,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                         : 'ej. Vigilancia Drive -> Registro ATEL e Inspecciones'
                     }
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => handleFormNameChange(e.target.value)}
                     className="w-full px-3.5 py-2 text-sm font-semibold bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
@@ -3331,6 +3563,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               <WappyWorkflowCanvas
                 workflowNodes={formWorkflowNodes}
                 onChange={setFormWorkflowNodes}
+                flowName={formName}
                 automationId={
                   isPresetModalMode || isTenshiModalMode ? null : editingAutomation?._id || null
                 }
@@ -3388,8 +3621,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300">
                   <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold">
                     {isTenshiModalMode
-                      ? '💡 Haz clic en el nodo Disparador Tenshi para configurar el voiceCommand, y prueba tu flujo en Sandbox antes de activarlo'
-                      : '💡 Haz clic en cualquier nodo del lienzo (Cron, Agente IA, Hito SST, Gmail) para abrir su editor propio'}
+                      ? '💡 Haz clic en el nodo Disparador Tenshi para personalizar el comando (por defecto usa el nombre del flujo), y prueba tu flujo en Sandbox'
+                      : '💡 Haz clic en cualquier nodo del lienzo (Cron, Tenshi IA, Agente IA, Hito SST, Gmail) para abrir su editor propio'}
                   </span>
                 </div>
 

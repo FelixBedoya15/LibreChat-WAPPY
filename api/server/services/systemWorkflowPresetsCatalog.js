@@ -10,7 +10,13 @@
  * - Textos visibles en español técnico impecable (cero variables internas de código en nombres, descripciones o prompts)
  */
 
-const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.13-v60-n8n-curated-30';
+const SYSTEM_WORKFLOW_PRESETS_VERSION = '2026.11.18-v61-n8n-curated-30';
+
+function stripPresetLeadingEmoji(rawName = '') {
+  return String(rawName || '')
+    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')
+    .trim();
+}
 
 function buildHitoDualConfigs(hitoId, config) {
   return {
@@ -238,9 +244,9 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
   {
     presetKey: 'preset_vencimientos_emo_alturas',
     presetCategory: 'salud_vencimientos',
-    name: '🩺 Vigilancia de Exámenes Médicos (EMO) y Certificados de Alturas por Vencer',
+    name: '🩺 Vigilancia de Exámenes Médicos Ocupacionales (EMO) por Vencer',
     presetDescription:
-      'Revisa de lunes a viernes en Perfil Sociodemográfico (Hito 2) los trabajadores activos con Exámenes Médicos Ocupacionales (Resolución 1843 de 2025) vencidos o próximos a vencer en 30 días o menos, así como certificados anuales de Trabajo Seguro en Alturas (Resolución 4272 de 2021) exclusivamente cuando al cargo sí le aplica. Cruza restricciones activas en Informe de Condiciones de Salud (Hito 2) y, si hay brechas nuevas, agenda seguimiento en Google Calendar, crea acción en el Centro de Control ACPM y envía Bitácora por Correo; si todo está al día, registra notificación limpia en WAPPY sin consumir tokens de IA.',
+      'Revisa de lunes a viernes en Perfil Sociodemográfico (Hito 2) los trabajadores activos con Exámenes Médicos Ocupacionales (Resolución 1843 de 2025) vencidos, sin soporte o próximos a vencer en 30 días o menos. Cruza restricciones activas en Informe de Condiciones de Salud (Hito 2) y, si hay brechas nuevas, agenda citaciones en Google Calendar, crea acción en el Centro de Control ACPM y envía Bitácora por Correo; si todo está al día, registra notificación limpia en WAPPY sin consumir tokens de IA.',
     agentTargetName: 'Médico Laboral',
     agentName: 'Médico Laboral',
     scheduleType: 'daily',
@@ -274,7 +280,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             recordFilterMode: 'expiry_only',
-            expiryAuditScope: ['emo', 'alturas'],
+            expiryAuditScope: ['emo'],
             includeLatestReport: false,
             selectedFields: [
               'Nombre Completo',
@@ -286,31 +292,28 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
               'fechaExamenMedico',
               'vencimientoExamenMedico',
               'estadoExamenMedicoEMO',
-              'aplicaCursoAlturas',
-              'estadoCursoAlturasAutorizado',
-              'estadoCursoAlturasCoordinador',
               'motivosVencimientoDetectados',
             ],
             customInstruction:
-              'Filtra en Perfil Sociodemográfico (Hito 2) únicamente colaboradores activos con Exámenes Médicos Ocupacionales vencidos, sin soporte o próximos a vencer en 30 días o menos (Resolución 1843 de 2025), y certificados anuales de Trabajo Seguro en Alturas (Resolución 4272 de 2021) vencidos o próximos a vencer exclusivamente para trabajadores a quienes sí les aplica.',
+              'Filtra en Perfil Sociodemográfico (Hito 2) únicamente colaboradores activos con Exámenes Médicos Ocupacionales vencidos, sin soporte o próximos a vencer en 30 días o menos conforme a la Resolución 1843 de 2025.',
           }),
           ...buildHitoDualConfigs('hito2_condiciones_salud', {
             hitoRole: 'agent_tool',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
             customInstruction:
-              'Consulta en Informe de Condiciones de Salud (Hito 2) las restricciones laborales vigentes y recomendaciones médico-ocupacionales de cada trabajador detectado con vencimiento próximo.',
+              'Consulta en Informe de Condiciones de Salud (Hito 2) las restricciones laborales vigentes y recomendaciones médico-ocupacionales de cada trabajador detectado con examen médico vencido o próximo a vencer.',
           }),
           sub_memory_wappy_memory_antiduplicate: {
             dedupWindow: '7d',
           },
           if_router: {
             ifPlacement: 'pre_agent',
-            ifConditionLabel: '¿EMO o Alturas <= 30d?',
+            ifConditionLabel: '¿Exámenes EMO vencidos o <= 30d?',
             ifConditionType: 'critical_findings',
             ifRuleExpression: 'vencido, próximo a vencer, sin soporte',
             customInstruction:
-              'Evalúa antes de invocar al Agente IA si existen trabajadores activos con Exámenes Médicos Ocupacionales o Certificados de Trabajo en Alturas vencidos o próximos a vencer en 30 días o menos que no hayan sido alertados en los últimos 7 días.',
+              'Evalúa antes de invocar al Agente IA si existen trabajadores activos con Exámenes Médicos Ocupacionales (EMO) vencidos, sin soporte o próximos a vencer en 30 días o menos que no hayan sido alertados en los últimos 7 días.',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_google_calendar: { ifBranch: 'yes' },
@@ -321,7 +324,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Médico Laboral especialista en Seguridad y Salud en el Trabajo en Colombia. Analiza exclusivamente los colaboradores activos con vencimientos o brechas nuevas detectadas en Perfil Sociodemográfico (Hito 2) y utiliza tu herramienta conectada Informe de Condiciones de Salud (Hito 2) para verificar si cada trabajador presenta restricciones médicas o recomendaciones ocupacionales vigentes, protegiendo en todo momento la reserva de la historia clínica.\n\nEstructura tu dictamen ejecutivo en dos bloques exactos:\n1) Exámenes Médicos Ocupacionales (Resolución 1843 de 2025): tabla nominal con Nombre Completo, Cédula, Cargo, Área, Fecha de Último Examen, Fecha de Vencimiento, Restricciones o Recomendaciones Vigentes y fecha límite de programación con la IPS ocupacional.\n2) Certificados y Reentrenamiento Anual de Trabajo Seguro en Alturas (Resolución 4272 de 2021): tabla nominal incluyendo únicamente a los trabajadores a quienes sí les aplica trabajo en alturas (jamás reportes incumplimiento cuando la tarea en alturas no aplica al cargo), detallando nivel (Autorizado o Coordinador), vigencia y suspensión preventiva de ascenso si el certificado ya venció.\n\nCierra con el cronograma consolidado de citaciones para Google Calendar, las acciones correctivas y preventivas para el Centro de Control ACPM y el resumen gerencial para la Bitácora por Correo.',
+      'Actúa como Médico Laboral especialista en Seguridad y Salud en el Trabajo en Colombia conforme a la Resolución 1843 de 2025. Analiza exclusivamente los colaboradores activos con Exámenes Médicos Ocupacionales (EMO) vencidos, sin soporte o próximos a vencer detectados en Perfil Sociodemográfico (Hito 2) y utiliza tu herramienta conectada Informe de Condiciones de Salud (Hito 2) para verificar si cada trabajador presenta restricciones médicas o recomendaciones ocupacionales vigentes, protegiendo en todo momento la reserva de la historia clínica.\n\nEstructura tu dictamen ejecutivo con precisión:\n1) Tabla nominal de Exámenes Médicos Ocupacionales (Resolución 1843 de 2025): Nombre Completo, Cédula, Cargo, Área, Fecha de Último Examen, Fecha de Vencimiento, Días Restantes o de Mora, Restricciones o Recomendaciones Vigentes y fecha límite sugerida de citación con la IPS ocupacional.\n2) Priorización clínica y operativa: separa los casos ya vencidos o sin soporte (atención inmediata) de los próximos a vencer dentro de los siguientes 30 días.\n3) Cierra con el cronograma consolidado de citaciones para Google Calendar, las acciones correctivas y preventivas para el Centro de Control ACPM y el resumen gerencial para la Bitácora por Correo.',
   },
 
   {
@@ -578,7 +581,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     cronExpression: '0 9 * * *',
     workflowNodes: {
       trigger: 'trigger_email_in',
-      triggers: ['trigger_email_in', 'schedule_cron'],
+      triggers: ['trigger_email_in', 'schedule_cron', 'trigger_tenshi'],
       extractors: ['extract_gmail', 'extract_ai_doc_ocr'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
@@ -795,7 +798,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     presetCategory: 'atel_inspecciones',
     name: '🚑 Procesar FURAT en Google Drive (PDF/OCR) y Abrir Investigación ATEL (Res. 1401)',
     presetDescription:
-      'Vigila diariamente la carpeta «Reportes FURAT ATEL» en Google Drive. Al detectar un formato FURAT nuevo, el Extractor IA de Documentos captura por OCR los datos del lesionado y del evento; el Investigador ATEL localiza centros médicos cercanos, estructura el expediente e informe oficial en Investigación ATEL (Hito 7) conforme a la Resolución 1401 de 2007 y solicita Aprobación SST antes de emitir las acciones en el Centro de Control ACPM, Editor en Vivo WAPPY y Bitácora por Correo.',
+      'Vigila diariamente la carpeta «Reportes FURAT ATEL» en Google Drive. Al detectar un formato FURAT nuevo, el Extractor IA de Documentos captura por OCR los datos del lesionado y del evento; el Investigador ATEL estructura el expediente, análisis causal (5 Porqués e Ishikawa) e informe oficial en Investigación ATEL (Hito 7) conforme a la Resolución 1401 de 2007 y solicita Aprobación SST antes de emitir las acciones en el Centro de Control ACPM, Editor en Vivo WAPPY y Bitácora por Correo.',
     agentTargetName: 'Investigador ATEL',
     agentName: 'Investigador ATEL',
     scheduleType: 'daily',
@@ -816,7 +819,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       aiModel: 'gemini-3.8-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: ['buscar_centros_emergencia'],
+      inputs: [],
       includeIfNode: true,
       hitos: ['hito7_investigacion_atel'],
       outputs: ['acpm_task', 'canvas_doc', 'email_report', 'wappy_notification'],
@@ -880,7 +883,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Investigador ATEL especialista en la Resolución 1401 de 2007 y el artículo 2.2.4.6.32 del Decreto 1072 de 2015. Analiza los formatos FURAT nuevos estructurados por el Extractor IA de Documentos desde la carpeta «Reportes FURAT ATEL» en Google Drive.\n\nPor cada accidente de trabajo reportado:\n1) Utiliza Centros de Emergencia (OpenStreetMap) para referenciar la red hospitalaria y de urgencias cercana al lugar del evento en el protocolo MEDEVAC.\n2) Registra el caso y genera el informe oficial en Investigación ATEL (Hito 7), desarrollando el análisis de causalidad mediante 5 Porqués y Espina de Pescado (causas inmediatas: actos y condiciones subestándar; causas básicas: factores personales y del trabajo) y controlando el plazo legal máximo de 15 días calendario para remitir a la ARL (y aviso en 2 días hábiles si el accidente es grave o mortal según el artículo 2.2.4.1.6).\n3) Prepara el expediente para Visto Bueno del equipo investigador (Aprobación SST), junto con las medidas en fuente, medio e individuo para el Centro de Control ACPM, el acta formal en el Editor en Vivo WAPPY y la notificación en la Bitácora por Correo.',
+      'Actúa como Investigador ATEL especialista en la Resolución 1401 de 2007 y el artículo 2.2.4.6.32 del Decreto 1072 de 2015. Analiza los formatos FURAT nuevos estructurados por el Extractor IA de Documentos desde la carpeta «Reportes FURAT ATEL» en Google Drive.\n\nPor cada accidente de trabajo reportado:\n1) Registra el caso y genera el informe oficial en Investigación ATEL (Hito 7), desarrollando el análisis de causalidad mediante 5 Porqués y Espina de Pescado (causas inmediatas: actos y condiciones subestándar; causas básicas: factores personales y del trabajo) y controlando el plazo legal máximo de 15 días calendario para remitir a la ARL (y aviso en 2 días hábiles si el accidente es grave o mortal según el artículo 2.2.4.1.6).\n2) Prepara el expediente para Visto Bueno del equipo investigador (Aprobación SST), junto con las medidas de intervención en fuente, medio e individuo para el Centro de Control ACPM, el acta formal en el Editor en Vivo WAPPY y la notificación en la Bitácora por Correo.',
   },
 
   {
@@ -1140,9 +1143,9 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
   {
     presetKey: 'preset_control_flota_pesv_documentos',
     presetCategory: 'riesgos_vial_quimico',
-    name: '🚗 Control Diario de SOAT, Técnico-Mecánica e Inspección Preoperacional PESV',
+    name: '🚗 Control Diario de SOAT, Técnico-Mecánica, Licencias e Inspección Preoperacional PESV',
     presetDescription:
-      'Audita de lunes a sábado a las 6:00 a. m. en Hoja de Vida Automotores PESV (Hito 5) los vehículos y motocicletas con SOAT o Revisión Técnico-Mecánica vencidos o próximos a vencer y hallazgos críticos en inspección preoperacional diaria. Si detecta novedades, el Coordinador de Seguridad Vial cruza la severidad en el Motor Matriz Vial PESV y el clima en ruta con OpenWeather para emitir restricción de despacho en el Centro de Control ACPM y Bitácora por Correo.',
+      'Audita de lunes a sábado a las 6:00 a. m. en Hoja de Vida Automotores PESV (Hito 5) los vehículos y motocicletas con SOAT, Revisión Técnico-Mecánica o licencia de conducción vencidos o próximos a vencer en 30 días o menos y fallas en la inspección preoperacional diaria. Si detecta novedades, el Coordinador de Seguridad Vial registra las órdenes de inmovilización preventiva o renovación en Tablero Kanban ACPM (Hito 7) y despacha alertas al Centro de Control ACPM y Bitácora por Correo.',
     agentTargetName: 'Coordinador de Seguridad Vial',
     agentName: 'Coordinador de Seguridad Vial',
     scheduleType: 'daily',
@@ -1163,9 +1166,9 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: ['matriz_pesv', 'pronostico_clima_sst'],
+      inputs: [],
       includeIfNode: true,
-      hitos: ['hito3_vehiculos'],
+      hitos: ['hito3_vehiculos', 'hito7_acpm'],
       outputs: ['acpm_task', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
@@ -1177,18 +1180,25 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             appActionMode: 'read_only',
             recordFilterMode: 'critical_only',
             customInstruction:
-              'Extrae desde Hoja de Vida Automotores PESV (Hito 5) únicamente los vehículos propios o contratistas con SOAT o Revisión Técnico-Mecánica vencidos o próximos a vencer en 30 días o menos, mantenimientos preventivos vencidos o fallas en la inspección preoperacional.',
+              'Extrae desde Hoja de Vida Automotores PESV (Hito 5) únicamente los vehículos propios o contratistas con SOAT, Revisión Técnico-Mecánica o licencia de conducción del conductor vencidos o próximos a vencer en 30 días o menos, mantenimientos preventivos vencidos o fallas en la inspección preoperacional.',
+          }),
+          ...buildHitoDualConfigs('hito7_acpm', {
+            hitoRole: 'agent_tool',
+            hitoOperationMode: 'write_register',
+            appActionMode: 'write_and_update',
+            customInstruction:
+              'Registra y actualiza en Tablero Kanban ACPM (Hito 7) las acciones de renovación de SOAT, Revisión Técnico-Mecánica, licencia de conducción o restricción preventiva de despacho vehicular.',
           }),
           sub_memory_wappy_memory_antiduplicate: {
             dedupWindow: '7d',
           },
           if_router: {
             ifPlacement: 'pre_agent',
-            ifConditionLabel: '¿Vehículos con brechas?',
+            ifConditionLabel: '¿SOAT, RTM, licencias o preoperacional en falla?',
             ifConditionType: 'critical_findings',
-            ifRuleExpression: 'soat vencido, tecnomecánica, falla preoperacional, fuera de servicio',
+            ifRuleExpression: 'soat vencido, tecnomecánica, licencia, falla preoperacional, fuera de servicio',
             customInstruction:
-              'Verifica antes de llamar al Agente IA si existen automotores con documentos legales vencidos o fallas preoperacionales abiertas en Hoja de Vida Automotores PESV (Hito 5).',
+              'Verifica antes de llamar al Agente IA si existen automotores con SOAT, Revisión Técnico-Mecánica o licencias vencidas o fallas preoperacionales abiertas en Hoja de Vida Automotores PESV (Hito 5).',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_email_report: { ifBranch: 'yes' },
@@ -1198,7 +1208,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Coordinador de Seguridad Vial conforme a la Resolución 20223040040595 de 2022 (Plan Estratégico de Seguridad Vial — PESV) y la norma ISO 39001. Analiza los vehículos con novedades documentales o mecánicas detectados en Hoja de Vida Automotores PESV (Hito 5).\n\n1) Cruza cada vehículo afectado con el Motor Matriz Vial PESV para ponderar la criticidad vial según el rol en la vía y tipo de desplazamiento.\n2) Consulta las condiciones meteorológicas operativas mediante OpenWeather Clima para reforzar recomendaciones preventivas en ruta (lluvia, baja visibilidad o piso húmedo).\n3) Entrega la tabla de control operativo por Placa (Tipo de Vehículo, Estado de SOAT, Estado de Revisión Técnico-Mecánica, Hallazgo Preoperacional y Decisión de Inmovilización Preventiva o Mantenimiento) para registrar en el Centro de Control ACPM y enviar en la Bitácora por Correo.',
+      'Actúa como Coordinador de Seguridad Vial conforme a la Resolución 20223040040595 de 2022 (Plan Estratégico de Seguridad Vial — PESV) y la norma ISO 39001. Analiza exclusivamente los vehículos con novedades documentales o mecánicas detectados en Hoja de Vida Automotores PESV (Hito 5).\n\n1) Entrega la tabla de control operativo por Placa detallando: Tipo de Vehículo, Conductor Asignado, Vigencia de SOAT, Vigencia de Revisión Técnico-Mecánica, Vigencia y Categoría de Licencia de Conducción, Hallazgo Preoperacional y Decisión de Inmovilización Preventiva o Renovación.\n2) Registra o actualiza en Tablero Kanban ACPM (Hito 7) las órdenes priorizadas de renovación documental, recertificación de licencia o mantenimiento correctivo en taller.\n3) Consolida el resumen diario de flota habilitada vs restringida para el Centro de Control ACPM y la Bitácora por Correo.',
   },
 
   {
@@ -1438,13 +1448,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     prompt:
       'Actúa como Director Ejecutivo SG-SST en cumplimiento del artículo 2.2.4.6.31 del Decreto 1072 de 2015 y el artículo 30 de la Resolución 0312 de 2019. Consolida los datos gerenciales del periodo extraídos desde Diagnóstico Inicial Estándares Mínimos Res. 0312 (Hito 1), Gestión Integral de Ausentismo y ATEL (Hito 7) y Tablero Kanban ACPM (Hito 7).\n\n1) Evalúa el desempeño integral en tres tableros ejecutivos: Cumplimiento de Estándares Mínimos por ciclo PHVA, Indicadores Mínimos de Siniestralidad y Ausentismo Laboral (frecuencia, severidad, lesiones incapacitantes y ausentismo por causa médica) y Tasa de Cierre Efectivo de Acciones Correctivas, Preventivas y de Mejora.\n2) Registra las conclusiones estratégicas, necesidades de recursos y genera el informe oficial en Revisión por la Alta Dirección (Hito 7).\n3) Entrega el Acta Ejecutiva Mensual lista para Visto Bueno de Gerencia, exportación formal en el Editor en Vivo WAPPY y distribución directiva en la Bitácora por Correo.',
   },
-  // 16. [salud_vencimientos] Scraping Mensual ARL y RUAF + Sociodemográfico (Hito 2) -> ACPM (Hito 7) + Sheets
+  // 16. [salud_vencimientos] Scraping Mensual ARL y RUAF + Sociodemográfico (Hito 2) -> ACPM (Hito 7)
   {
     presetKey: 'preset_scraping_arl_afiliacion_ruaf',
     name: '🛡️ Verificación Mensual de Afiliación ARL y Certificados vía Web Scraping',
     presetCategory: 'salud_vencimientos',
     presetDescription:
-      'Consulta automáticamente los portales oficiales de ARL y certificados de afiliación vía Web Scraping con Google Antigravity, consolida los resultados con la nómina activa del Perfil Sociodemográfico (Hito 2) y, únicamente cuando detecta trabajadores sin cobertura vigente o con novedad no reportada, invoca el Tablero Kanban ACPM (Hito 7) y Google Sheets para escalamiento operativo y Bitácora por Correo.',
+      'Consulta automáticamente los portales oficiales de ARL y certificados de afiliación vía Web Scraping con Google Antigravity, consolida los resultados con la nómina activa del Perfil Sociodemográfico (Hito 2) y, únicamente cuando detecta trabajadores sin cobertura vigente o con novedad no reportada, registra el plan de acción en Tablero Kanban ACPM (Hito 7) y despacha alertas en el Centro de Control ACPM y Bitácora por Correo.',
     agentTargetName: 'Médico Laboral',
     agentName: 'Médico Laboral',
     scheduleType: 'monthly',
@@ -1460,13 +1470,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     isSystemPreset: true,
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity'],
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_tenshi'],
       extractors: ['scraper_agy_arl_directo'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
-      inputs: ['google_sheets'],
+      inputs: [],
       includeIfNode: true,
       hitos: ['hito2_perfil_socio', 'hito7_acpm'],
       outputs: ['acpm_task', 'email_report', 'wappy_notification'],
@@ -1495,10 +1505,6 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             customInstruction:
               'Registra acciones correctivas y preventivas en Control de ACPM (Hito 7) para cada trabajador sin cobertura ARL vigente.',
           }),
-          ...buildInputDualConfigs('google_sheets', {
-            customInstruction:
-              'Consolida en Google Sheets la sábana mensual auditable con cédula, cargo, ARL consultada y estado de afiliación verificado.',
-          }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
@@ -1525,7 +1531,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Médico Laboral SG-SST bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015. Analiza únicamente las constancias reales extraídas de los portales ARL cruzadas contra la nómina activa del Perfil Sociodemográfico (Hito 2).\n\n1) Presenta una tabla ejecutiva con Trabajador, Cédula, Cargo, ARL consultada, Estado de Cobertura y Novedad Detectada sin inventar datos.\n2) Invoca la herramienta de Control de ACPM (Hito 7) para crear acciones correctivas urgentes ante cualquier cobertura inactiva o inconsistencia.\n3) Registra el consolidado mensual en Google Sheets y resume las acciones prioritarias para la Bitácora por Correo.',
+      'Actúa como Médico Laboral SG-SST bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015. Analiza únicamente las constancias reales extraídas de los portales ARL cruzadas contra la nómina activa del Perfil Sociodemográfico (Hito 2).\n\n1) Presenta una tabla ejecutiva con Trabajador, Cédula, Cargo, ARL consultada, Estado de Cobertura y Novedad Detectada sin inventar datos.\n2) Invoca la herramienta de Control de ACPM (Hito 7) para crear acciones correctivas urgentes ante cualquier cobertura inactiva o inconsistencia.\n3) Resume las acciones prioritarias de afiliación y soporte documental para el Centro de Control ACPM y la Bitácora por Correo.',
   },
   // 17. [salud_vencimientos] Campaña Preventiva Osteomuscular: Condiciones Salud (Hito 2) + OWAS (Hito 4) -> Estudio Puesto (Hito 4) + NotebookLM + Google Flow
   {
@@ -1647,7 +1653,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     isSystemPreset: true,
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity'],
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_tenshi'],
       extractors: ['extract_pc_folder', 'extract_ai_doc_ocr'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
@@ -1914,13 +1920,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     prompt:
       'Actúa como Coordinador de Capacitaciones SG-SST conforme al artículo 2.2.4.6.11 del Decreto 1072 de 2015. Procesa únicamente los procedimientos nuevos extraídos por el Extractor IA de Documentos.\n\n1) Invoca Google NotebookLM para generar el recurso de estudio tipo infografía dirigido a los cargos objetivo.\n2) Invoca Google Flow Studio en relación 1:1 para diseñar el afiche visual de divulgación operativa.\n3) Actualiza los contenidos y sesiones en Rutas de Aprendizaje LMS y Cronograma de Capacitaciones (Hito 6) y entrega el paquete didáctico en Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 20. [atel_inspecciones] Scraping Alturas/SENA + Equipos Alturas (Hito 5) -> Bloqueo ATS (Hito 5)
+  // 20. [atel_inspecciones] Scraping Alturas/SENA + Sociodemográfico (Hito 2) -> Bloqueo ATS (Hito 5)
   {
     presetKey: 'preset_scraping_alturas_sena_equipos',
-    name: '🪜 Validación de Certificados de Alturas y SENA con Equipos de Alturas y Bloqueo ATS',
+    name: '🪜 Validación de Certificados de Alturas en MinTrabajo y SENA con Bloqueo ATS',
     presetCategory: 'atel_inspecciones',
     presetDescription:
-      'Verifica semanalmente certificados de trabajo seguro en alturas y formación SENA mediante Web Scraping con Google Antigravity, los consolida con el Inventario y Vigencia de Equipos de Alturas (Hito 5) y, cuando detecta certificados o equipos próximos a vencer o en estado no apto, actualiza controles preventivos en Análisis de Trabajo Seguro ATS (Hito 5), crea tareas en Tablero Kanban ACPM, agenda recertificaciones en Google Calendar y notifica por Correo.',
+      'Verifica semanalmente certificados de trabajo seguro en alturas y formación SENA en el Registro del Ministerio del Trabajo mediante Web Scraping con Google Antigravity, cruzando las cédulas de trabajadores expuestos en Perfil Sociodemográfico (Hito 2). Cuando detecta certificados vencidos, sin registro o próximos a caducar, registra bloqueo preventivo en Análisis de Trabajo Seguro ATS (Hito 5), crea tareas en Tablero Kanban ACPM, agenda recertificaciones en Google Calendar y notifica por Correo.',
     agentTargetName: 'Coordinador de Tareas Críticas',
     agentName: 'Coordinador de Tareas Críticas',
     scheduleType: 'weekly',
@@ -1936,7 +1942,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     isSystemPreset: true,
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity'],
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_tenshi'],
       extractors: ['scraper_agy_alto_riesgo'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
@@ -1944,7 +1950,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       memories: ['wappy_memory_company', 'wappy_memory_antiduplicate'],
       inputs: [],
       includeIfNode: true,
-      hitos: ['hito5_equipos_alturas', 'hito3_ats'],
+      hitos: ['hito2_perfil_socio', 'hito3_ats'],
       outputs: ['acpm_task', 'google_calendar', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
@@ -1955,14 +1961,17 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             antigravityMode: 'auto',
             scriptEngine: 'chrome_mcp',
             customInstruction:
-              'Consulta los registros de certificación SENA y validaciones de trabajo en alturas en portales oficiales para el personal expuesto.',
+              'Consulta los registros de certificación en Ministerio del Trabajo y SENA para las cédulas del personal expuesto a Trabajo Seguro en Alturas (Resolución 4272 de 2021) y Espacios Confinados.',
           }),
-          ...buildHitoDualConfigs('hito5_equipos_alturas', {
+          ...buildHitoDualConfigs('hito2_perfil_socio', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
             appActionMode: 'read_only',
+            recordFilterMode: 'expiry_only',
+            expiryAuditScope: ['alturas'],
+            includeLatestReport: false,
             customInstruction:
-              'Extrae únicamente arneses, eslingas, líneas de vida y conectores con inspección anual vencida o defecto estructural desde Equipos de Alturas (Hito 5).',
+              'Extrae desde Perfil Sociodemográfico (Hito 2) las cédulas, cargos y fechas de certificación de alturas de los colaboradores activos a quienes sí les aplica trabajo en alturas.',
           }),
           ...buildHitoDualConfigs('hito3_ats', {
             hitoRole: 'agent_tool',
@@ -1970,18 +1979,18 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             appActionMode: 'write_and_report',
             generateAppReport: true,
             customInstruction:
-              'Registra restricciones de bloqueo preventivo para tareas críticas y emite el reporte de seguridad en Análisis de Trabajo Seguro ATS (Hito 5).',
+              'Registra restricciones de bloqueo preventivo para tareas críticas en alturas y emite el reporte de seguridad en Análisis de Trabajo Seguro ATS (Hito 5).',
           }),
           logic_merge_1: {
             mergeStrategy: 'append_all',
             customInstruction:
-              'Unifica los resultados de certificados de alturas SENA consultados vía Web Scraping con el inventario de Equipos de Alturas (Hito 5).',
+              'Unifica los resultados oficiales de certificados de alturas consultados en MinTrabajo y SENA con las cédulas de trabajadores del Perfil Sociodemográfico (Hito 2).',
           },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
             ifConditionLabel:
-              '¿Existen certificados SENA de alturas vencidos o equipos contra caídas no aptos en Hito 5?',
+              '¿Existen trabajadores en Hito 2 con certificados de alturas vencidos o sin registro en MinTrabajo/SENA?',
           },
           out_acpm_task: { ifBranch: 'yes' },
           out_google_calendar: { ifBranch: 'yes' },
@@ -1993,13 +2002,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             key: 'logic_merge_1',
             logicType: 'merge',
             title: 'Unir Ramas',
-            subtitle: 'SENA Alturas + Equipos',
+            subtitle: 'MinTrabajo/SENA + Nómina',
           },
         ],
       },
     },
     prompt:
-      'Actúa como Coordinador de Tareas Críticas bajo la Resolución 4272 de 2021. Analiza exclusivamente los resultados consolidados de certificados de alturas SENA y el estado de los sistemas de protección contra caídas en Equipos de Alturas (Hito 5).\n\n1) Invoca Análisis de Trabajo Seguro ATS (Hito 5) para registrar el bloqueo preventivo de autorización en campo sobre equipos no aptos o personal sin reentrenamiento vigente y generar el informe oficial de seguridad.\n2) Crea acciones inmediatas de recertificación o reemplazo en Tablero Kanban ACPM.\n3) Agenda fechas de inspección o recertificación en Google Calendar y consolida la alerta para Bitácora por Correo.',
+      'Actúa como Coordinador de Tareas Críticas bajo la Resolución 4272 de 2021 y la Resolución 0491 de 2020. Analiza exclusivamente los resultados consolidados entre el Registro de Certificados de Alturas en MinTrabajo/SENA y las cédulas de trabajadores expuestos del Perfil Sociodemográfico (Hito 2) — nunca marques incumplimiento a personal cuyo cargo no realiza trabajo en alturas.\n\n1) Invoca Análisis de Trabajo Seguro ATS (Hito 5) para registrar el bloqueo preventivo de autorización de ascenso sobre personal sin reentrenamiento vigente o sin soporte en MinTrabajo y generar el informe oficial de seguridad.\n2) Crea acciones inmediatas de programación de reentrenamiento en Tablero Kanban ACPM.\n3) Agenda fechas de recertificación en Google Calendar y consolida la alerta nominal para la Bitácora por Correo.',
   },
   // 21. [atel_inspecciones] Scraping Antecedentes + Sociodemográfico (Hito 2) -> ACPM (Hito 7)
   {
@@ -2023,7 +2032,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     isSystemPreset: true,
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity'],
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_tenshi'],
       extractors: ['scraper_agy_antecedentes'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
@@ -2436,7 +2445,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     isSystemPreset: true,
     workflowNodes: {
       trigger: 'schedule_cron',
-      triggers: ['schedule_cron', 'trigger_antigravity'],
+      triggers: ['schedule_cron', 'trigger_antigravity', 'trigger_tenshi'],
       extractors: ['scraper_agy_vial_pesv'],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
@@ -2499,13 +2508,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     prompt:
       'Actúa como Coordinador de Seguridad Vial conforme a la Resolución 20223040040595 de 2022 (PESV). Analiza únicamente las novedades reales consolidadas entre SIMIT/RUNT y la Hoja de Vida de Vehículos (Hito 5).\n\n1) Presenta la tabla de vehículos y conductores con comparendos sin acuerdo de pago, licencias vencidas o SOAT/RTM por caducar.\n2) Invoca Matriz PESV (Hito 1) para registrar o reforzar los controles viales sobre el individuo y el vehículo.\n3) Genera tareas correctivas en Tablero Kanban ACPM y resume las alertas críticas de despacho para Bitácora por Correo.',
   },
-  // 27. [riesgos_vial_quimico] Scraping PubChem + Inventario Químico (Hito 5) -> Matriz SGA (Hito 1) + PubChem API + Google Flow
+  // 27. [riesgos_vial_quimico] Inventario Químico (Hito 5) -> Matriz SGA (Hito 1) + PubChem API + Google Flow
   {
     presetKey: 'preset_scraping_fichas_sga_afiche_google_flow',
-    name: '☣️ Auditoría SGA de Sustancias Químicas con Web Scraping PubChem y Afiche Visual Google Flow',
+    name: '☣️ Auditoría SGA de Sustancias Químicas con API PubChem y Afiche Visual Google Flow',
     presetCategory: 'riesgos_vial_quimico',
     presetDescription:
-      'Cruza semanalmente la información técnica de PubChem obtenida por Web Scraping con el Registro e Inventario Químico (Hito 5). Cuando detecta sustancias sin FDS vigente, rótulo SGA incompleto o incompatibilidades químicas, el Ingeniero Químico SST consulta propiedades GHS en PubChem, actualiza reglas de segregación en Compatibilidad Química SGA (Hito 1), genera un afiche vertical 9:16 en Google Flow Studio y entrega resultados en Editor en Vivo WAPPY y Bitácora por Correo.',
+      'Audita semanalmente el Registro e Inventario Químico (Hito 5) para identificar sustancias sin FDS vigente (< 5 años), sin rótulo SGA completo o con incompatibilidades químicas. Cuando existen novedades, el Ingeniero Químico SST consulta propiedades GHS directamente en la API oficial de PubChem, actualiza reglas de segregación en Compatibilidad Química SGA (Hito 1), genera un afiche vertical 9:16 en Google Flow Studio y entrega resultados en Editor en Vivo WAPPY y Bitácora por Correo.',
     agentTargetName: 'Ingeniero Químico SST',
     agentName: 'Ingeniero Químico SST',
     scheduleType: 'weekly',
@@ -2522,7 +2531,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     workflowNodes: {
       trigger: 'schedule_cron',
       triggers: ['schedule_cron', 'trigger_tenshi'],
-      extractors: ['extract_web_scraping_agy'],
+      extractors: [],
       aiEngine: 'wappy',
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
@@ -2536,13 +2545,6 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
         edges: [],
         nodeConfigs: {
           sub_memory_wappy_memory_antiduplicate: { dedupWindow: '30d' },
-          ...buildExtractorDualConfigs('extract_web_scraping_agy', {
-            targetUrl: 'https://pubchem.ncbi.nlm.nih.gov',
-            scriptEngine: 'auto_chrome_dom',
-            onlyOnContentChange: false,
-            customInstruction:
-              'Consulta información pública de fichas GHS y advertencias de almacenamiento seguro en PubChem para las sustancias priorizadas.',
-          }),
           ...buildHitoDualConfigs('hito5_registro_quimico', {
             hitoRole: 'source_read',
             hitoOperationMode: 'read_only',
@@ -2559,7 +2561,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           }),
           ...buildInputDualConfigs('consultar_pubchem_quimico', {
             customInstruction:
-              'Consulta pictogramas GHS, frases H/P y clases de peligro oficiales en PubChem para validar la clasificación química exacta.',
+              'Consulta pictogramas GHS, frases H/P y clases de peligro oficiales directamente en la API de PubChem para validar la clasificación química exacta.',
           }),
           ...buildInputDualConfigs('google_flow', {
             flowAction: 'generar_imagen',
@@ -2568,11 +2570,6 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
             flowPrompt:
               'Afiche vertical de seguridad química bajo Sistema Globalmente Armonizado con segregación de sustancias corrosivas e inflamables y pictogramas claros, estilo infografía editorial',
           }),
-          logic_merge_1: {
-            mergeStrategy: 'append_all',
-            customInstruction:
-              'Unifica los hallazgos de referencia consultados en PubChem con las alertas del Registro Químico (Hito 5).',
-          },
           if_router: {
             ifPlacement: 'pre_agent',
             ifConditionType: 'critical_findings',
@@ -2583,26 +2580,19 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           out_email_report: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
         },
-        logicNodes: [
-          {
-            key: 'logic_merge_1',
-            logicType: 'merge',
-            title: 'Unir Ramas',
-            subtitle: 'PubChem Web + Químicos',
-          },
-        ],
+        logicNodes: [],
       },
     },
     prompt:
-      'Actúa como Ingeniero Químico SST en cumplimiento del Decreto 1496 de 2018 (SGA) y la Resolución 773 de 2021. Analiza únicamente los productos químicos críticos detectados en Registro Químico (Hito 5) junto con las consultas técnicas de PubChem.\n\n1) Invoca la herramienta de consulta química PubChem para corroborar pictogramas SGA, indicaciones de peligro H y segregación requerida.\n2) Actualiza la matriz de segregación y controles de bodega en Compatibilidad Química SGA (Hito 1).\n3) Invoca Google Flow Studio en relación 9:16 estilo infografía editorial para generar el afiche visual de prevención química y entrega la síntesis en Editor en Vivo WAPPY y Bitácora por Correo.',
+      'Actúa como Ingeniero Químico SST en cumplimiento del Decreto 1496 de 2018 (SGA) y la Resolución 773 de 2021. Analiza únicamente los productos químicos críticos detectados en Registro Químico (Hito 5).\n\n1) Invoca directamente la API oficial de PubChem para corroborar identificadores CAS, pictogramas SGA, indicaciones de peligro H y segregación requerida.\n2) Actualiza la matriz de segregación y controles de bodega en Compatibilidad Química SGA (Hito 1).\n3) Invoca Google Flow Studio en relación 9:16 estilo infografía editorial para generar el afiche visual de prevención química y entrega la síntesis en Editor en Vivo WAPPY y Bitácora por Correo.',
   },
-  // 28. [riesgos_vial_quimico] Clima Vial cada 6h: Matriz PESV (Hito 1) -> post_agent -> Clima + Emergencias + Google Flow Video
+  // 28. [riesgos_vial_quimico] Clima Vial cada 6h: Matriz PESV (Hito 1) -> post_agent -> Clima + Google Flow Video
   {
     presetKey: 'preset_campana_seguridad_vial_clima_flow',
     name: '⛈️ Alerta Climática Vial en Tiempo Real con Cápsula Audiovisual Google Flow Veo',
     presetCategory: 'riesgos_vial_quimico',
     presetDescription:
-      'Consulta cada 6 horas las rutas, corredores y factores viales críticos registrados en Matriz PESV (Hito 1). El Especialista en Riesgo Climático evalúa el pronóstico meteorológico en ruta y ubica centros de atención cercanos; mediante compuerta semántica posterior al Agente, si detecta amenaza climática severa genera una cápsula audiovisual vertical 9:16 en Google Flow Veo y despacha alertas por Correo y Google Sheets.',
+      'Consulta cada 6 horas las rutas, corredores y factores viales críticos registrados en Matriz PESV (Hito 1). El Especialista en Riesgo Climático evalúa el pronóstico meteorológico en ruta en tiempo real; mediante compuerta semántica posterior al Agente, si detecta amenaza climática severa genera una cápsula audiovisual vertical 9:16 en Google Flow Veo y despacha alerta preventiva por Bitácora por Correo; si el clima es favorable, registra trazabilidad limpia en WAPPY.',
     agentTargetName: 'Especialista en Riesgo Climático',
     agentName: 'Especialista en Riesgo Climático',
     scheduleType: 'hourly',
@@ -2624,10 +2614,10 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       aiModel: 'gemini-3.6-flash',
       memoryNode: 'wappy_memory_company',
       memories: ['wappy_memory_company'],
-      inputs: ['pronostico_clima_sst', 'buscar_centros_emergencia', 'google_flow'],
+      inputs: ['pronostico_clima_sst', 'google_flow'],
       includeIfNode: true,
       hitos: ['hito3_matriz_pesv'],
-      outputs: ['email_report', 'google_sheets', 'wappy_notification'],
+      outputs: ['email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
@@ -2642,10 +2632,6 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
           ...buildInputDualConfigs('pronostico_clima_sst', {
             customInstruction:
               'Consulta tormentas, lluvias intensas, baja visibilidad o vientos fuertes en los corredores viales activos.',
-          }),
-          ...buildInputDualConfigs('buscar_centros_emergencia', {
-            customInstruction:
-              'Ubica IPS, estaciones de bomberos y centros asistenciales cercanos a los tramos viales con alerta climática severa.',
           }),
           ...buildInputDualConfigs('google_flow', {
             flowAction: 'generar_video',
@@ -2663,14 +2649,13 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
               '¿Existe amenaza climática severa en los corredores viales monitoreados de Hito 1?',
           },
           out_email_report: { ifBranch: 'yes' },
-          out_google_sheets: { ifBranch: 'yes' },
           out_wappy_notification: { ifBranch: 'no' },
         },
         logicNodes: [],
       },
     },
     prompt:
-      'Actúa como Especialista en Riesgo Climático coordinando seguridad en desplazamientos sobre los corredores de Matriz PESV (Hito 1).\n\n1) Invoca el pronóstico climático SST sobre las zonas operativas activas para verificar lluvia torrencial, tormenta eléctrica, neblina densa o deslizamientos.\n2) Si existe amenaza climática relevante: consulta los centros de emergencia cercanos, produce una cápsula de video 9:16 con paneo suave en Google Flow Veo dirigida a los conductores, consolida los datos para Bitácora por Correo y Google Sheets, y termina obligatoriamente con [VEREDICTO_IF: SI].\n3) Si el clima en los corredores está estable y sin amenaza operacional, omite la generación audiovisual y termina obligatoriamente con [VEREDICTO_IF: NO].',
+      'Actúa como Especialista en Riesgo Climático coordinando seguridad en desplazamientos sobre los corredores de Matriz PESV (Hito 1).\n\n1) Invoca el pronóstico climático SST sobre las zonas operativas activas para verificar lluvia torrencial, tormenta eléctrica, neblina densa o deslizamientos.\n2) Si existe amenaza climática relevante: produce una cápsula de video 9:16 con paneo suave en Google Flow Veo dirigida a los conductores, redacta recomendaciones de conducción defensiva y alerta temprana para la Bitácora por Correo, y termina obligatoriamente con [VEREDICTO_IF: SI].\n3) Si el clima en los corredores está estable y sin amenaza operacional, omite la generación audiovisual y termina obligatoriamente con [VEREDICTO_IF: NO].',
   },
   // 29. [gerencia_auditoria] Flujo Directo Mensual: 0312 (Hito 1) + ACPM (Hito 7) -> Alta Dirección (Hito 7) + NotebookLM + Google Slides
   {
@@ -2678,7 +2663,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
     name: '📊 Presentación Gerencial Mensual SG-SST en Google NotebookLM (0312 + ACPM)',
     presetCategory: 'gerencia_auditoria',
     presetDescription:
-      'Consolida el día 28 de cada mes los indicadores de Estándares Mínimos Res. 0312 (Hito 1) y el estado de cierres en Control de ACPM (Hito 7) mediante unión de ramas. El Auditor SG-SST genera una presentación ejecutiva en Google NotebookLM y Google Slides, registra las conclusiones oficiales en Revisión por la Alta Dirección (Hito 7) y distribuye el paquete en Editor en Vivo WAPPY, Google Calendar y Bitácora por Correo.',
+      'Consolida el día 28 de cada mes los indicadores de Estándares Mínimos Res. 0312 (Hito 1) y el estado de cierres en Control de ACPM (Hito 7) mediante unión de ramas. El Auditor SG-SST genera una presentación ejecutiva en Google NotebookLM y Google Slides, registra las conclusiones oficiales en Revisión por la Alta Dirección (Hito 7) y distribuye el paquete en Editor en Vivo WAPPY, Bitácora por Correo y Notificación en WAPPY.',
     agentTargetName: 'Auditor SG-SST',
     agentName: 'Auditor SG-SST',
     scheduleType: 'monthly',
@@ -2703,7 +2688,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       inputs: ['notebooklm', 'google_slides'],
       includeIfNode: false,
       hitos: ['hito1_diagnostico_0312', 'hito7_acpm', 'hito7_alta_direccion'],
-      outputs: ['canvas_doc', 'google_calendar', 'email_report'],
+      outputs: ['canvas_doc', 'email_report', 'wappy_notification'],
       canvasLayout: {
         positions: {},
         edges: [],
@@ -2757,7 +2742,7 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       },
     },
     prompt:
-      'Actúa como Auditor SG-SST preparando la sesión ejecutiva conforme al artículo 2.2.4.6.31 del Decreto 1072 de 2015. Analiza los datos reales consolidados de Estándares Mínimos Res. 0312 (Hito 1) y Control de ACPM (Hito 7).\n\n1) Invoca Google NotebookLM para generar el guion de presentación (deck) orientado a la gerencia y prepara el esquema en Google Slides.\n2) Registra los hallazgos, decisiones requeridas y genera el informe oficial dentro de Revisión por la Alta Dirección (Hito 7).\n3) Redacta el resumen ejecutivo para Editor en Vivo WAPPY, sugiere el agendamiento de sesión en Google Calendar y despacha por Bitácora por Correo.',
+      'Actúa como Auditor SG-SST preparando la sesión ejecutiva conforme al artículo 2.2.4.6.31 del Decreto 1072 de 2015. Analiza los datos reales consolidados de Estándares Mínimos Res. 0312 (Hito 1) y Control de ACPM (Hito 7).\n\n1) Invoca Google NotebookLM para generar el guion de presentación (deck) orientado a la gerencia y prepara el esquema en Google Slides.\n2) Registra los hallazgos, decisiones requeridas y genera el informe oficial dentro de Revisión por la Alta Dirección (Hito 7).\n3) Redacta el resumen ejecutivo para Editor en Vivo WAPPY, despacha por Bitácora por Correo y confirma la entrega mediante Notificación en WAPPY.',
   },
   // 30. [gerencia_auditoria] Monitor Quincenal MinTrabajo Riesgos / Fasecolda (SHA-256) -> NotebookLM + Oportunidades SST (Hito 1)
   {
@@ -2833,6 +2818,322 @@ const SYSTEM_WORKFLOW_PRESETS_CATALOG = [
       'Actúa como Consultor SG-SST enfocado en mejora continua PHVA conforme al artículo 2.2.4.6.34 del Decreto 1072 de 2015. Analiza únicamente los boletines o circulares técnicas nuevas extraídas de MinTrabajo Riesgos Laborales y Fasecolda.\n\n1) Consulta en Google NotebookLM buenas prácticas sectoriales aplicables al contexto operativo de la empresa.\n2) Invoca Oportunidades de Mejora SST (Hito 1) para registrar las iniciativas priorizadas con beneficio preventivo y factibilidad.\n3) Consolida el boletín de innovación y mejora para Editor en Vivo WAPPY y Bitácora por Correo.',
   },
 ];
+
+const PRESET_TENSHI_TRIGGER_META = {
+  preset_vencimientos_emo_alturas: {
+    extraPhrases: [
+      'vigilancia de examenes medicos ocupacionales por vencer',
+      'revisar examenes medicos emo vencidos',
+      'alerta de examenes medicos resolucion 1843',
+    ],
+    customInstruction:
+      'Activa por voz o chat esta vigilancia de Exámenes Médicos Ocupacionales (EMO) vencidos o próximos a vencer dentro de los siguientes 30 días en la empresa activa.',
+  },
+  preset_control_entregas_epp: {
+    extraPhrases: [
+      'control de entregas vencidas y reposicion de epp',
+      'revisar dotaciones de epp vencidas',
+      'auditar solicitudes abiertas de elementos de proteccion personal',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría de entregas vencidas, inspecciones rechazadas y solicitudes abiertas de Elementos de Protección Personal.',
+  },
+  preset_seguimiento_restricciones_medicas: {
+    extraPhrases: [
+      'seguimiento de restricciones medicas y reubicacion',
+      'revisar recomendaciones medico laborales activas',
+      'casos de salud con reubicacion laboral',
+    ],
+    customInstruction:
+      'Activa por voz o chat el seguimiento de trabajadores con restricciones médico-laborales vigentes, recomendaciones ocupacionales o reubicación pendiente.',
+  },
+  preset_drive_conceptos_emo_ocr: {
+    extraPhrases: [
+      'leer conceptos medicos emo en google drive',
+      'procesar certificados medicos pdf en drive',
+      'sincronizar examenes medicos desde drive',
+    ],
+    customInstruction:
+      'Activa por voz o chat la lectura con OCR de nuevos certificados de aptitud médica en Google Drive para actualizar el expediente del personal.',
+  },
+  preset_gmail_incapacidades_ausentismo: {
+    extraPhrases: [
+      'leer incapacidades medicas en gmail',
+      'procesar adjuntos de incapacidades en correo',
+      'registrar ausentismo desde incapacidades en gmail',
+    ],
+    customInstruction:
+      'Activa por voz o chat la revisión de correos con incapacidades o licencias médicas en Gmail para estructurar los datos y registrar el ausentismo.',
+  },
+  preset_brechas_capacitacion_lms: {
+    extraPhrases: [
+      'cierre de brechas de capacitacion y rutas lms',
+      'revisar capacitaciones rezagadas y cursos lms',
+      'auditar cronograma de capacitaciones pendientes',
+    ],
+    customInstruction:
+      'Activa por voz o chat la verificación de capacitaciones vencidas o con baja cobertura y la actualización de rutas formativas en la Academia LMS.',
+  },
+  preset_triage_qr_actos_condiciones: {
+    extraPhrases: [
+      'triaje de reportes qr de actos y condiciones inseguras',
+      'clasificar reportes qr de peligros en campo',
+      'evaluar actos y condiciones inseguras reportados',
+    ],
+    customInstruction:
+      'Activa por voz o chat el triaje técnico de reportes QR de actos y condiciones inseguras enviados desde campo para escalar peligros críticos.',
+  },
+  preset_drive_furat_investigacion_atel: {
+    extraPhrases: [
+      'procesar furat en google drive e investigar accidente',
+      'abrir investigacion atel resolucion 1401 desde drive',
+      'leer formatos furat nuevos en drive',
+    ],
+    customInstruction:
+      'Activa por voz o chat la lectura de nuevos reportes FURAT en Google Drive para abrir la investigación formal de accidente laboral bajo la Resolución 1401 de 2007.',
+  },
+  preset_control_permisos_equipos_alturas: {
+    extraPhrases: [
+      'auditoria de permisos de trabajo en alturas y equipos contra caidas',
+      'revisar arneses eslingas y permisos de alturas',
+      'control de equipos contra caidas resolucion 4272',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría diaria de permisos de trabajo en alturas y hojas de vida de arneses, eslingas y líneas de vida.',
+  },
+  preset_vigilancia_matriz_legal_sst: {
+    extraPhrases: [
+      'vigilancia de matriz legal y brechas normativas',
+      'revisar normas sin evidencia en matriz legal',
+      'auditoria de cumplimiento normativo laboral',
+    ],
+    customInstruction:
+      'Activa por voz o chat la revisión de requisitos normativos en incumplimiento o sin evidencia documental dentro de la gestión legal de la empresa.',
+  },
+  preset_control_comites_copasst_cocolab: {
+    extraPhrases: [
+      'seguimiento de actas y compromisos de copasst y convivencia',
+      'revisar reuniones pendientes de copasst y ccl',
+      'auditoria mensual de comites paritarios',
+    ],
+    customInstruction:
+      'Activa por voz o chat la verificación mensual de actas, vigencia y compromisos pendientes del COPASST y del Comité de Convivencia Laboral.',
+  },
+  preset_control_flota_pesv_documentos: {
+    extraPhrases: [
+      'control diario de soat tecnomecanica licencias y preoperacional pesv',
+      'revisar vencimientos de flota vehicular pesv',
+      'auditar soat y revision tecnico mecanica de vehiculos',
+    ],
+    customInstruction:
+      'Activa por voz o chat el control documental y preoperacional de vehículos de la flota PESV para detectar SOAT, Técnico-Mecánica o licencias vencidas.',
+  },
+  preset_inventario_quimico_fds_sga: {
+    extraPhrases: [
+      'auditoria de inventario quimico vigencia fds y compatibilidad sga',
+      'revisar fichas de datos de seguridad vencidas',
+      'control de sustancias quimicas decreto 1496',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría del inventario de sustancias químicas sin Ficha de Datos de Seguridad vigente o sin rotulado SGA completo.',
+  },
+  preset_auditoria_estandares_0312: {
+    extraPhrases: [
+      'auditoria continua de estandares minimos resolucion 0312',
+      'revisar brechas de estandares minimos 0312',
+      'plan de mejora resolucion 0312',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría de Estándares Mínimos de la Resolución 0312 de 2019 y la priorización del Plan de Mejoramiento.',
+  },
+  preset_informe_ejecutivo_alta_direccion: {
+    extraPhrases: [
+      'informe gerencial mensual de revision por la alta direccion',
+      'generar acta ejecutiva mensual de indicadores',
+      'consolidar revision gerencial alta direccion',
+    ],
+    customInstruction:
+      'Activa por voz o chat la consolidación mensual de indicadores estratégicos y acta ejecutiva para la Revisión por la Alta Dirección.',
+  },
+  preset_scraping_arl_afiliacion_ruaf: {
+    extraPhrases: [
+      'verificacion mensual de afiliacion arl de la nomina',
+      'auditoria masiva de cobertura arl por portales oficiales',
+      'revisar certificados arl de toda la nomina',
+    ],
+    customInstruction:
+      'Activa por voz o chat la verificación mensual de afiliación y constancias de cobertura ARL de la nómina activa en portales oficiales.',
+  },
+  preset_campana_ergonomia_condiciones_salud_flow: {
+    extraPhrases: [
+      'campana preventiva osteomuscular con evaluacion owas',
+      'generar afiche ergonomico desde condiciones de salud',
+      'prevencion de desordenes musculoesqueleticos',
+    ],
+    customInstruction:
+      'Activa por voz o chat la campaña preventiva osteomuscular y ergonómica combinando alertas de salud laboral, evaluación postural OWAS y diseño visual.',
+  },
+  preset_carpeta_pc_actas_notebooklm_acpm: {
+    extraPhrases: [
+      'indexar actas desde carpeta local a notebooklm',
+      'procesar actas nuevas en carpeta del computador',
+      'cargar actas de inspeccion local a tablero acpm',
+    ],
+    customInstruction:
+      'Activa por voz o chat la lectura e indexación de actas nuevas desde la carpeta local del equipo hacia Google NotebookLM y control de compromisos.',
+  },
+  preset_drive_procedimientos_notebooklm_lms: {
+    extraPhrases: [
+      'sincronizar procedimientos seguros de drive a notebooklm y lms',
+      'procesar estandares seguros nuevos en google drive',
+      'generar afiche e infografia de procedimientos seguros',
+    ],
+    customInstruction:
+      'Activa por voz o chat la sincronización de procedimientos seguros nuevos desde Google Drive hacia guías de estudio, afiches visuales y formación LMS.',
+  },
+  preset_scraping_alturas_sena_equipos: {
+    extraPhrases: [
+      'validar certificados de alturas en mintrabajo y sena con bloqueo ats',
+      'auditar cursos de alturas de la nomina en mintrabajo',
+      'verificar reentrenamiento de alturas y bloquear ats',
+    ],
+    customInstruction:
+      'Activa por voz o chat la validación masiva de certificados de alturas en MinTrabajo y SENA para el personal expuesto con bloqueo preventivo en ATS.',
+  },
+  preset_scraping_antecedentes_personal_critico: {
+    extraPhrases: [
+      'verificacion de antecedentes judiciales de personal critico',
+      'auditoria semanal de antecedentes en cargos criticos',
+      'revisar inhabilidades de conductores y personal critico',
+    ],
+    customInstruction:
+      'Activa por voz o chat la verificación semanal de antecedentes y procesos judiciales públicos del personal asignado a cargos críticos.',
+  },
+  preset_leccion_aprendida_atel_notebooklm_flow: {
+    extraPhrases: [
+      'leccion aprendida de accidentes atel con afiche visual',
+      'generar ficha de leccion aprendida de investigacion atel',
+      'divulgacion visual preventiva de accidentes laborales',
+    ],
+    customInstruction:
+      'Activa por voz o chat la generación de lecciones aprendidas anonimizadas y afiches visuales preventivos a partir de investigaciones ATEL.',
+  },
+  preset_scraping_mintrabajo_cambio_normativo_0312: {
+    extraPhrases: [
+      'vigilancia normativa mintrabajo y suin juriscol',
+      'detectar cambios normativos en ministerio del trabajo',
+      'evaluar impacto de nuevas resoluciones en estandares 0312',
+    ],
+    customInstruction:
+      'Activa por voz o chat el monitoreo de cambios normativos recientes en el Ministerio del Trabajo y SUIN-Juriscol con impacto en estándares mínimos.',
+  },
+  preset_scraping_jurisprudencia_sst_notebooklm: {
+    extraPhrases: [
+      'monitor de jurisprudencia laboral en altas cortes',
+      'revisar sentencias nuevas de corte suprema y consejo de estado',
+      'boletin de jurisprudencia sobre culpa patronal',
+    ],
+    customInstruction:
+      'Activa por voz o chat la vigilancia de sentencias laborales recientes en Corte Suprema de Justicia y Consejo de Estado.',
+  },
+  preset_auditoria_cruzada_politica_emergencias_notebooklm: {
+    extraPhrases: [
+      'auditoria cruzada de politica y plan de emergencias',
+      'verificar coherencia entre politica laboral y emergencias',
+      'revisar vigencia de politica y plan de emergencias',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría documental cruzada entre la Política de Seguridad y Salud en el Trabajo y el Plan de Emergencias.',
+  },
+  preset_scraping_simit_runt_flota_pesv: {
+    extraPhrases: [
+      'vigilancia semanal simit y runt de conductores y flota',
+      'auditar comparendos simit de toda la flota pesv',
+      'revisar multas de transito y vigencia runt de vehiculos',
+    ],
+    customInstruction:
+      'Activa por voz o chat la vigilancia semanal de comparendos SIMIT y estado documental RUNT para las placas y conductores de la flota.',
+  },
+  preset_scraping_fichas_sga_afiche_google_flow: {
+    extraPhrases: [
+      'auditoria sga de sustancias quimicas con pubchem y afiche visual',
+      'generar afiche de compatibilidad quimica sga',
+      'validar pictogramas sga en pubchem y crear afiche',
+    ],
+    customInstruction:
+      'Activa por voz o chat la auditoría de sustancias químicas mediante consulta directa en PubChem y diseño de afiche visual de segregación SGA.',
+  },
+  preset_campana_seguridad_vial_clima_flow: {
+    extraPhrases: [
+      'alerta climatica vial en tiempo real con capsula audiovisual',
+      'verificar clima en corredores viales pesv',
+      'pronostico meteorologico de rutas y seguridad vial',
+    ],
+    customInstruction:
+      'Activa por voz o chat la verificación climática en tiempo real sobre corredores viales críticos y la emisión de alertas preventivas para conductores.',
+  },
+  preset_notebooklm_presentacion_copasst_gerencia: {
+    extraPhrases: [
+      'presentacion gerencial mensual en notebooklm y diapositivas',
+      'generar mazo ejecutivo mensual de indicadores 0312 y acpm',
+      'armar presentacion directiva de revision gerencial',
+    ],
+    customInstruction:
+      'Activa por voz o chat la creación de la presentación ejecutiva mensual de indicadores 0312 y cierre ACPM para comité gerencial.',
+  },
+  preset_scraping_boletines_arl_oportunidades_sst: {
+    extraPhrases: [
+      'monitor quincenal de circulares tecnicas arl y fasecolda',
+      'revisar boletines de riesgos laborales y oportunidades de mejora',
+      'detectar guias tecnicas nuevas de prevencion arl',
+    ],
+    customInstruction:
+      'Activa por voz o chat la vigilancia quincenal de circulares técnicas de riesgos laborales y boletines de Fasecolda para capturar oportunidades de mejora.',
+  },
+};
+
+function hydrateTenshiTriggersOnPresets(catalog = []) {
+  for (const preset of catalog) {
+    if (!preset || !preset.workflowNodes) continue;
+    const wf = preset.workflowNodes;
+    const triggers = Array.isArray(wf.triggers) ? [...wf.triggers] : wf.trigger ? [wf.trigger] : ['schedule_cron'];
+    if (!triggers.includes('trigger_tenshi')) {
+      triggers.push('trigger_tenshi');
+    }
+    wf.triggers = triggers;
+    if (!wf.trigger) {
+      wf.trigger = triggers[0];
+    }
+
+    if (!wf.canvasLayout || typeof wf.canvasLayout !== 'object') {
+      wf.canvasLayout = { positions: {}, edges: [], nodeConfigs: {}, logicNodes: [] };
+    }
+    if (!wf.canvasLayout.nodeConfigs || typeof wf.canvasLayout.nodeConfigs !== 'object') {
+      wf.canvasLayout.nodeConfigs = {};
+    }
+
+    const cleanFlowName = stripPresetLeadingEmoji(preset.name || '');
+    const meta = PRESET_TENSHI_TRIGGER_META[preset.presetKey] || {};
+    const extraPhrases = Array.isArray(meta.extraPhrases) ? meta.extraPhrases : [];
+    const voiceCommands = Array.from(
+      new Set([cleanFlowName, ...extraPhrases].map((s) => String(s || '').trim()).filter(Boolean)),
+    );
+    const tenshiTriggerCfg = {
+      voiceCommand: cleanFlowName,
+      voiceCommands,
+      triggerChannel: 'both',
+      customInstruction:
+        meta.customInstruction ||
+        `Activa por voz o chat la automatización «${cleanFlowName}» sobre la empresa activa.`,
+    };
+
+    wf.canvasLayout.nodeConfigs.trigger_trigger_tenshi = { ...tenshiTriggerCfg };
+    wf.canvasLayout.nodeConfigs.trigger_tenshi = { ...tenshiTriggerCfg };
+  }
+  return catalog;
+}
+
+hydrateTenshiTriggersOnPresets(SYSTEM_WORKFLOW_PRESETS_CATALOG);
 
 module.exports = {
   SYSTEM_WORKFLOW_PRESETS_VERSION,
