@@ -32,19 +32,22 @@ function extractAttachedFilesContextFromReq(req) {
  */
 function emitCanvasSessionReady(req, sessionData = {}) {
   try {
-    const res = req?.res || req?.activeAgentClient?.options?.res;
-    if (res && !res.writableEnded) {
-      const { sendEvent } = require('@librechat/api');
-      sendEvent(res, {
-        event: 'canvas_session_ready',
-        data: {
-          conversationId: sessionData.conversationId,
-          title: sessionData.title,
-          fileType: sessionData.fileType,
-          version: sessionData.version,
-        },
-      });
-    }
+    if (req?.__disableSseEmit) return;
+    const res = req?.activeAgentClient?.options?.res || req?.res;
+    if (!res || res.writableEnded) return;
+    const contentType = String(res.getHeader?.('Content-Type') || '').toLowerCase();
+    if (!contentType.includes('text/event-stream')) return;
+
+    const { sendEvent } = require('@librechat/api');
+    sendEvent(res, {
+      event: 'canvas_session_ready',
+      data: {
+        conversationId: sessionData.conversationId,
+        title: sessionData.title,
+        fileType: sessionData.fileType,
+        version: sessionData.version,
+      },
+    });
   } catch (_) {}
 }
 

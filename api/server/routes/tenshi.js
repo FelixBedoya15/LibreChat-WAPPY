@@ -22,6 +22,7 @@ const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const GoogleDrive = require('../../app/clients/tools/structured/GoogleDrive');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
+const CanvasSession = require('../../models/CanvasSession');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
@@ -4696,14 +4697,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         : `tenshi-canvas-${targetUserId}-${Date.now()}`;
                                     if (!req.body) req.body = {};
                                     req.body.conversationId = tempCanvasConvoId;
+                                    req.__disableSseEmit = true;
                                     const toolInstance = new CanvasTool({ req });
                                     toolOutput = await toolInstance._call(call.args);
                                     try {
                                         const parsed = typeof toolOutput === 'string' ? JSON.parse(toolOutput) : toolOutput;
                                         if (parsed?.success) {
                                             const sessionDoc = await CanvasSession.findOne({ conversationId: tempCanvasConvoId }).lean();
-                                            const fileType = sessionDoc?.fileType || call.args?.fileType || 'html';
-                                            const title = sessionDoc?.title || call.args?.title || 'Documento SG-SST';
+                                            const fileType = sessionDoc?.fileType || parsed?.fileType || call.args?.fileType || 'html';
+                                            const title = sessionDoc?.title || parsed?.title || call.args?.title || call.args?.titulo || 'Documento SG-SST';
                                             const content = sessionDoc?.content ?? call.args?.content ?? '';
                                             capturedFile = {
                                                 title,
@@ -4715,8 +4717,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                             if (fileType === 'html' || (typeof content === 'string' && (content.includes('<html') || content.includes('<!DOCTYPE')))) {
                                                 capturedHtmlReport = content;
                                             }
+                                            logger.info(`[Tenshi Backend] Captured Canvas deliverable: "${title}" (${fileType}, ${String(capturedFile.content || '').length} chars)`);
                                         }
-                                    } catch (_) {}
+                                    } catch (canvasCaptureErr) {
+                                        logger.warn('[Tenshi Backend] Error capturing CanvasSession after canvas_tool:', canvasCaptureErr?.message || canvasCaptureErr);
+                                    }
                                 } else if (call.name === 'matriz_ipevar') {
                                     if (call.args?.accion === 'escribir' && Array.isArray(call.args?.riesgos) && call.args.riesgos.length > 0) {
                                         const savedRes = await saveRisksToHito1Matrices(targetUserId, companyInfo, call.args.riesgos);
@@ -4774,9 +4779,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const res = await executeTenshiMcpTool('wappy_crear_informe', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
                                     if (res?.informe?.contenido) {
-                                        if (res.informe.formato === 'html' || res.informe.contenido.includes('<html') || res.informe.contenido.includes('<!DOCTYPE')) {
+                                        const isHtmlInforme = res.informe.formato === 'html' || res.informe.contenido.includes('<html') || res.informe.contenido.includes('<!DOCTYPE');
+                                        if (isHtmlInforme) {
                                             capturedHtmlReport = res.informe.contenido;
                                         }
+                                        capturedFile = {
+                                            title: res.informe.titulo || call.args?.titulo || 'Informe Técnico Oficial SG-SST',
+                                            fileType: isHtmlInforme ? 'html' : 'text',
+                                            content: res.informe.contenido,
+                                            rawContent: res.informe.contenido,
+                                            canvasId: `tenshi-informe-${Date.now()}`,
+                                        };
                                     }
                                 } else if (call.name === 'wappy_generar_qr' || call.name === 'generar_qr') {
                                     const res = await executeTenshiMcpTool('wappy_generar_qr', call.args || {}, targetUserId);
@@ -5839,7 +5852,6 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
         if ((capturedFile || capturedHtmlReport) && req.user?.id) {
             try {
                 const { Conversation, Message } = require('~/db/models');
-                const CanvasSession = require('~/models/CanvasSession');
                 const { v4: uuidv4 } = require('uuid');
                 const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
                 const fileTitle = capturedFile?.title || 'Informe Técnico SG-SST';
@@ -5903,23 +5915,27 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }
         }
 
-        res.json({
-            response: responseText,
-            htmlReport: capturedHtmlReport,
-            qrCode: capturedQrCode,
-            file: capturedFile,
-            widget: capturedWidget,
-            evidenceFiles: capturedEvidenceFiles,
-            delegatedOrder: capturedDelegatedOrder,
-            guiAction: requestedGuiAction,
-            guiActions: requestedGuiActions
-        });
+        if (!res.headersSent) {
+            res.json({
+                response: responseText,
+                htmlReport: capturedHtmlReport,
+                qrCode: capturedQrCode,
+                file: capturedFile,
+                widget: capturedWidget,
+                evidenceFiles: capturedEvidenceFiles,
+                delegatedOrder: capturedDelegatedOrder,
+                guiAction: requestedGuiAction,
+                guiActions: requestedGuiActions
+            });
+        }
     } catch (error) {
         console.error('CRITICAL Error in Tenshi chat route:', error);
         if (error.response) {
             console.error('Error response data:', error.response.data);
         }
-        res.status(500).json({ error: 'Error generating Tenshi response', details: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Error generating Tenshi response', details: error.message });
+        }
     }
 });
 
