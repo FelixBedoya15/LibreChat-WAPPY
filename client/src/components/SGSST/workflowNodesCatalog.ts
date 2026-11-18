@@ -143,8 +143,8 @@ export interface CanvasNodeConfig {
   selectedFields?: string[];
   /** Si es true (por defecto cuando hay campos elegidos), el nodo extrae ÚNICAMENTE los campos seleccionados para no saturar el flujo */
   strictFieldFilter?: boolean;
-  /** Modo de filtro de registros reales en vivo: todos, solo críticos/brechas, solo vencimientos <= 30d o selección específica */
-  recordFilterMode?: 'all' | 'critical_only' | 'expiry_only' | 'selected';
+  /** Modo de filtro de registros reales en vivo: todos, solo críticos/brechas, solo vencimientos <= 30d, selección específica o búsqueda puntual por nombre */
+  recordFilterMode?: 'all' | 'critical_only' | 'expiry_only' | 'selected' | 'name_lookup_only';
   /** Alcance específico de auditoría de vencimientos cuando recordFilterMode === 'expiry_only' (ej. ['emo', 'alturas', 'licencia_vial']) */
   expiryAuditScope?: Array<'emo' | 'alturas' | 'licencia_vial' | string>;
   /** IDs de registros reales específicos seleccionados en el Inspector de Datos en Vivo */
@@ -243,8 +243,9 @@ export interface CanvasNodeConfig {
   kanbanAssignee?: string;
   /** Parámetros propios de Nodos Lógicos If / Loop / Merge / Aprobación (Equipo 8) */
   ifBranch?: 'yes' | 'no';
-  ifPlacement?: 'pre_agent' | 'post_agent';
+  ifPlacement?: 'pre_source' | 'pre_agent' | 'post_agent';
   ifConditionMode?:
+    | 'has_explicit_cedula'
     | 'critical_findings'
     | 'new_external_items'
     | 'numeric_threshold'
@@ -255,6 +256,7 @@ export interface CanvasNodeConfig {
     | string;
   ifConditionLabel?: string;
   ifConditionType?:
+    | 'has_explicit_cedula'
     | 'critical_findings'
     | 'new_external_items'
     | 'numeric_threshold'
@@ -733,8 +735,8 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
   {
     id: 'scraper_agy_arl_directo',
     label: '🛡️ Certificados de ARL Directos por Cédula (vía Antigravity)',
-    shortLabel: 'Certificados ARL',
-    badge: '5 ARL Directas AGY',
+    shortLabel: 'Web Scraping ARL',
+    badge: 'Antigravity · 5 ARL',
     description:
       'Verifica por Cédula directamente en los portales oficiales de ARL SURA, ARL Positiva, ARL Colmena, ARL AXA Colpatria y ARL Seguros Bolívar (sin RUAF) vía Google Antigravity.',
     category: 'extractor',
@@ -815,6 +817,7 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   label: string;
   shortLabel: string;
   subtitle: string;
+  badge?: string;
   content: string;
   targetUrl?: string;
   scriptEngine?:
@@ -1201,8 +1204,9 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
     id: 'scraper_agy_arl_directo',
     nodeType: 'web_scraper',
     label: '🛡️ Nodo AGY: Certificados de ARL Directos (SURA, Positiva, Colmena, AXA, Bolívar)',
-    shortLabel: 'Certificados ARL',
-    subtitle: '5 ARL Directas (AGY)',
+    shortLabel: 'Web Scraping ARL',
+    subtitle: 'Antigravity · 5 ARL',
+    badge: 'Antigravity · 5 ARL',
     content:
       'Verifica afiliación activa y descarga certificados de ARL por Cédula directamente en los 5 portales oficiales (ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar, sin pasar por RUAF) vía Google Antigravity.',
     targetUrl:
@@ -12186,6 +12190,8 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig, nodeId?: string):
     if (count > 0) {
       badges.push(`🎯 ${count} reg. esp.`);
     }
+  } else if (cfg.recordFilterMode === 'name_lookup_only') {
+    badges.push('🔎 Solo por Nombre (0 barrido)');
   } else if (cfg.recordFilterMode === 'all') {
     badges.push('📋 Todos los reg.');
   }
@@ -12367,6 +12373,10 @@ export function buildPromptFromWorkflowNodes(
           `🎯 REGISTROS ESPECÍFICOS SELECCIONADOS (${selectedLabels.length}): [${selectedLabels.join(' ; ')}]`,
         );
       }
+    } else if (cfg.recordFilterMode === 'name_lookup_only') {
+      parts.push(
+        `🔎 FILTRO QUIRÚRGICO DE NÓMINA: Buscar ÚNICAMENTE por el Nombre mencionado del colaborador (0 barrido masivo de nómina)`,
+      );
     } else if (cfg.recordFilterMode === 'all') {
       parts.push(`📋 Alcance de registros: Todos los registros activos del aplicativo`);
     }

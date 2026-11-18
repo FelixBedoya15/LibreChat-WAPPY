@@ -695,7 +695,7 @@ interface VisualNodeInstance {
   group?: 'triggers' | 'extractors' | 'memories' | 'inputs' | 'hitos' | 'outputs';
   customNodeType?: 'skill' | 'subagent' | 'rule' | 'web_scraper' | 'web_search';
   hitoRole?: 'source_read' | 'agent_tool' | 'target_write_report';
-  ifPlacement?: 'pre_agent' | 'post_agent';
+  ifPlacement?: 'pre_source' | 'pre_agent' | 'post_agent';
 }
 
 export function resolveCanvasHitoRole(
@@ -1302,6 +1302,37 @@ export default function WappyWorkflowCanvas({
       (hitoId) => resolveCanvasHitoRole(hitoId, nodeConfigsMap) !== 'source_read',
     );
 
+    const customNodesList = (
+      Array.isArray(workflowNodes?.canvasLayout?.customNodes)
+        ? workflowNodes.canvasLayout!.customNodes!
+        : []
+    ).filter((cn) => cn?.key && !isNodeIdBlockedInWorkflow(cn.key, disabledSgsstApps));
+
+    const hasAiDocExtractor =
+      activeExtractors.includes('extract_ai_doc_ocr') &&
+      !isNodeIdBlockedInWorkflow('extract_ai_doc_ocr', disabledSgsstApps);
+    const rawStage2Extractors = activeExtractors.filter(
+      (id) => id !== 'extract_ai_doc_ocr' && !isNodeIdBlockedInWorkflow(id, disabledSgsstApps),
+    );
+    const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
+    const hasStage2Sources =
+      stage2Total > 0 ||
+      hasAiDocExtractor ||
+      customNodesList.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
+
+    // Determinar ubicación causal de Condición Si/No (pre_source vs pre_agent vs post_agent)
+    const mergedIfCfg = {
+      ...(nodeConfigsMap?.['if_condition'] || {}),
+      ...(nodeConfigsMap?.['if_router'] || {}),
+    } as Record<string, any>;
+    const rawIfPlacement = mergedIfCfg?.ifPlacement;
+    const isPreSourceIf =
+      includeIfNode &&
+      rawIfPlacement === 'pre_source' &&
+      (rawStage2Extractors.length > 0 || sourceHitosList.length > 0);
+    const isPreAgentIf =
+      includeIfNode && !isPreSourceIf && rawIfPlacement === 'pre_agent' && hasStage2Sources;
+
     const rawOutputs = Array.isArray(workflowNodes?.outputs)
       ? workflowNodes.outputs.filter(
           (outId) =>
@@ -1309,7 +1340,8 @@ export default function WappyWorkflowCanvas({
         )
       : ['email_report'];
     const baseOutputs = workflowNodes?.outputs !== undefined ? rawOutputs : ['email_report'];
-    const sortedOutputItems = includeIfNode
+    const shouldSplitOutputsByIf = includeIfNode && !isPreSourceIf;
+    const sortedOutputItems = shouldSplitOutputsByIf
       ? baseOutputs
           .map((outId, idx) => ({
             outId,
@@ -1331,24 +1363,6 @@ export default function WappyWorkflowCanvas({
     const yesOutputItems = sortedOutputItems.filter((item) => item.branch === 'yes');
     const noOutputItems = sortedOutputItems.filter((item) => item.branch === 'no');
 
-    const customNodesList = (
-      Array.isArray(workflowNodes?.canvasLayout?.customNodes)
-        ? workflowNodes.canvasLayout!.customNodes!
-        : []
-    ).filter((cn) => cn?.key && !isNodeIdBlockedInWorkflow(cn.key, disabledSgsstApps));
-
-    const hasAiDocExtractor =
-      activeExtractors.includes('extract_ai_doc_ocr') &&
-      !isNodeIdBlockedInWorkflow('extract_ai_doc_ocr', disabledSgsstApps);
-    const rawStage2Extractors = activeExtractors.filter(
-      (id) => id !== 'extract_ai_doc_ocr' && !isNodeIdBlockedInWorkflow(id, disabledSgsstApps),
-    );
-    const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
-    const hasStage2Sources =
-      stage2Total > 0 ||
-      hasAiDocExtractor ||
-      customNodesList.some((cn) => String(cn?.nodeType || cn?.key || '').includes('scraper'));
-
     const logicNodesList = Array.isArray(workflowNodes?.canvasLayout?.logicNodes)
       ? workflowNodes.canvasLayout!.logicNodes!
       : [];
@@ -1364,22 +1378,17 @@ export default function WappyWorkflowCanvas({
       ? workflowNodes.canvasLayout!.extraAgents!
       : [];
 
-    // Determinar ubicación causal de Condición Si/No (pre_agent vs post_agent)
-    const mergedIfCfg = {
-      ...(nodeConfigsMap?.['if_condition'] || {}),
-      ...(nodeConfigsMap?.['if_router'] || {}),
-    } as Record<string, any>;
-    const rawIfPlacement = mergedIfCfg?.ifPlacement;
-    const isPreAgentIf = includeIfNode && rawIfPlacement === 'pre_agent' && hasStage2Sources;
-
     // Coordenadas limpias por columnas causales de izquierda a derecha (estilo n8n, 0 superposiciones)
     const stage2BaseX = 168;
-    let nextColX = stage2Total > 0 ? 316 : 178;
-    const preLogicBaseX = preIfLogicNodes.length > 0 ? nextColX : 0;
-    if (preIfLogicNodes.length > 0) {
-      nextColX += 148;
-    }
+    const preSourceHitoColX = 332;
+    const extractorColX = isPreSourceIf
+      ? sourceHitosList.length > 0
+        ? 488
+        : 336
+      : stage2BaseX;
 
+    let nextColX = stage2Total > 0 ? 316 : 178;
+    let preLogicBaseX = 0;
     let ifBaseX = 0;
     let aiExtractorBaseX = 0;
     let agentDefaultX = 0;
@@ -1387,8 +1396,42 @@ export default function WappyWorkflowCanvas({
     let extraAgentBaseX = 0;
     let computedOutBaseX = 0;
 
-    if (isPreAgentIf) {
+    if (isPreSourceIf) {
+      // Topología P (pre_source IF): Triggers (28) -> IF (176) --(sí)--> Web Scraping ARL (488|336) -> Agente IA (644|492) -> Salidas
+      //                                                    \--(no)--> Hito 2 Rama NO (332, y=184) --/
+      ifBaseX = 176;
+      let colAfterSourcesX =
+        rawStage2Extractors.length > 0
+          ? extractorColX + 156
+          : sourceHitosList.length > 0
+            ? preSourceHitoColX + 156
+            : ifBaseX + 160;
+      if (preIfLogicNodes.length > 0) {
+        preLogicBaseX = colAfterSourcesX;
+        colAfterSourcesX += 148;
+      }
+      if (hasAiDocExtractor) {
+        aiExtractorBaseX = colAfterSourcesX;
+        agentDefaultX = aiExtractorBaseX + 148;
+      } else {
+        agentDefaultX = colAfterSourcesX;
+      }
+      nextColX = agentDefaultX + 284;
+      if (postIfApprovalNodes.length > 0) {
+        postApprovalBaseX = nextColX;
+        nextColX += 148;
+      }
+      extraAgentBaseX = nextColX;
+      if (extraAgentsList.length > 0) {
+        nextColX += extraAgentsList.length * 284;
+      }
+      computedOutBaseX = nextColX;
+    } else if (isPreAgentIf) {
       // Topología A (pre_agent IF): Triggers -> Stage2 -> [Merge/Loop] -> IF --(sí)--> [✨ Extractor IA Docs] -> Agente IA -> [Approval] -> [ExtraAgents] -> Salidas
+      if (preIfLogicNodes.length > 0) {
+        preLogicBaseX = nextColX;
+        nextColX += 148;
+      }
       ifBaseX = nextColX;
       if (hasAiDocExtractor) {
         aiExtractorBaseX = ifBaseX + 152;
@@ -1408,6 +1451,10 @@ export default function WappyWorkflowCanvas({
       computedOutBaseX = nextColX;
     } else {
       // Topología B (post_agent IF o flujo directo): Triggers -> [Stage2] -> [Merge/Loop] -> [✨ Extractor IA Docs] -> Agente IA -> [IF post_agent] -> [Approval] -> [ExtraAgents] -> Salidas
+      if (preIfLogicNodes.length > 0) {
+        preLogicBaseX = nextColX;
+        nextColX += 148;
+      }
       if (hasAiDocExtractor) {
         aiExtractorBaseX = stage2Total > 0 && preIfLogicNodes.length === 0 ? 308 : nextColX;
         agentDefaultX = aiExtractorBaseX + 148;
@@ -1433,18 +1480,26 @@ export default function WappyWorkflowCanvas({
     // Validar posición del Agente IA ignorando coordenadas obsoletas que inviertan el orden causal
     const minValidAgentX = hasAiDocExtractor
       ? aiExtractorBaseX + 104
-      : isPreAgentIf
-        ? ifBaseX + 110
-        : preIfLogicNodes.length > 0
+      : isPreSourceIf
+        ? preIfLogicNodes.length > 0
           ? preLogicBaseX + 100
-          : stage2Total > 0
-            ? stage2BaseX + 100
-            : 120;
+          : rawStage2Extractors.length > 0
+            ? extractorColX + 104
+            : sourceHitosList.length > 0
+              ? preSourceHitoColX + 104
+              : ifBaseX + 110
+        : isPreAgentIf
+          ? ifBaseX + 110
+          : preIfLogicNodes.length > 0
+            ? preLogicBaseX + 100
+            : stage2Total > 0
+              ? stage2BaseX + 100
+              : 120;
     const savedAgentPos = customPositions['agent_root'];
     const isSavedAgentValid =
       Boolean(savedAgentPos) &&
       savedAgentPos.x >= minValidAgentX &&
-      (!includeIfNode || isPreAgentIf || savedAgentPos.x <= ifBaseX - 180);
+      (!includeIfNode || isPreAgentIf || isPreSourceIf || savedAgentPos.x <= ifBaseX - 180);
     const agentPos = isSavedAgentValid ? savedAgentPos : { x: agentDefaultX, y: 76 };
 
     // Precalcular fila horizontal de Sub-Nodos Circulares debajo del Agente IA
@@ -1454,24 +1509,83 @@ export default function WappyWorkflowCanvas({
       toolInputs.length +
       agentToolHitosList.length +
       customNodesList.length;
-    const minSubLeftBound = hasAiDocExtractor
-      ? aiExtractorBaseX + 92
-      : isPreAgentIf
-        ? ifBaseX + 94
-        : preIfLogicNodes.length > 0
-          ? preLogicBaseX + 88
-          : stage2Total > 0
-            ? stage2BaseX + 88
-            : 28;
+    const minSubLeftBound = isPreSourceIf
+      ? Math.max(
+          sourceHitosList.length > 0 ? preSourceHitoColX + 116 : ifBaseX + 94,
+          hasAiDocExtractor
+            ? aiExtractorBaseX + 92
+            : preIfLogicNodes.length > 0
+              ? preLogicBaseX + 88
+              : rawStage2Extractors.length > 0
+                ? extractorColX + 84
+                : ifBaseX + 94,
+        )
+      : hasAiDocExtractor
+        ? aiExtractorBaseX + 92
+        : isPreAgentIf
+          ? ifBaseX + 94
+          : preIfLogicNodes.length > 0
+            ? preLogicBaseX + 88
+            : stage2Total > 0
+              ? stage2BaseX + 88
+              : 28;
     const subStartX = Math.max(minSubLeftBound, agentPos.x - 36);
     const subEndX = subStartX + Math.max(0, totalSubCount - 1) * 112 + 62;
 
     // Asegurar que la columna final de salidas nunca choque horizontalmente con los sub-nodos circulares
     const outBaseX = Math.max(computedOutBaseX, subEndX + 54);
 
+    // Helper para posicionar Condición Si/No respetando el orden causal (pre_source vs pre_agent vs post_agent)
+    const defaultIfY = isPreSourceIf
+      ? 84
+      : stage2Total >= 3 && isPreAgentIf
+        ? 112
+        : outputs.length >= 3
+          ? 112
+          : 84;
+    const resolveIfPosition = (): { x: number; y: number } => {
+      const savedIf = customPositions['if_router'];
+      if (!savedIf) return { x: ifBaseX, y: defaultIfY };
+      if (isPreSourceIf) {
+        const minPreSrcIfX = 110;
+        const maxPreSrcIfX =
+          sourceHitosList.length > 0
+            ? preSourceHitoColX - 56
+            : rawStage2Extractors.length > 0
+              ? extractorColX - 56
+              : agentPos.x - 60;
+        if (savedIf.x >= minPreSrcIfX && savedIf.x <= maxPreSrcIfX) {
+          return savedIf;
+        }
+        return { x: ifBaseX, y: defaultIfY };
+      }
+      if (isPreAgentIf) {
+        const minIfX =
+          preIfLogicNodes.length > 0
+            ? preLogicBaseX + 60
+            : stage2Total > 0
+              ? stage2BaseX + 60
+              : 96;
+        const maxPreIfX = hasAiDocExtractor ? aiExtractorBaseX - 56 : agentPos.x - 60;
+        if (savedIf.x >= minIfX && savedIf.x <= maxPreIfX) {
+          return savedIf;
+        }
+        return { x: ifBaseX, y: defaultIfY };
+      }
+      const maxPostIfX =
+        postIfApprovalNodes.length > 0 ? postApprovalBaseX - 40 : outBaseX - 40;
+      if (savedIf.x >= agentPos.x + 200 && savedIf.x <= maxPostIfX) {
+        return savedIf;
+      }
+      return { x: ifBaseX, y: defaultIfY };
+    };
+
+    const effectiveIfPos = includeIfNode ? resolveIfPosition() : null;
+
     // ETAPA 1. NODOS DISPARADORES / ENTRADAS (Columna 1: x = 28)
-    const firstDownstreamX =
-      stage2Total > 0
+    const firstDownstreamX = isPreSourceIf
+      ? ifBaseX
+      : stage2Total > 0
         ? stage2BaseX
         : isPreAgentIf
           ? ifBaseX
@@ -1502,7 +1616,25 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // ETAPA 2. FUENTES DE LECTURA: Extractores crudos + Aplicativos Hito `source_read` (Columna 2: x = 168, apilados sin pisarse)
+    // Si es Topología P (`pre_source` IF), insertar `if_router` en Columna 2 (x = 176, y = 84) antes de las fuentes
+    if (includeIfNode && isPreSourceIf && effectiveIfPos) {
+      const ifCustomSubtitle = mergedIfCfg?.ifConditionLabel || '¿Dio número de cédula?';
+      list.push({
+        key: 'if_router',
+        nodeId: 'if_node_router',
+        shape: 'if',
+        title: 'Condición Si/No',
+        subtitle: ifCustomSubtitle,
+        x: effectiveIfPos.x,
+        y: effectiveIfPos.y,
+        width: 72,
+        height: 72,
+        removable: true,
+        ifPlacement: 'pre_source',
+      });
+    }
+
+    // ETAPA 2. FUENTES DE LECTURA: Aplicativos Hito `source_read` y Extractores crudos
     const stage2RightBound =
       preIfLogicNodes.length > 0
         ? preLogicBaseX - 40
@@ -1512,59 +1644,146 @@ export default function WappyWorkflowCanvas({
             ? aiExtractorBaseX - 40
             : agentPos.x - 40;
 
-    rawStage2Extractors.forEach((extId, idx) => {
-      const extDef = getNodeDefById(extId) || EXTRACTOR_NODES[0];
-      const key = `extractor_${extDef.id}`;
-      const defaultY = calcStackedY(stage2Total, idx);
-      const savedExt = customPositions[key];
-      const extPos =
-        savedExt && savedExt.x >= 96 && savedExt.x <= stage2RightBound
-          ? savedExt
-          : { x: stage2BaseX, y: defaultY };
-      const dynamicExtSubtitle =
-        extDef.id === 'extract_sst_workers' && activeCompanyInfo?.companyName
-          ? `${activeCompanyInfo.workerCount ? `${activeCompanyInfo.workerCount} Trab. · ` : ''}${activeCompanyInfo.companyName}`
-          : extDef.badge || '2. Extraer Datos';
-      list.push({
-        key,
-        nodeId: extDef.id,
-        shape: 'square_extractor',
-        title: extDef.shortLabel,
-        subtitle: dynamicExtSubtitle,
-        x: extPos.x,
-        y: extPos.y,
-        width: 70,
-        height: 70,
-        removable: true,
-        group: 'extractors',
+    if (isPreSourceIf) {
+      // En `pre_source`: primero Columna 3 (x = 332, y = 184+): `sourceHitoNodes` (Rama NO · Por Nombre)
+      sourceHitosList.forEach((hitoId, hIdx) => {
+        const def = getNodeDefById(hitoId);
+        if (!def) return;
+        const key = `tool_hitos_${hitoId}`;
+        const hitoCfg = resolveEffectiveNodeCfg(
+          { key, nodeId: hitoId, shape: 'square_hito', group: 'hitos' },
+          nodeConfigsMap,
+        );
+        const defaultY = 184 + hIdx * 136;
+        const savedHito = customPositions[key];
+        const minHitoX = effectiveIfPos ? effectiveIfPos.x + 84 : 260;
+        const maxHitoX =
+          rawStage2Extractors.length > 0 ? extractorColX - 56 : stage2RightBound;
+        const isSavedSourceValid =
+          Boolean(savedHito) &&
+          savedHito.x >= minHitoX &&
+          savedHito.x <= maxHitoX &&
+          savedHito.y >= 136;
+        const pos = isSavedSourceValid
+          ? savedHito
+          : { x: preSourceHitoColX, y: defaultY };
+        const dynamicSourceSubtitle =
+          isPreSourceIf || hitoCfg.recordFilterMode === 'name_lookup_only'
+            ? 'Rama NO · Por Nombre'
+            : '2. Fuente Lectura';
+        list.push({
+          key,
+          nodeId: hitoId,
+          shape: 'square_hito',
+          title: def.shortLabel,
+          subtitle: dynamicSourceSubtitle,
+          x: pos.x,
+          y: pos.y,
+          width: 72,
+          height: 72,
+          removable: true,
+          group: 'hitos',
+          hitoRole: 'source_read',
+        });
       });
-    });
 
-    sourceHitosList.forEach((hitoId, hIdx) => {
-      const def = getNodeDefById(hitoId);
-      if (!def) return;
-      const key = `tool_hitos_${hitoId}`;
-      const combinedIdx = rawStage2Extractors.length + hIdx;
-      const defaultY = calcStackedY(stage2Total, combinedIdx);
-      const savedHito = customPositions[key];
-      const isSavedSourceValid =
-        Boolean(savedHito) && savedHito.x >= 96 && savedHito.x <= stage2RightBound;
-      const pos = isSavedSourceValid ? savedHito : { x: stage2BaseX, y: defaultY };
-      list.push({
-        key,
-        nodeId: hitoId,
-        shape: 'square_hito',
-        title: def.shortLabel,
-        subtitle: '2. Fuente Lectura',
-        x: pos.x,
-        y: pos.y,
-        width: 72,
-        height: 72,
-        removable: true,
-        group: 'hitos',
-        hitoRole: 'source_read',
+      // Columna 4 (x = 488 | 336, y = 84+): `rawExtractorNodes` (ej. `Web Scraping ARL` convergente)
+      rawStage2Extractors.forEach((extId, idx) => {
+        const extDef = getNodeDefById(extId) || EXTRACTOR_NODES[0];
+        const key = `extractor_${extDef.id}`;
+        const defaultY = calcStackedY(rawStage2Extractors.length, idx);
+        const savedExt = customPositions[key];
+        const minExtX =
+          sourceHitosList.length > 0
+            ? preSourceHitoColX + 84
+            : effectiveIfPos
+              ? effectiveIfPos.x + 84
+              : 260;
+        const extPos =
+          savedExt && savedExt.x >= minExtX && savedExt.x <= stage2RightBound
+            ? savedExt
+            : { x: extractorColX, y: defaultY };
+        const dynamicExtSubtitle =
+          extDef.id === 'extract_sst_workers' && activeCompanyInfo?.companyName
+            ? `${activeCompanyInfo.workerCount ? `${activeCompanyInfo.workerCount} Trab. · ` : ''}${activeCompanyInfo.companyName}`
+            : extDef.badge || '2. Extraer Datos';
+        list.push({
+          key,
+          nodeId: extDef.id,
+          shape: 'square_extractor',
+          title: extDef.shortLabel,
+          subtitle: dynamicExtSubtitle,
+          x: extPos.x,
+          y: extPos.y,
+          width: 70,
+          height: 70,
+          removable: true,
+          group: 'extractors',
+        });
       });
-    });
+    } else {
+      rawStage2Extractors.forEach((extId, idx) => {
+        const extDef = getNodeDefById(extId) || EXTRACTOR_NODES[0];
+        const key = `extractor_${extDef.id}`;
+        const defaultY = calcStackedY(stage2Total, idx);
+        const savedExt = customPositions[key];
+        const extPos =
+          savedExt && savedExt.x >= 96 && savedExt.x <= stage2RightBound
+            ? savedExt
+            : { x: stage2BaseX, y: defaultY };
+        const dynamicExtSubtitle =
+          extDef.id === 'extract_sst_workers' && activeCompanyInfo?.companyName
+            ? `${activeCompanyInfo.workerCount ? `${activeCompanyInfo.workerCount} Trab. · ` : ''}${activeCompanyInfo.companyName}`
+            : extDef.badge || '2. Extraer Datos';
+        list.push({
+          key,
+          nodeId: extDef.id,
+          shape: 'square_extractor',
+          title: extDef.shortLabel,
+          subtitle: dynamicExtSubtitle,
+          x: extPos.x,
+          y: extPos.y,
+          width: 70,
+          height: 70,
+          removable: true,
+          group: 'extractors',
+        });
+      });
+
+      sourceHitosList.forEach((hitoId, hIdx) => {
+        const def = getNodeDefById(hitoId);
+        if (!def) return;
+        const key = `tool_hitos_${hitoId}`;
+        const hitoCfg = resolveEffectiveNodeCfg(
+          { key, nodeId: hitoId, shape: 'square_hito', group: 'hitos' },
+          nodeConfigsMap,
+        );
+        const combinedIdx = rawStage2Extractors.length + hIdx;
+        const defaultY = calcStackedY(stage2Total, combinedIdx);
+        const savedHito = customPositions[key];
+        const isSavedSourceValid =
+          Boolean(savedHito) && savedHito.x >= 96 && savedHito.x <= stage2RightBound;
+        const pos = isSavedSourceValid ? savedHito : { x: stage2BaseX, y: defaultY };
+        const dynamicSourceSubtitle =
+          hitoCfg.recordFilterMode === 'name_lookup_only'
+            ? 'Rama NO · Por Nombre'
+            : '2. Fuente Lectura';
+        list.push({
+          key,
+          nodeId: hitoId,
+          shape: 'square_hito',
+          title: def.shortLabel,
+          subtitle: dynamicSourceSubtitle,
+          x: pos.x,
+          y: pos.y,
+          width: 72,
+          height: 72,
+          removable: true,
+          group: 'hitos',
+          hitoRole: 'source_read',
+        });
+      });
+    }
 
     // ETAPA 2B. NODOS LÓGICOS PRE-CONDICIONALES (Merge / Loop: inmediatamente después de Etapa 2 y antes de IF / Extractor IA Docs / Agente IA)
     const preLogicRightBound = isPreAgentIf
@@ -1572,7 +1791,11 @@ export default function WappyWorkflowCanvas({
       : hasAiDocExtractor
         ? aiExtractorBaseX - 40
         : agentPos.x - 40;
-    const preLogicLeftBound = stage2Total > 0 ? stage2BaseX + 60 : 96;
+    const preLogicLeftBound = isPreSourceIf
+      ? (rawStage2Extractors.length > 0 ? extractorColX : preSourceHitoColX) + 60
+      : stage2Total > 0
+        ? stage2BaseX + 60
+        : 96;
     preIfLogicNodes.forEach((ln, idx) => {
       const defaultY = calcStackedY(preIfLogicNodes.length, idx);
       const savedLn = customPositions[ln.key];
@@ -1592,34 +1815,6 @@ export default function WappyWorkflowCanvas({
         removable: true,
       });
     });
-
-    // Helper para posicionar Condición Si/No respetando el orden causal (pre_agent vs post_agent)
-    const defaultIfY = stage2Total >= 3 && isPreAgentIf ? 112 : outputs.length >= 3 ? 112 : 84;
-    const resolveIfPosition = (): { x: number; y: number } => {
-      const savedIf = customPositions['if_router'];
-      if (!savedIf) return { x: ifBaseX, y: defaultIfY };
-      if (isPreAgentIf) {
-        const minIfX =
-          preIfLogicNodes.length > 0
-            ? preLogicBaseX + 60
-            : stage2Total > 0
-              ? stage2BaseX + 60
-              : 96;
-        const maxPreIfX = hasAiDocExtractor ? aiExtractorBaseX - 56 : agentPos.x - 60;
-        if (savedIf.x >= minIfX && savedIf.x <= maxPreIfX) {
-          return savedIf;
-        }
-        return { x: ifBaseX, y: defaultIfY };
-      }
-      const maxPostIfX =
-        postIfApprovalNodes.length > 0 ? postApprovalBaseX - 40 : outBaseX - 40;
-      if (savedIf.x >= agentPos.x + 200 && savedIf.x <= maxPostIfX) {
-        return savedIf;
-      }
-      return { x: ifBaseX, y: defaultIfY };
-    };
-
-    const effectiveIfPos = includeIfNode ? resolveIfPosition() : null;
 
     // Si es Topología A (`pre_agent` IF), insertar `if_router` antes de `Extractor IA Docs` y `agent_root`
     if (includeIfNode && isPreAgentIf && effectiveIfPos) {
@@ -1647,11 +1842,19 @@ export default function WappyWorkflowCanvas({
       const minAiExtX =
         isPreAgentIf && effectiveIfPos
           ? effectiveIfPos.x + 84
-          : preIfLogicNodes.length > 0
-            ? preLogicBaseX + 60
-            : stage2Total > 0
-              ? stage2BaseX + 60
-              : 96;
+          : isPreSourceIf
+            ? preIfLogicNodes.length > 0
+              ? preLogicBaseX + 60
+              : rawStage2Extractors.length > 0
+                ? extractorColX + 60
+                : sourceHitosList.length > 0
+                  ? preSourceHitoColX + 60
+                  : 260
+            : preIfLogicNodes.length > 0
+              ? preLogicBaseX + 60
+              : stage2Total > 0
+                ? stage2BaseX + 60
+                : 96;
       const maxAiExtX = agentPos.x - 60;
       effectiveAiExtractorPos =
         savedAiExt && savedAiExt.x >= minAiExtX && savedAiExt.x <= maxAiExtX
@@ -1698,7 +1901,23 @@ export default function WappyWorkflowCanvas({
         bottom: calcStackedY(activeTriggers.length, activeTriggers.length - 1) + 70 + 38,
       });
     }
-    if (stage2Total > 0) {
+    if (isPreSourceIf) {
+      if (sourceHitosList.length > 0) {
+        mainColumns.push({
+          x: preSourceHitoColX,
+          width: 72,
+          bottom: 184 + (sourceHitosList.length - 1) * 136 + 72 + 38,
+        });
+      }
+      if (rawStage2Extractors.length > 0) {
+        mainColumns.push({
+          x: extractorColX,
+          width: 70,
+          bottom:
+            calcStackedY(rawStage2Extractors.length, rawStage2Extractors.length - 1) + 70 + 38,
+        });
+      }
+    } else if (stage2Total > 0) {
       mainColumns.push({
         x: stage2BaseX,
         width: 72,
@@ -1880,7 +2099,7 @@ export default function WappyWorkflowCanvas({
     });
 
     // Si es Topología B (`post_agent` IF), insertar `if_router` justo después de `agent_root`
-    if (includeIfNode && !isPreAgentIf && effectiveIfPos) {
+    if (includeIfNode && !isPreAgentIf && !isPreSourceIf && effectiveIfPos) {
       const ifCustomSubtitle = mergedIfCfg?.ifConditionLabel || '¿Veredicto IA = SÍ?';
       list.push({
         key: 'if_router',
@@ -1899,7 +2118,7 @@ export default function WappyWorkflowCanvas({
 
     // COMPUERTA DE APROBACIÓN HUMANA (Visto Bueno en Rama SÍ antes de salidas críticas)
     const minApprX =
-      includeIfNode && !isPreAgentIf && effectiveIfPos
+      includeIfNode && !isPreAgentIf && !isPreSourceIf && effectiveIfPos
         ? effectiveIfPos.x + 92
         : agentPos.x + 240;
     postIfApprovalNodes.forEach((ln, idx) => {
@@ -1948,9 +2167,9 @@ export default function WappyWorkflowCanvas({
       });
     });
 
-    // SALIDAS FINALES (En flujo con IF: `yesOutputs` arriba y `noOutputs` en la parte inferior de la columna final)
+    // SALIDAS FINALES (En flujo con IF pre_agent/post_agent: `yesOutputs` arriba y `noOutputs` abajo; en `pre_source` o sin IF: salida directa convergente)
     const minOutX = computedOutBaseX - 40;
-    if (includeIfNode) {
+    if (includeIfNode && !isPreSourceIf) {
       const yesStartY = yesOutputItems.length === 1 ? 68 : 28;
       yesOutputItems.forEach((item, yIdx) => {
         const def = getNodeDefById(item.outId);
@@ -2088,6 +2307,7 @@ export default function WappyWorkflowCanvas({
     const rawStage2Nodes = [...rawExtractorNodes, ...sourceHitoNodes];
     const agentNode = map.get('agent_root');
     const ifNode = map.get('if_router');
+    const isPreSourceIfWire = Boolean(ifNode && ifNode.ifPlacement === 'pre_source');
     const isPreAgentIfWire = Boolean(ifNode && ifNode.ifPlacement === 'pre_agent');
     const preLogicNodes = visualNodes.filter(
       (n) => n.shape === 'logic' && n.nodeId !== 'logic_human_approval',
@@ -2197,17 +2417,19 @@ export default function WappyWorkflowCanvas({
       });
     };
 
-    // 1. Etapa 1 (Triggers) ──> Etapa 2 (rawStage2Nodes, si hay) ──> Etapa 2B (Merge/Loop, si hay) ──> [IF pre_agent | Extractor IA Docs | Agente IA]
+    // 1. Etapa 1 (Triggers) ──> Etapa 2 / Pre-Source IF
     let currUpstream: VisualNodeInstance[] = triggerNodes;
-    if (rawStage2Nodes.length > 0) {
-      connectStageGroups(currUpstream, rawStage2Nodes, 'wire_trig_ext', '#94a3b8');
-      currUpstream = rawStage2Nodes;
-    }
-    if (preLogicNodes.length > 0) {
-      if (currUpstream.length > 0) {
-        connectStageGroups(currUpstream, preLogicNodes, 'wire_prelogic', '#8b5cf6');
+    if (!isPreSourceIfWire) {
+      if (rawStage2Nodes.length > 0) {
+        connectStageGroups(currUpstream, rawStage2Nodes, 'wire_trig_ext', '#94a3b8');
+        currUpstream = rawStage2Nodes;
       }
-      currUpstream = preLogicNodes;
+      if (preLogicNodes.length > 0) {
+        if (currUpstream.length > 0) {
+          connectStageGroups(currUpstream, preLogicNodes, 'wire_prelogic', '#8b5cf6');
+        }
+        currUpstream = preLogicNodes;
+      }
     }
 
     const connectIfRouterBranches = (
@@ -2302,7 +2524,149 @@ export default function WappyWorkflowCanvas({
       });
     };
 
-    if (ifNode && isPreAgentIfWire) {
+    if (ifNode && isPreSourceIfWire) {
+      // Topología P (`pre_source` IF):
+      // Triggers ──> IF ──(sí, carril superior verde #10b981)──────────────────────────> Web Scraping ARL ──> [Extractor IA Docs] ──> Agente IA ──> Salidas
+      //                 └──(no, #64748b)──> Hito 2 Rama NO ──(#0ea5e9 convergente)────/
+      if (triggerNodes.length > 0) {
+        connectStageGroups(triggerNodes, [ifNode], 'wire_trig_presource_if', '#94a3b8');
+      }
+
+      const x1Port = ifNode.x + ifNode.width;
+      const y1YesPort = ifNode.y + 22;
+      const y1NoPort = ifNode.y + 50;
+
+      const convergeTargets: VisualNodeInstance[] =
+        rawExtractorNodes.length > 0
+          ? rawExtractorNodes
+          : preLogicNodes.length > 0
+            ? preLogicNodes
+            : aiDocExtractorNodes.length > 0
+              ? aiDocExtractorNodes
+              : agentNode
+                ? [agentNode]
+                : outputNodes;
+
+      // Puerto SÍ (`y1 = routerNode.y + 22`, verde `#10b981`, label `'sí'`) -> directo a `rawExtractorNodes` por arriba sin cruzar `sourceHitoNodes`
+      convergeTargets.forEach((dst, sIdx) => {
+        pushWire({
+          id: `wire_if_yes_${dst.key}`,
+          sourceKey: ifNode.key,
+          targetKey: dst.key,
+          x1: x1Port,
+          y1: y1YesPort,
+          x2: dst.x,
+          y2: dst.y + dst.height / 2,
+          dashed: false,
+          color: '#10b981',
+          label: sIdx === 0 ? 'sí' : undefined,
+          labelX: x1Port + 16,
+          labelY: y1YesPort - 5,
+        });
+      });
+
+      // Puerto NO (`y1 = routerNode.y + 50`, `#64748b`, label `'no'`): hacia `sourceHitoNodes` y converge en `rawExtractorNodes` (`#0ea5e9`)
+      if (sourceHitoNodes.length > 0) {
+        sourceHitoNodes.forEach((hNode, nIdx) => {
+          pushWire({
+            id: `wire_if_no_${hNode.key}`,
+            sourceKey: ifNode.key,
+            targetKey: hNode.key,
+            x1: x1Port,
+            y1: y1NoPort,
+            x2: hNode.x,
+            y2: hNode.y + hNode.height / 2,
+            dashed: false,
+            color: '#64748b',
+            label: nIdx === 0 ? 'no' : undefined,
+            labelX: x1Port + 16,
+            labelY: y1NoPort + 13,
+          });
+        });
+        if (convergeTargets.length > 0) {
+          connectStageGroups(
+            sourceHitoNodes,
+            convergeTargets,
+            'wire_presource_hito_conv',
+            '#0ea5e9',
+          );
+        }
+      } else {
+        convergeTargets.forEach((dst, nIdx) => {
+          pushWire({
+            id: `wire_if_no_${dst.key}`,
+            sourceKey: ifNode.key,
+            targetKey: dst.key,
+            x1: x1Port,
+            y1: y1NoPort,
+            x2: dst.x,
+            y2: dst.y + dst.height / 2,
+            dashed: false,
+            color: '#64748b',
+            label: nIdx === 0 ? 'no' : undefined,
+            labelX: x1Port + 16,
+            labelY: y1NoPort + 13,
+          });
+        });
+      }
+
+      let currAfterConverge: VisualNodeInstance[] = convergeTargets;
+      if (rawExtractorNodes.length > 0 && preLogicNodes.length > 0) {
+        connectStageGroups(currAfterConverge, preLogicNodes, 'wire_prelogic', '#8b5cf6');
+        currAfterConverge = preLogicNodes;
+      }
+      if (
+        (rawExtractorNodes.length > 0 || preLogicNodes.length > 0) &&
+        aiDocExtractorNodes.length > 0
+      ) {
+        connectStageGroups(
+          currAfterConverge,
+          aiDocExtractorNodes,
+          'wire_to_ai_doc_ext',
+          '#a855f7',
+        );
+        currAfterConverge = aiDocExtractorNodes;
+      }
+      if (
+        agentNode &&
+        currAfterConverge.length > 0 &&
+        !(currAfterConverge.length === 1 && currAfterConverge[0].key === agentNode.key)
+      ) {
+        connectStageGroups(
+          currAfterConverge,
+          [agentNode],
+          currAfterConverge === aiDocExtractorNodes ? 'wire_ai_doc_ext_agent' : 'wire_ext_agent',
+          currAfterConverge === aiDocExtractorNodes ? '#a855f7' : '#0ea5e9',
+        );
+      }
+
+      const afterAgentUpstream: VisualNodeInstance[] = agentNode
+        ? [agentNode]
+        : currAfterConverge;
+      if (afterAgentUpstream.length > 0) {
+        const directStages: VisualNodeInstance[][] = [];
+        if (targetHitoNodes.length > 0) directStages.push(targetHitoNodes);
+        if (approvalNodes.length > 0) directStages.push(approvalNodes);
+        extraAgentNodes.forEach((ea) => directStages.push([ea]));
+        if (
+          outputNodes.length > 0 &&
+          !(afterAgentUpstream === outputNodes)
+        ) {
+          directStages.push(outputNodes);
+        }
+
+        let curr = afterAgentUpstream;
+        directStages.forEach((nextGroup, stIdx) => {
+          connectStageGroups(
+            curr,
+            nextGroup,
+            `wire_direct_${stIdx}`,
+            stIdx === directStages.length - 1 ? '#10b981' : '#0d9488',
+          );
+          curr = nextGroup;
+        });
+      }
+    } else if (ifNode && isPreAgentIfWire) {
       // Topología A (`pre_agent` IF): Stage2 / Merge ──> IF ──(sí)──> [Extractor IA Docs] ──> Agente IA ──> targetHitos ──> Approval ──> ExtraAgents ──> yesOuts
       //                                                    └──(no, curveBelowY bajo obstáculos)──────────────────────────────────────────> noOuts
       if (currUpstream.length > 0) {
@@ -2633,19 +2997,30 @@ export default function WappyWorkflowCanvas({
     }
 
     // 3. Ordenar los nodos principales alcanzables respetando siempre la topología causal real de izquierda a derecha:
-    // Disparadores (10) ➔ Etapa 2 Fuentes Lectura (20-22) ➔ Etapa 2B Merge/Loop (30) ➔ Pre-IF (40) ➔ Agente IA (50) ➔ Post-IF (55) ➔ Hitos Destino (60) ➔ Aprobación Humana (70) ➔ Agentes Extra (80) ➔ Salidas SÍ / NO (90)
+    // Disparadores (10) ➔ Pre-Source IF (15) ➔ Hito Rama NO (18) ➔ Etapa 2 Fuentes/Web Scraping (20-24) ➔ Etapa 2B Merge/Loop (30) ➔ Pre-IF (40) ➔ Agente IA (50) ➔ Post-IF (55) ➔ Hitos Destino (60) ➔ Aprobación Humana (70) ➔ Agentes Extra (80) ➔ Salidas (90)
+    const hasPreSourceIfInCanvas = visualNodes.some(
+      (n) => n.shape === 'if' && n.ifPlacement === 'pre_source',
+    );
     const getStageRank = (node: VisualNodeInstance): number => {
       switch (node.shape) {
         case 'trigger':
           return 10;
         case 'square_extractor':
-          return node.key === 'extractor_extract_ai_doc_ocr' ? 45 : 20;
+          return node.key === 'extractor_extract_ai_doc_ocr'
+            ? 45
+            : hasPreSourceIfInCanvas
+              ? 24
+              : 20;
         case 'square_hito':
-          return 22;
+          return hasPreSourceIfInCanvas ? 18 : 22;
         case 'logic':
           return node.nodeId === 'logic_human_approval' ? 70 : 30;
         case 'if':
-          return node.ifPlacement === 'pre_agent' ? 40 : 55;
+          return node.ifPlacement === 'pre_source'
+            ? 15
+            : node.ifPlacement === 'pre_agent'
+              ? 40
+              : 55;
         case 'agent':
           return node.key === 'agent_root' ? 50 : 80;
         case 'square_output':
@@ -2759,7 +3134,7 @@ export default function WappyWorkflowCanvas({
       title: string;
       isConnected: boolean;
       hitoRole?: 'source_read' | 'agent_tool' | 'target_write_report';
-      ifPlacement?: 'pre_agent' | 'post_agent';
+      ifPlacement?: 'pre_source' | 'pre_agent' | 'post_agent';
     }> = [];
     const emittedKeys = new Set<string>();
 
@@ -2886,7 +3261,7 @@ export default function WappyWorkflowCanvas({
         syncedConfigs[`hito_${hitoRawId}`] = nextConfig;
       }
     }
-    if ((nodeKey === 'if_router' || nodeKey === 'if_condition') && prevConfigs['if_condition']) {
+    if (nodeKey === 'if_router' || nodeKey === 'if_condition') {
       syncedConfigs['if_condition'] = nextConfig;
       syncedConfigs['if_router'] = nextConfig;
     }
@@ -2908,6 +3283,7 @@ export default function WappyWorkflowCanvas({
         delete cleanedPos['sub_model'];
         Object.keys(cleanedPos).forEach((pk) => {
           if (
+            pk.startsWith('extractor_') ||
             pk.startsWith('sub_memory') ||
             pk.startsWith('tool_inputs_') ||
             pk.startsWith('tool_hitos_') ||
@@ -8217,13 +8593,19 @@ export default function WappyWorkflowCanvas({
                       </div>
                       <div className="mt-0.5 flex justify-center">
                         <span
-                          className={`px-1.5 py-0.2 rounded-full border text-[8px] font-extrabold tracking-tight ${
-                            node.ifPlacement === 'pre_agent'
-                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
-                              : 'bg-purple-500/15 border-purple-500/40 text-purple-700 dark:text-purple-300'
+                          className={`px-1.5 py-0.2 rounded-lg border text-[8px] font-extrabold tracking-tight ${
+                            node.ifPlacement === 'pre_source'
+                              ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300'
+                              : node.ifPlacement === 'pre_agent'
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-purple-500/15 border-purple-500/40 text-purple-700 dark:text-purple-300'
                           }`}
                         >
-                          {node.ifPlacement === 'pre_agent' ? '⚡ Pre-IA · 0 tok NO' : '🤖 Post-IA'}
+                          {node.ifPlacement === 'pre_source'
+                            ? '🚦 Pre-Fuentes · Ruta SÍ/NO'
+                            : node.ifPlacement === 'pre_agent'
+                              ? '⚡ Pre-IA · 0 tok NO'
+                              : '🤖 Post-IA'}
                         </span>
                       </div>
                     </div>

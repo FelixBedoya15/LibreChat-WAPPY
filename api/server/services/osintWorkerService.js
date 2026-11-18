@@ -147,6 +147,10 @@ async function convertPdfBase64ToPngBase64(pdfBase64) {
   if (!pdfBuf || pdfBuf.length < 64 || !pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
     return null;
   }
+  // En Linux/VPS jamás consumir memoria excesiva ni abrir navegadores; limitar tamaño de entrada
+  if (process.platform !== 'darwin' && pdfBuf.length > 8 * 1024 * 1024) {
+    return null;
+  }
 
   const uid = `wappy_pdf2png_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const tmpDir = os.tmpdir();
@@ -188,10 +192,16 @@ async function convertPdfBase64ToPngBase64(pdfBase64) {
       return null;
     }
 
+    // Linux/Contenedor: PROHIBIDO invocar Chrome/Puppeteer; usar solo pdftoppm ligero (pág. 1, 120 DPI, <= 3500ms) o retornar null
     try {
-      await execFileAsync('pdftoppm', ['-png', '-r', '150', '-singlefile', pdfPath, outPrefix], {
-        timeout: 8000,
-      });
+      await execFileAsync(
+        'pdftoppm',
+        ['-png', '-f', '1', '-l', '1', '-r', '120', '-singlefile', pdfPath, outPrefix],
+        {
+          timeout: 3500,
+          maxBuffer: 4 * 1024 * 1024,
+        },
+      );
       if (fs.existsSync(pngPath)) {
         const pngBuf = await fs.promises.readFile(pngPath);
         if (
@@ -1747,8 +1757,10 @@ function formatCleanFechaNacimiento(raw = '') {
   }
   const str = String(raw).trim();
   if (!str) return '';
-  const isoMatch = str.match(/^(\d{4}-\d{2}-\d{2})(?:T.*)?$/);
-  if (isoMatch) return isoMatch[1];
+  const ymdMatch = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:T.*)?$/);
+  if (ymdMatch) {
+    return `${ymdMatch[1]}-${ymdMatch[2].padStart(2, '0')}-${ymdMatch[3].padStart(2, '0')}`;
+  }
   const dmyMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmyMatch) {
     return `${dmyMatch[1].padStart(2, '0')}/${dmyMatch[2].padStart(2, '0')}/${dmyMatch[3]}`;
@@ -2514,6 +2526,7 @@ async function consultarRamaJudicial(params = '') {
       ? params.trim()
       : String(params?.nombreCompleto || params?.nombre || params?.fullName || '').trim();
   const includeEvidence = isObj && params.includeEvidence !== undefined ? params.includeEvidence : true;
+  const vpsSafeDirectFallback = isObj && Boolean(params.vpsSafeDirectFallback);
   const cleanTipoDoc = isObj ? String(params.tipoDoc || 'CC').trim().toUpperCase() : 'CC';
   const cleanCedula = isObj
     ? String(params.cedula || params.documento || params.identificacion || '').trim()
@@ -2544,7 +2557,7 @@ async function consultarRamaJudicial(params = '') {
     let imageBase64 = contraloria?.imageBase64 || null;
     let imageFileName = contraloria?.imageFileName || null;
 
-    if (!pdfBase64 && rj.ok && includeEvidence !== false) {
+    if (!pdfBase64 && rj.ok && includeEvidence !== false && !vpsSafeDirectFallback) {
       try {
         const todayISO = new Date().toISOString().split('T')[0];
         const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
@@ -2662,9 +2675,159 @@ async function consultarRamaJudicial(params = '') {
   }
 }
 
+function sanitizeExtractedArlEntity(raw = '', { isPerson = true } = {}) {
+  let s = String(raw || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return '';
+
+  if (isPerson) {
+    s = s
+      .replace(
+        /^(?:que\s+)?(?:el\s*\(\s*la\s*\)\s*se[ñn]or\s*\(\s*a\s*\)|el\s+se[ñn]or|la\s+se[ñn]ora|se[ñn]or\s*\(\s*a\s*\)|sr\s*\(\s*a\s*\)\.?|trabajador\s*\(\s*a\s*\)|afiliad[oa]\s*\(\s*a\s*\))\s+/i,
+        '',
+      )
+      .replace(
+        /^(?:que|nombre(?:\s+completo)?(?:\s+del\s+(?:afiliado|trabajador|cotizante))?|nombres?\s+y\s+apellidos?|afiliad[oa]|trabajador)\s*[:\-]?\s*/i,
+        '',
+      )
+      .replace(
+        /\s*,?\s*(?:identificad[oa]|portador|quien\s+se\s+identifica|con\s+(?:c[eé]dula|documento|tipo\s+de\s+documento|cc\b|c\.c\.|ce\b|ti\b|ppt\b|pep\b|nit\b)).*$/i,
+        '',
+      )
+      .replace(
+        /\s+(?:tipo\s+y\s+n[uú]mero|tipo\s+de\s+documento|n[uú]mero\s+de\s+documento|documento\b|estado\b).*$/i,
+        '',
+      )
+      .replace(/^[,.:;\-\s]+|[,.:;\-\s]+$/g, '')
+      .trim();
+
+    if (s.length < 5 || s.length > 90) return '';
+    if (/\d{3,}/.test(s)) return '';
+    if (
+      /suramericana|positiva\s+compa|seguros\s+bol[ií]var|riesgos\s+laborales|certificado\s+de|gerencia\s+de|sistema\s+general|c[eé]dula\s+solicitada|no\s+registra|sin\s+afiliaci/i.test(
+        s,
+      )
+    ) {
+      return '';
+    }
+    const words = s.split(/\s+/).filter((w) => /[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}/.test(w));
+    if (words.length < 2) return '';
+    return s;
+  }
+
+  s = s
+    .replace(
+      /\s*,?\s*(?:identificad[oa]|con\s+nit\b|nit\b\s*[:.#-]?\s*\d|desde\s+el\b|en\s+estado\b|estado\s*:|bajo\s+la\s+modalidad|clase\s+de\s+riesgo).*$/i,
+      '',
+    )
+    .replace(/^[,.:;\-\s]+|[,.:;\-\s]+$/g, '')
+    .trim();
+
+  if (s.length < 3 || s.length > 100) return '';
+  if (
+    /^(?:suramericana|seguros\s+de\s+vida\s+suramericana|positiva\s+compa[ñn][ií]a\s+de\s+seguros|arl\s+sura|arl\s+positiva)/i.test(
+      s,
+    )
+  ) {
+    return '';
+  }
+  return s;
+}
+
+async function extractArlHolderAndEmployerFromPdf(pdfBuf) {
+  if (
+    !pdfBuf ||
+    !Buffer.isBuffer(pdfBuf) ||
+    pdfBuf.length < 100 ||
+    pdfBuf.length > 8 * 1024 * 1024 ||
+    !pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF') ||
+    typeof pdfParse !== 'function'
+  ) {
+    return { titular: null, empleador: null };
+  }
+
+  let timer = null;
+  try {
+    const parseTask = Promise.resolve(pdfParse(pdfBuf, { max: 2 })).catch(() => null);
+    const timeoutTask = new Promise((resolve) => {
+      timer = setTimeout(() => resolve(null), 2500);
+      if (typeof timer.unref === 'function') timer.unref();
+    });
+    const parsed = await Promise.race([parseTask, timeoutTask]);
+    const rawText = String(parsed?.text || '');
+    if (!rawText.trim()) {
+      return { titular: null, empleador: null };
+    }
+
+    const flat = rawText.replace(/\s+/g, ' ').trim();
+    let titular = '';
+    let empleador = '';
+
+    const personPatterns = [
+      /(?:(?:certifica|hace\s+constar)\s*:?\s*que(?:\s+el\s*\(\s*la\s*\)\s*se[ñn]or\s*\(\s*a\s*\)|\s+el\s+se[ñn]or|\s+la\s+se[ñn]ora|\s+se[ñn]or\s*\(\s*a\s*\))?\s*:?\s*)([A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜa-záéíóúñü\s.'-]{4,90}?)(?=\s*,?\s*(?:identificad[oa]|portador|con\s+(?:c[eé]dula|documento|tipo\s+de\s+documento|cc\b|c\.c\.|ce\b|ti\b|ppt\b|pep\b)))/i,
+      /(?:\bque(?:\s+el\s*\(\s*la\s*\)\s*se[ñn]or\s*\(\s*a\s*\)|\s+el\s+se[ñn]or|\s+la\s+se[ñn]ora|\s+se[ñn]or\s*\(\s*a\s*\))?\s+)([A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜa-záéíóúñü\s.'-]{4,90}?)(?=\s*,?\s*identificad[oa](?:\s*\(\s*a\s*\))?\s+con\b)/i,
+    ];
+
+    for (const re of personPatterns) {
+      const m = flat.match(re);
+      if (m && m[1]) {
+        const cleaned = sanitizeExtractedArlEntity(m[1], { isPerson: true });
+        if (cleaned) {
+          titular = cleaned;
+          break;
+        }
+      }
+    }
+
+    if (!titular) {
+      const lineMatch = rawText.match(
+        /(?:nombres?\s+y\s+apellidos?|nombre\s+(?:completo\s+)?(?:del\s+(?:afiliado|trabajador|cotizante))?|nombre\s+afiliado|trabajador\s*\/\s*afiliado)\s*[:\-]\s*([^\r\n]{5,90})/i,
+      );
+      if (lineMatch && lineMatch[1]) {
+        titular = sanitizeExtractedArlEntity(lineMatch[1], { isPerson: true });
+      }
+    }
+
+    const employerPatterns = [
+      /(?:a\s+trav[eé]s\s+de\s+la\s+empresa|bajo\s+el\s+empleador|vinculad[oa](?:\s*\(\s*a\s*\))?\s+(?:con|a)\s+(?:la\s+empresa|el\s+empleador)|con\s+el\s+empleador)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑÜ0-9][A-ZÁÉÍÓÚÑÜa-záéíóúñü0-9\s.,&'-]{2,95}?)(?=\s*(?:,\s*identificad|\s+identificad|\s+con\s+nit|\s+nit\b|\s+en\s+calidad|\s+desde\s+el|\s+en\s+estado|\s+estado\b|$))/i,
+    ];
+
+    for (const re of employerPatterns) {
+      const m = flat.match(re);
+      if (m && m[1]) {
+        const cleanedEmp = sanitizeExtractedArlEntity(m[1], { isPerson: false });
+        if (cleanedEmp) {
+          empleador = cleanedEmp;
+          break;
+        }
+      }
+    }
+
+    if (!empleador) {
+      const empLineMatch = rawText.match(
+        /(?:raz[oó]n\s+social(?:\s+empleador|\s+empresa)?|empresa\s+empleadora|empleador|empresa)\s*[:\-]\s*([^\r\n]{3,95})/i,
+      );
+      if (empLineMatch && empLineMatch[1]) {
+        empleador = sanitizeExtractedArlEntity(empLineMatch[1], { isPerson: false });
+      }
+    }
+
+    return {
+      titular: titular || null,
+      empleador: empleador || null,
+    };
+  } catch (_) {
+    return { titular: null, empleador: null };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * 1. Consulta REAL por cédula en ARL SURA (HTTP directo + PDF real), ARL Positiva (API directa)
- *    y ARL Seguros Bolívar (Puppeteer con interceptación Lambda cuando hay fechaNacimiento o ARL Bolívar).
+ *    y ARL Seguros Bolívar (Puppeteer con interceptación Lambda cuando hay fechaNacimiento y NO es respaldo ligero VPS).
  */
 async function consultarArlRealPorCedula({
   tipoDoc = 'CC',
@@ -2673,6 +2836,7 @@ async function consultarArlRealPorCedula({
   fechaNacimiento = '',
   arl = '',
   includeEvidence = true,
+  vpsSafeDirectFallback = false,
 } = {}) {
   const cleanTipoDoc = String(tipoDoc || 'CC').trim().toUpperCase();
   const rawCedulaStr = String(cedula || '').trim();
@@ -2680,14 +2844,21 @@ async function consultarArlRealPorCedula({
   const cleanNombre = String(nombre || '').trim();
   const cleanFechaNac = formatCleanFechaNacimiento(fechaNacimiento);
   const cleanArl = String(arl || '').trim();
+  const isVpsSafeFallback = Boolean(vpsSafeDirectFallback);
+  const defaultFuente = isVpsSafeFallback
+    ? 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Sin Navegador)'
+    : 'Google Antigravity (IP Colombia · Consulta Real ARL por Cédula)';
+  const needsTitularRecovery = !cleanNombre || /^c[eé]dula\s+solicitada/i.test(cleanNombre);
 
   if (!cleanCedula) {
     return {
-      fuente: 'Google Antigravity Local (IP Colombia · ARL Real)',
+      fuente: defaultFuente,
       status: 'warning',
       action: 'arl',
+      vpsSafeDirectFallback: isVpsSafeFallback,
       tipoDoc: cleanTipoDoc,
       documento: '',
+      titular: null,
       nombre: cleanNombre,
       afiliadoActivo: false,
       tieneCertificado: false,
@@ -2706,8 +2877,10 @@ async function consultarArlRealPorCedula({
       fuente: 'Validación Previa WAPPY (ARL)',
       status: 'warning',
       action: 'arl',
+      vpsSafeDirectFallback: isVpsSafeFallback,
       tipoDoc: cleanTipoDoc,
       documento: rawCedulaStr,
+      titular: null,
       nombre: cleanNombre,
       afiliadoActivo: false,
       tieneCertificado: false,
@@ -2726,6 +2899,7 @@ async function consultarArlRealPorCedula({
   let afiliadoActivo = false;
   let entidadDetectada = '';
   let empleadorDetalle = '';
+  let recoveredTitular = '';
   let historialRetirado = false;
   let bolivarRetiroEmpresa = '';
   let bolivarRetiroFechaFin = '';
@@ -2734,7 +2908,10 @@ async function consultarArlRealPorCedula({
   let imageBase64 = null;
   let imageFileName = null;
 
-  // 1) ARL SURA + ARL Positiva bajo semáforo HTTP ligero (~200-350ms, CERO navegador)
+  const httpTimeoutMs = isVpsSafeFallback ? 10000 : 12000;
+  const certHttpTimeoutMs = isVpsSafeFallback ? 10000 : 15000;
+
+  // 1) ARL SURA + ARL Positiva bajo semáforo HTTP ligero (~200-350ms, < 5 MB RAM, CERO navegador)
   await runWithArlHttpSlot(async () => {
     const suraTipoMap = { CC: 'C', CE: 'E', TI: 'T', PA: 'P', PPT: 'X', NIT: 'N', PE: 'P' };
     const suraTipo = suraTipoMap[cleanTipoDoc] || 'C';
@@ -2757,7 +2934,7 @@ async function consultarArlRealPorCedula({
           Referer: suraUrl,
         },
         body: suraFormBody,
-        timeoutMs: 12000,
+        timeoutMs: httpTimeoutMs,
       });
       const html1 = r1.buf.toString('utf8');
       const latencyMs = Date.now() - t0;
@@ -2767,17 +2944,17 @@ async function consultarArlRealPorCedula({
       if (isAfiliadoSura) {
         afiliadoActivo = true;
         entidadDetectada = 'ARL SURA';
-        consultasTexto.push('ARL SURA: Afiliado activo');
-        detalles.push({
+        const suraDetailEntry = {
           entidad: 'ARL SURA',
           url: suraUrl,
           consultadoPorCedula: true,
           afiliadoActivo: true,
           estado: 'AFILIADO ACTIVO',
           latencyMs,
-        });
+        };
+        detalles.push(suraDetailEntry);
 
-        if (includeEvidence !== false) {
+        if (includeEvidence !== false || needsTitularRecovery) {
           const formBlockMatch = html1.match(/<form[^>]*id=["']frm_cert["'][^>]*>([\s\S]*?)<\/form>/i);
           if (formBlockMatch) {
             const certParams = new URLSearchParams();
@@ -2800,14 +2977,37 @@ async function consultarArlRealPorCedula({
               },
               cookieHeader: r1.cookieHeader,
               body: certParams.toString(),
-              timeoutMs: 15000,
+              timeoutMs: certHttpTimeoutMs,
             });
             if (rCert.buf.length > 500 && rCert.buf.subarray(0, 5).toString('ascii').startsWith('%PDF')) {
-              pdfBase64 = rCert.buf.toString('base64');
-              pdfFileName = `Certificado_ARL_SURA_${cleanCedula}.pdf`;
+              if (includeEvidence !== false) {
+                pdfBase64 = rCert.buf.toString('base64');
+                pdfFileName = `Certificado_ARL_SURA_${cleanCedula}.pdf`;
+              }
+              if (typeof pdfParse === 'function' && (needsTitularRecovery || !empleadorDetalle)) {
+                const pdfMeta = await extractArlHolderAndEmployerFromPdf(rCert.buf);
+                if (pdfMeta.titular && needsTitularRecovery) {
+                  recoveredTitular = pdfMeta.titular;
+                }
+                if (pdfMeta.empleador && !empleadorDetalle) {
+                  empleadorDetalle = pdfMeta.empleador;
+                }
+              }
+            }
+            if (!recoveredTitular && needsTitularRecovery) {
+              const formHolder = sanitizeExtractedArlEntity(
+                certParams.get('nombre') || certParams.get('nom_afiliado') || '',
+                { isPerson: true },
+              );
+              if (formHolder) recoveredTitular = formHolder;
             }
           }
         }
+        if (recoveredTitular) suraDetailEntry.titular = recoveredTitular;
+        if (empleadorDetalle) suraDetailEntry.empleador = empleadorDetalle;
+        consultasTexto.push(
+          `ARL SURA: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
+        );
       } else {
         consultasTexto.push('ARL SURA: No afiliado');
         detalles.push({
@@ -2838,7 +3038,7 @@ async function consultarArlRealPorCedula({
         const rPos = await insecureHttpsRequest(posUrl, {
           method: 'GET',
           headers: { Accept: 'application/json, application/pdf, */*' },
-          timeoutMs: 12000,
+          timeoutMs: httpTimeoutMs,
         });
         const latencyMs = Date.now() - t0;
         const isPosPdf =
@@ -2848,19 +3048,32 @@ async function consultarArlRealPorCedula({
         if (rPos.status === 200 && isPosPdf) {
           afiliadoActivo = true;
           entidadDetectada = 'ARL Positiva';
-          consultasTexto.push('ARL Positiva: Afiliado activo');
+          if (includeEvidence !== false) {
+            pdfBase64 = rPos.buf.toString('base64');
+            pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
+          }
+          if (typeof pdfParse === 'function' && (needsTitularRecovery || !empleadorDetalle)) {
+            const pdfMeta = await extractArlHolderAndEmployerFromPdf(rPos.buf);
+            if (pdfMeta.titular && needsTitularRecovery) {
+              recoveredTitular = pdfMeta.titular;
+            }
+            if (pdfMeta.empleador && !empleadorDetalle) {
+              empleadorDetalle = pdfMeta.empleador;
+            }
+          }
+          consultasTexto.push(
+            `ARL Positiva: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
+          );
           detalles.push({
             entidad: 'ARL Positiva',
             url: posUrl,
             consultadoPorCedula: true,
             afiliadoActivo: true,
             estado: 'AFILIADO ACTIVO',
+            titular: recoveredTitular || undefined,
+            empleador: empleadorDetalle || undefined,
             latencyMs,
           });
-          if (includeEvidence !== false) {
-            pdfBase64 = rPos.buf.toString('base64');
-            pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
-          }
         } else if (
           rPos.status === 200 &&
           !/AFFILIATION_NOT_FOUND|no\s+se\s+encuentra/i.test(posText)
@@ -2883,10 +3096,26 @@ async function consultarArlRealPorCedula({
                 posJson.empresa ||
                 '',
             ).trim();
-            consultasTexto.push(
-              `ARL Positiva: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
-            );
-            detalles.push({
+            if (needsTitularRecovery) {
+              const jsonHolder = sanitizeExtractedArlEntity(
+                firstPosCert?.nombreCompleto ||
+                  firstPosCert?.nombreTrabajador ||
+                  firstPosCert?.nombreAfiliado ||
+                  posJson.nombreCompleto ||
+                  posJson.nombreAfiliado ||
+                  [
+                    firstPosCert?.primerNombre,
+                    firstPosCert?.segundoNombre,
+                    firstPosCert?.primerApellido,
+                    firstPosCert?.segundoApellido,
+                  ]
+                    .filter(Boolean)
+                    .join(' '),
+                { isPerson: true },
+              );
+              if (jsonHolder) recoveredTitular = jsonHolder;
+            }
+            const posDetailEntry = {
               entidad: 'ARL Positiva',
               url: posUrl,
               consultadoPorCedula: true,
@@ -2894,15 +3123,17 @@ async function consultarArlRealPorCedula({
               estado: 'AFILIADO ACTIVO',
               empleador: empleadorDetalle || undefined,
               latencyMs,
-            });
-            if (includeEvidence !== false && posCertId && /^\d+$/.test(posCertId)) {
+            };
+            detalles.push(posDetailEntry);
+
+            if ((includeEvidence !== false || needsTitularRecovery) && posCertId && /^\d+$/.test(posCertId)) {
               try {
                 const posB64Res = await insecureHttpsRequest(
                   `https://gal-back.linktic.com/afiliaciones/certificates/${encodeURIComponent(posCertId)}/base64`,
                   {
                     method: 'GET',
                     headers: { Accept: 'application/json, text/plain, */*' },
-                    timeoutMs: 12000,
+                    timeoutMs: httpTimeoutMs,
                   },
                 );
                 if (posB64Res.status === 200 && posB64Res.buf.length > 200) {
@@ -2915,12 +3146,31 @@ async function consultarArlRealPorCedula({
                     decodedPdf.length > 500 &&
                     decodedPdf.subarray(0, 5).toString('ascii').startsWith('%PDF')
                   ) {
-                    pdfBase64 = decodedPdf.toString('base64');
-                    pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
+                    if (includeEvidence !== false) {
+                      pdfBase64 = decodedPdf.toString('base64');
+                      pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
+                    }
+                    if (
+                      typeof pdfParse === 'function' &&
+                      ((needsTitularRecovery && !recoveredTitular) || !empleadorDetalle)
+                    ) {
+                      const pdfMeta = await extractArlHolderAndEmployerFromPdf(decodedPdf);
+                      if (pdfMeta.titular && needsTitularRecovery && !recoveredTitular) {
+                        recoveredTitular = pdfMeta.titular;
+                      }
+                      if (pdfMeta.empleador && !empleadorDetalle) {
+                        empleadorDetalle = pdfMeta.empleador;
+                      }
+                    }
                   }
                 }
               } catch (_) {}
             }
+            if (recoveredTitular) posDetailEntry.titular = recoveredTitular;
+            if (empleadorDetalle) posDetailEntry.empleador = empleadorDetalle;
+            consultasTexto.push(
+              `ARL Positiva: Afiliado activo${empleadorDetalle ? ` (${empleadorDetalle})` : ''}`,
+            );
           } else {
             consultasTexto.push('ARL Positiva: No afiliado');
             detalles.push({
@@ -2956,7 +3206,7 @@ async function consultarArlRealPorCedula({
     }
   });
 
-  // Convertir PDF oficial de SURA o Positiva a PNG fuera del slot HTTP
+  // Convertir PDF oficial de SURA o Positiva a PNG fuera del slot HTTP (seguro en Linux sin Chrome)
   if (pdfBase64 && !imageBase64) {
     imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
     if (imageBase64 && pdfFileName) {
@@ -2964,18 +3214,40 @@ async function consultarArlRealPorCedula({
     }
   }
 
-  // 2) ARL Seguros Bolívar (si no salió activo en SURA ni Positiva, y hay fechaNacimiento disponible o su ARL indica Bolívar)
-  const mentionsBolivar = /bol[ií]var/i.test(cleanArl);
+  // 2) ARL Seguros Bolívar y avisos explícitos cuando no salió afiliación activa en SURA ni Positiva
   const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
-  if (!afiliadoActivo && (mentionsBolivar || Boolean(fechaNacDmy))) {
+  const notaFaltaFechaNac =
+    'Sin afiliación activa en ARL SURA ni ARL Positiva · Si la consulta corresponde a una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar), solicita la fecha de nacimiento al usuario (Colmena y AXA Colpatria requieren clave empresarial del empleador)';
+  const notaVpsSinNavegador =
+    'Sin afiliación activa en ARL SURA ni ARL Positiva · Para consultar ARL Seguros Bolívar sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud (Colmena y AXA Colpatria requieren clave empresarial del empleador)';
+
+  if (!afiliadoActivo) {
     if (!fechaNacDmy) {
-      consultasTexto.push('ARL Bolívar: Requiere Fecha de Nacimiento para consultar');
+      consultasTexto.push('ARL Seguros Bolívar: Requiere fecha de nacimiento para consultar');
       detalles.push({
         entidad: 'ARL Seguros Bolívar',
         url: 'https://www.segurosbolivar.com/arl',
         consultadoPorCedula: false,
         afiliadoActivo: false,
+        requiereFechaNacimiento: true,
         estado: 'Falta Fecha de Nacimiento',
+        nota: notaFaltaFechaNac,
+      });
+    } else if (isVpsSafeFallback) {
+      // PROHIBIDO abrir Chromium/Puppeteer en el respaldo directo del VPS para proteger RAM/CPU al 100%
+      consultasTexto.push(
+        'ARL Seguros Bolívar: Omitido en respaldo ligero VPS (requiere Google Antigravity Local o Cloud conectado)',
+      );
+      detalles.push({
+        entidad: 'ARL Seguros Bolívar',
+        url: 'https://www.segurosbolivar.com/arl',
+        consultadoPorCedula: false,
+        afiliadoActivo: false,
+        requiereAntigravityConectado: true,
+        vpsSafeDirectFallback: true,
+        estado:
+          'Para consultar ARL Seguros Bolívar sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud',
+        nota: notaVpsSinNavegador,
       });
     } else {
       try {
@@ -3108,9 +3380,18 @@ async function consultarArlRealPorCedula({
         }, 15000);
 
         const latencyMs = Date.now() - t0;
-        const empresas = Array.isArray(bolResult?.interceptedJson?.result?.data?.empresas)
-          ? bolResult.interceptedJson.result.data.empresas
-          : [];
+        const bolData = bolResult?.interceptedJson?.result?.data || {};
+        if (needsTitularRecovery && !recoveredTitular) {
+          const bolHolder = sanitizeExtractedArlEntity(
+            bolData.nombreCompleto ||
+              bolData.nombreAfiliado ||
+              bolData.nombreTrabajador ||
+              [bolData.nombres, bolData.apellidos].filter(Boolean).join(' '),
+            { isPerson: true },
+          );
+          if (bolHolder) recoveredTitular = bolHolder;
+        }
+        const empresas = Array.isArray(bolData.empresas) ? bolData.empresas : [];
 
         let activeEmp = null;
         let retiredEmp = null;
@@ -3145,6 +3426,7 @@ async function consultarArlRealPorCedula({
             consultadoPorCedula: true,
             afiliadoActivo: true,
             estado: 'AFILIADO ACTIVO',
+            titular: recoveredTitular || undefined,
             empleador: empleadorDetalle || undefined,
             latencyMs,
           });
@@ -3235,7 +3517,7 @@ async function consultarArlRealPorCedula({
       normNomina && !normDet.includes(normNomina.slice(0, 5))
         ? ` · Nota: en ficha figura "${cleanArl}"`
         : '';
-    resumen = `Confirmado afiliado activo en ${entidadDetectada}${empleadorDetalle ? ` (${empleadorDetalle})` : ''}${pdfBase64 ? ' · Certificado oficial descargado' : ''}${mismatchNote}`;
+    resumen = `Confirmado afiliado activo en ${entidadDetectada}${recoveredTitular ? ` · Titular: ${recoveredTitular}` : ''}${empleadorDetalle ? ` (${empleadorDetalle})` : ''}${pdfBase64 ? ' · Certificado oficial descargado' : ''}${mismatchNote}`;
   } else {
     // PROHIBIDO devolver PDF/PNG falso cuando no hay afiliación activa
     pdfBase64 = null;
@@ -3246,6 +3528,16 @@ async function consultarArlRealPorCedula({
     if (historialRetirado) {
       estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (HISTORIAL RETIRADO BOLÍVAR)';
       resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+    } else if (!fechaNacDmy) {
+      estadoReal = cleanArl
+        ? `❌ SIN AFILIACIÓN ACTIVA EN SURA/POSITIVA (Nómina: ${cleanArl} · Falta F. Nacimiento)`
+        : '❌ SIN AFILIACIÓN ACTIVA EN SURA/POSITIVA (FALTA F. NACIMIENTO PARA BOLÍVAR)';
+      resumen = `${notaFaltaFechaNac}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+    } else if (isVpsSafeFallback) {
+      estadoReal = cleanArl
+        ? `❌ SIN AFILIACIÓN EN SURA/POSITIVA (Nómina: ${cleanArl} · Bolívar requiere Antigravity)`
+        : '❌ SIN AFILIACIÓN EN SURA/POSITIVA (BOLÍVAR REQUIERE ANTIGRAVITY LOCAL/CLOUD)';
+      resumen = `${notaVpsSinNavegador}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
     } else if (/colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
       estadoReal = `❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (Nómina: ${cleanArl})`;
       resumen = `${consultasTexto.join(' · ')} · En Somos SST figura "${cleanArl}" (Colmena/AXA exigen clave empresarial privada del empleador)`;
@@ -3256,17 +3548,22 @@ async function consultarArlRealPorCedula({
   }
 
   return {
-    fuente: 'Google Antigravity Local (IP Colombia · Consulta Real ARL por Cédula)',
+    fuente: defaultFuente,
     status: 'ok',
     action: 'arl',
+    vpsSafeDirectFallback: isVpsSafeFallback,
     tipoDoc: cleanTipoDoc,
     documento: cleanCedula,
-    nombre: cleanNombre,
+    titular: recoveredTitular || null,
+    nombre: recoveredTitular || cleanNombre,
     fechaNacimiento: cleanFechaNac || undefined,
     arl: cleanArl || undefined,
     afiliadoActivo,
     entidadDetectada: entidadDetectada || null,
     empleador: empleadorDetalle || null,
+    requiereFechaNacimiento: !afiliadoActivo && !fechaNacDmy ? true : undefined,
+    requiereAntigravityConectado:
+      !afiliadoActivo && Boolean(fechaNacDmy) && isVpsSafeFallback ? true : undefined,
     historialRetirado,
     tieneCertificado: Boolean(pdfBase64),
     estadoReal,
@@ -4079,8 +4376,10 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
     url = '',
     includeEvidence = true,
     forceEvidence = false,
+    vpsSafeDirectFallback = false,
   } = opts;
 
+  const isVpsSafeFallback = Boolean(vpsSafeDirectFallback);
   const resolvedCedula = String(cedula || documento || '').trim();
   const resolvedNombre = String(nombre || nombreCompleto || '').trim();
   const rawAction = String(action || nodeId || 'arl')
@@ -4097,9 +4396,9 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
       return await ejecutarWebScrapeConEvidencia({
         targetUrl: targetUrl || url || 'https://www.mintrabajo.gov.co',
         urls: opts.urls,
-        scriptEngine: opts.scriptEngine,
+        scriptEngine: isVpsSafeFallback ? 'fetch_cheerio' : opts.scriptEngine,
         scriptCode: opts.scriptCode,
-        includeEvidence,
+        includeEvidence: isVpsSafeFallback ? false : includeEvidence,
         userId: opts.userId || null,
         companyId: opts.companyId || null,
       });
@@ -4130,6 +4429,7 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
         cedula: resolvedCedula,
         includeEvidence,
         forceEvidence,
+        vpsSafeDirectFallback: isVpsSafeFallback,
       });
     }
 
@@ -4138,6 +4438,30 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
       rawAction === 'simit' ||
       rawAction === 'scraper_agy_vial_pesv'
     ) {
+      if (isVpsSafeFallback) {
+        return {
+          fuente: 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Sin Navegador)',
+          status: 'warning',
+          action: 'vial_pesv',
+          vpsSafeDirectFallback: true,
+          requiereAntigravityConectado: true,
+          tipoDoc: String(tipoDoc || 'CC').toUpperCase(),
+          documento: resolvedCedula,
+          placa: String(placa || '').toUpperCase(),
+          nombre: resolvedNombre,
+          afiliadoActivo: false,
+          tieneHallazgo: false,
+          tieneCertificado: false,
+          estadoReal: 'ℹ️ SIMIT REQUIERE ANTIGRAVITY LOCAL O CLOUD (PROTECCIÓN VPS SIN NAVEGADOR)',
+          pdfBase64: null,
+          pdfFileName: null,
+          imageBase64: null,
+          imageFileName: null,
+          resumen:
+            'El portal SIMIT exige validación en navegador y requiere tener conectado Google Antigravity Local o Cloud para proteger la memoria y CPU del VPS.',
+          detalles: [],
+        };
+      }
       return await consultarSimitPesvRealPorCedula({
         tipoDoc,
         cedula: resolvedCedula,
@@ -4153,6 +4477,33 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
       rawAction === 'scraper_agy_pensiones_directo' ||
       rawAction === 'queryworkerpension'
     ) {
+      if (isVpsSafeFallback) {
+        return {
+          fuente: 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Sin Navegador)',
+          status: 'ok',
+          action: 'pensiones',
+          nodoProtegido: true,
+          vpsSafeDirectFallback: true,
+          requiereAntigravityConectado: true,
+          tipoDoc: String(tipoDoc || 'CC').toUpperCase(),
+          documento: resolvedCedula,
+          nombre: resolvedNombre,
+          afp: afp || undefined,
+          afiliadoActivo: false,
+          tieneCertificado: false,
+          estadoReal: afp
+            ? `ℹ️ AFP NÓMINA: ${String(afp).toUpperCase()} (REQUIERE ANTIGRAVITY LOCAL/CLOUD)`
+            : 'ℹ️ CONSULTA AFP REQUIERE ANTIGRAVITY LOCAL O CLOUD (PROTECCIÓN VPS)',
+          pdfBase64: null,
+          pdfFileName: null,
+          imageBase64: null,
+          imageFileName: null,
+          resumen:
+            (afp ? `AFP registrada en Somos SST: ${afp} · ` : '') +
+            'La consulta en portales pensionales con navegador se ejecuta únicamente en Google Antigravity Local o Cloud para no sobrecargar el VPS.',
+          detalles: [],
+        };
+      }
       return await consultarPensionesRealPorCedula({
         tipoDoc,
         cedula: resolvedCedula,
@@ -4183,13 +4534,17 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
       fechaNacimiento,
       arl,
       includeEvidence,
+      vpsSafeDirectFallback: isVpsSafeFallback,
     });
   } catch (err) {
     logger.warn(`[OSINT Portal Antigravity] Error controlado en acción "${rawAction}": ${err.message}`);
     return {
-      fuente: 'Google Antigravity Local (Control de Errores)',
+      fuente: isVpsSafeFallback
+        ? 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Control de Errores)'
+        : 'Google Antigravity (Control de Errores)',
       status: 'warning',
       action: rawAction,
+      vpsSafeDirectFallback: isVpsSafeFallback,
       tipoDoc: String(tipoDoc || 'CC').toUpperCase(),
       documento: resolvedCedula,
       nombre: resolvedNombre,

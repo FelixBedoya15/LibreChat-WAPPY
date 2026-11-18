@@ -22,6 +22,7 @@ import {
 } from '~/hooks';
 import { ephemeralAgentByConvoId } from '~/store';
 import { useDragDropContext } from '~/Providers';
+import { inferMimeType } from '~/utils';
 
 interface DragDropModalProps {
   onOptionSelect: (option: EToolResources | undefined) => void;
@@ -64,19 +65,24 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
       endpointType === EModelEndpoint.agents
     ) {
       const isGoogleProvider = currentProvider === EModelEndpoint.google || endpoint === EModelEndpoint.agents || currentProvider === 'agents';
-      const validFileTypes = files.every(
-        (file) =>
-          file.type?.startsWith('image/') ||
-          file.type?.startsWith('video/') ||
-          file.type?.startsWith('audio/') ||
-          file.type === 'application/pdf' ||
-          file.type?.includes('document') ||
-          file.type?.includes('sheet') ||
-          file.type?.includes('msword') ||
-          file.type?.includes('excel') ||
-          file.type?.includes('text') ||
-          file.type?.includes('csv'),
-      );
+      const validFileTypes = files.every((file) => {
+        const mime = inferMimeType(file.name, file.type);
+        return (
+          mime.startsWith('image/') ||
+          mime.startsWith('video/') ||
+          mime.startsWith('audio/') ||
+          mime === 'application/pdf' ||
+          mime === 'application/json' ||
+          mime.includes('document') ||
+          mime.includes('presentation') ||
+          mime.includes('powerpoint') ||
+          mime.includes('sheet') ||
+          mime.includes('msword') ||
+          mime.includes('excel') ||
+          mime.includes('text') ||
+          mime.includes('csv')
+        );
+      });
 
       _options.push({
         label: localize('com_ui_upload_provider'),

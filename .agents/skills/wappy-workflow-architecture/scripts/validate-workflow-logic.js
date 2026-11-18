@@ -331,7 +331,7 @@ const VALID_SCRAPER_ENGINES = new Set([
 
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
 const INTERNAL_CODE_IDENTIFIERS_REGEX =
-  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_agent|post_agent|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
+  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
 
 function getHitoConfig(nodeConfigs, hitoId) {
   if (!nodeConfigs || typeof nodeConfigs !== 'object') return {};
@@ -661,13 +661,18 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
   if (wf.includeIfNode) {
     const ifCfg = nodeConfigs.if_router || nodeConfigs.if_condition || {};
     const placement = ifCfg.ifPlacement;
-    if (placement !== 'pre_agent' && placement !== 'post_agent') {
+    if (placement !== 'pre_source' && placement !== 'pre_agent' && placement !== 'post_agent') {
       errors.push(
-        '[Inv-08] `includeIfNode: true` requiere declarar explícitamente `if_router.ifPlacement` como `"pre_agent"` o `"post_agent"`.',
+        '[Inv-08] `includeIfNode: true` requiere declarar explícitamente `if_router.ifPlacement` como `"pre_source"`, `"pre_agent"` o `"post_agent"`.',
       );
     }
     if (!ifCfg.ifConditionLabel || String(ifCfg.ifConditionLabel).trim().length < 5) {
       errors.push('[Inv-08] `if_router.ifConditionLabel` debe contener una pregunta clara y concisa.');
+    }
+    if (placement === 'pre_source' && parallelStage2SourcesCount === 0) {
+      errors.push(
+        '[Inv-08] `ifPlacement: "pre_source"` inválido: requiere al menos una fuente/búsqueda condicional o extractor antes del Agente IA.',
+      );
     }
     if (placement === 'pre_agent' && parallelStage2SourcesCount === 0) {
       errors.push(
@@ -683,46 +688,68 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
       }
     }
 
-    const yesOuts = [];
-    const noOuts = [];
-    for (const outId of outputs) {
-      if (!VALID_OUTPUTS.has(outId)) {
-        errors.push(`[Inv-09] Nodo de salida desconocido: "${outId}".`);
+    if (placement === 'pre_source') {
+      // En `pre_source`, la compuerta enruta ANTES de consultar fuentes (Rama SÍ directo vs Rama NO búsqueda nominal -> Extractor convergente -> Agente -> Salidas convergentes)
+      for (const outId of outputs) {
+        if (!VALID_OUTPUTS.has(outId)) {
+          errors.push(`[Inv-09] Nodo de salida desconocido: "${outId}".`);
+        }
       }
-      const outCfg = nodeConfigs[`out_${outId}`] || nodeConfigs[outId] || {};
-      if (outCfg.ifBranch !== 'yes' && outCfg.ifBranch !== 'no') {
+      if (outputs.length === 0) {
+        errors.push('[Inv-09] El flujo con compuerta `pre_source` debe tener al menos 1 salida convergente.');
+      }
+      if (activeStage2SourceHitos.length === 0) {
         errors.push(
-          `[Inv-09] La salida "${outId}" debe declarar explícitamente \`ifBranch: "yes" | "no"\` en nodeConfigs["out_${outId}"].`,
+          '[Inv-08] El enrutador `pre_source` requiere al menos un aplicativo fuente en Rama NO (`hitoRole: "source_read"`).',
         );
-      } else if (outCfg.ifBranch === 'yes') {
-        yesOuts.push(outId);
-      } else {
-        noOuts.push(outId);
       }
-    }
-    if (yesOuts.length === 0) {
-      errors.push('[Inv-09] La Rama SÍ (`ifBranch: "yes"`) no tiene ninguna salida conectada.');
-    }
-    if (noOuts.length === 0) {
-      errors.push('[Inv-09] La Rama NO (`ifBranch: "no"`) no tiene ninguna salida conectada.');
-    }
-    if (!noOuts.includes('wappy_notification')) {
-      errors.push(
-        '[Inv-09] La Rama NO (`ifBranch: "no"`) debe incluir `wappy_notification` para trazabilidad silenciosa sin alarmas.',
-      );
-    }
-    const overlap = yesOuts.filter((o) => noOuts.includes(o));
-    if (overlap.length > 0) {
-      errors.push(`[Inv-09] Salidas duplicadas entre Rama SÍ y Rama NO: [${overlap.join(', ')}].`);
-    }
+      if (extractors.length === 0) {
+        errors.push(
+          '[Inv-08] El enrutador `pre_source` requiere un extractor/scraper convergente antes del Agente IA.',
+        );
+      }
+    } else {
+      const yesOuts = [];
+      const noOuts = [];
+      for (const outId of outputs) {
+        if (!VALID_OUTPUTS.has(outId)) {
+          errors.push(`[Inv-09] Nodo de salida desconocido: "${outId}".`);
+        }
+        const outCfg = nodeConfigs[`out_${outId}`] || nodeConfigs[outId] || {};
+        if (outCfg.ifBranch !== 'yes' && outCfg.ifBranch !== 'no') {
+          errors.push(
+            `[Inv-09] La salida "${outId}" debe declarar explícitamente \`ifBranch: "yes" | "no"\` en nodeConfigs["out_${outId}"].`,
+          );
+        } else if (outCfg.ifBranch === 'yes') {
+          yesOuts.push(outId);
+        } else {
+          noOuts.push(outId);
+        }
+      }
+      if (yesOuts.length === 0) {
+        errors.push('[Inv-09] La Rama SÍ (`ifBranch: "yes"`) no tiene ninguna salida conectada.');
+      }
+      if (noOuts.length === 0) {
+        errors.push('[Inv-09] La Rama NO (`ifBranch: "no"`) no tiene ninguna salida conectada.');
+      }
+      if (!noOuts.includes('wappy_notification')) {
+        errors.push(
+          '[Inv-09] La Rama NO (`ifBranch: "no"`) debe incluir `wappy_notification` para trazabilidad silenciosa sin alarmas.',
+        );
+      }
+      const overlap = yesOuts.filter((o) => noOuts.includes(o));
+      if (overlap.length > 0) {
+        errors.push(`[Inv-09] Salidas duplicadas entre Rama SÍ y Rama NO: [${overlap.join(', ')}].`);
+      }
 
-    const forbiddenInNo = noOuts.filter(
-      (o) => o === 'acpm_task' || o === 'wappy_kanban' || o === 'somos_sst_update',
-    );
-    if (forbiddenInNo.length > 0) {
-      errors.push(
-        `[Inv-10] Incoherencia operativa en Rama NO: [${forbiddenInNo.join(', ')}] jamás debe ejecutarse cuando NO hay hallazgos.`,
+      const forbiddenInNo = noOuts.filter(
+        (o) => o === 'acpm_task' || o === 'wappy_kanban' || o === 'somos_sst_update',
       );
+      if (forbiddenInNo.length > 0) {
+        errors.push(
+          `[Inv-10] Incoherencia operativa en Rama NO: [${forbiddenInNo.join(', ')}] jamás debe ejecutarse cuando NO hay hallazgos.`,
+        );
+      }
     }
   } else if (outputs.length === 0) {
     errors.push('[Inv-09] El flujo directo (`includeIfNode: false`) debe tener al menos 1 salida.');
@@ -761,14 +788,22 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
   // Invariante 12: Coherencia bidireccional de `logicType: "merge"` y `logicType: "loop"`
   const hasMerge = logicNodes.some((ln) => ln?.logicType === 'merge');
   const hasLoop = logicNodes.some((ln) => ln?.logicType === 'loop');
-  if (parallelStage2SourcesCount >= 2 && !hasMerge) {
+  const nonOcrExtractorsCount = extractors.filter((e) => e !== 'extract_ai_doc_ocr').length;
+  const isPreSourceSerialBranch =
+    Boolean(wf.includeIfNode) &&
+    ifPlacement === 'pre_source' &&
+    activeStage2SourceHitos.length <= 1 &&
+    nonOcrExtractorsCount <= 1;
+  const effectiveParallelMergeCount = isPreSourceSerialBranch ? 1 : parallelStage2SourcesCount;
+
+  if (effectiveParallelMergeCount >= 2 && !hasMerge) {
     errors.push(
-      `[Inv-12] Existen ${parallelStage2SourcesCount} fuentes paralelas en Etapa 2 ([${[...extractors.filter((e) => e !== 'extract_ai_doc_ocr'), ...activeStage2SourceHitos].join(', ')}]) pero falta \`logicType: "merge"\` en \`canvasLayout.logicNodes\`.`,
+      `[Inv-12] Existen ${effectiveParallelMergeCount} fuentes paralelas en Etapa 2 ([${[...extractors.filter((e) => e !== 'extract_ai_doc_ocr'), ...activeStage2SourceHitos].join(', ')}]) pero falta \`logicType: "merge"\` en \`canvasLayout.logicNodes\`.`,
     );
   }
-  if (hasMerge && parallelStage2SourcesCount < 2) {
+  if (hasMerge && effectiveParallelMergeCount < 2) {
     errors.push(
-      `[Inv-12] Nodo \`logicType: "merge"\` innecesario: requiere >= 2 fuentes paralelas en Etapa 2 (actual: ${parallelStage2SourcesCount}).`,
+      `[Inv-12] Nodo \`logicType: "merge"\` innecesario: requiere >= 2 fuentes paralelas en Etapa 2 (actual: ${effectiveParallelMergeCount}).`,
     );
   }
   if (hasLoop && parallelStage2SourcesCount < 1) {
@@ -1069,7 +1104,7 @@ function main() {
   let invalidCount = 0;
   let totalErrors = catalogGlobalErrors.length;
   let totalWarnings = 0;
-  const archetypeStats = { pre_agent: 0, post_agent: 0, direct: 0, missing: 0 };
+  const archetypeStats = { pre_source: 0, pre_agent: 0, post_agent: 0, direct: 0, missing: 0 };
   const categoryStats = {};
 
   console.log(
@@ -1117,7 +1152,7 @@ function main() {
     `📊 RESUMEN: ${validCount}/${filteredWorkflows.length} PASS · ${totalErrors} errores · ${totalWarnings} advertencias`,
   );
   console.log(
-    `🧭 DISTRIBUCIÓN IF: pre_agent=${archetypeStats.pre_agent || 0} | post_agent=${archetypeStats.post_agent || 0} | direct=${archetypeStats.direct || 0}`,
+    `🧭 DISTRIBUCIÓN IF: ${archetypeStats.pre_source ? `pre_source=${archetypeStats.pre_source} | ` : ''}pre_agent=${archetypeStats.pre_agent || 0} | post_agent=${archetypeStats.post_agent || 0} | direct=${archetypeStats.direct || 0}`,
   );
   console.log(
     `📂 CATEGORÍAS: ${Object.entries(categoryStats)

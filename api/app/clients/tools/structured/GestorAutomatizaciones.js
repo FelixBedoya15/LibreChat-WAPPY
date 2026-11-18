@@ -205,6 +205,19 @@ class GestorAutomatizaciones extends Tool {
       }
 
       if (execRes?.status === 'success') {
+        const evidencias = Array.isArray(execRes.evidenceFiles) ? execRes.evidenceFiles : [];
+        let mensaje;
+        if (evidencias.length === 1) {
+          mensaje =
+            'Flujo ejecutado al instante y 1 certificado oficial fue emitido y entregado directamente en tu chat de Tenshi. Usa el campo "resultado" e indícale explícitamente al usuario que el certificado fue emitido, que ya lo recibió aquí en el chat y que ya puede abrirlo o descargarlo (NO pegues rutas /api/... crudas en el texto porque la tarjeta interactiva del certificado ya se adjunta automáticamente en la burbuja del chat).';
+        } else if (evidencias.length > 1) {
+          mensaje =
+            `Flujo ejecutado al instante y ${evidencias.length} certificados oficiales fueron emitidos y entregados directamente en tu chat de Tenshi. Usa el campo "resultado" e indícale explícitamente al usuario que los certificados fueron emitidos, que ya los recibió aquí en el chat y que ya puede abrirlos o descargarlos (NO pegues rutas /api/... crudas en el texto porque las tarjetas interactivas de los certificados ya se adjuntan automáticamente en la burbuja del chat).`;
+        } else {
+          mensaje =
+            'Flujo ejecutado al instante. Usa el campo "resultado" fielmente para responderle directamente al usuario; si el resultado indica que no aparece afiliado activo en otras ARLs sin fecha de nacimiento, avísale al usuario que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) te solicite o indique la fecha de nacimiento para consultarla.';
+        }
+
         return JSON.stringify({
           success: true,
           mode: 'instant',
@@ -214,10 +227,10 @@ class GestorAutomatizaciones extends Tool {
           logId: execRes.logId || null,
           rama: execRes.branchTaken || null,
           enlacesWorkspace: execRes.workspaceLinks || [],
-          evidencias: execRes.evidenceFiles || [],
+          evidencias,
+          evidenceFiles: evidencias,
           resultado: execRes.resultText || '',
-          mensaje:
-            'Flujo ejecutado al instante. Usa el campo "resultado" para responderle directamente al usuario.',
+          mensaje,
         });
       }
 

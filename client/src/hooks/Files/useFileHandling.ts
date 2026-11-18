@@ -256,6 +256,15 @@ const useFileHandling = (params?: UseFileHandling) => {
       await startUpload(extendedFile);
       URL.revokeObjectURL(preview);
     };
+    img.onerror = async () => {
+      extendedFile = {
+        ...extendedFile,
+        progress: 0.6,
+      };
+      replaceFile(extendedFile);
+      await startUpload(extendedFile);
+      URL.revokeObjectURL(preview);
+    };
     img.src = preview;
   };
 
@@ -288,11 +297,11 @@ const useFileHandling = (params?: UseFileHandling) => {
       return;
     }
 
-    /* Video duration check (Gemini models support videos, but limited to 40 seconds as requested) */
+    /* Video duration check (Gemini models support videos up to 300 seconds / 5 minutes) */
     for (const file of fileList) {
       if (file.type.startsWith('video/')) {
         const duration = await getVideoDuration(file);
-        if (duration > 40) {
+        if (Math.floor(duration) > 300) {
           setError('com_error_video_duration');
           setFilesLoading(false);
           return;
@@ -317,7 +326,11 @@ const useFileHandling = (params?: UseFileHandling) => {
           size: originalFile.size,
         };
 
-        if (_toolResource != null && _toolResource !== '') {
+        const isNativeMultimodalInContext =
+          _toolResource === EToolResources.context &&
+          (originalFile.type.startsWith('video/') || originalFile.type.startsWith('image/'));
+
+        if (_toolResource != null && _toolResource !== '' && !isNativeMultimodalInContext) {
           initialExtendedFile.tool_resource = _toolResource;
         }
 

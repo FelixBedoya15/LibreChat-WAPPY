@@ -444,6 +444,76 @@ async function extractTextFromMedia(mediaObj) {
     return '';
 }
 
+function cleanEvidenceText(val) {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') return '';
+    const str = String(val).trim();
+    if (!str || str === 'undefined' || str === 'null' || str === '[object Object]') return '';
+    return str;
+}
+
+function cleanEvidenceUrl(val) {
+    const str = cleanEvidenceText(val);
+    if (!str || str.startsWith('data:')) return null;
+    return str;
+}
+
+function mergeSanitizedEvidenceFiles(existingList = [], incomingList = []) {
+    const merged = Array.isArray(existingList) ? [...existingList] : [];
+    const seen = new Set(
+        merged
+            .map((item) => item?.pdfUrl || item?.imageUrl || item?.pdfFileName || '')
+            .filter(Boolean)
+    );
+    if (!Array.isArray(incomingList)) return merged;
+
+    for (const raw of incomingList) {
+        if (!raw || typeof raw !== 'object') continue;
+        const pdfUrl = cleanEvidenceUrl(raw.pdfUrl);
+        const pdfDownloadUrl = cleanEvidenceUrl(raw.pdfDownloadUrl);
+        const pdfAbsoluteUrl = cleanEvidenceUrl(raw.pdfAbsoluteUrl);
+        const pdfFileName = cleanEvidenceText(raw.pdfFileName) || null;
+        const imageUrl = cleanEvidenceUrl(raw.imageUrl);
+        const imageDownloadUrl = cleanEvidenceUrl(raw.imageDownloadUrl);
+        const imageAbsoluteUrl = cleanEvidenceUrl(raw.imageAbsoluteUrl);
+        const imageFileName = cleanEvidenceText(raw.imageFileName) || null;
+
+        if (
+            !pdfUrl &&
+            !pdfDownloadUrl &&
+            !pdfAbsoluteUrl &&
+            !imageUrl &&
+            !imageDownloadUrl &&
+            !imageAbsoluteUrl &&
+            !pdfFileName &&
+            !imageFileName
+        ) {
+            continue;
+        }
+
+        const dedupKey = pdfUrl || imageUrl || pdfFileName || imageFileName || `${pdfDownloadUrl || ''}:${imageDownloadUrl || ''}`;
+        if (dedupKey && seen.has(dedupKey)) continue;
+        if (dedupKey) seen.add(dedupKey);
+
+        merged.push({
+            title: cleanEvidenceText(raw.title),
+            portal: cleanEvidenceText(raw.portal),
+            workerName: cleanEvidenceText(raw.workerName),
+            cedula: cleanEvidenceText(raw.cedula),
+            cargo: cleanEvidenceText(raw.cargo),
+            pdfUrl,
+            pdfDownloadUrl,
+            pdfAbsoluteUrl,
+            pdfFileName,
+            imageUrl,
+            imageDownloadUrl,
+            imageAbsoluteUrl,
+            imageFileName,
+        });
+    }
+    return merged;
+}
+
 router.get('/history', requireJwtAuth, async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
@@ -464,6 +534,9 @@ router.get('/history', requireJwtAuth, async (req, res) => {
             file: m.file,
             qrCode: m.qrCode,
             widget: m.widget,
+            ...(Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0
+                ? { evidenceFiles: mergeSanitizedEvidenceFiles([], m.evidenceFiles) }
+                : {}),
             createdAt: m.createdAt,
         })));
     } catch (error) {
@@ -474,12 +547,16 @@ router.get('/history', requireJwtAuth, async (req, res) => {
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media, companyId } = req.body;
+        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media, companyId, evidenceFiles, evidencias } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const activeComp = await resolveActiveCompanyForUser(targetUserId, companyId);
+        const sanitizedEvidenceFiles = mergeSanitizedEvidenceFiles(
+            [],
+            Array.isArray(evidenceFiles) ? evidenceFiles : evidencias
+        );
         const newMsg = await TenshiMessage.create({
             user: req.user.id,
             companyId: activeComp?._id ? String(activeComp._id) : null,
@@ -491,6 +568,7 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             file,
             qrCode,
             widget,
+            ...(sanitizedEvidenceFiles.length > 0 ? { evidenceFiles: sanitizedEvidenceFiles } : {}),
         });
         res.json(newMsg);
     } catch (error) {
@@ -1161,6 +1239,7 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let capturedQrCode = null;
         let capturedFile = null;
         let capturedWidget = null;
+        let capturedEvidenceFiles = [];
         let capturedDelegatedOrder = null;
         let capturedFlowMarkdown = null;
         let capturedFlowPublicUrl = null;
@@ -1696,7 +1775,7 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
         }
 
         if (tenshiFlowsBlock) {
-            systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.`;
+            systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.\n- ENTREGA DE CERTIFICADOS EN CHAT: Cuando el flujo emita certificados (\`evidencias\`/\`evidenceFiles\`), confírmale explícitamente al usuario que el certificado (o certificados) fue emitido, que ya lo recibió en este chat y que ya puede abrirlo o descargarlo (sin pegar rutas \`/api/...\` crudas); y si en una consulta ARL no aparece en otras ARLs, avísale que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) la solicite o indique para consultarla.`;
         }
 
         if (browserState) {
@@ -4111,6 +4190,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             try {
                                 if (typeof toolOutput === 'string' && toolOutput.trim().startsWith('{')) {
                                     const parsed = JSON.parse(toolOutput);
+                                    const rawEvidences =
+                                        Array.isArray(parsed.evidencias) && parsed.evidencias.length > 0
+                                            ? parsed.evidencias
+                                            : Array.isArray(parsed.evidenceFiles) && parsed.evidenceFiles.length > 0
+                                            ? parsed.evidenceFiles
+                                            : null;
+                                    if (rawEvidences) {
+                                        capturedEvidenceFiles = mergeSanitizedEvidenceFiles(capturedEvidenceFiles, rawEvidences);
+                                    }
                                     if (parsed.informeOriginalHtml) {
                                         capturedHtmlReport = parsed.informeOriginalHtml;
                                         capturedFile = {
@@ -4235,6 +4323,28 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 lightResponse.instruccionCriticaWidget = 'IMPORTANTE: El widget interactivo oficial de React YA FUE ADJUNTADO automáticamente debajo de tu burbuja de chat con el listado completo, buscador y controles. PROHIBIDO generar bloques ```wappy-card``` o repetir toda la lista en texto. Responde únicamente con un resumen ejecutivo cálido de 2 a 3 líneas.';
                             }
 
+                            if (
+                                (Array.isArray(lightResponse.evidencias) && lightResponse.evidencias.length > 0) ||
+                                (Array.isArray(lightResponse.evidenceFiles) && lightResponse.evidenceFiles.length > 0)
+                            ) {
+                                const srcEv = Array.isArray(lightResponse.evidencias) && lightResponse.evidencias.length > 0
+                                    ? lightResponse.evidencias
+                                    : lightResponse.evidenceFiles;
+                                lightResponse.evidencias = srcEv.map((ev) => ({
+                                    title: ev.title || 'Certificado Oficial',
+                                    portal: ev.portal || '',
+                                    workerName: ev.workerName || '',
+                                    cedula: ev.cedula || '',
+                                    cargo: ev.cargo || '',
+                                    entregadoEnChat: true,
+                                }));
+                                delete lightResponse.evidenceFiles;
+                                lightResponse.instruccionCertificadosChat =
+                                    lightResponse.evidencias.length === 1
+                                        ? 'IMPORTANTE: El certificado oficial YA FUE EMITIDO Y ENTREGADO directamente en este chat de Tenshi como tarjeta interactiva lista para abrir. Díselo explícitamente al usuario ("el certificado fue emitido, ya lo recibiste aquí en el chat y ya puedes abrirlo") y NO pegues rutas /api/... crudas en el texto.'
+                                        : `IMPORTANTE: Los ${lightResponse.evidencias.length} certificados oficiales YA FUERON EMITIDOS Y ENTREGADOS directamente en este chat de Tenshi como tarjetas interactivas listas para abrir. Díselo explícitamente al usuario ("los certificados fueron emitidos, ya los recibiste aquí en el chat y ya puedes abrirlos") y NO pegues rutas /api/... crudas en el texto.`;
+                            }
+
                             currentContents.push({
                                 role: 'user',
                                 parts: [
@@ -4280,6 +4390,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         .trim()
                                         .substring(0, 700);
                                     rescuedText = `✅ **Revisión completada: ${lightResponse.titulo || 'Informe del Aplicativo'}**\n\n${cleanExtract ? `${cleanExtract}...\n\n` : ''}Ya tienes el documento técnico oficial adjunto aquí mismo en nuestro chat para que puedas abrirlo, revisarlo en detalle o descargarlo en PDF/Word.`;
+                                } else if (capturedEvidenceFiles.length > 0) {
+                                    const certNotice =
+                                        capturedEvidenceFiles.length === 1
+                                            ? '✅ **El certificado oficial fue emitido y ya lo recibiste aquí en tu chat de Tenshi; ya puedes abrirlo o descargarlo.**'
+                                            : `✅ **Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí en tu chat de Tenshi; ya puedes abrirlos o descargarlos.**`;
+                                    const baseRes = String(lightResponse.resultado || '').trim();
+                                    rescuedText = baseRes ? `${certNotice}\n\n${baseRes}` : certNotice;
                                 } else if (lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
                                     rescuedText = String(lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
                                 } else if (capturedFile || capturedHtmlReport) {
@@ -4342,6 +4459,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 .replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '')
                                 .replace(/en el panel de la derecha|en el panel lateral/gi, 'aquí mismo dentro de nuestro chat')
                                 .trim();
+                            if (capturedEvidenceFiles.length > 0) {
+                                responseText = responseText
+                                    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^)\s]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^)\s]+\)/gi, '$1')
+                                    .replace(/(?:https?:\/\/[^\s)]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^\s)]+/gi, '')
+                                    .replace(/\n{3,}/g, '\n\n')
+                                    .trim();
+                            }
                         }
 
                         if (!responseText && capturedWidget?.widgetType === 'worker_census') {
@@ -4370,9 +4494,20 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         if (!responseText || !responseText.trim()) {
                             const hasGuiAction = Boolean(requestedGuiAction || (requestedGuiActions && requestedGuiActions.length > 0));
-                            const hasGeneratedArtifact = Boolean(capturedFile || capturedHtmlReport || capturedQrCode || capturedWidget);
+                            const hasGeneratedArtifact = Boolean(
+                                capturedFile ||
+                                capturedHtmlReport ||
+                                capturedQrCode ||
+                                capturedWidget ||
+                                capturedEvidenceFiles.length > 0
+                            );
                             if (hasGuiAction) {
                                 responseText = requestedGuiAction?.message || "Entendido, procedo a realizar una acción en la pantalla...";
+                            } else if (capturedEvidenceFiles.length > 0) {
+                                responseText =
+                                    capturedEvidenceFiles.length === 1
+                                        ? '¡Listo! El certificado oficial fue emitido y ya lo recibiste aquí en tu chat de Tenshi; ya puedes abrirlo o descargarlo.'
+                                        : `¡Listo! Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí en tu chat de Tenshi; ya puedes abrirlos o descargarlos.`;
                             } else if (hasGeneratedArtifact) {
                                 responseText = "Listo, he generado el recurso solicitado y ya lo tienes disponible aquí en pantalla.";
                             } else {
@@ -4420,7 +4555,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }
 
             if (!succeeded && lastError) {
-                if (capturedFile || capturedHtmlReport) {
+                if (capturedEvidenceFiles.length > 0) {
+                    responseText =
+                        capturedEvidenceFiles.length === 1
+                            ? '✅ El certificado oficial fue emitido y ya lo recibiste aquí mismo en tu chat de Tenshi; ya puedes abrirlo o descargarlo.'
+                            : `✅ Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí mismo en tu chat de Tenshi; ya puedes abrirlos o descargarlos.`;
+                } else if (capturedFile || capturedHtmlReport) {
                     responseText = `✅ He recuperado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** y ya lo tienes disponible aquí mismo en nuestro chat para abrirlo o descargarlo.`;
                 } else {
                     throw new Error(`El servicio de IA experimenta alta demanda en este momento. Por favor intenta nuevamente en unos segundos.`);
@@ -4500,6 +4640,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 qrCode: capturedQrCode || undefined,
                 file: capturedFile || undefined,
                 widget: capturedWidget || undefined,
+                ...(capturedEvidenceFiles.length > 0 ? { evidenceFiles: capturedEvidenceFiles } : {}),
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
@@ -4589,6 +4730,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             qrCode: capturedQrCode,
             file: capturedFile,
             widget: capturedWidget,
+            evidenceFiles: capturedEvidenceFiles,
             delegatedOrder: capturedDelegatedOrder,
             guiAction: requestedGuiAction,
             guiActions: requestedGuiActions

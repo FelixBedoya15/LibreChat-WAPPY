@@ -42,6 +42,7 @@ import {
   Film,
   PhoneOff,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -110,6 +111,22 @@ export interface TenshiAttachedMedia {
   duration?: number;
 }
 
+export interface TenshiEvidenceFile {
+  title?: string;
+  portal?: string;
+  workerName?: string;
+  cedula?: string;
+  cargo?: string;
+  pdfUrl?: string | null;
+  pdfDownloadUrl?: string | null;
+  pdfAbsoluteUrl?: string | null;
+  pdfFileName?: string | null;
+  imageUrl?: string | null;
+  imageDownloadUrl?: string | null;
+  imageAbsoluteUrl?: string | null;
+  imageFileName?: string | null;
+}
+
 export interface TenshiChatMessage {
   _id?: string;
   role: string;
@@ -121,8 +138,148 @@ export interface TenshiChatMessage {
   image?: string;
   media?: TenshiAttachedMedia;
   widget?: TenshiWidgetPayload;
+  evidenceFiles?: TenshiEvidenceFile[];
   delegatedOrderId?: string;
   delegatedStatus?: 'todo' | 'done' | 'failed';
+}
+
+function normalizeTenshiEvidenceFiles(raw: any): TenshiEvidenceFile[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const list: TenshiEvidenceFile[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const pdfUrl = item.pdfUrl || item.pdf_url || null;
+    const pdfDownloadUrl = item.pdfDownloadUrl || item.pdf_download_url || pdfUrl || null;
+    const pdfAbsoluteUrl = item.pdfAbsoluteUrl || item.pdf_absolute_url || null;
+    const pdfFileName = item.pdfFileName || item.pdf_file_name || null;
+    const imageUrl = item.imageUrl || item.image_url || item.screenshotUrl || null;
+    const imageDownloadUrl = item.imageDownloadUrl || item.image_download_url || imageUrl || null;
+    const imageAbsoluteUrl = item.imageAbsoluteUrl || item.image_absolute_url || null;
+    const imageFileName = item.imageFileName || item.image_file_name || null;
+    if (!pdfUrl && !imageUrl && !pdfDownloadUrl && !imageDownloadUrl) continue;
+    const dedupKey = String(pdfUrl || pdfDownloadUrl || imageUrl || imageDownloadUrl).trim();
+    if (dedupKey && seen.has(dedupKey)) continue;
+    if (dedupKey) seen.add(dedupKey);
+    list.push({
+      title: item.title || item.titulo || undefined,
+      portal: item.portal || item.arl || item.entidad || undefined,
+      workerName: item.workerName || item.colaborador || item.nombre || undefined,
+      cedula: item.cedula || item.documento || undefined,
+      cargo: item.cargo || undefined,
+      pdfUrl,
+      pdfDownloadUrl,
+      pdfAbsoluteUrl,
+      pdfFileName,
+      imageUrl,
+      imageDownloadUrl,
+      imageAbsoluteUrl,
+      imageFileName,
+    });
+  }
+  return list.length > 0 ? list : undefined;
+}
+
+const persistedVoiceEvidencesSet = new Set<string>();
+
+function renderTenshiEvidenceFiles(evidenceFiles?: TenshiEvidenceFile[]) {
+  if (!Array.isArray(evidenceFiles) || evidenceFiles.length === 0) return null;
+  return (
+    <div className="mt-2.5 flex w-full max-w-full min-w-0 flex-col gap-2.5 overflow-hidden">
+      {evidenceFiles.map((ev, evIdx) => {
+        const openHref =
+          ev?.pdfUrl ||
+          ev?.imageUrl ||
+          ev?.pdfDownloadUrl ||
+          ev?.imageDownloadUrl ||
+          '';
+        const downloadHref =
+          ev?.pdfDownloadUrl ||
+          ev?.pdfUrl ||
+          ev?.imageDownloadUrl ||
+          ev?.imageUrl ||
+          '';
+        const portalLabel = (ev?.portal || ev?.title || 'Certificado Oficial ARL').trim();
+        const workerLabel = (ev?.workerName || '').trim();
+        const cedulaLabel = (ev?.cedula || '').trim();
+        const cargoLabel = (ev?.cargo || '').trim();
+
+        return (
+          <div
+            key={`tenshi_ev_${evIdx}_${openHref || portalLabel}`}
+            className="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3 shadow-xs backdrop-blur-xs dark:border-emerald-500/30 dark:bg-zinc-900/90"
+          >
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-emerald-700 dark:text-emerald-300">
+                    ✅ Certificado Emitido
+                  </span>
+                </div>
+                <p className="break-words text-xs font-extrabold leading-snug text-slate-800 dark:text-zinc-100">
+                  {portalLabel}
+                </p>
+                {(workerLabel || cedulaLabel || cargoLabel) && (
+                  <p className="break-words text-[11px] font-medium leading-snug text-slate-600 dark:text-zinc-300">
+                    {workerLabel ? workerLabel : ''}
+                    {workerLabel && cedulaLabel ? ' · ' : ''}
+                    {cedulaLabel ? `CC ${cedulaLabel}` : ''}
+                    {(workerLabel || cedulaLabel) && cargoLabel ? ` · ${cargoLabel}` : cargoLabel}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {ev?.imageUrl && (
+              <a
+                href={ev.pdfUrl || ev.imageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 block w-full overflow-hidden rounded-lg focus:outline-none"
+                title="Abrir certificado oficial en pestaña nueva"
+              >
+                <img
+                  src={ev.imageUrl}
+                  alt={portalLabel}
+                  loading="lazy"
+                  className="max-h-36 w-full rounded-lg border border-slate-200 bg-white object-contain dark:border-zinc-700"
+                />
+              </a>
+            )}
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {(ev?.pdfUrl || ev?.imageUrl) && (
+                <a
+                  href={(ev.pdfUrl || ev.imageUrl)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold tracking-wide text-teal-700 transition-all duration-300 ease-in-out hover:bg-teal-500/20 sm:hover:-rotate-1 sm:hover:scale-[1.02] active:scale-95 dark:text-teal-300"
+                  title="Abrir certificado oficial directamente en el navegador"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span>Abrir Certificado</span>
+                </a>
+              )}
+              {downloadHref && (
+                <a
+                  href={downloadHref}
+                  download={ev?.pdfFileName || true}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold tracking-wide text-green-700 transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-1 sm:hover:scale-[1.02] active:scale-95 dark:text-green-300"
+                  title="Descargar PDF oficial del certificado"
+                >
+                  <Download className="h-3.5 w-3.5 shrink-0" />
+                  <span>Descargar PDF</span>
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function formatBytes(bytes: number) {
@@ -3505,16 +3662,97 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             window.dispatchEvent(new CustomEvent('wappy-refresh-kanban'));
             fetchDailyBriefing();
             const rawRes = (action as any).result;
+            let parsedObj: any = null;
             let parsedMsg = 'Tarea/automatización actualizada en pantalla.';
             if (typeof rawRes === 'string') {
               try {
                 const j = JSON.parse(rawRes);
+                parsedObj = j;
                 parsedMsg = j.mensaje || j.error || parsedMsg;
               } catch {
                 parsedMsg = rawRes;
               }
             } else if (rawRes && typeof rawRes === 'object') {
+              parsedObj = rawRes;
               parsedMsg = rawRes.mensaje || rawRes.error || parsedMsg;
+            }
+            if (action.name === 'gestor_automatizaciones' && parsedObj) {
+              const liveEvidences = normalizeTenshiEvidenceFiles(
+                parsedObj?.evidencias ||
+                  parsedObj?.evidenceFiles ||
+                  parsedObj?.result?.evidencias ||
+                  parsedObj?.result?.evidenceFiles,
+              );
+              if (liveEvidences && liveEvidences.length > 0) {
+                const rawLogId = String(
+                  parsedObj?.logId ||
+                    parsedObj?.runId ||
+                    parsedObj?.executionId ||
+                    parsedObj?._id ||
+                    '',
+                ).trim();
+                const primaryEvUrl = String(
+                  liveEvidences[0]?.pdfUrl ||
+                    liveEvidences[0]?.pdfDownloadUrl ||
+                    liveEvidences[0]?.imageUrl ||
+                    '',
+                ).trim();
+                const voiceEvMsgId = rawLogId
+                  ? `tenshi-voice-ev-${rawLogId}`
+                  : `tenshi-voice-ev-${primaryEvUrl || Date.now()}`;
+
+                const voiceEvContent =
+                  '🛡️ **Certificado(s) ARL emitido(s):** Ya puedes abrirlo o descargarlo aquí mismo.';
+                const persistKey = rawLogId || primaryEvUrl || voiceEvMsgId;
+
+                setMessages((prev) => {
+                  const alreadyExists = prev.some((m: any) => {
+                    if (rawLogId && (m._id === voiceEvMsgId || m._voiceEvLogId === rawLogId)) {
+                      return true;
+                    }
+                    if (
+                      primaryEvUrl &&
+                      Array.isArray(m.evidenceFiles) &&
+                      m.evidenceFiles.some(
+                        (ev: any) =>
+                          String(ev?.pdfUrl || ev?.pdfDownloadUrl || ev?.imageUrl || '').trim() ===
+                          primaryEvUrl,
+                      )
+                    ) {
+                      return true;
+                    }
+                    return false;
+                  });
+                  if (alreadyExists) return prev;
+                  return [
+                    ...prev,
+                    {
+                      _id: voiceEvMsgId,
+                      _voiceEvLogId: rawLogId || undefined,
+                      _isVoiceEvidenceBubble: true,
+                      _localCreatedAt: Date.now(),
+                      role: 'assistant',
+                      content: voiceEvContent,
+                      evidenceFiles: liveEvidences,
+                    } as any,
+                  ];
+                });
+                if (persistKey && !persistedVoiceEvidencesSet.has(persistKey)) {
+                  persistedVoiceEvidencesSet.add(persistKey);
+                  axios
+                    .post('/api/tenshi/message', {
+                      role: 'assistant',
+                      content: voiceEvContent,
+                      evidenceFiles: liveEvidences,
+                    })
+                    .catch(() => {});
+                }
+                if (isMobileHeroMode) {
+                  setIsHeroChatOpen(true);
+                } else {
+                  setIsOpen(true);
+                }
+              }
             }
             resultMsg = parsedMsg;
           } else if (
@@ -5154,8 +5392,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (historyData) {
       if (historyData.length > 0) {
         setMessages((prev) => {
-          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media o image) o widgets interactivos (widget)
-          const localExtras = prev.filter((m) => m.file || m.htmlReport || m.media || m.image || m.widget);
+          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media o image), widgets interactivos (widget) o certificados emitidos (evidenceFiles)
+          const localExtras = prev.filter(
+            (m) =>
+              m.file ||
+              m.htmlReport ||
+              m.media ||
+              m.image ||
+              m.widget ||
+              (Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0),
+          );
 
           // 1. Mapa de archivos locales por contenido o por título
           const localFileMap = new Map<string, any>();
@@ -5163,6 +5409,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const localMediaMap = new Map<string, { media?: any; image?: string }>();
           // Mapa de widgets locales (OpenBot AG-UI / HITL) para evitar que se pierdan al sincronizar
           const localWidgetMap = new Map<string, TenshiWidgetPayload>();
+          // Mapa de certificados emitidos (evidenceFiles) para evitar que se pierdan al sincronizar
+          const localEvidenceMap = new Map<string, TenshiEvidenceFile[]>();
 
           prev.forEach((m) => {
             if (m.file) {
@@ -5177,6 +5425,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               if (m.content) localWidgetMap.set(m.content.trim(), m.widget);
               if (m._id) localWidgetMap.set(String(m._id), m.widget);
               if (m.widget.actionId) localWidgetMap.set(String(m.widget.actionId), m.widget);
+            }
+            if (Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0) {
+              if (m.content) localEvidenceMap.set(m.content.trim(), m.evidenceFiles);
+              if (m._id) localEvidenceMap.set(String(m._id), m.evidenceFiles);
             }
           });
 
@@ -5239,16 +5491,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 (item._id ? localWidgetMap.get(String(item._id)) : undefined);
               if (matchedWidget) item.widget = matchedWidget;
             }
+            const normalizedItemEvidences = normalizeTenshiEvidenceFiles(
+              item.evidenceFiles || item.evidencias,
+            );
+            if (normalizedItemEvidences) {
+              item.evidenceFiles = normalizedItemEvidences;
+            } else {
+              const matchedEvidences =
+                (item.content ? localEvidenceMap.get(item.content.trim()) : undefined) ||
+                (item._id ? localEvidenceMap.get(String(item._id)) : undefined);
+              if (matchedEvidences) {
+                item.evidenceFiles = matchedEvidences;
+              }
+            }
             return item;
           });
 
           // 3. Identificadores y firmas de mensajes ya existentes en enrichedHistory
           const historySignatures = new Set<string>();
+          const historyEvidenceUrls = new Set<string>();
           enrichedHistory.forEach((h: any) => {
             if (h._id) historySignatures.add(String(h._id));
             if (h.content) historySignatures.add(h.content.trim());
             if (h.file?.canvasId) historySignatures.add(String(h.file.canvasId));
             if (h.widget?.actionId) historySignatures.add(String(h.widget.actionId));
+            if (Array.isArray(h.evidenceFiles)) {
+              h.evidenceFiles.forEach((ev: any) => {
+                const evKey = String(ev?.pdfUrl || ev?.pdfDownloadUrl || ev?.imageUrl || '').trim();
+                if (evKey) historyEvidenceUrls.add(evKey);
+              });
+            }
             const sig = `${(h.content || '').trim()}-${(h.file?.title || h.media?.name || h.widget?.widgetType || '').trim()}`;
             if (sig !== '-') historySignatures.add(sig);
           });
@@ -5267,11 +5539,23 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return enrichedHistory;
           }
 
-          // 4. Filtrar archivos y medios locales recién creados (< 8s) que aún no hayan sido devueltos por el backend.
+          // 4. Filtrar archivos y medios locales recién creados (< 8s) o tarjetas de certificados de voz activas que aún no hayan sido devueltos por el backend.
           // NUNCA re-anexar mensajes antiguos ni órdenes de Antigravity ya procesadas para evitar que reaparezcan al final del chat cada 3.5s.
           const unpersistedExtras = localExtras.filter((lf: any) => {
             if (lf.delegatedOrderId || String(lf._id || '').startsWith('antigravity-')) {
               return false;
+            }
+            if (lf._isVoiceEvidenceBubble && Array.isArray(lf.evidenceFiles) && lf.evidenceFiles.length > 0) {
+              if (!lf._localCreatedAt || nowTs - Number(lf._localCreatedAt) > 30 * 60 * 1000) {
+                return false;
+              }
+              const alreadyInHist = lf.evidenceFiles.some((ev: any) => {
+                const evKey = String(ev?.pdfUrl || ev?.pdfDownloadUrl || ev?.imageUrl || '').trim();
+                return Boolean(evKey && historyEvidenceUrls.has(evKey));
+              });
+              if (alreadyInHist) return false;
+              if (lf._id && historySignatures.has(String(lf._id))) return false;
+              return true;
             }
             if (!lf._localCreatedAt || nowTs - Number(lf._localCreatedAt) > 8000) {
               return false;
@@ -5279,6 +5563,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             if (lf._id && historySignatures.has(String(lf._id))) return false;
             if (lf.file?.canvasId && historySignatures.has(String(lf.file.canvasId))) return false;
             if (lf.widget?.actionId && historySignatures.has(String(lf.widget.actionId))) return false;
+            if (
+              Array.isArray(lf.evidenceFiles) &&
+              lf.evidenceFiles.some((ev: any) => {
+                const evKey = String(ev?.pdfUrl || ev?.pdfDownloadUrl || ev?.imageUrl || '').trim();
+                return Boolean(evKey && historyEvidenceUrls.has(evKey));
+              })
+            ) {
+              return false;
+            }
             if (lf.content && historySignatures.has(lf.content.trim())) {
               return false;
             }
@@ -5297,9 +5590,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const nowTs = Date.now();
           const localExtras = prev.filter(
             (m: any) =>
-              (m.file || m.htmlReport || m.media || m.image) &&
-              m._localCreatedAt &&
-              nowTs - Number(m._localCreatedAt) <= 8000,
+              ((m.file || m.htmlReport || m.media || m.image) &&
+                m._localCreatedAt &&
+                nowTs - Number(m._localCreatedAt) <= 8000) ||
+              (Array.isArray(m.evidenceFiles) &&
+                m.evidenceFiles.length > 0 &&
+                m._localCreatedAt &&
+                nowTs - Number(m._localCreatedAt) <=
+                  (m._isVoiceEvidenceBubble ? 30 * 60 * 1000 : 8000)),
           );
           if (localExtras.length > 0) return localExtras;
           return [
@@ -5886,6 +6184,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         ? `antigravity-delegated-${Date.now()}`
         : undefined;
 
+      const normalizedEvidences = normalizeTenshiEvidenceFiles(
+        responseData.evidenceFiles || responseData.evidencias,
+      );
+
       const assistantMsg = {
         ...(assistantMsgId ? { _id: assistantMsgId } : {}),
         role: 'assistant' as const,
@@ -5894,6 +6196,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         qrCode: responseData.qrCode,
         file: responseData.file,
         widget: responseData.widget,
+        ...(normalizedEvidences ? { evidenceFiles: normalizedEvidences } : {}),
         ...(delegatedOrder?.ordenId
           ? {
               delegatedOrderId: delegatedOrder.ordenId,
@@ -8233,6 +8536,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             )}
                           </div>
                         )}
+                        {msg.evidenceFiles &&
+                          msg.evidenceFiles.length > 0 &&
+                          renderTenshiEvidenceFiles(msg.evidenceFiles)}
                         {msg.file && (
                           <div className="mt-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex flex-wrap items-center justify-between gap-2">
                             <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 flex-1 min-w-[140px]">
@@ -9230,6 +9536,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 </span>
                               </div>
                             )}
+                            {msg.evidenceFiles &&
+                              msg.evidenceFiles.length > 0 &&
+                              renderTenshiEvidenceFiles(msg.evidenceFiles)}
                             {msg.file && (
                               <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90">
                                 <div className="flex items-start gap-3">

@@ -33,6 +33,8 @@ const SGSST_FALLBACK_MODELS = [
   'gemini-3.8-flash',
 ];
 
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Translates WAPPY UI/preset legacy/non-text model IDs (e.g. 'gemini-3.7-flash', live/tts)
  * to real Google Generative Language API text model IDs BEFORE issuing network requests.
@@ -315,16 +317,124 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
   const mappedFallbacks = SGSST_FALLBACK_MODELS.map(m => mapToGoogleApiTextModel(m, 'gemini-3.6-flash'));
   const candidateFallbacks = [...new Set([...envModels, ...mappedFallbacks])].filter(Boolean);
   const fallbacks = candidateFallbacks.filter(m => m !== preferredModel);
-  const modelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
+  const rawModelsToTry = safeOpts.fastFallback ? [preferredModel] : [...new Set([preferredModel, ...fallbacks])];
+  const nowTs = Date.now();
+  if (!global.__sgsstModelOverloadCooldowns) {
+    global.__sgsstModelOverloadCooldowns = new Map();
+  }
+  const modelCooldownMap = global.__sgsstModelOverloadCooldowns;
+  const healthyModels = rawModelsToTry.filter(m => !modelCooldownMap.has(m) || modelCooldownMap.get(m) < nowTs);
+  const coolingModels = rawModelsToTry.filter(m => modelCooldownMap.has(m) && modelCooldownMap.get(m) >= nowTs);
+  const modelsToTry = healthyModels.length > 0 ? [...healthyModels, ...coolingModels] : rawModelsToTry;
 
   const apiKeys = await resolveApiKeys(userId);
 
+  const explicitTimeoutMs = Number(safeOpts.timeoutMs);
+  const perAttemptTimeoutMs =
+    explicitTimeoutMs > 0
+      ? safeOpts.fastFallback
+        ? explicitTimeoutMs
+        : Math.max(explicitTimeoutMs, 25000)
+      : 40000;
+
+  const executeModelAttempt = async (targetModel, apiKey) => {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const maxOut = 65536;
+
+    const explicitSmallMaxTokens =
+      safeOpts.generationConfig &&
+      typeof safeOpts.generationConfig.maxOutputTokens === 'number' &&
+      safeOpts.generationConfig.maxOutputTokens > 0;
+
+    const mergedGenConfig = {
+      maxOutputTokens: maxOut,
+      temperature: 0.1,
+      ...genConfig,
+      ...(safeOpts.generationConfig || {}),
+    };
+    if (!explicitSmallMaxTokens && mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
+      mergedGenConfig.maxOutputTokens = 65536;
+    }
+
+    if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
+      mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
+    }
+
+    const modelParams = { model: targetModel, generationConfig: mergedGenConfig };
+
+    const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
+    if (systemInstruction) {
+      modelParams.systemInstruction = systemInstruction;
+    }
+
+    if (safeOpts.useWebSearch) {
+      modelParams.tools = [{ googleSearch: {} }];
+    }
+
+    const model = genAI.getGenerativeModel(modelParams);
+
+    let contentPayload = promptText;
+    if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
+      contentPayload = { contents: promptText };
+    } else if (
+      Array.isArray(promptText) &&
+      promptText.length > 0 &&
+      promptText[0] &&
+      typeof promptText[0] === 'object' &&
+      (promptText[0].inlineData || promptText[0].text)
+    ) {
+      contentPayload = { contents: [{ role: 'user', parts: promptText }] };
+    } else if (typeof promptText === 'string') {
+      contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+    }
+
+    const abortCtrl = new AbortController();
+    let attemptTimer = null;
+    let didAttemptTimeout = false;
+    try {
+      const genPromise = model.generateContent(contentPayload, {
+        signal: abortCtrl.signal,
+      });
+      genPromise.catch(() => {});
+      const timeoutPromise = new Promise((_, reject) => {
+        attemptTimer = setTimeout(() => {
+          didAttemptTimeout = true;
+          try {
+            abortCtrl.abort();
+          } catch (_) {}
+          const timeoutErr = new Error(
+            `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
+          );
+          timeoutErr.isModelTimeout = true;
+          reject(timeoutErr);
+        }, perAttemptTimeoutMs);
+      });
+      return await Promise.race([genPromise, timeoutPromise]);
+    } catch (innerErr) {
+      if (didAttemptTimeout) {
+        const timeoutErr = new Error(
+          `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${targetModel}"`,
+        );
+        timeoutErr.isModelTimeout = true;
+        throw timeoutErr;
+      }
+      throw innerErr;
+    } finally {
+      if (attemptTimer) {
+        clearTimeout(attemptTimer);
+        attemptTimer = null;
+      }
+    }
+  };
+
   let lastError;
+  let saw503AcrossModels = false;
 
   // Outer loop: iterate over models (move to next model on 503 or when all keys exhausted)
   for (let modelIdx = 0; modelIdx < modelsToTry.length; modelIdx++) {
     const currentModel = modelsToTry[modelIdx];
     let allKeysExhaustedDueTo429 = false;
+    let retried503OnCurrentModel = false;
 
     const prioritizedKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, currentModel, userId);
     const keysToTry = safeOpts.fastFallback ? prioritizedKeys.slice(0, 1) : prioritizedKeys;
@@ -341,86 +451,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           );
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const maxOut = 65536;
-
-        const explicitSmallMaxTokens =
-          safeOpts.generationConfig &&
-          typeof safeOpts.generationConfig.maxOutputTokens === 'number' &&
-          safeOpts.generationConfig.maxOutputTokens > 0;
-
-        const mergedGenConfig = {
-          maxOutputTokens: maxOut,
-          temperature: 0.1,
-          ...genConfig,
-          ...(safeOpts.generationConfig || {}),
-        };
-        if (!explicitSmallMaxTokens && mergedGenConfig.maxOutputTokens && mergedGenConfig.maxOutputTokens <= 8192) {
-          mergedGenConfig.maxOutputTokens = 65536;
-        }
-
-        if (safeOpts.responseMimeType && !mergedGenConfig.responseMimeType) {
-          mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
-        }
-
-        const modelParams = { model: currentModel, generationConfig: mergedGenConfig };
-
-        const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
-        if (systemInstruction) {
-          modelParams.systemInstruction = systemInstruction;
-        }
-        
-        if (safeOpts.useWebSearch) {
-          modelParams.tools = [{ googleSearch: {} }];
-        }
-        
-        const model = genAI.getGenerativeModel(modelParams);
-        
-        let contentPayload = promptText;
-        if (Array.isArray(promptText) && promptText.length > 0 && promptText[0] && typeof promptText[0] === 'object' && promptText[0].role) {
-          contentPayload = { contents: promptText };
-        } else if (
-          Array.isArray(promptText) &&
-          promptText.length > 0 &&
-          promptText[0] &&
-          typeof promptText[0] === 'object' &&
-          (promptText[0].inlineData || promptText[0].text)
-        ) {
-          contentPayload = { contents: [{ role: 'user', parts: promptText }] };
-        } else if (typeof promptText === 'string') {
-          contentPayload = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
-        }
-
-        const perAttemptTimeoutMs =
-          Number(safeOpts.timeoutMs) > 0 ? Number(safeOpts.timeoutMs) : 15000;
-        const abortCtrl = new AbortController();
-        let attemptTimer = null;
-        let result;
-        try {
-          const genPromise = model.generateContent(contentPayload, {
-            timeout: perAttemptTimeoutMs,
-            signal: abortCtrl.signal,
-          });
-          genPromise.catch(() => {});
-          const timeoutPromise = new Promise((_, reject) => {
-            attemptTimer = setTimeout(() => {
-              try {
-                abortCtrl.abort();
-              } catch (_) {}
-              reject(
-                new Error(
-                  `[SGSST Gemini] Request timeout (${perAttemptTimeoutMs}ms) con modelo "${currentModel}"`,
-                ),
-              );
-            }, perAttemptTimeoutMs);
-          });
-          result = await Promise.race([genPromise, timeoutPromise]);
-        } finally {
-          if (attemptTimer) {
-            clearTimeout(attemptTimer);
-            attemptTimer = null;
-          }
-        }
+        const result = await executeModelAttempt(currentModel, apiKey);
         geminiPoolManager.reportKeySuccess(apiKey, currentModel);
         return result; // ✅ success
 
@@ -442,7 +473,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const isInvalidKey = status === 400 &&
           (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
 
-        // 503 service unavailable — unique to SGSST: rotate model
+        // 503 service unavailable — unique to SGSST: retry 1 extra key after 1s, then rotate model
         const is503 = status === 503 || msg.includes('503') ||
           msg.includes('service unavailable') || msg.includes('overloaded');
 
@@ -450,45 +481,60 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const is404 = status === 404 || msg.includes('404') ||
           msg.includes('not found') || msg.includes('is not found for api version');
 
-        // Transient network / fetch failure — rotate key & model instead of aborting on first attempt
+        const isModelTimeout = Boolean(err.isModelTimeout) || msg.includes('request timeout');
+
+        // Transient network / fetch failure on endpoint
         const isTransientNet =
-          msg.includes('fetch failed') ||
-          msg.includes('etimedout') ||
-          msg.includes('econnreset') ||
-          msg.includes('socket hang up') ||
-          msg.includes('und_err') ||
-          msg.includes('timeout') ||
-          msg.includes('aborted');
+          !isModelTimeout &&
+          (msg.includes('fetch failed') ||
+            msg.includes('etimedout') ||
+            msg.includes('econnreset') ||
+            msg.includes('socket hang up') ||
+            msg.includes('und_err') ||
+            msg.includes('timeout') ||
+            msg.includes('aborted'));
 
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 
         geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
-          status,
+          status: isModelTimeout || isTransientNet ? 503 : status,
           message: err.message,
           isDailyLimit: isDaily,
         });
 
-        if (options.fastFallback) {
+        if (safeOpts.fastFallback) {
           logger.warn(`[SGSST Gemini] FastFallback activo. Falló intento único con "${currentModel}" (${status || 'error'}). Abortando rotación para dar paso a fallback determinista.`);
           throw err;
         }
 
-        if (isRateLimit || isQuotaExceeded || isInvalidKey || isTransientNet) {
+        // Rotate KEY only on key-specific errors (429 rate-limit, 403 quota/leaked, 400 invalid key)
+        if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(
             `[SGSST Gemini] Clave #${keyIdx + 1} rechazada ` +
-            `(${status || (isTransientNet ? 'red/fetch' : 'quota')} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : isTransientNet ? 'reintento red' : 'límite'}) ` +
+            `(${status || 'quota'} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : 'límite'}) ` +
             `para modelo "${currentModel}". Rotando API key...`
           );
           allKeysExhaustedDueTo429 = true; // mark; continues to next keyIdx automatically
           continue; // next key, same model
         }
 
-        if (is503 || is404) {
+        // Rotate MODEL immediately on model/server unavailability (503, 404, timeout, network/fetch failure)
+        if (is503 || is404 || isModelTimeout || isTransientNet) {
+          if (is503 || isModelTimeout || isTransientNet) {
+            saw503AcrossModels = true;
+          }
+          modelCooldownMap.set(currentModel, Date.now() + (is404 ? 3600000 : 120000));
+          const failLabel = is404
+            ? '404 No Encontrado'
+            : isModelTimeout
+            ? 'Timeout sin respuesta'
+            : isTransientNet
+            ? 'Fallo de red/endpoint'
+            : '503 Sobrecargado';
           logger.warn(
-            `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
-            `Rotando a modelo de respaldo...`
+            `[SGSST Gemini] Modelo "${currentModel}" falló (${failLabel}). Rotando inmediatamente al siguiente modelo de respaldo...`
           );
-          break; // break inner for → outer for advances modelIdx
+          break; // break inner for → outer for advances modelIdx immediately
         }
 
         // Any other error: fail fast
@@ -509,6 +555,35 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
     }
     // If we broke out due to 503 → outer for will also continue to next model
   } // end outer for (models)
+
+  // Final rescue pass across fallback ladder if all models returned 503/timeout on first pass
+  if (saw503AcrossModels && !safeOpts.fastFallback) {
+    const rescueLadder = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', ...modelsToTry])];
+    logger.warn(
+      `[SGSST Gemini] Primera vuelta reportó sobrecarga (503). ` +
+      `Esperando 2200ms para ejecutar segunda vuelta de rotación (${rescueLadder.join(' -> ')})...`
+    );
+    await sleepMs(2200);
+    for (const rescueModel of rescueLadder) {
+      const rescueKeys = geminiPoolManager.getPrioritizedKeys(apiKeys, rescueModel, userId);
+      const rescueKey = rescueKeys[0] || apiKeys[0];
+      if (!rescueKey) continue;
+      try {
+        const rescueResult = await executeModelAttempt(rescueModel, rescueKey);
+        geminiPoolManager.reportKeySuccess(rescueKey, rescueModel);
+        modelCooldownMap.delete(rescueModel);
+        logger.info(`[SGSST Gemini] Segunda vuelta exitosa rotando a "${rescueModel}".`);
+        return rescueResult;
+      } catch (rescueErr) {
+        lastError = rescueErr;
+        geminiPoolManager.reportKeyStatus(rescueKey, rescueModel, {
+          status: rescueErr?.status || 0,
+          message: rescueErr?.message,
+        });
+        logger.warn(`[SGSST Gemini] Segunda vuelta en "${rescueModel}" rechazó (${rescueErr?.status || 'net'}). Rotando al siguiente...`);
+      }
+    }
+  }
 
   // All keys AND all models exhausted
   logger.error('[SGSST Gemini] Se agotaron todas las claves y modelos de respaldo.');
@@ -740,7 +815,7 @@ async function callSgsstGemini({
   modelName = 'gemini-3.6-flash',
   systemInstruction,
   generationConfig = {},
-  timeoutMs = 35000,
+  timeoutMs = 40000,
   useWebSearch = false,
 } = {}) {
   const effectiveModel = mapToGoogleApiTextModel(modelName, 'gemini-3.6-flash');

@@ -128,7 +128,12 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
         const moodRes = await axios.get('/api/sgsst/estadisticas/mood', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setMoodData(moodRes.data);
+        const incomingMoods = Array.isArray(moodRes.data)
+          ? moodRes.data
+          : Array.isArray(moodRes.data?.records)
+            ? moodRes.data.records
+            : [];
+        setMoodData(incomingMoods);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         showToast({ message: 'Error al cargar datos del panel psicosocial.', status: 'error' });
@@ -161,7 +166,8 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
   const filteredData = useMemo(() => {
     const limitDate = new Date();
     limitDate.setDate(limitDate.getDate() - filterDays);
-    return moodData.filter(item => new Date(item.createdAt) >= limitDate);
+    const safeList = Array.isArray(moodData) ? moodData : [];
+    return safeList.filter(item => item && new Date(item.createdAt) >= limitDate);
   }, [moodData, filterDays]);
 
   // Metrics Calculations

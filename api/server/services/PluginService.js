@@ -51,7 +51,14 @@ const getUserPluginAuthValue = async (userId, authField, throwError = true, plug
     if (!throwError) {
       return null;
     }
-    logger.error('[getUserPluginAuthValue]', err);
+    const isOptionalWebSearchField =
+      typeof authField === 'string' &&
+      /^(SEARXNG_|FIRECRAWL_|SERPER_|JINA_|COHERE_)/.test(authField);
+    if (isOptionalWebSearchField) {
+      logger.debug(`[getUserPluginAuthValue] Optional search key ${authField} not set for user ${userId}`);
+    } else {
+      logger.error('[getUserPluginAuthValue]', err);
+    }
     throw err;
   }
 };

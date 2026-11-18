@@ -12645,11 +12645,20 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
     cedula = '',
     nombre = '',
     placa = '',
+    fechaNacimiento = '',
+    arl = '',
+    eps = '',
+    afp = '',
     folderPath = '',
     targetUrl = '',
     includePdf = true,
     eventTarget = '',
   } = payload || {};
+  const includeEvidence =
+    payload?.includeEvidence !== undefined ? Boolean(payload.includeEvidence) : includePdf !== false;
+  const forceEvidence = Boolean(payload?.forceEvidence);
+  const resolvedTipoDoc = String(tipoDoc || 'CC').trim() || 'CC';
+  const resolvedCedula = String(cedula || payload?.documento || '').trim();
   const mode = String(payload?.antigravityMode || 'auto').toLowerCase();
   const effectiveTimeoutMs = Number(payload?.timeoutMs || timeoutMs || 45000);
 
@@ -12667,7 +12676,7 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
       const userClients = antigravityStreamClients.get(String(userId));
       if (userClients && userClients.size > 0) {
         for (const c of userClients) {
-          if (c.__wappyClientType !== 'browser') {
+          if (c.__wappyClientType !== 'browser' && !c.destroyed && !c.writableEnded) {
             const cEnv = getClientEnv(c);
             if (desiredEnv === 'local' && cEnv !== 'cloud') matched.push(c);
             else if (desiredEnv === 'cloud' && cEnv === 'cloud') matched.push(c);
@@ -12679,7 +12688,7 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
     for (const [, clients] of antigravityStreamClients.entries()) {
       if (!clients || clients.size === 0) continue;
       for (const c of clients) {
-        if (c.__wappyClientType !== 'browser') {
+        if (c.__wappyClientType !== 'browser' && !c.destroyed && !c.writableEnded) {
           const cEnv = getClientEnv(c);
           if (desiredEnv === 'local' && cEnv !== 'cloud') matched.push(c);
           else if (desiredEnv === 'cloud' && cEnv === 'cloud') matched.push(c);
@@ -12689,88 +12698,218 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
     return sortPreferredDaemons(matched);
   };
 
-  let targetClients = [];
-  if (mode === 'local') {
-    targetClients = findDaemonsByEnv('local');
-    if (targetClients.length === 0) targetClients = findDaemonsByEnv('cloud');
-    if (targetClients.length === 0) {
-      return {
-        error: 'No hay puente Google Antigravity Local (PC/Mac) en línea para este modo.',
-        status: 'offline_local',
-        antigravityModeUsed: mode,
-      };
+  const isUsableDaemonResult = (rawRes) => {
+    if (!rawRes || typeof rawRes !== 'object') return false;
+    if (
+      rawRes.status === 'offline_local' ||
+      rawRes.status === 'offline_cloud' ||
+      rawRes.status === 'transport_error'
+    ) {
+      return false;
     }
-  } else if (mode === 'cloud') {
-    targetClients = findDaemonsByEnv('cloud');
-    if (targetClients.length === 0) targetClients = findDaemonsByEnv('local');
-    if (targetClients.length === 0) {
-      return {
-        error: 'No hay instancia Google Antigravity Cloud 24/7 en línea para este modo.',
-        status: 'offline_cloud',
-        antigravityModeUsed: mode,
-      };
+    if (
+      rawRes.error &&
+      !rawRes.fuente &&
+      rawRes.ok !== true &&
+      rawRes.afiliadoActivo === undefined &&
+      rawRes.encontrado === undefined &&
+      !Array.isArray(rawRes.files)
+    ) {
+      return false;
     }
-  } else {
-    targetClients = findDaemonsByEnv('local');
-    if (targetClients.length === 0) targetClients = findDaemonsByEnv('cloud');
-    if (targetClients.length === 0) {
-      return null;
+    if (/SERVICIO OSINT LOCAL NO DISPONIBLE/i.test(String(rawRes.estadoReal || ''))) {
+      return false;
     }
-  }
+    return true;
+  };
 
-  const targetClient = targetClients[0];
-  const resolvedEnv = getClientEnv(targetClient);
-  const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  logger.info(
-    `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${tipoDoc} ${cedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}, host=${targetClient?.__wappyDaemonHost || 'local'}) al daemon Google Antigravity (${requestId})...`,
-  );
+  const tryDispatchToClients = (clientsGroup, envLabel, stepTimeoutMs) => {
+    const liveGroup = Array.isArray(clientsGroup)
+      ? clientsGroup.filter((c) => c && !c.destroyed && !c.writableEnded)
+      : [];
+    if (liveGroup.length === 0) {
+      return Promise.resolve(null);
+    }
 
-  return new Promise((resolve) => {
-    const finishResolve = (rawRes) => {
-      if (rawRes && typeof rawRes === 'object') {
-        resolve({
+    const primaryClient = liveGroup[0];
+    const resolvedEnv = envLabel || getClientEnv(primaryClient);
+    const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const waitMs = Math.max(3000, Number(stepTimeoutMs || effectiveTimeoutMs || 45000));
+
+    logger.info(
+      `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${resolvedTipoDoc} ${resolvedCedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}, host=${primaryClient?.__wappyDaemonHost || resolvedEnv}, timeout=${waitMs}ms) al daemon Google Antigravity (${requestId})...`,
+    );
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let unusableResponses = 0;
+      const writtenConns = [];
+      const closeWatchers = [];
+
+      const cleanup = () => {
+        for (const { conn, fn } of closeWatchers) {
+          try {
+            conn.removeListener('close', fn);
+            conn.removeListener('error', fn);
+          } catch (_) {}
+        }
+        closeWatchers.length = 0;
+      };
+
+      const safeDone = (val) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        pendingOsintRelayRequests.delete(requestId);
+        cleanup();
+        resolve(val);
+      };
+
+      const finishResolve = (rawRes) => {
+        if (!isUsableDaemonResult(rawRes)) {
+          unusableResponses += 1;
+          if (unusableResponses >= Math.max(1, writtenConns.length)) {
+            safeDone(null);
+          }
+          return;
+        }
+        safeDone({
           ...rawRes,
-          resolvedEnv: targetClient.env || targetClient.__wappyDaemonEnv || 'local',
+          resolvedEnv,
           antigravityModeUsed: mode,
         });
-      } else {
-        resolve(rawRes || null);
+      };
+
+      const timer = setTimeout(() => {
+        logger.warn(
+          `[MCP Bridge] ⏱️ Timeout (${waitMs}ms) esperando respuesta de Antigravity (${resolvedEnv}, req=${requestId}).`,
+        );
+        safeDone(null);
+      }, waitMs);
+
+      pendingOsintRelayRequests.set(requestId, { resolve: finishResolve, timer });
+
+      try {
+        const frame = `event: osint_mintrabajo_request\ndata: ${JSON.stringify({
+          ...payload,
+          requestId,
+          action,
+          tipoDoc: resolvedTipoDoc,
+          cedula: resolvedCedula,
+          nombre,
+          placa,
+          fechaNacimiento,
+          arl,
+          eps,
+          afp,
+          folderPath,
+          targetUrl,
+          includePdf,
+          includeEvidence,
+          forceEvidence,
+          eventTarget,
+          antigravityMode: mode,
+        })}\n\n`;
+
+        for (const clientConn of liveGroup) {
+          try {
+            clientConn.write(frame);
+            if (typeof clientConn.flush === 'function') clientConn.flush();
+            writtenConns.push(clientConn);
+          } catch (_) {}
+        }
+
+        if (writtenConns.length === 0) {
+          safeDone(null);
+          return;
+        }
+
+        let closedCount = 0;
+        for (const conn of writtenConns) {
+          const onDisconnect = () => {
+            closedCount += 1;
+            if (closedCount >= writtenConns.length) {
+              logger.warn(
+                `[MCP Bridge] 🔌 Conexión SSE Antigravity (${resolvedEnv}) cerrada durante ${requestId}; continuando cascada.`,
+              );
+              safeDone(null);
+            }
+          };
+          conn.on('close', onDisconnect);
+          conn.on('error', onDisconnect);
+          closeWatchers.push({ conn, fn: onDisconnect });
+        }
+      } catch (_) {
+        safeDone(null);
       }
+    });
+  };
+
+  const localClientsInitial = findDaemonsByEnv('local');
+  const cloudClientsInitial = findDaemonsByEnv('cloud');
+
+  if (mode === 'cloud') {
+    const primaryTimeout =
+      localClientsInitial.length > 0
+        ? Math.min(effectiveTimeoutMs, Math.max(12000, Math.round(effectiveTimeoutMs * 0.6)))
+        : effectiveTimeoutMs;
+    const cloudRes = await tryDispatchToClients(cloudClientsInitial, 'cloud', primaryTimeout);
+    if (cloudRes) return cloudRes;
+
+    const freshLocalClients = findDaemonsByEnv('local');
+    const localBackupRes = await tryDispatchToClients(freshLocalClients, 'local', effectiveTimeoutMs);
+    if (localBackupRes) return localBackupRes;
+
+    return {
+      error: 'No hay instancia Google Antigravity Cloud 24/7 en línea para este modo.',
+      status: 'offline_cloud',
+      antigravityModeUsed: mode,
     };
+  }
 
-    const timer = setTimeout(() => {
-      pendingOsintRelayRequests.delete(requestId);
-      resolve(null);
-    }, effectiveTimeoutMs);
+  if (mode === 'local') {
+    const primaryTimeout =
+      cloudClientsInitial.length > 0
+        ? Math.min(effectiveTimeoutMs, Math.max(12000, Math.round(effectiveTimeoutMs * 0.6)))
+        : effectiveTimeoutMs;
+    const localRes = await tryDispatchToClients(localClientsInitial, 'local', primaryTimeout);
+    if (localRes) return localRes;
 
-    pendingOsintRelayRequests.set(requestId, { resolve: finishResolve, timer });
-    try {
-      const frame = `event: osint_mintrabajo_request\ndata: ${JSON.stringify({
-        ...payload,
-        requestId,
-        action,
-        tipoDoc,
-        cedula,
-        nombre,
-        placa,
-        folderPath,
-        targetUrl,
-        includePdf,
-        eventTarget,
-        antigravityMode: mode,
-      })}\n\n`;
-      for (const clientConn of targetClients) {
-        try {
-          clientConn.write(frame);
-          if (typeof clientConn.flush === 'function') clientConn.flush();
-        } catch (_) {}
-      }
-    } catch (_) {
-      clearTimeout(timer);
-      pendingOsintRelayRequests.delete(requestId);
-      resolve(null);
-    }
-  });
+    const freshCloudClients = findDaemonsByEnv('cloud');
+    const cloudBackupRes = await tryDispatchToClients(freshCloudClients, 'cloud', effectiveTimeoutMs);
+    if (cloudBackupRes) return cloudBackupRes;
+
+    return {
+      error: 'No hay puente Google Antigravity Local (PC/Mac) en línea para este modo.',
+      status: 'offline_local',
+      antigravityModeUsed: mode,
+    };
+  }
+
+  // mode === 'auto' (por defecto): Cascada real 1° Antigravity Local -> 2° Antigravity Cloud -> 3° null (Respaldo Directo Ligero Seguro VPS)
+  const localTierTimeout =
+    cloudClientsInitial.length > 0
+      ? Math.min(effectiveTimeoutMs, Math.max(12000, Math.round(effectiveTimeoutMs * 0.6)))
+      : effectiveTimeoutMs;
+
+  if (localClientsInitial.length > 0) {
+    const localRes = await tryDispatchToClients(localClientsInitial, 'local', localTierTimeout);
+    if (localRes) return localRes;
+    logger.info(
+      `[MCP Bridge] 🔄 Cascada Antigravity (auto): 1° nivel (Local) sin respuesta válida; intentando 2° nivel (Antigravity Cloud)...`,
+    );
+  }
+
+  const freshCloudClients = findDaemonsByEnv('cloud');
+  if (freshCloudClients.length > 0) {
+    const cloudRes = await tryDispatchToClients(freshCloudClients, 'cloud', effectiveTimeoutMs);
+    if (cloudRes) return cloudRes;
+    logger.info(
+      `[MCP Bridge] 🔄 Cascada Antigravity (auto): 2° nivel (Cloud) sin respuesta válida; retornando null para activar 3° nivel (Respaldo Directo Seguro VPS).`,
+    );
+  }
+
+  return null;
 }
 
 global.dispatchOsintViaAntigravityDaemon = dispatchOsintViaAntigravityDaemon;
@@ -12782,8 +12921,6 @@ router.post('/antigravity/osint-callback', requireApiKeyOrJwt, (req, res) => {
       return res.json({ ok: true, ignoredEmpty: true });
     }
     const entry = pendingOsintRelayRequests.get(requestId);
-    clearTimeout(entry.timer);
-    pendingOsintRelayRequests.delete(requestId);
     entry.resolve(result);
   }
   return res.json({ ok: true });

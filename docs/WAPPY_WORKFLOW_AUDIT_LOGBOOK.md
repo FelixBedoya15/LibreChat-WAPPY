@@ -158,3 +158,29 @@ node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.j
 | **D** | Solicitud interactiva sin cédula (`"Revisa alturas y ARL por favor"`) | `0` scrapes, `0` tokens LLM, `missingInputTarget=true`, `llmSkippedByMissingInput=true` y respuesta cortés pidiendo la cédula | ✅ PASS |
 | **E** | Aislamiento multi-empresa (`Empresa A` vs `Empresa B`) y cross-tenant override | Override ajeno bloqueado/aislado en `Empresa B`; subusuario con `assignedCompany` ajena rechazado; `0` hidratación cruzada desde `Empresa A` | ✅ PASS |
 | **G** | Invocación end-to-end por herramienta `GestorAutomatizaciones` (`accion="ejecutar_tenshi"`) | Respuesta síncrona en el mismo turno (`success=true`, `mode="instant"`, `companyId` aislado y hallazgos reales) | ✅ PASS |
+
+
+---
+
+## Auditoría #005 — Rediseño del Primer Flujo Tenshi Global Exclusivo ARL (`ifPlacement: 'pre_source'` + `gemini-3.5-flash-lite` + Cascada 3-Niveles Antigravity/VPS + Entrega en Chat Tenshi)
+- **Fecha:** 2026-11-17
+- **Flujo Auditado:** `tenshi_flow_verificacion_arl_cedula` (`🛡️ Verificación Instantánea y Certificado ARL por Cédula`, `DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-17-v2'`).
+- **Decisiones Arquitectónicas Aplicadas:**
+  1. **Modelo IA:** `gemini-3.5-flash-lite` (`WAPPY IA · Gemini 3.5 Flash Lite`, verificado en `.env`).
+  2. **Nueva Compuerta de Enrutamiento de Entrada (`ifPlacement: 'pre_source'`, `ifConditionType: 'has_explicit_cedula'`):**
+     - **Rama SÍ (con cédula explícita):** `0` lecturas a `Perfil Sociodemográfico (Hito 2)` (`skipWorkerDbHydration: true`), enviando `tipoDoc` dinámico (`CC/CE/TI/PPT/PA`) y `fechaNacimiento` opcional directo a `scraper_agy_arl_directo` (`Web Scraping ARL · Antigravity · 5 ARL`) + recuperación de titular/empleador por `pdf-parse` desde el PDF oficial.
+     - **Rama NO (sin cédula):** Búsqueda puntual por nombre (`recordFilterMode: 'name_lookup_only'`) en `hito2_perfil_socio` aislada al `companyId` activo (cero barrido de nómina completa); si coincide, pasa ese único colaborador al scraper ARL; si no coincide o no hay nombre, corta con `0` scrapes y `0` tokens LLM.
+  3. **Cascada Estricta de 3 Niveles + Protección Anti-Caída VPS:**
+     - `1° Google Antigravity Local` (`mcpBridge.js`) ➔ `2° Google Antigravity Cloud` (failover automático si Local no está o hace timeout) ➔ `3° Respaldo Directo Ligero HTTP en Servidor` (`vpsSafeDirectFallback: true` en `osintWorkerService.js`, ejecutando solo HTTP puro en SURA/Positiva y bloqueando apertura de Chromium/Puppeteer en el VPS).
+  4. **Recepción y Apertura en el Chat de Tenshi (Texto y Voz):**
+     - Persistencia de `evidenceFiles` en `TenshiMessage.js`, propagación en `GestorAutomatizaciones.js` y `tenshi.js`, y tarjetas interactivas (`Abrir Certificado` + `Descargar PDF`) en `TenshiChat.tsx`.
+
+| Escenario | Descripción | Resultado Observado | Estado |
+| :---: | :--- | :--- | :---: |
+| **1** | Validación DAG (`validate-workflow-logic.js` general + `--file`) | `30/30 PASS` catálogo + `1/1 PASS` flujo ARL (`pre_source`, `0` errores, `0` advertencias) | ✅ PASS |
+| **2** | Seed idempotente y limpieza de semilla previa (`ensureDefaultTenshiFlows`) | `tenshi_flow_verificacion_arl_cedula` activo y `tenshi_flow_verificacion_alturas_arl_cedula` reemplazado limpiamente | ✅ PASS |
+| **3** | Rama SÍ con cédula explícita (`1.037.654.321`) | `0` consultas a `SgsstWorker`/Hito 2, `1` scrape puntual y `1` certificado PDF/PNG emitido en `evidenceFiles` | ✅ PASS |
+| **4** | Rama SÍ sin afiliación en SURA/Positiva y sin fecha de nacimiento (`CE 99887766`) | `0` consultas a Hito 2, `0` PDFs falsos y aviso explícito solicitando fecha de nacimiento si aplica ARL Bolívar | ✅ PASS |
+| **5** | Rama NO por nombre (`Carlos Andrés Gómez`) en empresa de varios trabajadores | Consulta puntual `name_lookup_only` en Hito 2 (`1` solo scrape con `CC 71234567` y `fechaNacimiento` hidratada) y emisión de certificado | ✅ PASS |
+| **6 & 8** | Rama NO sin coincidencia / nombre perteneciente a otra empresa (`companyId` B desde `companyId` A) | Corte inmediato con `0` scrapes externos, `0` llamadas al LLM y `0` fuga de datos entre empresas | ✅ PASS |
+| **7** | Suite lógica general (`run-logical-test-suite.js`) | `25/25 PRUEBAS LÓGICAS SUPERADAS AL 100%` con limpieza total en MongoDB | ✅ PASS |

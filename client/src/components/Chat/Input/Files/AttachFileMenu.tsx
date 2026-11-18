@@ -385,6 +385,9 @@ const AttachFileMenu = ({
     ephemeralAgent,
   );
 
+  const COMBINED_MULTIMODAL_ACCEPT =
+    'image/*,video/*,audio/*,.pdf,application/pdf,.doc,application/msword,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.xls,application/vnd.ms-excel,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.csv,text/csv,.txt,text/plain,.md,text/markdown,.json,application/json,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.ppt,application/vnd.ms-powerpoint,.mp4,.webm,.mov,.avi,.mkv,.mp3,.wav,.ogg,.m4a';
+
   const handleUploadClick = (
     fileType?: 'image' | 'image_video' | 'document' | 'multimodal' | 'google_multimodal',
   ) => {
@@ -395,20 +398,23 @@ const AttachFileMenu = ({
     if (fileType === 'image') {
       inputRef.current.accept = 'image/*';
     } else if (fileType === 'image_video') {
-      inputRef.current.accept = 'image/*,video/*';
-    } else if (fileType === 'document') {
-      inputRef.current.accept =
-        '.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,.csv,text/csv,text/plain,.pptx,.ppt,image/*';
-    } else if (fileType === 'multimodal') {
-      inputRef.current.accept =
-        'image/*,video/*,audio/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain,.pptx,.ppt';
-    } else if (fileType === 'google_multimodal') {
-      inputRef.current.accept =
-        'image/*,video/*,audio/*,.pdf,application/pdf,.csv,text/csv,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,text/plain,.pptx,.ppt';
+      inputRef.current.accept = 'image/*,video/*,.mp4,.webm,.mov,.avi,.mkv';
+    } else if (
+      fileType === 'document' ||
+      fileType === 'multimodal' ||
+      fileType === 'google_multimodal'
+    ) {
+      inputRef.current.accept = COMBINED_MULTIMODAL_ACCEPT;
     } else {
-      inputRef.current.accept =
-        'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*';
+      inputRef.current.accept = `${COMBINED_MULTIMODAL_ACCEPT},application/*`;
     }
+    inputRef.current.addEventListener(
+      'cancel',
+      () => {
+        setToolResource(undefined);
+      },
+      { once: true },
+    );
     inputRef.current.click();
     setTimeout(() => {
       if (inputRef.current) {
@@ -643,6 +649,7 @@ const AttachFileMenu = ({
         ref={inputRef}
         handleFileChange={(e) => {
           handleFileChange(e, toolResource);
+          setToolResource(undefined);
         }}
       >
         <DropdownPopup

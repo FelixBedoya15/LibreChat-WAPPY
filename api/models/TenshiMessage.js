@@ -1,5 +1,24 @@
 const mongoose = require('mongoose');
 
+const tenshiEvidenceFileSchema = new mongoose.Schema(
+    {
+        title: { type: String, default: '' },
+        portal: { type: String, default: '' },
+        workerName: { type: String, default: '' },
+        cedula: { type: String, default: '' },
+        cargo: { type: String, default: '' },
+        pdfUrl: { type: String, default: null },
+        pdfDownloadUrl: { type: String, default: null },
+        pdfAbsoluteUrl: { type: String, default: null },
+        pdfFileName: { type: String, default: null },
+        imageUrl: { type: String, default: null },
+        imageDownloadUrl: { type: String, default: null },
+        imageAbsoluteUrl: { type: String, default: null },
+        imageFileName: { type: String, default: null },
+    },
+    { _id: false }
+);
+
 const tenshiMessageSchema = mongoose.Schema(
     {
         user: {
@@ -63,6 +82,10 @@ const tenshiMessageSchema = mongoose.Schema(
             status: { type: String },
             actionId: { type: String },
             data: { type: mongoose.Schema.Types.Mixed },
+        },
+        evidenceFiles: {
+            type: [tenshiEvidenceFileSchema],
+            default: undefined,
         },
     },
     { timestamps: true }

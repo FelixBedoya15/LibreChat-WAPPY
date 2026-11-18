@@ -5,14 +5,16 @@ const CompanyInfo = require('~/models/CompanyInfo');
 
 const INVALID_MARKER_COMPANY_IDS = new Set(['TENSHI_GLOBAL', 'SYSTEM_PRESET']);
 
-const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-13-v1';
+const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-17-v2';
+
+const LEGACY_REPLACED_TENSHI_SEED_KEYS = ['tenshi_flow_verificacion_alturas_arl_cedula'];
 
 const FIRST_GLOBAL_TENSHI_FLOW = {
-  presetKey: 'tenshi_flow_verificacion_alturas_arl_cedula',
-  name: '🪖 Verificación Instantánea de Trabajo en Alturas y ARL por Cédula',
-  presetCategory: 'atel_inspecciones',
+  presetKey: 'tenshi_flow_verificacion_arl_cedula',
+  name: '🛡️ Verificación Instantánea y Certificado ARL por Cédula',
+  presetCategory: 'salud_vencimientos',
   presetDescription:
-    'Consulta en tiempo real por número de cédula si el certificado de Trabajo Seguro en Alturas (Resolución 4272 de 2021) en MinTrabajo o SENA y la afiliación directa en ARL están vigentes, consolida ambos portales oficiales y entrega al instante los hallazgos, evidencias y estado real para la empresa activa.',
+    'Consulta al instante la afiliación laboral y descarga el certificado oficial ARL en portales reales de Colombia mediante Web Scraping con Google Antigravity. Evalúa primero si el usuario entregó el número de cédula: si lo dio, omite por completo Perfil Sociodemográfico (Hito 2) y consulta directo la ARL; si solo dio el nombre, busca primero el documento en Perfil Sociodemográfico (Hito 2) de la empresa activa y entrega el certificado PDF o PNG listo para abrir en el chat de Tenshi.',
   isTenshiFlow: true,
   isSystemPreset: false,
   adminOnly: true,
@@ -36,118 +38,127 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
   workflowNodes: {
     trigger: 'trigger_tenshi',
     triggers: ['trigger_tenshi'],
-    extractors: ['scraper_agy_alto_riesgo', 'scraper_agy_arl_directo'],
+    extractors: ['scraper_agy_arl_directo'],
     aiEngine: 'wappy',
-    aiModel: 'gemini-3.6-flash',
+    aiModel: 'gemini-3.5-flash-lite',
     memoryNode: 'wappy_memory_company',
     memories: ['wappy_memory_company'],
-    includeIfNode: false,
-    inputs: [],
+    includeIfNode: true,
+    inputs: ['google_antigravity'],
     hitos: ['hito2_perfil_socio'],
     outputs: ['wappy_notification'],
     canvasLayout: {
       positions: {},
       edges: [],
-      logicNodes: [
-        {
-          key: 'logic_merge_1',
-          logicType: 'merge',
-          title: 'Unir Ramas',
-          subtitle: 'Alturas MinTrabajo + ARL Directo',
-        },
-      ],
+      logicNodes: [],
       nodeConfigs: {
         trigger_trigger_tenshi: {
           voiceCommands: [
-            'verificar certificado de alturas y arl por cedula',
-            'investigar si cedula tiene alturas y arl vigentes',
-            'consultar trabajo en alturas y afiliacion arl',
-            'revisar alturas y arl en mintrabajo y arl',
+            'verificar certificado de arl por cedula',
+            'consultar afiliacion arl',
+            'descargar certificado arl',
+            'revisar arl de trabajador',
+            'investigar si tiene certificado de arl vigente',
           ],
-          voiceCommand: 'verificar certificado de alturas y arl por cedula',
+          voiceCommand: 'verificar certificado de arl por cedula',
           triggerChannel: 'both',
           customInstruction:
-            'Activa esta consulta instantánea por voz o chat cuando el usuario solicite verificar por número de cédula la vigencia del certificado de Trabajo Seguro en Alturas y el estado de afiliación ARL.',
+            'Activa esta consulta instantánea por voz o chat cuando el usuario solicite verificar afiliación ARL o descargar certificado oficial por número de cédula o por nombre del trabajador.',
         },
         trigger_tenshi: {
           voiceCommands: [
-            'verificar certificado de alturas y arl por cedula',
-            'investigar si cedula tiene alturas y arl vigentes',
-            'consultar trabajo en alturas y afiliacion arl',
-            'revisar alturas y arl en mintrabajo y arl',
+            'verificar certificado de arl por cedula',
+            'consultar afiliacion arl',
+            'descargar certificado arl',
+            'revisar arl de trabajador',
+            'investigar si tiene certificado de arl vigente',
           ],
-          voiceCommand: 'verificar certificado de alturas y arl por cedula',
+          voiceCommand: 'verificar certificado de arl por cedula',
           triggerChannel: 'both',
           customInstruction:
-            'Activa esta consulta instantánea por voz o chat cuando el usuario solicite verificar por número de cédula la vigencia del certificado de Trabajo Seguro en Alturas y el estado de afiliación ARL.',
+            'Activa esta consulta instantánea por voz o chat cuando el usuario solicite verificar afiliación ARL o descargar certificado oficial por número de cédula o por nombre del trabajador.',
         },
-        extractor_scraper_agy_alto_riesgo: {
-          antigravityMode: 'auto',
-          scriptEngine: 'chrome_mcp',
-          customInstruction:
-            'Consulta únicamente la cédula o trabajador indicado por el usuario en los portales oficiales de MinTrabajo (Trabajo Seguro en Alturas y Espacios Confinados) y certificados SENA mediante Google Antigravity Web Scraping, descargando constancias cuando existan.',
+        if_router: {
+          ifPlacement: 'pre_source',
+          ifConditionType: 'has_explicit_cedula',
+          ifConditionLabel: '¿El usuario proporcionó número de cédula?',
+          conditionTrueLabel:
+            'Consultar directo en Web Scraping ARL con Google Antigravity sin leer Perfil Sociodemográfico',
+          conditionFalseLabel:
+            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL',
         },
-        scraper_agy_alto_riesgo: {
-          antigravityMode: 'auto',
-          scriptEngine: 'chrome_mcp',
+        if_condition: {
+          ifPlacement: 'pre_source',
+          ifConditionType: 'has_explicit_cedula',
+          ifConditionLabel: '¿El usuario proporcionó número de cédula?',
+          conditionTrueLabel:
+            'Consultar directo en Web Scraping ARL con Google Antigravity sin leer Perfil Sociodemográfico',
+          conditionFalseLabel:
+            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL',
+        },
+        tool_hitos_hito2_perfil_socio: {
+          hitoRole: 'source_read',
+          hitoOperationMode: 'read_only',
+          appActionMode: 'read_only',
+          recordFilterMode: 'name_lookup_only',
+          generateAppReport: false,
           customInstruction:
-            'Consulta únicamente la cédula o trabajador indicado por el usuario en los portales oficiales de MinTrabajo (Trabajo Seguro en Alturas y Espacios Confinados) y certificados SENA mediante Google Antigravity Web Scraping, descargando constancias cuando existan.',
+            'Únicamente cuando el usuario NO entregue número de cédula, busca por nombre exacto en el Perfil Sociodemográfico (Hito 2) de la empresa activa para obtener cédula, tipo de documento, ARL declarada y fecha de nacimiento. Prohibido escanear toda la nómina o ejecutarse si la cédula ya vino en la orden.',
+        },
+        hito2_perfil_socio: {
+          hitoRole: 'source_read',
+          hitoOperationMode: 'read_only',
+          appActionMode: 'read_only',
+          recordFilterMode: 'name_lookup_only',
+          generateAppReport: false,
+          customInstruction:
+            'Únicamente cuando el usuario NO entregue número de cédula, busca por nombre exacto en el Perfil Sociodemográfico (Hito 2) de la empresa activa para obtener cédula, tipo de documento, ARL declarada y fecha de nacimiento. Prohibido escanear toda la nómina o ejecutarse si la cédula ya vino en la orden.',
         },
         extractor_scraper_agy_arl_directo: {
           antigravityMode: 'auto',
           scriptEngine: 'chrome_mcp',
           customInstruction:
-            'Verifica en vivo la cédula solicitada directamente en los portales oficiales de ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar mediante Google Antigravity Web Scraping y descarga el soporte oficial cuando esté afiliado activo.',
+            'Consulta el certificado de afiliación ARL priorizando primero Google Antigravity Local, segundo Google Antigravity Cloud y como última opción respaldo ligero directo en servidor (protección de recursos del VPS), descargando los soportes oficiales PDF o captura PNG disponibles en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
         },
         scraper_agy_arl_directo: {
           antigravityMode: 'auto',
           scriptEngine: 'chrome_mcp',
           customInstruction:
-            'Verifica en vivo la cédula solicitada directamente en los portales oficiales de ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar mediante Google Antigravity Web Scraping y descarga el soporte oficial cuando esté afiliado activo.',
+            'Consulta el certificado de afiliación ARL priorizando primero Google Antigravity Local, segundo Google Antigravity Cloud y como última opción respaldo ligero directo en servidor (protección de recursos del VPS), descargando los soportes oficiales PDF o captura PNG disponibles en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
         },
-        logic_merge_1: {
-          mergeStrategy: 'merge_by_key',
-          mergeKey: 'cedula',
+        tool_inputs_google_antigravity: {
+          antigravityMode: 'auto',
           customInstruction:
-            'Consolida por número de cédula los resultados obtenidos de MinTrabajo o SENA (Trabajo en Alturas) y de los portales directos de ARL en un único expediente verificado antes del análisis del Agente IA.',
+            'Conector oficial de automatización con Google Antigravity en cascada de protección: prioridad Local, failover automático a Cloud 24/7 y última opción respaldo directo liviano.',
         },
-        tool_hitos_hito2_perfil_socio: {
-          hitoRole: 'agent_tool',
-          hitoOperationMode: 'read_only',
-          appActionMode: 'read_only',
-          generateAppReport: false,
+        google_antigravity: {
+          antigravityMode: 'auto',
           customInstruction:
-            'Consulta únicamente si el usuario o la cédula pertenece a la nómina de Perfil Sociodemográfico (Hito 2) para cruzar datos de cargo, fecha de nacimiento o ARL declarada dentro de la empresa activa.',
-        },
-        hito2_perfil_socio: {
-          hitoRole: 'agent_tool',
-          hitoOperationMode: 'read_only',
-          appActionMode: 'read_only',
-          generateAppReport: false,
-          customInstruction:
-            'Consulta únicamente si el usuario o la cédula pertenece a la nómina de Perfil Sociodemográfico (Hito 2) para cruzar datos de cargo, fecha de nacimiento o ARL declarada dentro de la empresa activa.',
+            'Conector oficial de automatización con Google Antigravity en cascada de protección: prioridad Local, failover automático a Cloud 24/7 y última opción respaldo directo liviano.',
         },
         out_wappy_notification: {
           customInstruction:
-            'Registra trazabilidad silenciosa de la verificación instantánea realizada para la empresa activa sin duplicar mensajes en la conversación actual.',
+            'Registra trazabilidad silenciosa en el historial de la empresa activa y confirma la entrega inmediata del certificado o certificados descargados en el chat de Tenshi.',
         },
         wappy_notification: {
           customInstruction:
-            'Registra trazabilidad silenciosa de la verificación instantánea realizada para la empresa activa sin duplicar mensajes en la conversación actual.',
+            'Registra trazabilidad silenciosa en el historial de la empresa activa y confirma la entrega inmediata del certificado o certificados descargados en el chat de Tenshi.',
         },
       },
     },
   },
   prompt:
-    'Actúa como Tenshi, orquestador experto en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la Resolución 4272 de 2021 y el Decreto 1072 de 2015.\n\n' +
-    'Analiza EXCLUSIVAMENTE los resultados reales verificados en tiempo real y consolidados por número de cédula entre:\n' +
-    '1) Portal oficial de MinTrabajo (Centros de Entrenamiento en Trabajo Seguro en Alturas y Espacios Confinados) y SENA.\n' +
-    '2) Portales oficiales directos de las Administradoras de Riesgos Laborales (ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar).\n' +
-    '3) Si necesitas contexto interno complementario del trabajador dentro de la empresa activa (como cargo, fecha de nacimiento o ARL declarada), consulta el aplicativo Perfil Sociodemográfico (Hito 2) únicamente para esa cédula.\n\n' +
-    'Reglas obligatorias para responder en el mismo turno:\n' +
-    '- Si la solicitud no incluyó un número de cédula válido ni un trabajador identificable de la empresa activa, solicita amablemente el número de cédula sin inventar resultados ni escanear toda la nómina.\n' +
-    '- Entrega un dictamen claro y directo indicando: Titular o Nombre completo (si el portal o Perfil Sociodemográfico Hito 2 lo reporta), Cédula consultada, Estado del Certificado de Trabajo en Alturas (vigente, vencido o sin registro, nivel, centro de entrenamiento y fecha), Estado de Afiliación ARL (activo o sin registro activo y entidad detectada), inconsistencias detectadas frente a la empresa activa (si aplica) y relación de evidencias oficiales (.PDF o captura .PNG) descargadas.\n' +
-    '- PROHIBIDO suponer, inventar o completar fechas, niveles de curso o afiliaciones que no aparezcan explícitamente en los hallazgos reales consultados en vivo.',
+    'Actúa como Tenshi, copiloto experto en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015.\n\n' +
+    'Tu misión en este turno es sintetizar ÚNICAMENTE los hallazgos reales devueltos por el flujo condicional de verificación ARL:\n' +
+    '1) Si el usuario entregó el número de cédula, el sistema omitió por completo la lectura de Perfil Sociodemográfico (Hito 2) y consultó directamente los portales ARL mediante Web Scraping con Google Antigravity.\n' +
+    '2) Si el usuario NO entregó número de cédula, el sistema buscó primero por nombre dentro del Perfil Sociodemográfico (Hito 2) de la empresa activa para identificar su documento y luego ejecutó la consulta en los portales ARL.\n\n' +
+    'Reglas obligatorias de respuesta en este mismo turno:\n' +
+    '- Ya tienes en el contexto los resultados reales ejecutados por el Web Scraping ARL con Google Antigravity; NO re-delegues una nueva consulta salvo fallo explícito ni inventes estados, fechas o administradoras.\n' +
+    '- Si SÍ se emitieron y descargaron certificados oficiales (.PDF o captura .PNG), confirma explícitamente al usuario con claridad: "El certificado (o los certificados) oficial(es) de ARL ya fue(ron) emitido(s), lo(s) recibiste aquí mismo en este chat de Tenshi y ya lo(s) puedes abrir o descargar directamente desde la bandeja de certificados adjunta".\n' +
+    '- En las tablas resumen usa exclusivamente estados limpios (por ejemplo: ✅ AFILIADO ACTIVO, ❌ SIN REGISTRO, 📎 En bandeja) sin insertar URLs ni enlaces crudos dentro de las celdas.\n' +
+    '- Si la persona NO aparece activa en ARL SURA ni Positiva y la consulta no incluyó fecha de nacimiento, debes avisar explícitamente que algunas administradoras como ARL Seguros Bolívar exigen fecha de nacimiento para consultar en su portal; pide que nos comparta la fecha de nacimiento (junto con su cédula si prefiere no tocar nómina) para ampliar esa verificación, e informa con transparencia si los portales con clave privada empresarial (como Colmena o AXA Colpatria) requieren acceso autenticado del portal empresa.\n' +
+    '- Menciona brevemente el canal con el que se ejecutó la consulta (Google Antigravity Local, Google Antigravity Cloud o respaldo directo liviano del servidor) cuando esté disponible en el reporte técnico.\n' +
+    '- PROHIBIDO suponer o inventar vigencia, fecha de afiliación o nombre de empresa si no aparece literalmente en los hallazgos reales.',
 };
 
 const DEFAULT_TENSHI_FLOWS = [FIRST_GLOBAL_TENSHI_FLOW];
@@ -170,6 +181,18 @@ async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = 
     try {
       const seedsCollection = mongoose.connection.db.collection('tenshi_flow_seeds');
       const seededKeys = [];
+
+      // Retirar de forma segura semillas globales reemplazadas por una versión superior
+      if (LEGACY_REPLACED_TENSHI_SEED_KEYS.length > 0) {
+        await Automation.deleteMany({
+          isTenshiFlow: true,
+          companyId: 'TENSHI_GLOBAL',
+          presetKey: { $in: LEGACY_REPLACED_TENSHI_SEED_KEYS },
+        }).catch(() => {});
+        await seedsCollection
+          .deleteMany({ presetKey: { $in: LEGACY_REPLACED_TENSHI_SEED_KEYS } })
+          .catch(() => {});
+      }
 
       let resolvedUserObjectId = null;
       if (ownerUserId && mongoose.Types.ObjectId.isValid(String(ownerUserId))) {

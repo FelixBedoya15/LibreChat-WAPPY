@@ -596,8 +596,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             .replace(/\s*\(Empresa Activa\)/gi, '')
             .replace(/Empresa Activa/gi, resolvedCompanyName)}`
         : moduleMeta.moduleTitle;
-  const recordFilterMode: 'all' | 'critical_only' | 'expiry_only' | 'selected' =
-    currentCfg.recordFilterMode || 'all';
+  const recordFilterMode:
+    | 'all'
+    | 'critical_only'
+    | 'expiry_only'
+    | 'selected'
+    | 'name_lookup_only' = currentCfg.recordFilterMode || 'all';
   const selectedRecordIds = currentCfg.selectedRecordIds || [];
   const selectedRecordLabels = currentCfg.selectedRecordLabels || [];
   const selectedReportIds = currentCfg.selectedReportIds || [];
@@ -644,7 +648,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   };
 
   const handleSetRecordFilterMode = (
-    mode: 'all' | 'critical_only' | 'expiry_only' | 'selected',
+    mode: 'all' | 'critical_only' | 'expiry_only' | 'selected' | 'name_lookup_only',
   ) => {
     onUpdateNodeConfig(activeNode.key, {
       recordFilterMode: mode,
@@ -1087,6 +1091,14 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               label="Elegidos"
               onClick={() => handleSetRecordFilterMode('selected')}
             />
+            <ExpandableButton
+              size="sm"
+              variant="cyan"
+              isActive={recordFilterMode === 'name_lookup_only'}
+              icon={<Search className="w-3.5 h-3.5" />}
+              label="🔎 Buscar únicamente por Nombre mencionado (0 barrido de nómina)"
+              onClick={() => handleSetRecordFilterMode('name_lookup_only')}
+            />
           </div>
 
           {(nodeLiveInspectorData?.records || []).length > 0 && (
@@ -1120,6 +1132,43 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           )}
         </div>
+
+        {/* Selector explícito de alcance de consulta (`recordFilterMode`) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+          <label className="text-[11px] font-extrabold uppercase text-slate-600 dark:text-slate-300">
+            🎯 Modo de Filtro de Registros (`recordFilterMode`):
+          </label>
+          <select
+            value={recordFilterMode}
+            onChange={(e) =>
+              handleSetRecordFilterMode(
+                e.target.value as
+                  | 'all'
+                  | 'critical_only'
+                  | 'expiry_only'
+                  | 'selected'
+                  | 'name_lookup_only',
+              )
+            }
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 max-w-full"
+          >
+            <option value="all">📋 Todos los Registros activos</option>
+            <option value="critical_only">🚨 Solo Críticos / En Brecha</option>
+            {supportsExpiryFilter && (
+              <option value="expiry_only">⏳ Solo vencimientos próximos o vencidos (&lt;= 30 días)</option>
+            )}
+            <option value="selected">🎯 Registros específicos elegidos ({selectedRecordIds.length})</option>
+            <option value="name_lookup_only">
+              🔎 Buscar únicamente por Nombre mencionado (0 barrido de nómina)
+            </option>
+          </select>
+        </div>
+
+        {recordFilterMode === 'name_lookup_only' && (
+          <div className="p-2.5 rounded-xl border border-cyan-500/35 bg-cyan-500/10 text-[11px] font-semibold text-cyan-800 dark:text-cyan-200">
+            🔎 <strong>Búsqueda Quirúrgica por Nombre (0 barrido de nómina):</strong> este aplicativo solo buscará la Cédula del colaborador mencionado en el mensaje o comando de voz cuando el usuario no haya entregado el número de documento directamente.
+          </div>
+        )}
 
         {/* Tabla / Lista de Registros Reales */}
         {nodeLiveInspectorData.loading ? (
@@ -4198,10 +4247,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         ? allNodeCfgs?.['if_condition']
         : allNodeCfgs?.['if_router'];
 
-    const resolvedIfPlacement: 'pre_agent' | 'post_agent' =
-      (currentCfg.ifPlacement || altIfCfg?.ifPlacement) === 'pre_agent'
-        ? 'pre_agent'
-        : 'post_agent';
+    const rawPlacementVal = currentCfg.ifPlacement || altIfCfg?.ifPlacement;
+    const resolvedIfPlacement: 'pre_source' | 'pre_agent' | 'post_agent' =
+      rawPlacementVal === 'pre_source'
+        ? 'pre_source'
+        : rawPlacementVal === 'pre_agent'
+          ? 'pre_agent'
+          : 'post_agent';
 
     const hasStage2SourcesInFlow = (() => {
       const extCount = Array.isArray(workflowNodes?.extractors)
@@ -4243,6 +4295,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         : rawCondType === 'custom_rule'
           ? 'keyword_match'
           : [
+                'has_explicit_cedula',
                 'critical_findings',
                 'new_external_items',
                 'numeric_threshold',
@@ -4254,6 +4307,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             : 'critical_findings';
 
     const computeIfConditionLabel = (condType: string, expr?: string): string => {
+      if (condType === 'has_explicit_cedula') return '¿Dio número de cédula?';
       if (condType === 'critical_findings') return '¿Críticos abiertos?';
       if (condType === 'new_external_items') return '¿Nuevos ítems >= 1?';
       if (condType === 'ai_verdict' || condType === 'ai_evaluation') {
@@ -4284,14 +4338,21 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               Ubicación Causal de la Compuerta (`ifPlacement`)
             </label>
             <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
-              {resolvedIfPlacement === 'pre_agent'
-                ? '⚡ Pre-Agente (0 Tokens en NO)'
-                : '🤖 Post-Agente (Semántico)'}
+              {resolvedIfPlacement === 'pre_source'
+                ? '🚦 Pre-Fuentes · Ruta SÍ/NO'
+                : resolvedIfPlacement === 'pre_agent'
+                  ? '⚡ Pre-Agente (0 Tokens en NO)'
+                  : '🤖 Post-Agente (Semántico)'}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {[
+              {
+                id: 'pre_source' as const,
+                title: '🚦 Al Inicio / Pre-Fuentes: Enrutar Cédula vs Búsqueda por Nombre',
+                desc: 'Si el usuario dio Cédula (SÍ), salta directo al Web Scraping ARL; si solo dio Nombre (NO), busca primero en Perfil Sociodemográfico y converge.',
+              },
               {
                 id: 'pre_agent' as const,
                 title: '⚡ Antes del Agente IA (Filtro Determinista · 0 Tokens en NO)',
@@ -4311,14 +4372,21 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   onClick={() =>
                     onUpdateNodeConfig(activeNode.key, {
                       ifPlacement: plOpt.id,
-                      ...(plOpt.id === 'post_agent' &&
-                      resolvedIfConditionType === 'new_external_items'
+                      ...(plOpt.id === 'pre_source'
                         ? {
-                            ifConditionType: 'ai_verdict',
-                            ifConditionMode: 'ai_verdict',
-                            ifConditionLabel: computeIfConditionLabel('ai_verdict'),
+                            ifConditionType: 'has_explicit_cedula',
+                            ifConditionMode: 'has_explicit_cedula',
+                            ifConditionLabel: computeIfConditionLabel('has_explicit_cedula'),
                           }
-                        : {}),
+                        : plOpt.id === 'post_agent' &&
+                            (resolvedIfConditionType === 'new_external_items' ||
+                              resolvedIfConditionType === 'has_explicit_cedula')
+                          ? {
+                              ifConditionType: 'ai_verdict',
+                              ifConditionMode: 'ai_verdict',
+                              ifConditionLabel: computeIfConditionLabel('ai_verdict'),
+                            }
+                          : {}),
                     })
                   }
                   className={`p-3 rounded-xl border-2 text-left transition ${
@@ -4363,13 +4431,18 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   ifConditionType: nextType as any,
                   ifConditionMode: nextType,
                   ifConditionLabel: computeIfConditionLabel(nextType, currentCfg.ifRuleExpression),
-                  ...(nextType === 'ai_verdict' && resolvedIfPlacement === 'pre_agent'
-                    ? { ifPlacement: 'post_agent' }
-                    : {}),
+                  ...(nextType === 'has_explicit_cedula'
+                    ? { ifPlacement: 'pre_source' }
+                    : nextType === 'ai_verdict' && resolvedIfPlacement !== 'post_agent'
+                      ? { ifPlacement: 'post_agent' }
+                      : {}),
                 });
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
             >
+              <option value="has_explicit_cedula">
+                🪪 ¿El usuario proporcionó número de cédula?
+              </option>
               <option value="critical_findings">
                 🚨 Brechas Críticas / Vencimientos en BD (&gt;= 1)
               </option>
@@ -4451,7 +4524,19 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           </div>
         </div>
 
-        {/* Tarjeta: Enrutamiento de Salidas Conectadas (Rama SÍ vs Rama NO) */}
+        {resolvedIfPlacement === 'pre_source' ? (
+          <div className="p-3.5 rounded-2xl border border-teal-500/35 bg-teal-500/5 dark:bg-slate-900/70 space-y-1.5">
+            <span className="text-xs font-black uppercase text-teal-900 dark:text-[#C7F303] flex items-center gap-1.5">
+              <GitBranch className="w-4 h-4 text-teal-600 dark:text-[#C7F303]" />
+              🚦 Topología Convergente Pre-Fuentes (`pre_source`)
+            </span>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+              • <strong>🟢 Rama SÍ (Dio Cédula):</strong> Conecta directo por el carril superior hacia el Extractor (ej. <em>Web Scraping ARL · Antigravity</em>) sin consultar nómina.<br />
+              • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge limpia hacia el Extractor y la Salida final.
+            </p>
+          </div>
+        ) : (
+        /* Tarjeta: Enrutamiento de Salidas Conectadas (Rama SÍ vs Rama NO) */
         <div className="p-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/5 dark:bg-slate-900/70 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -4530,6 +4615,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           )}
         </div>
+        )}
       </div>
     );
   }
@@ -6801,8 +6887,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       effectiveNodeAiEngine === 'antigravity' ||
       effectiveNodeAiEngine === 'antigravity_cloud');
 
+  const globalIfPlacement =
+    workflowNodes?.canvasLayout?.nodeConfigs?.['if_condition']?.ifPlacement ||
+    workflowNodes?.canvasLayout?.nodeConfigs?.['if_router']?.ifPlacement;
   const shouldRenderOutputIfBranchSelector =
-    activeNode.shape === 'square_output' && Boolean(workflowNodes?.includeIfNode);
+    activeNode.shape === 'square_output' &&
+    Boolean(workflowNodes?.includeIfNode) &&
+    globalIfPlacement !== 'pre_source';
 
   const renderOutputIfBranchSelectorBanner = () => {
     const outList =

@@ -665,6 +665,8 @@ ${availablePreview}
       await this.addFileContextToMessage(latestMessage, attachments);
       const files = await this.processAttachments(latestMessage, attachments);
 
+      this.latestUserMessage = latestMessage;
+      this.latestFileContext = latestMessage?.fileContext || '';
       this.options.attachments = files;
     }
 
@@ -676,14 +678,17 @@ ${availablePreview}
       );
     }
 
+    const MAX_INLINE_MULTIMODAL_CHARS = 12000000; // ~9MB binary (Gemini supports up to 20MB inline)
     const formattedMessages = orderedMessages.map((message, i) => {
       if (Array.isArray(message.documents)) {
-        message.documents = message.documents.filter((d) => (d?.data?.length || d?.file_data?.length || 0) <= 3500000);
+        message.documents = message.documents.filter(
+          (d) => (d?.data?.length || d?.file_data?.length || 0) <= MAX_INLINE_MULTIMODAL_CHARS,
+        );
       }
       if (Array.isArray(message.image_urls)) {
         message.image_urls = message.image_urls.filter((img) => {
           const str = typeof img === 'string' ? img : (img?.image_url?.url || img?.url || '');
-          return str.length <= 3500000;
+          return str.length <= MAX_INLINE_MULTIMODAL_CHARS;
         });
       }
       const formattedMessage = formatMessage({
@@ -701,8 +706,26 @@ ${availablePreview}
             ? (textPart.text = message.fileContext + '\n' + textPart.text)
             : formattedMessage.content.unshift({ type: 'text', text: message.fileContext });
         }
-        if (i === orderedMessages.length - 1) {
-          systemContent = [systemContent, message.fileContext].join('\n');
+      }
+
+      if (
+        i === orderedMessages.length - 1 &&
+        (message.fileContext ||
+          message.documents?.length ||
+          message.image_urls?.length ||
+          message.videos?.length ||
+          message.audios?.length)
+      ) {
+        if (message.fileContext && !this.latestFileContext) {
+          this.latestFileContext = message.fileContext;
+        }
+        if (!this.latestUserMessage) {
+          this.latestUserMessage = message;
+        }
+        const attachmentDirective =
+          'INSTRUCCIÓN CRÍTICA DE ARCHIVOS ADJUNTOS: Analiza exhaustivamente TODOS los documentos, hojas de cálculo, textos, PDFs, imágenes, audios y videos adjuntos en el mensaje del usuario sin omitir ninguno, integrando fielmente sus cifras y contenidos reales en tu respuesta.';
+        if (!systemContent || !systemContent.includes('INSTRUCCIÓN CRÍTICA DE ARCHIVOS ADJUNTOS:')) {
+          systemContent = [systemContent, attachmentDirective].filter(Boolean).join('\n\n');
           this.options.agent.instructions = systemContent;
         }
       }
@@ -742,23 +765,27 @@ ${availablePreview}
       systemContent = this.augmentedPrompt + systemContent;
     }
 
-    // Inject MCP server instructions if available
+    // Inject MCP server instructions if available (deduplicated per server)
     const ephemeralAgent = this.options.req.body.ephemeralAgent;
     let mcpServers = [];
 
     // Check for ephemeral agent MCP servers
     if (ephemeralAgent && ephemeralAgent.mcp && ephemeralAgent.mcp.length > 0) {
-      mcpServers = ephemeralAgent.mcp;
+      mcpServers = [...new Set(ephemeralAgent.mcp.filter(Boolean))];
     }
     // Check for regular agent MCP tools
     else if (this.options.agent && this.options.agent.tools) {
-      mcpServers = this.options.agent.tools
-        .filter(
-          (tool) =>
-            tool instanceof DynamicStructuredTool && tool.name.includes(Constants.mcp_delimiter),
-        )
-        .map((tool) => tool.name.split(Constants.mcp_delimiter).pop())
-        .filter(Boolean);
+      mcpServers = [
+        ...new Set(
+          this.options.agent.tools
+            .filter(
+              (tool) =>
+                tool instanceof DynamicStructuredTool && tool.name.includes(Constants.mcp_delimiter),
+            )
+            .map((tool) => tool.name.split(Constants.mcp_delimiter).pop())
+            .filter(Boolean),
+        ),
+      ];
     }
 
     if (mcpServers.length > 0) {
@@ -1604,36 +1631,106 @@ ${availablePreview}
 
 
 
-        run = await createRun({
-          agents: agentsForRun,
-          indexTokenCountMap,
-          runId: this.responseMessageId,
-          signal: abortController.signal,
-          customHandlers: this.options.eventHandlers,
-          requestBody: config.configurable.requestBody,
-          tokenCounter: createTokenCounter(this.getEncoding()),
-        });
-
-        if (!run) {
-          throw new Error('Failed to create run');
+        const attemptAbortController = new AbortController();
+        let onParentAbort = null;
+        if (abortController?.signal) {
+          if (abortController.signal.aborted) {
+            attemptAbortController.abort(abortController.signal.reason);
+          } else {
+            onParentAbort = () => attemptAbortController.abort(abortController.signal.reason);
+            abortController.signal.addEventListener('abort', onParentAbort, { once: true });
+          }
         }
 
-        this.run = run;
-        if (userMCPAuthMap != null) {
-          config.configurable.userMCPAuthMap = userMCPAuthMap;
+        const FIRST_CHUNK_STALL_TIMEOUT_MS = 30000;
+        const partsAtAttemptStart = Array.isArray(this.contentParts) ? this.contentParts.length : 0;
+        let stalledWaitingFirstChunk = false;
+        const attemptStartMs = Date.now();
+        const stallCheckInterval = setInterval(() => {
+          const currentPartsLen = Array.isArray(this.contentParts) ? this.contentParts.length : 0;
+          if (currentPartsLen > partsAtAttemptStart) {
+            clearInterval(stallCheckInterval);
+            return;
+          }
+          if (Date.now() - attemptStartMs >= FIRST_CHUNK_STALL_TIMEOUT_MS) {
+            stalledWaitingFirstChunk = true;
+            clearInterval(stallCheckInterval);
+            try {
+              attemptAbortController.abort(new Error('MODEL_FIRST_CHUNK_STALL_TIMEOUT'));
+            } catch (_) {}
+          }
+        }, 500);
+        if (typeof stallCheckInterval.unref === 'function') {
+          stallCheckInterval.unref();
         }
 
-        /** @deprecated Agent Chain */
-        config.configurable.last_agent_id = agents[agents.length - 1].id;
-        await run.processStream({ messages }, config, {
-          callbacks: {
-            [Callback.TOOL_ERROR]: logToolError,
-          },
-        });
+        try {
+          run = await createRun({
+            agents: agentsForRun,
+            indexTokenCountMap,
+            runId: this.responseMessageId,
+            signal: attemptAbortController.signal,
+            customHandlers: this.options.eventHandlers,
+            requestBody: config.configurable.requestBody,
+            tokenCounter: createTokenCounter(this.getEncoding()),
+          });
 
+          if (!run) {
+            throw new Error('Failed to create run');
+          }
 
+          this.run = run;
+          if (userMCPAuthMap != null) {
+            config.configurable.userMCPAuthMap = userMCPAuthMap;
+          }
 
-        config.signal = null;
+          /** @deprecated Agent Chain */
+          config.configurable.last_agent_id = agents[agents.length - 1].id;
+          config.signal = attemptAbortController.signal;
+
+          const stallRacePromise = new Promise((_, reject) => {
+            const onStallAbort = () => {
+              if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
+                const stallErr = new Error(
+                  `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>30s without first token)`,
+                );
+                stallErr.status = 503;
+                stallErr.isStallTimeout = true;
+                reject(stallErr);
+              }
+            };
+            if (attemptAbortController.signal.aborted) {
+              onStallAbort();
+            } else {
+              attemptAbortController.signal.addEventListener('abort', onStallAbort, { once: true });
+            }
+          });
+
+          await Promise.race([
+            run.processStream({ messages }, config, {
+              callbacks: {
+                [Callback.TOOL_ERROR]: logToolError,
+              },
+            }),
+            stallRacePromise,
+          ]);
+        } catch (runErr) {
+          if (stalledWaitingFirstChunk && !abortController?.signal?.aborted) {
+            const stallErr = new Error(
+              `[503 Service Unavailable] Model "${this.options?.agent?.model || 'gemini'}" endpoint stalled (>30s without first token)`,
+            );
+            stallErr.status = 503;
+            stallErr.isStallTimeout = true;
+            throw stallErr;
+          }
+          throw runErr;
+        } finally {
+          clearInterval(stallCheckInterval);
+          if (onParentAbort && abortController?.signal) {
+            abortController.signal.removeEventListener('abort', onParentAbort);
+          }
+          config.signal = null;
+        }
       };
 
       memoryPromise = this.runMemory(initialMessages).catch((err) => {
@@ -1730,14 +1827,39 @@ ${availablePreview}
       // Herramientas y tareas estructuradas (Matrices IPEVAR, PESV, Química, RIT, Blog):
       // gemini-3.5-flash-lite es el modelo primario por su altísima velocidad, confiabilidad en function calling y 500 RPD
       const CANVAS_APP_TRIGGERS = [
-        'aplicativo interactivo', 'aplicacion interactiva', 'dashboard interactivo', 'en canvas', 'abrir canvas', 'abre canvas',
-        'lienzo lateral', 'componente html', 'interfaz web', 'calculadora interactiva', 'simulador interactivo',
+        // Aplicativos HTML / Dashboards / Calculadoras
+        'aplicativo interactivo', 'aplicacion interactiva', 'aplicación interactiva', 'dashboard interactivo',
+        'un aplicativo', 'el aplicativo', 'mi aplicativo', 'nuevo aplicativo',
+        'aplicativo sobre', 'aplicativo para', 'aplicativo de', 'aplicativo con', 'aplicativo que',
+        'aplicacion sobre', 'aplicación sobre', 'aplicacion para', 'aplicación para',
+        'aplicativo de html', 'aplicativo html', 'aplicativo en html',
+        'aplicacion html', 'aplicación html', 'aplicacion de html', 'aplicación de html', 'aplicacion en html', 'aplicación en html',
+        'app en html', 'app html', 'app de html', 'app interactiva',
+        'dashboard de', 'dashboard sobre', 'dashboard con', 'dashboard para',
+        'gráficas dinámicas', 'graficas dinamicas', 'gráficos dinámicos', 'graficos dinamicos',
+        'componente html', 'interfaz web', 'calculadora interactiva', 'calculadora de', 'simulador interactivo', 'simulador de',
+        // Invocaciones explícitas a Canvas / Canva / Panel lateral derecho
+        'en canvas', 'en canva', 'abrir canvas', 'abre canvas', 'abrir canva', 'abre canva',
+        'herramienta canvas', 'herramienta canva', 'usar canvas', 'usa canvas', 'usar canva', 'usa canva',
+        'lienzo de canvas', 'lienzo canvas', 'lienzo canva', 'lienzo de canva',
+        'lienzo lateral', 'panel de la derecha', 'panel derecho', 'panel lateral',
+        // Word / Texto enriquecido en Canvas
         'archivo en word', 'archivo word', 'documento en word', 'documento word', 'haz un word', 'crea un word',
+        'descargar en word', 'en formato word', 'lienzo word', 'lienzo de texto',
+        // Excel / Hoja de cálculo en Canvas
         'archivo en excel', 'archivo excel', 'hoja de cálculo en excel', 'hoja de calculo en excel', 'haz un excel', 'crea un excel',
-        'presentación en diapositivas', 'presentacion en diapositivas', 'diapositivas en powerpoint', 'powerpoint', 'slides'
+        'en formato excel', 'tabla en excel', 'lienzo excel', 'descargar en excel',
+        // Presentaciones / Diapositivas en Canvas
+        'presentación en diapositivas', 'presentacion en diapositivas', 'diapositivas en powerpoint', 'powerpoint', 'slides',
+        'lienzo de presentación', 'lienzo de presentacion', 'lienzo de diapositivas',
+        'crear presentación', 'crear presentacion', 'haz una presentación', 'haz una presentacion', 'crea una presentación', 'crea una presentacion',
+        // Lienzos especializados SST en Canvas (ánimo y actos/condiciones)
+        'lienzo de ánimo', 'lienzo de animo', 'lienzo psicosocial', 'canvas psicosocial', 'canvas de ánimo', 'canvas de animo',
+        'lienzo de actos y condiciones', 'lienzo actos y condiciones', 'canvas de actos y condiciones',
       ];
 
-      const COMPLEX_MATRIX_DOC_TRIGGERS = [
+      // Herramientas con panel propio dedicado distinto de Canvas (IPEVAR, PESV, Química, RIT, Blog)
+      const DEDICATED_PANEL_TOOL_TRIGGERS = [
         // Matriz IPEVAR (GTC 45)
         'matriz ipevar', 'ipevar', 'gtc 45', 'gtc-45', 'matriz de peligros', 'identificación de peligros',
         'evaluación de riesgos', 'valoración de riesgos',
@@ -1751,11 +1873,54 @@ ${availablePreview}
         'proceso disciplinario', 'descargos', 'escala de faltas',
         // Blog Editor
         'blog_editor', 'redactar artículo', 'artículo de blog', 'publicar en blog', 'post de blog',
+      ];
+
+      const COMPLEX_MATRIX_DOC_TRIGGERS = [
+        ...DEDICATED_PANEL_TOOL_TRIGGERS,
         // Documentos Extensos / Plantillas / Auditorías
         'crear carta', 'crea una carta', 'crear acta', 'crea un acta',
         'crear contrato', 'crea un contrato', 'crear plantilla', 'diseñar plantilla',
-        'informe anual', 'auditoría completa', 'investigación atel'
+        'informe anual', 'auditoría completa', 'investigación atel',
       ];
+
+      // Clasificador unificado de los 6 lienzos de CanvasSession
+      const classifyCanvasFileType = (queryStr = '') => {
+        const q = String(queryStr || '').toLowerCase();
+        if (/lienzo\s+(?:de\s+)?[aá]nimo|lienzo\s+psicosocial|canvas\s+(?:de\s+)?(?:[aá]nimo|psicosocial)|term[oó]metro\s+psicosocial/i.test(q)) {
+          return 'animo';
+        }
+        if (/lienzo\s+(?:de\s+)?actos\s+y\s+condiciones|canvas\s+(?:de\s+)?actos\s+y\s+condiciones|anal[ií]tica\s+de\s+actos\s+y\s+condiciones/i.test(q)) {
+          return 'actos_condiciones';
+        }
+        const explicitlyAsksHtml =
+          /\bhtml\b|aplicativo(?:\s+(?:de|en))?\s+html|aplicaci[oó]n(?:\s+(?:de|en))?\s+html|app(?:\s+(?:de|en))?\s+html|calculadora|simulador|interfaz\s+web|componente\s+html/i.test(
+            q,
+          );
+        const asksPresentation = /presentaci[oó]n|diapositiva|slide|powerpoint|pptx|deck/i.test(q);
+        const asksExcel = /\bexcel\b|hoja de c[aá]lculo|spreadsheet|grilla|tabla en excel|en formato excel/i.test(q);
+        const asksWord =
+          /\bword\b|descargar en word|en formato word|lienzo word|lienzo de texto|documento|acta|informe|pol[ií]tica|procedimiento|reglamento|formato|manual|carta|contrato/i.test(
+            q,
+          );
+        const asksGenericApp = /aplicativo|aplicaci[oó]n|dashboard/i.test(q);
+
+        if (explicitlyAsksHtml) return 'html';
+        if (asksPresentation) return 'presentation';
+        if (asksExcel) return 'excel';
+        if (asksWord && !asksGenericApp) return 'text';
+        if (asksGenericApp) return 'html';
+        if (asksWord) return 'text';
+        return 'html';
+      };
+
+      const getCanvasPrefixLabel = (ft) => {
+        if (ft === 'presentation') return 'Presentación Ejecutiva';
+        if (ft === 'excel') return 'Hoja de Cálculo';
+        if (ft === 'text') return 'Documento SG-SST';
+        if (ft === 'animo') return 'Termómetro Psicosocial';
+        if (ft === 'actos_condiciones') return 'Analítica de Actos y Condiciones';
+        return 'Aplicativo';
+      };
 
       // Verbos de consulta / explicación (usando límites de palabra \b para NUNCA confundir 'indicadores' con 'indica')
       const PURE_EXPLANATION_REGEX = /\b(explicar|explica|expl[ií]came|expliques|cu[aá]l es|cu[aá]les son|qu[eé] es|c[oó]mo funciona|como funciona|dame la f[oó]rmula|dame las f[oó]rmulas|f[oó]rmulas automatizadas|formulas automatizadas|no que me expliques|aclara|aclarame|por qu[eé]|para qu[eé]|vuelveme a indicar|vuelve a indicar|volver a indicar)\b/i;
@@ -1763,19 +1928,21 @@ ${availablePreview}
       // Quejas o reportes de errores visuales / problemas con Canvas (NUNCA deben disparar autogeneración de aplicativos falsos)
       const CANVAS_TROUBLESHOOTING_REGEX = /\b(no veo|no puedo ver|no puedo visualizar|no se ve|no me deja|no me permite|sigue igual|aparece igual|no aparece|no carga|bloquea|bloqueado|quitarlo|cerrar su pantalla|en primera plana)\b/i;
 
-      // Verbos de creación / diseño / desarrollo
-      const CREATION_INTENT_REGEX = /\b(crear|crea|cr[eé]ame|dise[nñ]ar|dise[nñ]a|dise[nñ]ame|construir|construye|hacer|haz|hazme|generar|genera|desarrollar|desarrolla|programar|programa|elaborar|elabora|redactar|redacta|realizar|realiza|implementar|implementa|montar|monta|deseo|quiero|necesito|armar|arma)\b/i;
+      // Verbos de creación / diseño / desarrollo / apoyo
+      const CREATION_INTENT_REGEX = /\b(crear|crea|cr[eé]ame|dise[nñ]ar|dise[nñ]a|dise[nñ]ame|construir|construye|hacer|haz|hazme|generar|genera|desarrollar|desarrolla|programar|programa|elaborar|elabora|redactar|redacta|realizar|realiza|implementar|implementa|montar|monta|deseo|quiero|necesito|armar|arma|colabora|colab[oó]rame|ay[uú]dame|ap[oó]yame|prepara|prep[aá]rame)\b/i;
 
       const hasCanvasTrigger = CANVAS_APP_TRIGGERS.some((kw) => userQuery.includes(kw));
+      const hasDedicatedToolTrigger = DEDICATED_PANEL_TOOL_TRIGGERS.some((kw) => userQuery.includes(kw));
       const hasMatrixDocTrigger = COMPLEX_MATRIX_DOC_TRIGGERS.some((kw) => userQuery.includes(kw));
       const isPureExplanation = PURE_EXPLANATION_REGEX.test(userQuery);
       const isTroubleshootingComplaint = CANVAS_TROUBLESHOOTING_REGEX.test(userQuery);
       const hasCreationIntent = CREATION_INTENT_REGEX.test(userQuery);
 
-      // Prioridad Crítica: Las tareas de Matrices Especializadas (IPEVAR, PESV, Química) y Documentos Legales
-      // tienen precedencia absoluta sobre Canvas. Si el usuario pide diseñar/elaborar una matriz, es una tarea de MATRIZ.
+      // Prioridad Crítica: Las herramientas especializadas con panel propio (IPEVAR, PESV, Química, RIT, Blog)
+      // tienen precedencia sobre Canvas, pero solicitudes de documentos/informes con triggers de Canvas SÍ activan Canvas.
+      const isDedicatedPanelTask = hasDedicatedToolTrigger && !isPureExplanation && !isTroubleshootingComplaint;
       const isMatrixOrDocTask = hasMatrixDocTrigger && !isPureExplanation && !isTroubleshootingComplaint;
-      const isCanvasTask = !isMatrixOrDocTask && !isTroubleshootingComplaint && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
+      const isCanvasTask = !isDedicatedPanelTask && !isTroubleshootingComplaint && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
       const isComplexTask = isMatrixOrDocTask;
       const userExplicitModel = this.options.req?.body?.model;
@@ -1931,10 +2098,11 @@ ${availablePreview}
             break; // Exit key loop on success
           } catch (err) {
             if (
-              abortController?.signal?.aborted ||
-              err?.name === 'AbortError' ||
-              err?.name === 'CancelledError' ||
-              err?.message?.includes('aborted')
+              !err?.isStallTimeout &&
+              (abortController?.signal?.aborted ||
+                err?.name === 'AbortError' ||
+                err?.name === 'CancelledError' ||
+                err?.message?.includes('aborted'))
             ) {
               logger.info('[AgentClient] Request aborted by user/signal. Halting all retries and model rotations.');
               lastErr = err;
@@ -2098,8 +2266,12 @@ ${availablePreview}
               logger.warn(`[AgentClient] Daily quota exhausted for model "${currentModel}" on all ${prioritizedKeys.length} keys (429 limit: 20). Cooldown set for 6h. Rotating to next model...`);
               rotateToNextModel = true;
               break;
-            } else if (isServiceUnavailable) {
-              const reason = err?.status === 503 || err?.message?.includes('503')
+            } else if (isServiceUnavailable || isNetworkError) {
+              const reason = err?.isStallTimeout
+                ? 'Model endpoint stalled >30s without first token'
+                : isNetworkError
+                ? 'Network / Fetch failed on model endpoint'
+                : err?.status === 503 || err?.message?.includes('503')
                 ? '503 Service Unavailable'
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
@@ -2209,6 +2381,82 @@ ${availablePreview}
         }
       }
 
+      // Second rotation pass across all fallback models if first pass hit transient Google 503 wave
+      const lastErrMsg = String(lastErr?.message || '');
+      const isLastErrTransient503OrNet =
+        lastErr?.status === 503 ||
+        /503|overloaded|service unavailable|unavailable|failed to parse|parse stream|fetch failed|econnreset|etimedout|socket hang up|undici/i.test(
+          lastErrMsg,
+        );
+      if (!success && lastErr && isLastErrTransient503OrNet && !abortController?.signal?.aborted) {
+        const rescueModels = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', ...agentModelFallbacks])];
+        logger.warn(
+          `[AgentClient Rescue Pass] First pass hit transient 503/network (${lastErrMsg.slice(0, 120)}). ` +
+            `Waiting 2500ms for second rotation pass across [${rescueModels.join(', ')}]...`,
+        );
+        await sleep(2500, abortController?.signal);
+        for (let rIdx = 0; rIdx < rescueModels.length && !success && !abortController?.signal?.aborted; rIdx++) {
+          const rescueModel = rescueModels[rIdx];
+          try {
+            const currentUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
+            const rescuePrioritizedKeys = geminiPoolManager.getPrioritizedKeys(keys, rescueModel, currentUserId);
+            const rescueKey = rescuePrioritizedKeys[rIdx % Math.max(rescuePrioritizedKeys.length, 1)] || keys[0];
+
+            if (!this.options.agent.model_parameters) {
+              this.options.agent.model_parameters = {};
+            }
+            this.options.agent.model_parameters.model = rescueModel;
+            this.options.agent.model_parameters.maxRetries = 0;
+            if (rescueKey) {
+              this.options.agent.model_parameters.apiKey = rescueKey;
+            }
+            this.options.agent.model = rescueModel;
+            this.model = rescueModel;
+
+            if (config?.configurable?.endpointOption) {
+              config.configurable.endpointOption.model = rescueModel;
+              if (config.configurable.endpointOption.model_parameters) {
+                config.configurable.endpointOption.model_parameters.model = rescueModel;
+                config.configurable.endpointOption.model_parameters.maxRetries = 0;
+                if (rescueKey) {
+                  config.configurable.endpointOption.model_parameters.apiKey = rescueKey;
+                }
+              }
+            }
+            if (this.agentConfigs && this.agentConfigs.size > 0) {
+              for (const secondaryAg of this.agentConfigs.values()) {
+                if (!secondaryAg.model_parameters) {
+                  secondaryAg.model_parameters = {};
+                }
+                secondaryAg.model_parameters.model = rescueModel;
+                secondaryAg.model_parameters.maxRetries = 0;
+                if (rescueKey) {
+                  secondaryAg.model_parameters.apiKey = rescueKey;
+                }
+                secondaryAg.model = rescueModel;
+              }
+            }
+
+            const rescuePayload = continuationPayload || payload;
+            const { messages: pristineRescueMessages } = formatAgentMessages(
+              rescuePayload,
+              this.indexTokenCountMap,
+              toolSet,
+            );
+            await runAgents(pristineRescueMessages);
+            if (rescueKey) {
+              geminiPoolManager.reportKeySuccess(rescueKey, rescueModel);
+            }
+            overloadedModelCooldowns.delete(rescueModel);
+            success = true;
+            logger.info(`[AgentClient Rescue Pass] Second rotation pass succeeded on model "${rescueModel}"!`);
+          } catch (rescueErr) {
+            logger.warn(`[AgentClient Rescue Pass] Model "${rescueModel}" failed (${rescueErr?.message?.slice(0, 100)}). Rotating to next...`);
+            lastErr = rescueErr;
+          }
+        }
+      }
+
       if (!success && lastErr) {
         if (abortController?.signal?.aborted) {
           throw lastErr;
@@ -2249,7 +2497,6 @@ ${availablePreview}
           const lastMsg = this.options.req.body.messages[this.options.req.body.messages.length - 1];
           userQuery = (lastMsg?.text || lastMsg?.content || '').toLowerCase();
         }
-        const asksIndicatorsOrFormulas = /f[oó]rmula|indicador|accidentalidad|0312|frecuencia|severidad|ausentismo|mortalidad/i.test(userQuery);
         const isMatrixReq = /matriz|peligro|ipevar|gtc|pesv/i.test(userQuery);
 
         const hasToolActivity = this.contentParts.some(
@@ -2269,9 +2516,16 @@ ${availablePreview}
           const argsStr = typeof args === 'string' ? args : JSON.stringify(args || {});
           return argsStr.includes('"escribir"') || argsStr.includes('"crear"') || argsStr.includes('"actualizar"');
         });
+        const hasWriteToolError = this.contentParts.some((p) => {
+          if (!p || (p.type !== ContentTypes.TOOL_RESULT && p.type !== 'tool_result' && p.output == null)) {
+            return false;
+          }
+          const outStr = typeof p.output === 'string' ? p.output : JSON.stringify(p.output || '');
+          return outStr.includes('"error":');
+        });
 
         let fallbackMsg = '';
-        if (hasWriteActivity) {
+        if (hasWriteActivity && !hasWriteToolError) {
           const hasCanvasTool = this.contentParts.some((p) => {
             const name = p?.name || p?.tool_call?.name || '';
             return name === 'canvas';
@@ -2295,6 +2549,7 @@ ${availablePreview}
                 this.conversationId,
                 originalQuery,
                 this.options.req?.user?.id,
+                this.options.req,
               );
             } catch (modErr) {
               logger.error('[AgentClient Fallback] Error aplicando modificación de Canvas:', modErr);
@@ -2309,22 +2564,13 @@ ${availablePreview}
           try {
             const CanvasSession = require('~/models/CanvasSession');
             const existingSession = this.conversationId ? await CanvasSession.findOne({ conversationId: this.conversationId }) : null;
-            const asksPresentation = /presentaci[oó]n|diapositiva|slide|powerpoint|pptx|deck/i.test(userQuery);
-            const asksExcel = /\bexcel\b|hoja de c[aá]lculo|spreadsheet|grilla|presupuesto en excel/i.test(userQuery);
-            const asksWord = /\bword\b|documento|acta|informe|pol[ií]tica|procedimiento|reglamento|formato|manual/i.test(userQuery);
-            const explicitlyAsksHtmlApp = /aplicativo|aplicaci[oó]n|dashboard|calculadora|simulador|html|interfaz web/i.test(userQuery);
+            const detectedFileType = classifyCanvasFileType(userQuery);
 
-            const detectedFileType = explicitlyAsksHtmlApp
-              ? 'html'
-              : asksPresentation
-              ? 'presentation'
-              : asksExcel
-              ? 'excel'
-              : asksWord
-              ? 'text'
-              : 'html';
-
-            if (!existingSession || existingSession.fileType === detectedFileType || explicitlyAsksHtmlApp || asksPresentation || asksExcel) {
+            if (
+              !existingSession ||
+              existingSession.fileType === detectedFileType ||
+              ['html', 'presentation', 'excel', 'animo', 'actos_condiciones'].includes(detectedFileType)
+            ) {
               const CanvasTool = require('~/app/clients/tools/structured/CanvasTool');
               const targetReq = this.options.req || {};
               if (!targetReq.body) targetReq.body = {};
@@ -2332,48 +2578,100 @@ ${availablePreview}
                 targetReq.body.conversationId = this.conversationId;
               }
               const canvasTool = new CanvasTool({ req: targetReq });
-              const prefixLabel =
-                detectedFileType === 'presentation'
-                  ? 'Presentación Ejecutiva'
-                  : detectedFileType === 'excel'
-                  ? 'Hoja de Cálculo'
-                  : detectedFileType === 'text'
-                  ? 'Documento SG-SST'
-                  : 'Aplicativo';
+              const prefixLabel = getCanvasPrefixLabel(detectedFileType);
               const appTitle = (userQuery ? `${prefixLabel}: ${userQuery.slice(0, 50)}` : `${prefixLabel} SG-SST`).trim();
               const synthesisPrompt = thoughtParts || userQuery || `${prefixLabel} SG-SST`;
 
               logger.info(`[AgentClient Fallback] Autogenerando Canvas (${detectedFileType}) tras pensamientos del modelo para convoId: ${this.conversationId}`);
-              await canvasTool._call({
+              const rawCanvasRes = await canvasTool._call({
                 accion: 'crear',
                 fileType: detectedFileType,
                 title: appTitle,
                 content: synthesisPrompt,
               });
+              let parsedCanvasRes = null;
+              try {
+                parsedCanvasRes = JSON.parse(rawCanvasRes);
+              } catch (_) {}
 
-              fallbackMsg =
-                detectedFileType === 'presentation'
-                  ? '¡Listo! He diseñado y desplegado la presentación ejecutiva en tu panel lateral de Canvas. Ya puedes navegar por las diapositivas, presentarlas a pantalla completa o descargarlas.'
-                  : detectedFileType === 'excel'
-                  ? '¡Listo! He generado la hoja de cálculo con fórmulas e indicadores en tu panel lateral de Canvas. Ya puedes editar las celdas, ver las gráficas y descargar el archivo.'
-                  : detectedFileType === 'text'
-                  ? '¡Listo! He redactado y estructurado el documento formal en tu panel lateral de Canvas. Ya puedes revisarlo, editarlo o descargarlo en Word/PDF.'
-                  : '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
+              if (!parsedCanvasRes?.error) {
+                fallbackMsg =
+                  detectedFileType === 'presentation'
+                    ? '¡Listo! He diseñado y desplegado la presentación ejecutiva en tu panel lateral de Canvas. Ya puedes navegar por las diapositivas, presentarlas a pantalla completa o descargarlas.'
+                    : detectedFileType === 'excel'
+                    ? '¡Listo! He generado la hoja de cálculo con fórmulas e indicadores en tu panel lateral de Canvas. Ya puedes editar las celdas, ver las gráficas y descargar el archivo.'
+                    : detectedFileType === 'text'
+                    ? '¡Listo! He redactado y estructurado el documento formal en tu panel lateral de Canvas. Ya puedes revisarlo, editarlo o descargarlo en Word/PDF.'
+                    : detectedFileType === 'animo'
+                    ? '¡Listo! He desplegado el Termómetro Psicosocial en tu panel lateral de Canvas con la analítica consolidada.'
+                    : detectedFileType === 'actos_condiciones'
+                    ? '¡Listo! He desplegado la Analítica de Actos y Condiciones en tu panel lateral de Canvas.'
+                    : '¡Listo! He diseñado y desplegado el aplicativo interactivo en tu panel lateral de Canvas. Ya puedes interactuar con él, gestionar los datos y visualizar los indicadores en tiempo real.';
+              }
             }
           } catch (canvasErr) {
             logger.error('[AgentClient Fallback] Error autogenerando Canvas:', canvasErr);
-            fallbackMsg = 'He estructurado el archivo interactivo en tu panel lateral de Canvas. Ya puedes visualizarlo y editarlo en tiempo real.';
+            // NO asignar mensaje falso si falló: dejar que Safety Net sintetice respuesta honesta o reporte real.
           }
         }
 
         // Si aún no hay texto real generado (el modelo pensó pero no emitió texto, o ejecutó herramientas como web_search sin redactar la conclusión),
         // SINTETIZAR DE INMEDIATO LA RESPUESTA REAL COMPLETA mediante generateWithKeyRotation usando gemini-3.5-flash-lite.
-        // NUNCA emitir preguntas pasivas ni inventar paneles laterales inexistentes.
+        // NUNCA emitir preguntas pasivas ni inventar que se actualizaron datos en el sistema.
         if (!fallbackMsg) {
           const rawQuery = this.options.req?.body?.text || userQuery || '';
           const targetUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
           const agentName = this.options.agent?.name || 'Especialista SST';
           const agentInstructions = (this.options.agent?.instructions || '').slice(0, 4000);
+
+          // Extraer fileContext del turno actual (hasta 12,000 caracteres) si el usuario adjuntó documentos
+          let turnFileContext = (this.latestFileContext || this.latestUserMessage?.fileContext || '').trim();
+          if (!turnFileContext && Array.isArray(payload) && payload.length > 0) {
+            const lastPayloadMsg = payload[payload.length - 1];
+            const rawLastContent =
+              typeof lastPayloadMsg?.content === 'string'
+                ? lastPayloadMsg.content
+                : Array.isArray(lastPayloadMsg?.content)
+                ? lastPayloadMsg.content.map((c) => c?.text || '').join('\n')
+                : '';
+            if (rawLastContent.includes('Attached document(s):')) {
+              turnFileContext = rawLastContent;
+            }
+          }
+          const fileContextExcerpt = turnFileContext ? turnFileContext.slice(0, 12000) : '';
+
+          // Extraer partes multimodales directas (imágenes / PDFs / videos adjuntos en el turno) para el Safety Net
+          const inlineMultimodalParts = [];
+          const latestMsgObj = this.latestUserMessage;
+          if (latestMsgObj) {
+            if (Array.isArray(latestMsgObj.image_urls)) {
+              for (const img of latestMsgObj.image_urls.slice(0, 2)) {
+                const urlStr = typeof img === 'string' ? img : (img?.image_url?.url || img?.url || '');
+                const m = urlStr.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+                if (m && m[2] && m[2].length <= 8000000) {
+                  inlineMultimodalParts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+                }
+              }
+            }
+            if (Array.isArray(latestMsgObj.documents)) {
+              for (const doc of latestMsgObj.documents.slice(0, 2)) {
+                if (doc?.data && doc.data.length <= 8000000) {
+                  inlineMultimodalParts.push({
+                    inlineData: { mimeType: doc.mimeType || 'application/pdf', data: doc.data },
+                  });
+                }
+              }
+            }
+            if (Array.isArray(latestMsgObj.videos)) {
+              for (const vid of latestMsgObj.videos.slice(0, 1)) {
+                if (vid?.data && vid.data.length <= 8000000) {
+                  inlineMultimodalParts.push({
+                    inlineData: { mimeType: vid.mimeType || 'video/mp4', data: vid.data },
+                  });
+                }
+              }
+            }
+          }
 
           try {
             const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
@@ -2395,17 +2693,37 @@ ${availablePreview}
               `Eres el agente "${agentName}".`,
               agentInstructions ? `TUS INSTRUCCIONES PRINCIPALES:\n${agentInstructions}` : '',
               `SOLICITUD O MENSAJE DEL USUARIO:\n"${rawQuery}"`,
+              fileContextExcerpt ? `CONTENIDO EXTRAÍDO DE ARCHIVOS ADJUNTOS POR EL USUARIO EN ESTE TURNO (Analiza y usa fielmente sus datos reales):\n${fileContextExcerpt}` : '',
               toolResultsParts ? `INFORMACIÓN Y RESULTADOS DE BÚSQUEDA WEB / HERRAMIENTAS OBTENIDOS:\n${toolResultsParts.slice(0, 8000)}` : '',
               thoughtParts ? `RAZONAMIENTO PREVIO / BORRADOR:\n${thoughtParts.slice(0, 2500)}` : '',
-              `DIRECTIVA OBLIGATORIA: Redacta y entrega de inmediato la respuesta completa, detallada, profesional y directamente útil para el usuario en español. Si se ejecutó búsqueda web, integra y cita los hallazgos normativos (circulares, decretos, resoluciones, jurisprudencia o fuentes oficiales) para responder de forma precisa y profunda a la consulta.`,
-              `ESTÁ TERMINANTEMENTE PROHIBIDO pedir confirmación, preguntar si deseas que proceda, emitir respuestas evasivas o inventar menciones a paneles laterales si no se abrió un editor. Entrega el contenido real completo directamente en el chat.`
+              `DIRECTIVA OBLIGATORIA: Redacta y entrega de inmediato la respuesta completa, detallada, profesional y directamente útil para el usuario en español. Si hay documentos o archivos adjuntos, responde con sus cifras, nombres y hallazgos reales. Si se ejecutó búsqueda web, integra y cita los hallazgos normativos (circulares, decretos, resoluciones, jurisprudencia o fuentes oficiales).`,
+              `ESTÁ TERMINANTEMENTE PROHIBIDO pedir confirmación, preguntar si deseas que proceda, emitir respuestas evasivas o inventar menciones a paneles laterales o actualizaciones de datos si no se ejecutaron. Entrega el contenido real completo directamente en el chat.`,
             ].filter(Boolean).join('\n\n');
 
-            const synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPrompt, {
-              fastFallback: false,
-              timeoutMs: 12000,
-              generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
-            });
+            const synthPayload =
+              inlineMultimodalParts.length > 0
+                ? [{ text: synthPrompt }, ...inlineMultimodalParts]
+                : synthPrompt;
+
+            let synthResult = null;
+            try {
+              synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPayload, {
+                fastFallback: false,
+                timeoutMs: 45000,
+                generationConfig: { maxOutputTokens: 16384, temperature: 0.3 },
+              });
+            } catch (multiErr) {
+              if (inlineMultimodalParts.length > 0) {
+                logger.warn(`[AgentClient Safety Net] Multimodal synth failed (${multiErr.message}), retrying text-only...`);
+                synthResult = await generateWithKeyRotation('gemini-3.5-flash-lite', targetUserId, synthPrompt, {
+                  fastFallback: false,
+                  timeoutMs: 45000,
+                  generationConfig: { maxOutputTokens: 16384, temperature: 0.3 },
+                });
+              } else {
+                throw multiErr;
+              }
+            }
 
             if (synthResult?.response) {
               const textOutput = typeof synthResult.response.text === 'function' ? synthResult.response.text() : '';
@@ -2422,12 +2740,17 @@ ${availablePreview}
             if (!isEnglish && thoughtParts.length > 30) {
               const paragraphs = thoughtParts.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
               const lastParagraph = paragraphs[paragraphs.length - 1];
-              if (lastParagraph && lastParagraph.length > 20 && !/\b(tool|call|constructing|herramienta)\b/i.test(lastParagraph)) {
+              if (
+                lastParagraph &&
+                lastParagraph.length > 30 &&
+                !/\b(tool|call|constructing|herramienta|function_call|json)\b/i.test(lastParagraph)
+              ) {
                 fallbackMsg = lastParagraph;
               }
             }
             if (!fallbackMsg) {
-              fallbackMsg = 'He procesado tu requerimiento en el sistema. Los datos han sido actualizados.';
+              fallbackMsg =
+                '⚠️ Los servidores de IA presentan una sobrecarga momentánea (503) en este instante. Por favor intenta enviar tu mensaje nuevamente en unos segundos; tus archivos y conversación siguen intactos.';
             }
           }
         }
@@ -2469,29 +2792,8 @@ ${availablePreview}
             if (this.conversationId && (!targetReq.body.conversationId || targetReq.body.conversationId === 'new')) {
               targetReq.body.conversationId = this.conversationId;
             }
-            const asksPresentation = /presentaci[oó]n|diapositiva|slide|powerpoint|pptx|deck/i.test(userQuery);
-            const asksExcel = /\bexcel\b|hoja de c[aá]lculo|spreadsheet|grilla|presupuesto en excel/i.test(userQuery);
-            const asksWord = /\bword\b|documento|acta|informe|pol[ií]tica|procedimiento|reglamento|formato|manual/i.test(userQuery);
-            const explicitlyAsksHtmlApp = /aplicativo|aplicaci[oó]n|dashboard|calculadora|simulador|html|interfaz web/i.test(userQuery);
-
-            const detectedFileType = explicitlyAsksHtmlApp
-              ? 'html'
-              : asksPresentation
-              ? 'presentation'
-              : asksExcel
-              ? 'excel'
-              : asksWord
-              ? 'text'
-              : 'html';
-
-            const prefixLabel =
-              detectedFileType === 'presentation'
-                ? 'Presentación Ejecutiva'
-                : detectedFileType === 'excel'
-                ? 'Hoja de Cálculo'
-                : detectedFileType === 'text'
-                ? 'Documento SG-SST'
-                : 'Aplicativo';
+            const detectedFileType = classifyCanvasFileType(userQuery);
+            const prefixLabel = getCanvasPrefixLabel(detectedFileType);
 
             const canvasTool = new CanvasTool({ req: targetReq });
             const appTitle = (userQuery ? `${prefixLabel}: ${userQuery.slice(0, 50)}` : `${prefixLabel} SG-SST`).trim();

@@ -349,36 +349,102 @@ const CanvasExcelEditor: React.FC<CanvasExcelEditorProps> = ({ initialContent, o
 
   // Load initial content
   useEffect(() => {
-    if (initialContent) {
-      if (Array.isArray(initialContent)) {
-        setSheets({ 'Hoja 1': initialContent });
-        setActiveSheet('Hoja 1');
-        return;
+    const normalizeGrid = (rows: any): string[][] | null => {
+      if (!Array.isArray(rows)) return null;
+      if (rows.length === 0) {
+        return [
+          ['', '', ''],
+          ['', '', ''],
+          ['', '', ''],
+        ];
       }
-      try {
-        const parsed = JSON.parse(initialContent);
-        
-        // 1. Si es un array de arrays (grilla plana)
-        if (Array.isArray(parsed) && parsed.every(row => Array.isArray(row))) {
-          setSheets({ 'Hoja 1': parsed });
-          setActiveSheet('Hoja 1');
-          return;
+      if (rows.every((row) => Array.isArray(row))) {
+        return rows.map((row: any[]) =>
+          row.map((cell) => (cell === null || cell === undefined ? '' : String(cell))),
+        );
+      }
+      if (rows.every((row) => row && typeof row === 'object' && !Array.isArray(row))) {
+        const headers = Array.from(new Set(rows.flatMap((row: Record<string, any>) => Object.keys(row))));
+        if (headers.length > 0) {
+          return [
+            headers,
+            ...rows.map((row: Record<string, any>) =>
+              headers.map((h) => (row[h] === null || row[h] === undefined ? '' : String(row[h]))),
+            ),
+          ];
         }
+      }
+      return null;
+    };
 
-        // 2. Si es un objeto que representa múltiples pestañas (sheets)
-        if (typeof parsed === 'object' && parsed !== null) {
-          const keys = Object.keys(parsed);
-          const isMultipleSheets = keys.length > 0 && keys.every(key => Array.isArray(parsed[key]) && parsed[key].every((row: any) => Array.isArray(row)));
-          if (isMultipleSheets) {
-            setSheets(parsed);
-            if (!parsed[activeSheet]) {
+    const applyParsedExcel = (candidate: any): boolean => {
+      if (!candidate) return false;
+
+      const directGrid = normalizeGrid(candidate);
+      if (directGrid) {
+        setSheets({ 'Hoja 1': directGrid });
+        setActiveSheet('Hoja 1');
+        return true;
+      }
+
+      if (typeof candidate === 'object' && !Array.isArray(candidate)) {
+        const unwrapped = candidate.sheets || candidate.rows || candidate.data;
+        if (unwrapped) {
+          return applyParsedExcel(unwrapped);
+        }
+        const keys = Object.keys(candidate);
+        if (keys.length > 0) {
+          const normalizedSheets: Record<string, string[][]> = {};
+          let allValid = true;
+          for (const key of keys) {
+            const g = normalizeGrid(candidate[key]);
+            if (!g) {
+              allValid = false;
+              break;
+            }
+            normalizedSheets[key] = g;
+          }
+          if (allValid) {
+            setSheets(normalizedSheets);
+            if (!normalizedSheets[activeSheet]) {
               setActiveSheet(keys[0]);
             }
-            return;
+            return true;
           }
         }
-      } catch (e) {
-        console.warn('Failed to parse excel content JSON, using fallback', e);
+      }
+      return false;
+    };
+
+    if (initialContent) {
+      if (typeof initialContent !== 'string') {
+        if (applyParsedExcel(initialContent)) {
+          return;
+        }
+      } else {
+        const cleanedStr = initialContent
+          .trim()
+          .replace(/^```(?:json|csv)?\s*\n?([\s\S]*?)\n?```$/i, '$1')
+          .trim();
+        try {
+          const parsed = JSON.parse(cleanedStr);
+          if (applyParsedExcel(parsed)) {
+            return;
+          }
+        } catch (e) {
+          // Try extracting first JSON array if wrapped in markdown prose
+          const startIdx = cleanedStr.indexOf('[');
+          const endIdx = cleanedStr.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx > startIdx) {
+            try {
+              const extracted = JSON.parse(cleanedStr.slice(startIdx, endIdx + 1));
+              if (applyParsedExcel(extracted)) {
+                return;
+              }
+            } catch (_) {}
+          }
+          console.warn('Failed to parse excel content JSON, using fallback', e);
+        }
       }
     }
     // Fallback default grid (only if we don't have valid grid data loaded already)
