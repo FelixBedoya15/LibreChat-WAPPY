@@ -3566,7 +3566,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 4. Ya conoces de memoria todos los datos de la empresa activa del usuario (Razón Social, NIT, ARL, trabajadores, sedes, macroprocesos, etc.). NUNCA digas que no tienes acceso a su empresa.`;
 
                     if (tenshiFlowsBlock) {
-                        companyAndMemoryPrompt += `\n\n${tenshiFlowsBlock}\nREGLA EN VOZ TENSHI: Cuando el usuario pida algo cubierto por cualquiera de estos 16 Flujos Tenshi globales (6 OSINT/Forense + 10 Somos SST), ejecuta de inmediato \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado".\n- ACTIVACIÓN EXACTA EN /tareas: Al activar, pausar o ejecutar un flujo en /tareas, usa siempre el nombre exacto mencionado por el usuario sin inventar códigos ni activar flujos diferentes.\n- CREACIÓN DE FLUJOS DAG POR VOZ: También puedes crear nuevos flujos DAG coherentes bajo pedido del usuario usando \`gestor_automatizaciones\` (\`accion: "crear"\`).`;
+                        companyAndMemoryPrompt +=
+                            `\n\n${tenshiFlowsBlock}\n` +
+                            `JERARQUÍA DE DECISIÓN EN 3 NIVELES EN VOZ TENSHI (FLUJO PROPIO VS FLUJOS GLOBALES TENSHI):\n` +
+                            `- NIVEL 1 (Gestión: activar/pausar/editar/eliminar/"mi flujo"): Opera SIEMPRE sobre el Flujo Propio de la empresa en \`/tareas\` usando el nombre exacto mencionado por el usuario sin inventar códigos ni activar flujos diferentes.\n` +
+                            `- NIVEL 2 (Comando personalizado exacto de un Flujo Propio ACTIVO de la empresa): Prioriza SIEMPRE el Flujo Propio usando \`gestor_automatizaciones\` con \`accion: "ejecutar_ahora"\` (pasando su nombre o ID exacto y \`instruccion_usuario\` literal).\n` +
+                            `- NIVEL 3 (Consulta operativa directa en lenguaje natural): Ejecuta de inmediato el Flujo Global Tenshi correspondiente (6 OSINT/Forense + 10 Somos SST) mediante \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado", incluyendo Alturas híbrido (Somos SST ➔ si pasa cédula no registrada, Web Scraping MinTrabajo).\n` +
+                            `- CREACIÓN DE FLUJOS DAG POR VOZ: También puedes crear nuevos flujos DAG coherentes bajo pedido del usuario usando \`gestor_automatizaciones\` (\`accion: "crear"\`).`;
                     }
 
                     const workflowNodesOverviewBlock = safeGetWorkflowNodesOverviewPromptBlock();

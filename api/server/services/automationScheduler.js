@@ -319,6 +319,404 @@ async function loadProcessedEntityKeysForAutomation({
   }
 }
 
+const ALTURAS_EMPTY_OR_NA_VALUES = new Set([
+  '',
+  'no aplica',
+  'n/a',
+  'na',
+  'n.a.',
+  'ninguno',
+  'ninguna',
+  'sin registro',
+  'sin dato',
+  'pendiente',
+  'no',
+  'false',
+  '-',
+  '--',
+  'null',
+  'undefined',
+  '0',
+]);
+
+function normalizeAlturasRawFieldValue(rawValue) {
+  if (rawValue === null || rawValue === undefined) return '';
+  if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+    return rawValue.toISOString().slice(0, 10);
+  }
+  return String(rawValue).trim();
+}
+
+function hasMeaningfulAlturasField(rawValue) {
+  const s = normalizeAlturasRawFieldValue(rawValue);
+  if (!s) return false;
+  return !ALTURAS_EMPTY_OR_NA_VALUES.has(s.toLowerCase());
+}
+
+function parseAlturasDateUtcMs(rawValue) {
+  if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+    return Date.UTC(rawValue.getUTCFullYear(), rawValue.getUTCMonth(), rawValue.getUTCDate());
+  }
+  const s = normalizeAlturasRawFieldValue(rawValue);
+  if (!hasMeaningfulAlturasField(s)) return null;
+
+  // YYYY-MM-DD o YYYY/MM/DD (o ISO timestamp)
+  const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    const y = Number(isoMatch[1]);
+    const m = Number(isoMatch[2]);
+    const d = Number(isoMatch[3]);
+    if (y >= 1970 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return Date.UTC(y, m - 1, d);
+    }
+  }
+  // DD/MM/YYYY o DD-MM-YYYY
+  const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) {
+    const d = Number(dmyMatch[1]);
+    const m = Number(dmyMatch[2]);
+    const y = Number(dmyMatch[3]);
+    if (y >= 1970 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return Date.UTC(y, m - 1, d);
+    }
+  }
+  const parsed = Date.parse(s);
+  if (!Number.isNaN(parsed)) {
+    const dt = new Date(parsed);
+    return Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+  }
+  return null;
+}
+
+function formatAlturasDateYmd(utcMs) {
+  if (!Number.isFinite(utcMs)) return '';
+  return new Date(utcMs).toISOString().slice(0, 10);
+}
+
+function evaluateWorkerAlturasVigencia(workerObj = {}, nowRef = new Date()) {
+  const fechaAut = normalizeAlturasRawFieldValue(workerObj.fechaCursoAlturasAutorizado);
+  const fechaCoord = normalizeAlturasRawFieldValue(workerObj.fechaCursoAlturasCoordinador);
+  const fechaVencExplicita = normalizeAlturasRawFieldValue(
+    workerObj.fechaVencimientoAlturas || workerObj.vencimientoCursoAlturas,
+  );
+
+  const hasAut = hasMeaningfulAlturasField(fechaAut);
+  const hasCoord = hasMeaningfulAlturasField(fechaCoord);
+  const hasVencExp = hasMeaningfulAlturasField(fechaVencExplicita);
+  const hasAlturasInfo = hasAut || hasCoord || hasVencExp;
+
+  const todayUtcMs = Date.UTC(
+    nowRef.getUTCFullYear(),
+    nowRef.getUTCMonth(),
+    nowRef.getUTCDate(),
+  );
+  const horizon30UtcMs = todayUtcMs + 30 * 86400000;
+  const autMs = hasAut ? parseAlturasDateUtcMs(fechaAut) : null;
+  const coordMs = hasCoord ? parseAlturasDateUtcMs(fechaCoord) : null;
+  const expExplicitMs = hasVencExp ? parseAlturasDateUtcMs(fechaVencExplicita) : null;
+
+  const classifyExpiryMs = (expMs) => {
+    if (!Number.isFinite(expMs)) {
+      return { label: 'REGISTRADO (revisar formato de fecha)', expiredOrSoon: false, expDateStr: '' };
+    }
+    const expDateStr = formatAlturasDateYmd(expMs);
+    const diffDays = Math.round((expMs - todayUtcMs) / 86400000);
+    if (expMs < todayUtcMs) {
+      return {
+        label: `VENCIDO (venció ${expDateStr}, hace ${Math.abs(diffDays)} día(s))`,
+        expiredOrSoon: true,
+        expDateStr,
+      };
+    }
+    if (expMs <= horizon30UtcMs) {
+      return {
+        label: `PRÓXIMO A VENCER (vence ${expDateStr}, en ${diffDays} día(s))`,
+        expiredOrSoon: true,
+        expDateStr,
+      };
+    }
+    return {
+      label: `VIGENTE (vence ${expDateStr}, faltan ${diffDays} día(s))`,
+      expiredOrSoon: false,
+      expDateStr,
+    };
+  };
+
+  let estadoAutorizado = 'NO APLICA';
+  let autExpiredOrSoon = false;
+  let vencimientoAutorizado = '';
+  if (hasAut) {
+    const autExpMs = expExplicitMs !== null ? expExplicitMs : autMs !== null ? autMs + 365 * 86400000 : null;
+    const resAut = classifyExpiryMs(autExpMs);
+    estadoAutorizado = resAut.label;
+    autExpiredOrSoon = resAut.expiredOrSoon;
+    vencimientoAutorizado = resAut.expDateStr;
+  }
+
+  let estadoCoordinador = 'NO APLICA';
+  let coordExpiredOrSoon = false;
+  let vencimientoCoordinador = '';
+  if (hasCoord) {
+    const coordExpMs =
+      expExplicitMs !== null && !hasAut
+        ? expExplicitMs
+        : coordMs !== null
+          ? coordMs + 365 * 86400000
+          : null;
+    const resCoord = classifyExpiryMs(coordExpMs);
+    estadoCoordinador = resCoord.label;
+    coordExpiredOrSoon = resCoord.expiredOrSoon;
+    vencimientoCoordinador = resCoord.expDateStr;
+  }
+
+  let estadoVencimientoExplicito = '';
+  let explicitExpiredOrSoon = false;
+  if (hasVencExp && !hasAut && !hasCoord) {
+    const resExp = classifyExpiryMs(expExplicitMs);
+    estadoVencimientoExplicito = resExp.label;
+    explicitExpiredOrSoon = resExp.expiredOrSoon;
+  }
+
+  const estadoLaboralNorm = String(workerObj.estadoLaboral || workerObj.estado || 'Activo')
+    .trim()
+    .toLowerCase();
+  const isActivo = estadoLaboralNorm !== 'retirado' && estadoLaboralNorm !== 'inactivo';
+  const isExpiredOrSoon = Boolean(
+    isActivo && (autExpiredOrSoon || coordExpiredOrSoon || explicitExpiredOrSoon),
+  );
+
+  const summaryParts = [];
+  if (hasAut) summaryParts.push(`Trabajador Autorizado (${fechaAut}): ${estadoAutorizado}`);
+  if (hasCoord) summaryParts.push(`Coordinador Alturas (${fechaCoord}): ${estadoCoordinador}`);
+  if (hasVencExp && !hasAut && !hasCoord) {
+    summaryParts.push(`Vencimiento registrado (${fechaVencExplicita}): ${estadoVencimientoExplicito}`);
+  }
+
+  return {
+    hasAlturasInfo,
+    fechaCursoAlturasAutorizado: hasAut ? fechaAut : '',
+    fechaCursoAlturasCoordinador: hasCoord ? fechaCoord : '',
+    fechaVencimientoAlturas: hasVencExp ? fechaVencExplicita : '',
+    vencimientoAutorizado,
+    vencimientoCoordinador,
+    estadoAutorizado,
+    estadoCoordinador,
+    estadoVencimientoExplicito,
+    isActivo,
+    isExpiredOrSoon,
+    resumenVigencia: summaryParts.join(' | ') || 'Sin registro de curso de alturas',
+  };
+}
+
+/**
+ * Evalúa la Compuerta Condicional Híbrida `cedula_in_perfil_socio_or_scrape`:
+ * - Caso 2 (sin cédula explícita): `somos_sst_batch_expiry` -> omite scraping masivo y audita vencimientos <= 30 días en Hito 2.
+ * - Caso 1A (con cédula y encontrada en Perfil Sociodemográfico Hito 2 CON dato de curso de alturas):
+ *     `somos_sst_cedula_verified` -> omite Web Scraping MinTrabajo/SENA e inyecta verificación quirúrgica directa.
+ * - Caso 1B (con cédula ausente de Hito 2 o SIN fecha de curso de alturas):
+ *     `web_scraping_fallback` -> activa Web Scraping MinTrabajo/SENA solo para la(s) cédula(s) faltante(s).
+ */
+function evaluateCedulaPerfilSocioAlturasGate({
+  inputText = '',
+  companyNit = '',
+  structuredRecords = [],
+  perfilTrabajadores = [],
+  sgsstWorkers = [],
+  nowRef = new Date(),
+} = {}) {
+  const explicitCedulas = extractExplicitCedulasFromText(String(inputText || ''), {
+    companyNit: String(companyNit || ''),
+  });
+
+  if (explicitCedulas.length === 0) {
+    return {
+      evaluated: true,
+      route: 'somos_sst_batch_expiry',
+      explicitCedulas: [],
+      verifiedInSomosSst: [],
+      missingOrIncompleteCedulas: [],
+      skipConditionalScraperInputs: true,
+      forceRunAgent: false,
+      hasVerifiedExpiredOrSoon: false,
+      surgicalContextInjection: '',
+      reason:
+        'Sin cédula explícita en la consulta ➔ Auditoría general de vencimientos <= 30 días en Perfil Sociodemográfico (Hito 2) sin web scraping masivo.',
+    };
+  }
+
+  const workersByCedula = new Map();
+  const upsertWorkerEntry = (rawEntry = {}) => {
+    const rawDoc =
+      rawEntry.cedula ||
+      rawEntry.identificacion ||
+      rawEntry.documento ||
+      rawEntry.documentNumber ||
+      rawEntry.fields?.['Cédula / Documento'] ||
+      rawEntry.fields?.cedula ||
+      '';
+    const cleanCed = String(rawDoc || '').replace(/\D/g, '');
+    if (!cleanCed) return;
+
+    const prev = workersByCedula.get(cleanCed) || {};
+    const f = rawEntry.fields && typeof rawEntry.fields === 'object' ? rawEntry.fields : {};
+    const pick = (...vals) => {
+      for (const v of vals) {
+        const s = normalizeAlturasRawFieldValue(v);
+        if (s) return s;
+      }
+      return '';
+    };
+    const pickAlturas = (...vals) => {
+      for (const v of vals) {
+        if (hasMeaningfulAlturasField(v)) return normalizeAlturasRawFieldValue(v);
+      }
+      return '';
+    };
+
+    workersByCedula.set(cleanCed, {
+      cedula: cleanCed,
+      nombre: pick(rawEntry.nombre, f['Nombre Completo'], rawEntry.label, prev.nombre) || `Colaborador (${cleanCed})`,
+      cargo: pick(rawEntry.cargo, f['Cargo'], rawEntry.sublabel, prev.cargo) || 'No especificado',
+      estadoLaboral: pick(rawEntry.estadoLaboral, f.estado, rawEntry.estado, prev.estadoLaboral) || 'Activo',
+      fechaCursoAlturasAutorizado: pickAlturas(
+        rawEntry.fechaCursoAlturasAutorizado,
+        f.fechaCursoAlturasAutorizado,
+        prev.fechaCursoAlturasAutorizado,
+      ),
+      fechaCursoAlturasCoordinador: pickAlturas(
+        rawEntry.fechaCursoAlturasCoordinador,
+        f.fechaCursoAlturasCoordinador,
+        prev.fechaCursoAlturasCoordinador,
+      ),
+      fechaVencimientoAlturas: pickAlturas(
+        rawEntry.fechaVencimientoAlturas,
+        rawEntry.vencimientoCursoAlturas,
+        f.fechaVencimientoAlturas,
+        f.vencimientoCursoAlturas,
+        prev.fechaVencimientoAlturas,
+      ),
+      vencimientoCursoAlturas: pickAlturas(
+        rawEntry.vencimientoCursoAlturas,
+        f.vencimientoCursoAlturas,
+        prev.vencimientoCursoAlturas,
+      ),
+    });
+  };
+
+  for (const rec of Array.isArray(structuredRecords) ? structuredRecords : []) {
+    if (rec && typeof rec === 'object') upsertWorkerEntry(rec);
+  }
+  for (const sw of Array.isArray(perfilTrabajadores) ? perfilTrabajadores : []) {
+    if (sw && typeof sw === 'object') upsertWorkerEntry(sw);
+  }
+  for (const w of Array.isArray(sgsstWorkers) ? sgsstWorkers : []) {
+    if (w && typeof w === 'object') upsertWorkerEntry(w);
+  }
+
+  const verifiedInSomosSst = [];
+  const missingOrIncompleteCedulas = [];
+
+  for (const ced of explicitCedulas) {
+    const cleanCed = String(ced || '').replace(/\D/g, '');
+    if (!cleanCed) continue;
+    const matched = workersByCedula.get(cleanCed);
+    if (matched) {
+      const vig = evaluateWorkerAlturasVigencia(matched, nowRef);
+      if (vig.hasAlturasInfo) {
+        verifiedInSomosSst.push({
+          ...matched,
+          ...vig,
+        });
+        continue;
+      }
+      missingOrIncompleteCedulas.push({
+        cedula: cleanCed,
+        existsInHito2: true,
+        nombre: matched.nombre,
+        cargo: matched.cargo,
+        reason: 'Registrado en Perfil Sociodemográfico (Hito 2) sin fecha de curso de alturas cargada',
+      });
+    } else {
+      missingOrIncompleteCedulas.push({
+        cedula: cleanCed,
+        existsInHito2: false,
+        nombre: '',
+        cargo: '',
+        reason: 'No figura en Perfil Sociodemográfico (Hito 2) de la empresa activa',
+      });
+    }
+  }
+
+  const hasVerifiedExpiredOrSoon = verifiedInSomosSst.some((v) => v.isExpiredOrSoon);
+  const contextParts = [];
+
+  if (verifiedInSomosSst.length > 0) {
+    const lines = verifiedInSomosSst.map((v, idx) => {
+      const detalles = [
+        `Trabajador: ${v.nombre}`,
+        `Cédula: ${v.cedula}`,
+        `Cargo: ${v.cargo}`,
+        `Estado laboral: ${v.estadoLaboral}`,
+        `Curso Alturas Autorizado: ${v.fechaCursoAlturasAutorizado || 'No aplica'} (${v.estadoAutorizado})`,
+        `Curso Alturas Coordinador: ${v.fechaCursoAlturasCoordinador || 'No aplica'} (${v.estadoCoordinador})`,
+        ...(v.fechaVencimientoAlturas
+          ? [`Vencimiento explícito registrado: ${v.fechaVencimientoAlturas}${v.estadoVencimientoExplicito ? ` (${v.estadoVencimientoExplicito})` : ''}`]
+          : []),
+        `Vigencia calculada: ${v.isExpiredOrSoon ? '⚠️ REQUIERE REENTRENAMIENTO / VENCIDO O <= 30 DÍAS' : '✅ VIGENTE AL DÍA'}`,
+      ];
+      return `  ${idx + 1}. ${detalles.join(' | ')}`;
+    });
+    contextParts.push(
+      `✅ VERIFICACIÓN DIRECTA EN PERFIL SOCIODEMOGRÁFICO (HITO 2 — SOMOS SST):\n` +
+        `La(s) siguiente(s) cédula(s) SÍ figura(n) en Perfil Sociodemográfico (Hito 2) de la empresa activa con información registrada de curso de alturas. Se OMITIÓ automáticamente la consulta externa por Web Scraping MinTrabajo/SENA para esta(s) cédula(s):\n` +
+        `${lines.join('\n')}\n` +
+        `- Regla de respuesta: Entrega al usuario los datos reales verificados directamente en Perfil Sociodemográfico (Hito 2 — Somos SST), aclarando que no fue necesario ejecutar web scraping externo. Si el curso figura vencido o próximo a vencer en 30 días o menos, advierte la restricción preventiva de ascenso y confirma el envío del correo al área SST; si está vigente, confirma que está al día.`,
+    );
+  }
+
+  if (missingOrIncompleteCedulas.length > 0) {
+    const fallbackLines = missingOrIncompleteCedulas.map(
+      (m) =>
+        `  • 🔍 FALLBACK AUTOMÁTICO A WEB SCRAPING MINTRABAJO/SENA: La cédula ${m.cedula}${m.nombre ? ` (${m.nombre})` : ''} no figura en Perfil Sociodemográfico (Hito 2) o no tiene fecha de curso de alturas cargada (${m.reason}); consultando portal oficial en vivo...`,
+    );
+    contextParts.push(
+      `🔍 FALLBACK AUTOMÁTICO A WEB SCRAPING MINTRABAJO/SENA:\n` +
+        `${fallbackLines.join('\n')}\n` +
+        `- Regla de respuesta: Sintetiza los resultados oficiales obtenidos en el portal del Ministerio del Trabajo y SENA junto con los soportes PDF/PNG adjuntos (si se emitieron), y recomienda cargar o actualizar la fecha en Perfil Sociodemográfico (Hito 2).`,
+    );
+  }
+
+  if (missingOrIncompleteCedulas.length === 0 && verifiedInSomosSst.length > 0) {
+    const cedList = verifiedInSomosSst.map((v) => v.cedula).join(', ');
+    return {
+      evaluated: true,
+      route: 'somos_sst_cedula_verified',
+      explicitCedulas,
+      verifiedInSomosSst,
+      missingOrIncompleteCedulas: [],
+      skipConditionalScraperInputs: true,
+      forceRunAgent: true,
+      hasVerifiedExpiredOrSoon,
+      surgicalContextInjection: `${contextParts.join('\n\n')}\n\n`,
+      reason: `Rama SÍ (somos_sst_cedula_verified): Cédula(s) [${cedList}] encontrada(s) en Perfil Sociodemográfico (Hito 2 — Somos SST) con información de alturas ➔ Verificación directa sin web scraping.`,
+    };
+  }
+
+  const missingCedList = missingOrIncompleteCedulas.map((m) => m.cedula).join(', ');
+  return {
+    evaluated: true,
+    route: 'web_scraping_fallback',
+    explicitCedulas,
+    verifiedInSomosSst,
+    missingOrIncompleteCedulas,
+    skipConditionalScraperInputs: false,
+    forceRunAgent: true,
+    hasVerifiedExpiredOrSoon,
+    surgicalContextInjection: `${contextParts.join('\n\n')}\n\n`,
+    reason: `Rama NO (web_scraping_fallback): Cédula(s) [${missingCedList}] ausente(s) en Perfil Sociodemográfico (Hito 2) o sin fecha de curso de alturas ➔ Fallback automático a Web Scraping MinTrabajo/SENA activado.`,
+  };
+}
+
 /**
  * Evalúa la Compuerta Condicional Determinista ANTES del Agente IA (`ifPlacement: 'pre_agent'`).
  * Ahorra el 100 % de tokens LLM cuando no existen brechas nuevas ni elementos externos sin procesar.
@@ -332,6 +730,7 @@ function evaluatePreAgentDeterministicIf({
   scraperDedupSkippedCount = 0,
   eventPayload = null,
   watchesExternal = false,
+  cedulaPerfilSocioGateState = null,
 } = {}) {
   const safeCfg = ifCfg && typeof ifCfg === 'object' ? ifCfg : {};
   const condType = String(safeCfg.ifConditionType || 'critical_findings').trim();
@@ -374,7 +773,35 @@ function evaluatePreAgentDeterministicIf({
   let passed = false;
   let reason = '';
 
-  if (condType === 'new_external_items') {
+  if (condType === 'cedula_in_perfil_socio_or_scrape') {
+    const gateRoute = String(cedulaPerfilSocioGateState?.route || 'somos_sst_batch_expiry');
+    if (gateRoute === 'somos_sst_cedula_verified') {
+      passed = true;
+      reason =
+        cedulaPerfilSocioGateState?.reason ||
+        'Rama SÍ (somos_sst_cedula_verified): Cédula verificada directamente en Perfil Sociodemográfico (Hito 2 — Somos SST) sin web scraping.';
+    } else if (gateRoute === 'web_scraping_fallback') {
+      passed = false;
+      reason =
+        cedulaPerfilSocioGateState?.reason ||
+        'Rama NO (web_scraping_fallback): Cédula ausente o sin fecha de curso de alturas en Hito 2 ➔ Fallback automático a Web Scraping MinTrabajo/SENA ejecutado.';
+    } else {
+      passed = freshCriticalCount >= 1;
+      const totalSrcRecords = Array.isArray(structuredSourceRes?.allRecords)
+        ? structuredSourceRes.allRecords.length
+        : 0;
+      if (passed) {
+        reason = `Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): ${freshCriticalCount} trabajador(es) con curso de alturas vencido o <= 30 días en Perfil Sociodemográfico (Hito 2) -> Se activa la Rama SÍ.`;
+      } else if (dedupSkippedCount > 0) {
+        reason = `Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): sin novedades nuevas pendientes (${dedupSkippedCount} caso(s) omitidos por anti-duplicados) -> Rama NO (0 tokens LLM).`;
+      } else if (totalSrcRecords === 0) {
+        reason =
+          'Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): 0 registros cargados aún en Perfil Sociodemográfico (Hito 2) -> Rama NO (0 tokens LLM).';
+      } else {
+        reason = `Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): cumplimiento verificado en ${totalSrcRecords} trabajador(es), 0 cursos de alturas vencidos ni <= 30 días -> Rama NO (0 tokens LLM).`;
+      }
+    }
+  } else if (condType === 'new_external_items') {
     const observedExtAndScraper = freshExternalCount + effectiveScraperBreachCount;
     const dedupExtAndScraper = extDedupCount + Number(scraperDedupSkippedCount || 0);
     passed = evalOp(observedExtAndScraper, op, threshold);
@@ -445,6 +872,12 @@ function evaluatePreAgentDeterministicIf({
     freshCriticalCount,
     dedupSkippedCount,
     freshExternalCount,
+    ...(condType === 'cedula_in_perfil_socio_or_scrape'
+      ? {
+          conditionalRoute:
+            cedulaPerfilSocioGateState?.route || 'somos_sst_batch_expiry',
+        }
+      : {}),
   };
 }
 
@@ -6576,6 +7009,133 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       }
     }
 
+    // 4.79. Compuerta Condicional Híbrida `cedula_in_perfil_socio_or_scrape` (Flujo #9 Alturas Somos SST + Web Scraping)
+    // Evalúa ANTES de los scrapers Antigravity y de la compuerta pre_agent si llegó cédula explícita y si existe con info de alturas en Hito 2.
+    const preAgentIfCfgEarly = allNodeCfg.if_router || allNodeCfg.if_condition || {};
+    const isCedulaPerfilSocioOrScrapeGate =
+      Boolean(automation.workflowNodes?.includeIfNode) &&
+      String(preAgentIfCfgEarly.ifPlacement || '').trim() === 'pre_agent' &&
+      String(preAgentIfCfgEarly.ifConditionType || '').trim() === 'cedula_in_perfil_socio_or_scrape';
+    let cedulaPerfilSocioGateState = {
+      enabled: isCedulaPerfilSocioOrScrapeGate,
+      evaluated: false,
+      route: '',
+      explicitCedulas: [],
+      verifiedInSomosSst: [],
+      missingOrIncompleteCedulas: [],
+      skipConditionalScraperInputs: false,
+      forceRunAgent: false,
+      hasVerifiedExpiredOrSoon: false,
+      surgicalContextInjection: '',
+      reason: '',
+    };
+    if (isCedulaPerfilSocioOrScrapeGate) {
+      try {
+        const gateInputText = String(
+          runOpts.mockTriggerInput || scraperTriggerInput || tenshiUserInstruction || '',
+        ).trim();
+        const prelimExplicitCedulas = extractExplicitCedulasFromText(gateInputText, {
+          companyNit: automationCompany?.nit || '',
+        });
+        let perfilTrabajadores = [];
+        let sgsstWorkersForGate = [];
+        if (
+          prelimExplicitCedulas.length > 0 &&
+          targetCompanyIdStr &&
+          mongoose.Types.ObjectId.isValid(targetCompanyIdStr) &&
+          mongoose.connection?.readyState === 1
+        ) {
+          try {
+            let PerfilModel = mongoose.models.PerfilSociodemograficoData;
+            if (!PerfilModel) {
+              try {
+                PerfilModel = require('~/models/PerfilSociodemograficoData');
+              } catch (_) {}
+            }
+            let WorkerModel = mongoose.models.SgsstWorker;
+            if (!WorkerModel) {
+              try {
+                WorkerModel = require('~/models/SgsstWorker');
+              } catch (_) {}
+            }
+            const companyObjId = new mongoose.Types.ObjectId(targetCompanyIdStr);
+            const [perfilDoc, dbWorkers] = await Promise.all([
+              PerfilModel
+                ? PerfilModel.findOne({ companyId: companyObjId }).lean().catch(() => null)
+                : Promise.resolve(null),
+              WorkerModel
+                ? WorkerModel.find({ companyId: companyObjId }).limit(500).lean().catch(() => [])
+                : Promise.resolve([]),
+            ]);
+            if (Array.isArray(perfilDoc?.trabajadores)) {
+              perfilTrabajadores = perfilDoc.trabajadores;
+            }
+            if (Array.isArray(dbWorkers)) {
+              sgsstWorkersForGate = dbWorkers;
+            }
+          } catch (gateDbErr) {
+            console.warn(
+              '[AutomationScheduler] Aviso consultando Hito 2 en compuerta cedula_in_perfil_socio_or_scrape:',
+              gateDbErr?.message || gateDbErr,
+            );
+          }
+        }
+
+        const gateEval = evaluateCedulaPerfilSocioAlturasGate({
+          inputText: gateInputText,
+          companyNit: automationCompany?.nit || '',
+          structuredRecords: Array.isArray(structuredSourceRes?.allRecords)
+            ? structuredSourceRes.allRecords
+            : [],
+          perfilTrabajadores,
+          sgsstWorkers: sgsstWorkersForGate,
+        });
+        cedulaPerfilSocioGateState = {
+          enabled: true,
+          ...gateEval,
+        };
+
+        if (cedulaPerfilSocioGateState.explicitCedulas.length > 0 && cedulaPerfilSocioGateState.surgicalContextInjection) {
+          // En consultas por cédula explícita enfocar el contexto quirúrgico exclusivamente en la(s) cédula(s) solicitada(s)
+          liveDatabaseSurgicalBlock = cedulaPerfilSocioGateState.surgicalContextInjection;
+        }
+
+        if (cedulaPerfilSocioGateState.route === 'web_scraping_fallback') {
+          liveTracker.upsertStep({
+            nodeKey: 'if_router',
+            nodeId: 'if_node_router',
+            title: 'Condición Si/No (Pre-IA)',
+            category: 'if',
+            status: 'done',
+            branchTaken: 'no',
+            durationMs: 25,
+            inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 0,
+            outputCount: cedulaPerfilSocioGateState.missingOrIncompleteCedulas.length,
+            outputPreview: cedulaPerfilSocioGateState.reason,
+            outputItems: [
+              {
+                Compuerta:
+                  preAgentIfCfgEarly.ifConditionLabel ||
+                  '¿Pasó cédula y existe con info de alturas en Perfil Sociodemográfico?',
+                RutaCondicional: 'web_scraping_fallback',
+                RamaTomada: 'Rama NO ➔ Fallback Web Scraping MinTrabajo/SENA',
+                CedulasConsultadasEnPortal: cedulaPerfilSocioGateState.missingOrIncompleteCedulas
+                  .map((m) => m.cedula)
+                  .join(', '),
+                Dictamen: cedulaPerfilSocioGateState.reason,
+              },
+            ],
+          });
+          await liveTracker.flush();
+        }
+      } catch (gateErr) {
+        console.warn(
+          '[AutomationScheduler] Aviso evaluando compuerta cedula_in_perfil_socio_or_scrape:',
+          gateErr?.message || gateErr,
+        );
+      }
+    }
+
     // 4.8. Si el flujo incluye nodos de Scraping Web con Google Antigravity (ej. scraper_agy_arl_directo, scraper_agy_antecedentes),
     // ejecutar la verificación real por el túnel Push SSE de Antigravity / fuentes abiertas
     let liveAntigravityScraperBlock = '';
@@ -6684,6 +7244,52 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             portalConcept === 'antecedentes' ||
             String(sc.nodeId || '').includes('antecedentes') ||
             String(sc.nodeKey || '').includes('antecedentes');
+          const candNodeCfgCheck = {
+            ...(sc.customNodeObj?.config || {}),
+            ...(allNodeCfg[sc.nodeId] || {}),
+            ...(allNodeCfg[sc.nodeKey] || {}),
+          };
+          const isConditionalFallbackScraper = Boolean(candNodeCfgCheck.conditionalFallbackOnly);
+
+          // Compuerta `cedula_in_perfil_socio_or_scrape`: omitir scraping si se verificó en Somos SST o en consulta batch sin cédula
+          if (
+            isCedulaPerfilSocioOrScrapeGate &&
+            cedulaPerfilSocioGateState.evaluated &&
+            (cedulaPerfilSocioGateState.skipConditionalScraperInputs ||
+              (isConditionalFallbackScraper && cedulaPerfilSocioGateState.route !== 'web_scraping_fallback'))
+          ) {
+            const skippedGateKey = sc.nodeKey || `tool_inputs_${sc.nodeId}`;
+            const skippedGateTitle = sc.customNodeObj?.title || formatHumanWorkflowNodeTitle(sc.nodeId);
+            const skipReasonMsg =
+              cedulaPerfilSocioGateState.route === 'somos_sst_cedula_verified'
+                ? '⏭️ Omitido (0 web scraping): Cédula verificada directamente con info de alturas en Perfil Sociodemográfico (Hito 2 — Somos SST).'
+                : '⏭️ Omitido (0 web scraping masivo): Consulta general de vencimientos <= 30 días en Perfil Sociodemográfico (Hito 2) sin cédula explícita.';
+            liveTracker.upsertStep({
+              nodeKey: skippedGateKey,
+              nodeId: sc.nodeId,
+              title: skippedGateTitle,
+              category: String(skippedGateKey).startsWith('tool_inputs_') ? 'input' : 'extractor',
+              status: 'skipped',
+              durationMs: 0,
+              inputCount: 0,
+              outputCount: 0,
+              outputPreview: skipReasonMsg,
+            });
+            liveTracker.markSkippedKeys([skippedGateKey]);
+            continue;
+          }
+
+          if (
+            isCedulaPerfilSocioOrScrapeGate &&
+            cedulaPerfilSocioGateState.route === 'web_scraping_fallback' &&
+            cedulaPerfilSocioGateState.missingOrIncompleteCedulas.length > 0
+          ) {
+            activeScraperCandidates.push({
+              ...sc,
+              cedulaFallbackOverride: cedulaPerfilSocioGateState.missingOrIncompleteCedulas,
+            });
+            continue;
+          }
 
           if (
             selectivePortalDecision.restricted &&
@@ -6747,7 +7353,9 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             status: 'running',
             outputPreview: sc.forensicDoctorOverride
               ? `Verificando antecedentes e identidad oficial del médico firmante (${[sc.forensicDoctorOverride.medicoCedula, sc.forensicDoctorOverride.medicoNombre].filter(Boolean).join(' · ')})...`
-              : 'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
+              : sc.cedulaFallbackOverride
+                ? `Fallback automático a Web Scraping MinTrabajo/SENA para cédula(s) sin dato de alturas en Hito 2 (${sc.cedulaFallbackOverride.map((m) => m.cedula).join(', ')})...`
+                : 'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
           });
         }
         if (activeScraperCandidates.length > 0) {
@@ -6755,7 +7363,9 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             activeScraperCandidates[0].nodeKey || `tool_inputs_${activeScraperCandidates[0].nodeId}`,
             activeScraperCandidates[0].forensicDoctorOverride
               ? 'Consultando Contraloría General y Rama Judicial para el médico firmante...'
-              : 'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
+              : activeScraperCandidates[0].cedulaFallbackOverride
+                ? 'Fallback automático a Web Scraping en Ministerio del Trabajo / SENA...'
+                : 'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
           );
         }
         await liveTracker.flush();
@@ -6771,6 +7381,15 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                 : {}),
             };
             const docOverride = sc.forensicDoctorOverride || null;
+            const fallbackOverride =
+              Array.isArray(sc.cedulaFallbackOverride) && sc.cedulaFallbackOverride.length > 0
+                ? sc.cedulaFallbackOverride
+                : null;
+            const fallbackDocType = fallbackOverride
+              ? extractDocTypeFromInstruction(
+                  String(runOpts.mockTriggerInput || scraperTriggerInput || tenshiUserInstruction || ''),
+                )
+              : 'CC';
             const effectiveMockTriggerForScraper = docOverride
               ? [
                   docOverride.medicoCedula ? `${docOverride.medicoTipoDoc || 'CC'} ${docOverride.medicoCedula}` : '',
@@ -6778,14 +7397,21 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                 ]
                   .filter(Boolean)
                   .join(' ')
-              : scraperTriggerInput;
+              : fallbackOverride
+                ? fallbackOverride.map((m) => `${fallbackDocType} ${m.cedula}`).join(' ')
+                : scraperTriggerInput;
             const effectiveNodeCfgForScraper = docOverride
               ? {
                   ...mergedNodeCfg,
                   ...(docOverride.medicoCedula ? { cedula: docOverride.medicoCedula } : {}),
                   allowDirectNameWithoutWorkerMatch: true,
                 }
-              : mergedNodeCfg;
+              : fallbackOverride
+                ? {
+                    ...mergedNodeCfg,
+                    ...(fallbackOverride.length === 1 ? { cedula: fallbackOverride[0].cedula } : {}),
+                  }
+                : mergedNodeCfg;
             const effectiveUpstreamItemsForScraper = docOverride
               ? [
                   {
@@ -6799,14 +7425,25 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                     cargo: 'Médico / Profesional Firmante (Incapacidad)',
                   },
                 ]
-              : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
-                ? preSourceRouterState.matchedWorkers
-                : [];
+              : fallbackOverride
+                ? fallbackOverride.map((m, idx) => ({
+                    id: `alturas_fallback_${idx + 1}`,
+                    nombre: m.nombre || `Colaborador (${m.cedula})`,
+                    documento: m.cedula,
+                    cedula: m.cedula,
+                    tipoDoc: fallbackDocType,
+                    cargo: m.cargo || 'Operativo',
+                  }))
+                : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
+                  ? preSourceRouterState.matchedWorkers
+                  : [];
             const effectiveUpstreamTitleForScraper = docOverride
               ? 'Verificador Forense de Documentos (Profesional Firmante)'
-              : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
-                ? 'Perfil Sociodemográfico (Hito 2)'
-                : '';
+              : fallbackOverride
+                ? 'Fallback Condicional Perfil Sociodemográfico ➔ Web Scraping MinTrabajo/SENA'
+                : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
+                  ? 'Perfil Sociodemográfico (Hito 2)'
+                  : '';
 
             const scrapeRes = await executeRealAntigravityScraperVerification({
               userIdStr: String(automation.user),
@@ -6820,25 +7457,27 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               nodeCfg: effectiveNodeCfgForScraper,
               allNodeConfigs: allNodeCfg,
               mockTriggerInput: effectiveMockTriggerForScraper,
-              promptText: docOverride ? '' : automation.prompt || '',
+              promptText: docOverride || fallbackOverride ? '' : automation.prompt || '',
               upstreamInputItems: effectiveUpstreamItemsForScraper,
               upstreamSourceTitle: effectiveUpstreamTitleForScraper,
               isTenshiFlowRun: isGlobalTenshiFlow,
               flowScope: isGlobalTenshiFlow ? 'tenshi' : 'automation',
               hasConversationalAntigravityNode: hasExplicitConversationalAntigravityNode,
               triggerSource,
-              hasWorkerSourceStage2: docOverride ? false : hasWorkerSourceStage2,
-              skipWorkerDbHydration: docOverride ? true : isPreSourceIf,
-              preSourceBranch: docOverride
-                ? 'yes'
-                : isPreSourceIf
-                  ? preSourceRouterState.hasExplicitCedula
-                    ? 'yes'
-                    : 'no'
-                  : '',
-              requireNameMatchIfNoCedula: docOverride
-                ? false
-                : isPreSourceIf && !preSourceRouterState.hasExplicitCedula,
+              hasWorkerSourceStage2: docOverride || fallbackOverride ? false : hasWorkerSourceStage2,
+              skipWorkerDbHydration: docOverride || fallbackOverride ? true : isPreSourceIf,
+              preSourceBranch:
+                docOverride || fallbackOverride
+                  ? 'yes'
+                  : isPreSourceIf
+                    ? preSourceRouterState.hasExplicitCedula
+                      ? 'yes'
+                      : 'no'
+                    : '',
+              requireNameMatchIfNoCedula:
+                docOverride || fallbackOverride
+                  ? false
+                  : isPreSourceIf && !preSourceRouterState.hasExplicitCedula,
             });
             return { sc, mergedNodeCfg, scrapeRes };
           }),
@@ -7223,7 +7862,20 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         scraperDedupSkippedCount: runScraperDedupSkippedCount,
         eventPayload: effectiveEventPayload,
         watchesExternal,
+        cedulaPerfilSocioGateState: isCedulaPerfilSocioOrScrapeGate ? cedulaPerfilSocioGateState : null,
       });
+
+      const preIfRouteLabel = isCedulaPerfilSocioOrScrapeGate
+        ? cedulaPerfilSocioGateState.route === 'somos_sst_cedula_verified'
+          ? 'Rama SÍ (Somos SST directo · sin web scraping)'
+          : cedulaPerfilSocioGateState.route === 'web_scraping_fallback'
+            ? 'Rama NO (Fallback Web Scraping MinTrabajo/SENA)'
+            : preIfRes.passed
+              ? 'Rama SÍ (Nómina por vencer <= 30 días · sin web scraping)'
+              : 'Rama NO (0 vencimientos · 0 tokens IA)'
+        : preIfRes.passed
+          ? 'Rama SÍ'
+          : 'Rama NO (0 tokens IA)';
 
       liveTracker.upsertStep({
         nodeKey: 'if_router',
@@ -7234,12 +7886,20 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         branchTaken: preIfRes.passed ? 'yes' : 'no',
         durationMs: 35,
         inputCount: Array.isArray(structuredSourceRes?.allRecords) ? structuredSourceRes.allRecords.length : 0,
-        outputCount: preIfRes.passed ? 1 : 0,
+        outputCount: preIfRes.passed || cedulaPerfilSocioGateState.forceRunAgent ? 1 : 0,
         outputPreview: preIfRes.reason,
         outputItems: [
           {
             Compuerta: ifConditionLabelStr || 'Detección determinista de brechas nuevas',
-            RamaTomada: preIfRes.passed ? 'Rama SÍ' : 'Rama NO (0 tokens IA)',
+            RamaTomada: preIfRouteLabel,
+            ...(isCedulaPerfilSocioOrScrapeGate
+              ? {
+                  RutaCondicional: cedulaPerfilSocioGateState.route || 'somos_sst_batch_expiry',
+                  WebScrapingEjecutado: cedulaPerfilSocioGateState.skipConditionalScraperInputs
+                    ? 'No (omitido)'
+                    : 'Sí (MinTrabajo/SENA)',
+                }
+              : {}),
             RegistrosAuditados: Array.isArray(structuredSourceRes?.allRecords)
               ? structuredSourceRes.allRecords.length
               : 0,
@@ -7251,7 +7911,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       });
       await liveTracker.flush();
 
-      if (preIfRes.passed === false) {
+      if (preIfRes.passed === false && !cedulaPerfilSocioGateState.forceRunAgent) {
         const totalAuditedRecordsCount = Array.isArray(structuredSourceRes?.allRecords)
           ? structuredSourceRes.allRecords.length
           : 0;
@@ -7487,6 +8147,17 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                 executionTrace: {
                   triggerSource,
                   ifPlacement: 'pre_agent',
+                  ...(isCedulaPerfilSocioOrScrapeGate
+                    ? {
+                        ifConditionType: 'cedula_in_perfil_socio_or_scrape',
+                        conditionalRoute:
+                          cedulaPerfilSocioGateState.route || 'somos_sst_batch_expiry',
+                        scraperSkippedBySomosSst: Boolean(
+                          cedulaPerfilSocioGateState.skipConditionalScraperInputs,
+                        ),
+                        explicitCedulasEvaluated: cedulaPerfilSocioGateState.explicitCedulas || [],
+                      }
+                    : {}),
                   activeBranch: 'no',
                   ifConditionPassed: false,
                   hasCriticalSignal: false,
@@ -8303,12 +8974,36 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           structuredSourceRes.freshCriticalRecords.length > 0) ||
         runScraperBreachCount > 0;
     } else if (isPreAgentIf) {
-      // Si llegamos aquí con isPreAgentIf === true es porque preIfRes.passed === true (Rama SÍ)
-      ifConditionPassed = true;
-      activeBranch = 'yes';
-      hasCriticalSignalInResult = true;
-      ifEvaluationReason =
-        preIfRes?.reason || 'Condición determinista pre_agent cumplida -> Rama SÍ activa.';
+      if (isCedulaPerfilSocioOrScrapeGate && cedulaPerfilSocioGateState.evaluated) {
+        if (cedulaPerfilSocioGateState.route === 'somos_sst_cedula_verified') {
+          ifConditionPassed = true;
+          activeBranch = 'yes';
+          hasCriticalSignalInResult = Boolean(cedulaPerfilSocioGateState.hasVerifiedExpiredOrSoon);
+          ifEvaluationReason = cedulaPerfilSocioGateState.reason;
+        } else if (cedulaPerfilSocioGateState.route === 'web_scraping_fallback') {
+          ifConditionPassed = false;
+          activeBranch = 'no';
+          hasCriticalSignalInResult = Boolean(
+            runScraperBreachCount > 0 || cedulaPerfilSocioGateState.hasVerifiedExpiredOrSoon,
+          );
+          ifEvaluationReason = cedulaPerfilSocioGateState.reason;
+        } else {
+          ifConditionPassed = true;
+          activeBranch = 'yes';
+          hasCriticalSignalInResult = true;
+          ifEvaluationReason =
+            preIfRes?.reason ||
+            cedulaPerfilSocioGateState.reason ||
+            'Condición determinista pre_agent cumplida -> Rama SÍ activa.';
+        }
+      } else {
+        // Si llegamos aquí con isPreAgentIf === true es porque preIfRes.passed === true (Rama SÍ)
+        ifConditionPassed = true;
+        activeBranch = 'yes';
+        hasCriticalSignalInResult = true;
+        ifEvaluationReason =
+          preIfRes?.reason || 'Condición determinista pre_agent cumplida -> Rama SÍ activa.';
+      }
     } else if (isPreSourceIf) {
       ifConditionPassed = Boolean(preSourceRouterState.hasExplicitCedula);
       activeBranch = ifConditionPassed ? 'yes' : 'no';
@@ -8467,6 +9162,13 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         postNodeConfigs,
         postEdges,
       );
+      if (isCedulaPerfilSocioOrScrapeGate && cedulaPerfilSocioGateState.forceRunAgent) {
+        // En consultas puntuales por cédula (Somos SST o fallback Web Scraping), despachar correo solo si está vencido/por vencer o hay novedad
+        const shouldDispatchAlertOutputs = Boolean(
+          cedulaPerfilSocioGateState.hasVerifiedExpiredOrSoon || runScraperBreachCount > 0,
+        );
+        return branch === 'no' ? !shouldDispatchAlertOutputs : shouldDispatchAlertOutputs;
+      }
       return branch === 'no' ? !ifConditionPassed : ifConditionPassed;
     };
 
@@ -8520,6 +9222,18 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     const executionTraceSummary = {
       triggerSource,
       ifPlacement: includeIfNodeFlag ? (isPreSourceIf ? 'pre_source' : isPreAgentIf ? 'pre_agent' : 'post_agent') : 'none',
+      ...(isCedulaPerfilSocioOrScrapeGate
+        ? {
+            ifConditionType: 'cedula_in_perfil_socio_or_scrape',
+            conditionalRoute: cedulaPerfilSocioGateState.route || 'somos_sst_batch_expiry',
+            scraperSkippedBySomosSst: Boolean(cedulaPerfilSocioGateState.skipConditionalScraperInputs),
+            explicitCedulasEvaluated: cedulaPerfilSocioGateState.explicitCedulas || [],
+            verifiedSomosSstCedulas: cedulaPerfilSocioGateState.verifiedInSomosSst.map((v) => v.cedula),
+            webScrapingFallbackCedulas: cedulaPerfilSocioGateState.missingOrIncompleteCedulas.map(
+              (m) => m.cedula,
+            ),
+          }
+        : {}),
       activeBranch,
       ifConditionPassed,
       ifReason: ifEvaluationReason,
@@ -14908,6 +15622,34 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             ? 'Soporte documental adjunto detectado -> Rama SÍ: ejecutar Verificador Forense de Documentos (3 capas) y Agente IA Tenshi.'
             : 'No se adjuntó imagen ni PDF del certificado de incapacidad -> Rama NO: cortocircuito en 0 tokens LLM solicitando adjuntar el archivo en el chat de Tenshi.',
         };
+      } else if (condType === 'cedula_in_perfil_socio_or_scrape') {
+        const simGateRes = evaluateCedulaPerfilSocioAlturasGate({
+          inputText: mockTriggerInput,
+          companyNit: automationCompany?.nit || '',
+          structuredRecords: currentPipelineItems,
+        });
+        if (simGateRes.route === 'somos_sst_cedula_verified') {
+          ifEvaluation = {
+            enabled: true,
+            branchTaken: 'SI',
+            reason: simGateRes.reason,
+          };
+        } else if (simGateRes.route === 'web_scraping_fallback') {
+          ifEvaluation = {
+            enabled: true,
+            branchTaken: 'NO',
+            reason: simGateRes.reason,
+          };
+        } else {
+          const passedBatchSim = !explicitNoInMock && totalCriticalRecords > 0;
+          ifEvaluation = {
+            enabled: true,
+            branchTaken: passedBatchSim ? 'SI' : 'NO',
+            reason: passedBatchSim
+              ? `Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): ${totalCriticalRecords} trabajador(es) con curso de alturas vencido o <= 30 días -> Rama SÍ.`
+              : `Consulta general sin cédula (somos_sst_batch_expiry · web scraping omitido): 0 cursos de alturas vencidos ni <= 30 días en ${totalExtractedRecords} registro(s) -> Rama NO (0 tokens IA).`,
+          };
+        }
       } else if (condType === 'new_external_items') {
         const numMatch = ruleExpr.match(/(>=|<=|>|<|===|==|=|!=|!==)\s*(\d+(?:\.\d+)?)/);
         const threshold = numMatch ? Number(numMatch[2]) : 1;
@@ -15812,6 +16554,7 @@ module.exports = {
   isSafePublicHttpsUrl,
   fetchSafeWebhookApiData,
   loadProcessedEntityKeysForAutomation,
+  evaluateCedulaPerfilSocioAlturasGate,
   evaluatePreAgentDeterministicIf,
   evaluatePostAgentSemanticIf,
   extractExplicitCedulasFromText,

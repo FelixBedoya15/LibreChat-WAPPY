@@ -5,7 +5,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 
 const INVALID_MARKER_COMPANY_IDS = new Set(['TENSHI_GLOBAL', 'SYSTEM_PRESET']);
 
-const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v7';
+const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v8';
 
 const LEGACY_REPLACED_TENSHI_SEED_KEYS = ['tenshi_flow_verificacion_alturas_arl_cedula'];
 
@@ -1363,22 +1363,26 @@ const EIGHTH_GLOBAL_TENSHI_FLOW = buildSomosSstTenshiFlow({
     '4) PROHIBIDO inventar placas, fechas o incluir pronósticos meteorológicos.',
 });
 
-// #9 Cursos de Alturas y Confinados por Vencer — Desde Somos SST
+// #9 Cursos de Alturas y Confinados por Vencer — Somos SST (+ Web Scraping)
 const NINTH_GLOBAL_TENSHI_FLOW = buildSomosSstTenshiFlow({
   key: 'tenshi_flow_alturas_por_vencer_somos_sst',
-  name: '🪖 Cursos de Alturas y Confinados por Vencer — Desde Somos SST',
+  name: '🪖 Cursos de Alturas y Confinados por Vencer — Somos SST (+ Web Scraping)',
   presetCategory: 'atel_inspecciones',
   description:
-    'Audita al instante en Perfil Sociodemográfico (Hito 2) de la empresa activa los trabajadores a quienes sí les aplica Trabajo Seguro en Alturas (Resolución 4272 de 2021) o Espacios Confinados (Resolución 0491 de 2020) con curso o reentrenamiento anual vencido o próximo a vencer en 30 días o menos. Tenshi cruza la vigencia de equipos asignados en Hoja de Vida de Equipos de Alturas (Hito 5), envía correo al área SST o centro de entrenamiento y responde directo con nombres y fechas límite.',
+    'Verifica al instante cursos y reentrenamientos de Trabajo Seguro en Alturas (Resolución 4272 de 2021) y Espacios Confinados (Resolución 0491 de 2020) con enrutamiento condicional híbrido: sin cédula audita vencimientos en 30 días o menos dentro de Perfil Sociodemográfico (Hito 2) sin consultas externas masivas; si el usuario entrega cédula y existe con fecha de curso de alturas en Perfil Sociodemográfico (Hito 2), verifica directamente en Somos SST sin web scraping; si la cédula no figura en Hito 2 o no tiene dato de curso de alturas, consulta automáticamente por Web Scraping en Ministerio del Trabajo y SENA entregando el certificado PDF o PNG. Tenshi cruza Hoja de Vida de Equipos de Alturas (Hito 5) y envía correo si hay vencimientos.',
   extraVoiceCommands: [
     'cursos de alturas por vencer desde somos sst',
+    'cursos de alturas y confinados somos sst o web scraping',
     'quienes tienen curso de alturas vencido o por vencer',
     'revisar vencimientos de alturas en somos sst',
     'trabajadores con reentrenamiento de alturas pendiente',
+    'verificar si esta cedula tiene curso de alturas vigente',
+    'consultar curso de alturas en perfil sociodemografico o mintrabajo',
   ],
   triggerInstruction:
-    'Activa esta revisión interna en Somos SST cuando el usuario pregunte quiénes tienen cursos o reentrenamientos de alturas o espacios confinados vencidos o próximos a vencer en la nómina.',
+    'Activa esta verificación híbrida por voz o chat cuando el usuario pregunte por cursos o reentrenamientos de alturas o espacios confinados vencidos o próximos a vencer en Somos SST, o cuando suministre una cédula para verificar primero en Perfil Sociodemográfico (Hito 2) y activar respaldo automático en Ministerio del Trabajo y SENA si no existe el registro.',
   hitos: ['hito2_perfil_socio', 'hito5_equipos_alturas'],
+  inputs: ['scraper_agy_alto_riesgo'],
   hitoConfigs: {
     hito2_perfil_socio: {
       hitoRole: 'source_read',
@@ -1389,7 +1393,7 @@ const NINTH_GLOBAL_TENSHI_FLOW = buildSomosSstTenshiFlow({
       expiryAuditScope: ['alturas'],
       includeLatestReport: false,
       customInstruction:
-        'Filtra únicamente trabajadores activos en Perfil Sociodemográfico (Hito 2) con fecha registrada de curso de alturas (casilla vacía significa No aplica) cuyo reentrenamiento anual esté vencido o por vencer en 30 días o menos.',
+        'En consultas generales sin cédula, filtra únicamente trabajadores activos en Perfil Sociodemográfico (Hito 2) con fecha registrada de curso de alturas (casilla vacía significa No aplica) cuyo reentrenamiento anual esté vencido o por vencer en 30 días o menos. Cuando el usuario entregue una cédula explícita, verifica si el trabajador existe en Hito 2 y tiene fecha de curso de alturas cargada antes de activar consultas externas.',
     },
     hito5_equipos_alturas: {
       hitoRole: 'agent_tool',
@@ -1400,26 +1404,42 @@ const NINTH_GLOBAL_TENSHI_FLOW = buildSomosSstTenshiFlow({
         'Consulta en Hoja de Vida de Equipos de Alturas (Hito 5) el estado e inspección anual de arneses, eslingas y líneas de vida del personal de trabajo en alturas.',
     },
   },
+  inputConfigs: {
+    scraper_agy_alto_riesgo: {
+      antigravityMode: 'auto',
+      engine: 'antigravity_native_browser',
+      scriptEngine: 'antigravity_native_browser',
+      vpsSafeDirectFallback: true,
+      conditionalFallbackOnly: true,
+      customInstruction:
+        'Herramienta condicional de respaldo en el Registro de Centros de Entrenamiento del Ministerio del Trabajo (Resolución 4272 de 2021 y Resolución 0491 de 2020) y SENA. Se ejecuta ÚNICAMENTE cuando el usuario entrega una cédula explícita que NO figura en Perfil Sociodemográfico (Hito 2) o carece de fecha de curso de alturas; se omite automáticamente cuando la información ya existe en Somos SST o en auditorías generales de nómina sin cédula.',
+    },
+  },
   ifRouterConfig: {
     ifPlacement: 'pre_agent',
-    ifConditionType: 'critical_findings',
-    ifConditionLabel: '¿Hay cursos de alturas vencidos o <= 30 días en Somos SST?',
+    ifConditionType: 'cedula_in_perfil_socio_or_scrape',
+    ifConditionLabel: '¿Pasó cédula y existe con info de alturas en Perfil Sociodemográfico?',
+    conditionTrueLabel:
+      'SÍ: Verificar info registrada en Perfil Sociodemográfico (Somos SST) sin web scraping',
+    conditionFalseLabel:
+      'NO: Cédula ausente o sin dato de alturas en Hito 2 ➔ Consultar vía Web Scraping MinTrabajo/SENA',
     ifRuleExpression: 'vencido, próximo a vencer, reentrenamiento',
     customInstruction:
-      'Verifica antes del Agente IA si existen trabajadores activos en Perfil Sociodemográfico (Hito 2) con curso de alturas aplicable vencido o por vencer en 30 días o menos.',
+      'Evalúa de forma determinista antes del Agente IA las tres rutas operativas reales: (A) Sin cédula en la solicitud ➔ audita vencimientos en 30 días o menos dentro de Perfil Sociodemográfico (Hito 2) sin consultas masivas externas; (B) Con cédula presente y encontrada en Perfil Sociodemográfico (Hito 2) con fecha de curso de alturas autorizado, coordinador o vencimiento ➔ verifica directamente en Somos SST sin web scraping; (C) Con cédula presente pero ausente de Hito 2 o sin fecha de curso de alturas cargada ➔ dispara automáticamente la consulta oficial en Ministerio del Trabajo y SENA y entrega el certificado PDF o PNG.',
   },
   emailSubject: '🪖 Alerta de Cursos de Alturas y Confinados por Vencer — Somos SST',
   emailCustomInstruction:
-    'Envía el listado nominal de trabajadores que requieren reentrenamiento anual al correo del área SST o centro de entrenamiento indicado por el usuario.',
+    'Envía el listado o alerta nominal de trabajadores con curso de alturas vencido o próximo a vencer al correo del área SST o centro de entrenamiento indicado por el usuario.',
   notifyCustomInstruction:
-    'Registra trazabilidad limpia en WAPPY confirmando que todo el personal autorizado para alturas tiene su reentrenamiento anual vigente.',
+    'Registra trazabilidad limpia en WAPPY confirmando el estado vigente del personal de trabajo en alturas o la verificación realizada sin alertas de vencimiento.',
   prompt:
     'Actúa como Tenshi, copiloto experto en Trabajo Seguro en Alturas (Resolución 4272 de 2021) y Espacios Confinados (Resolución 0491 de 2020) de WAPPY IA.\n\n' +
-    'Tu misión es reportar exclusivamente los trabajadores con curso de alturas aplicable vencido o próximo a vencer en 30 días o menos registrados en Perfil Sociodemográfico (Hito 2), complementando con alertas de inspección en Hoja de Vida de Equipos de Alturas (Hito 5):\n' +
-    '1) Presenta tabla nominal exacta: `Trabajador | Cédula | Cargo | Nivel (Autorizado / Coordinador) | Fecha de Vencimiento | Estado y Acción Inmediata`.\n' +
-    '2) Nunca reportes incumplimiento a colaboradores cuyo cargo no aplica a trabajo en alturas.\n' +
-    '3) Indica claramente qué trabajadores deben quedar con suspensión preventiva de ascenso hasta completar su reentrenamiento anual y confirma el envío del correo al área SST.\n' +
-    '4) PROHIBIDO inventar fechas, centros de formación o registros.',
+    'Este flujo combina verificación prioritaria en Perfil Sociodemográfico (Hito 2) con respaldo automático en Ministerio del Trabajo y SENA según la ruta determinista ejecutada:\n' +
+    '1) **Ruta A — Auditoría general de nómina (sin cédula):** Reporta exclusivamente los trabajadores con curso de alturas aplicable vencido o próximo a vencer en 30 días o menos registrados en Perfil Sociodemográfico (Hito 2), complementando con alertas de inspección en Hoja de Vida de Equipos de Alturas (Hito 5). Nunca reportes incumplimiento a colaboradores cuyo cargo no aplica a trabajo en alturas.\n' +
+    '2) **Ruta B — Cédula verificada directamente en Perfil Sociodemográfico (Hito 2 — Somos SST):** Si el contexto incluye verificación directa en Perfil Sociodemográfico (Hito 2) con fecha de curso de alturas registrada, presenta los datos reales del colaborador (nombre, cédula, cargo, fecha de curso autorizado o coordinador y vigencia anual calculada), cruzando Hoja de Vida de Equipos de Alturas (Hito 5) y confirmando explícitamente que se verificó directamente en Somos SST sin necesidad de web scraping externo. Si el curso figura vencido o próximo a vencer en 30 días o menos, advierte la suspensión preventiva de ascenso y confirma el despacho del correo de alerta al área SST; si está vigente, confirma que se encuentra al día.\n' +
+    '3) **Ruta C — Respaldo automático por Web Scraping en Ministerio del Trabajo y SENA:** Si la cédula entregada no figuraba en Perfil Sociodemográfico (Hito 2) o no tenía fecha de curso de alturas registrada, sintetiza EXCLUSIVAMENTE los resultados reales devueltos por la consulta oficial en Ministerio del Trabajo y SENA (nivel formativo, centro autorizado, número de certificado, fecha y vigencia anual). Si se emitió y adjuntó el soporte oficial (.PDF o .PNG), confirma explícitamente que ya está disponible en la bandeja de certificados adjunta de este chat de Tenshi y recomienda actualizar el registro en Perfil Sociodemográfico (Hito 2).\n' +
+    '4) Presenta siempre una tabla nominal clara: `Trabajador | Cédula | Cargo / Origen | Nivel (Autorizado / Coordinador) | Fecha / Vencimiento | Estado y Acción Inmediata`, con estados limpios y sin URLs crudas en celdas.\n' +
+    '5) PROHIBIDO inventar trabajadores, fechas, centros de formación o certificados que no figuren en los datos reales consultados.',
 });
 
 // #10 Licencias de Conducción por Vencer — Somos SST
@@ -2343,23 +2363,6 @@ function detectTenshiQueryConcepts(rawQuery = '') {
     /\barl\b|riesgos?\s+laborales?|\bsura\b|\bpositiva\b|bol[ií]var|\bcolmena\b|\bcolpatria\b/i.test(
       q,
     );
-  const alturasRaw =
-    /\balturas?\b|confinados?|trabajo\s+(?:seguro\s+)?en\s+alturas|mintrabajo|\b4272\b|\b0491\b/i.test(
-      q,
-    );
-  const hasMinTrabajoPortalIntent =
-    /\bmintrabajo\b|ministerio\s+del\s+trabajo|\bsena\b|descargar?\s+certificado|certificado\s+(?:oficial|de\s+alturas)\s+(?:por\s+c[eé]dula|en\s+mintrabajo)/i.test(
-      q,
-    );
-  const hasSomosSstAlturasIntent =
-    alturasRaw &&
-    !hasExplicitCedula &&
-    !hasMinTrabajoPortalIntent &&
-    /\b(desde\s+somos\s*sst|en\s+somos\s*sst|somos\s*sst|por\s+vencer|pr[oó]xim[oa]s?\s+a\s+vencer|vencid[oa]s?|caducad[oa]s?|n[oó]mina|qui[eé]nes?\s+tienen|qu[eé]\s+trabajadores|qu[eé]\s+personal|listado\s+de\s+trabajadores|equipos?\s+de\s+alturas|reentrenamiento(?:s)?\s+(?:pendiente|vencid|por\s+vencer))\b/i.test(
-      q,
-    );
-  const alturasSomosSst = Boolean(hasSomosSstAlturasIntent);
-  const alturas = Boolean(alturasRaw && !alturasSomosSst);
 
   // ── Grupo B: Vigilancia y Control Interno Somos SST (#7–#16) ──
   const emoSomosSst =
@@ -2387,6 +2390,27 @@ function detectTenshiQueryConcepts(rawQuery = '') {
     /investigaci[oó]n\s+(?:completa|integral|360|multi[\s-]?portal)|\b360\b|todos\s+los\s+(?:certificados|portales)|verificar?\s+todo\b|consultar?\s+todo\b/i.test(
       q,
     );
+
+  // Enrutamiento inteligente Alturas (#9 híbrido Somos SST + fallback Web Scraping vs #2 descarga directa MinTrabajo/SENA vs #5 Multi-Portal 360)
+  const alturasRaw =
+    /\balturas?\b|confinados?|trabajo\s+(?:seguro\s+)?en\s+alturas|mintrabajo|\b4272\b|\b0491\b/i.test(
+      q,
+    );
+  const hasExplicitSomosSstAlturasScope =
+    /\b(desde\s+somos\s*sst|en\s+somos\s*sst|somos\s*sst|perfil\s+sociodemogr[aá]fico|hito\s*2)\b/i.test(
+      q,
+    );
+  const hasMinTrabajoDirectPortalIntent =
+    /\bmintrabajo\b|ministerio\s+del\s+trabajo|\bsena\b|descarg(?:ar|a|ue|ame)?\s+(?:el\s+|los\s+)?(?:certificado|pdf|soporte|constancia)|certificado\s+oficial|\bpdf\b|certificado\s+de\s+alturas\s+por\s+c[eé]dula|verificaci[oó]n\s+instant[aá]nea\s+de\s+certificado\s+de\s+alturas/i.test(
+      q,
+    );
+  const hasOtherPortalForAlturas = Boolean(arl || simit || antecedentes || full360);
+  const hasSomosSstAlturasIntent =
+    alturasRaw &&
+    !hasOtherPortalForAlturas &&
+    (hasExplicitSomosSstAlturasScope || !hasMinTrabajoDirectPortalIntent);
+  const alturasSomosSst = Boolean(hasSomosSstAlturasIntent);
+  const alturas = Boolean(alturasRaw && !alturasSomosSst);
   const capacitacionSomosSst =
     /programa\s+de\s+capacitaci[oó]n|cronograma\s+de\s+capacitaci[oó]n|\bcapacitaci[oó]n(?:es)?\b|rutas?\s+(?:de\s+aprendizaje|lms)|\blms\b|cursos?\s+(?:lms|virtuales?\s+pendientes?)|inducci[oó]n(?:es)?\s+pendientes?/i.test(
       q,
@@ -2535,7 +2559,8 @@ function findTenshiFlowByCanonicalKey(flows = [], targetKey = '') {
     if (
       targetKey === 'tenshi_flow_verificacion_alturas_cedula' &&
       ins.length === 1 &&
-      ins[0] === 'scraper_agy_alto_riesgo'
+      ins[0] === 'scraper_agy_alto_riesgo' &&
+      !hitoSet.has('hito5_equipos_alturas')
     ) {
       return f;
     }
@@ -2662,14 +2687,14 @@ async function buildTenshiFlowsPromptBlock(flowsOpt = null) {
     `- \`esperar_resultado\`: true\n` +
     `REGLAS DE ENRUTAMIENTO INTELIGENTE SIN COLISIONES (16 FLUJOS — CHAT Y VOZ):\n` +
     `  1) Solo ARL en portales oficiales (SURA, Positiva, Bolívar, Colmena, AXA Colpatria) ➔ "🛡️ Verificación Instantánea y Certificado ARL por Cédula".\n` +
-    `  2) Solo Certificado de Alturas / Espacios Confinados por Cédula en MinTrabajo / SENA ➔ "🪖 Verificación Instantánea de Certificado de Alturas por Cédula".\n` +
+    `  2) Solo descarga o consulta DIRECTA de Certificado Oficial / PDF de Alturas o Espacios Confinados en MinTrabajo / SENA por cédula (cuando piden explícitamente "certificado oficial", "descargar PDF", "MinTrabajo" o "SENA") ➔ "🪖 Verificación Instantánea de Certificado de Alturas por Cédula".\n` +
     `  3) Solo SIMIT / Comparendos / Multas viales / Paz y Salvo por cédula o placa ➔ "🚗 Verificación Instantánea de Comparendos y Paz y Salvo SIMIT (Cédula o Placa)".\n` +
     `  4) Solo Antecedentes Judiciales y Fiscales (Contraloría General / Rama Judicial) ➔ "⚖️ Verificación Instantánea de Antecedentes Judiciales y Fiscales".\n` +
     `  5) VARIOS PORTALES COMBINADOS EN LA MISMA FRASE (ej. "alturas y ARL", "ARL, SIMIT y antecedentes") o "investigación integral 360" ➔ "🌐 Investigación Integral Multi-Portal por Cédula (ARL + Alturas + SIMIT + Antecedentes)".\n` +
     `  6) Auditoría de autenticidad / detección de alteraciones de Incapacidad o Licencia Médica (Dec. 1427/2022, imagen/PDF) ➔ "🔬 Auditoría Forense de Certificados de Incapacidad Médica (Detección de Alteraciones)".\n` +
     `  7) Exámenes Médicos Ocupacionales (EMO) vencidos o por vencer (<= 30 días, Res. 1843) en Somos SST ➔ "🩺 Exámenes Médicos (EMO) por Vencer — Somos SST".\n` +
     `  8) SOAT y Revisión Técnico-Mecánica (RTM) por vencer en la flota PESV (Somos SST, sin SIMIT ni clima) ➔ "🚗 SOAT y Técnico-Mecánica (RTM) por Vencer — Somos SST".\n` +
-    `  9) Cursos de Alturas / Confinados por vencer en la nómina DESDE Somos SST (sin cédula para MinTrabajo) ➔ "🪖 Cursos de Alturas y Confinados por Vencer — Desde Somos SST".\n` +
+    `  9) Cursos de Alturas / Confinados desde Somos SST (con o sin cédula) o verificar si una cédula tiene curso de alturas vigente (revisa primero Perfil Sociodemográfico Hito 2 y solo si falta dato o no está registrado dispara Web Scraping MinTrabajo/SENA) ➔ "🪖 Cursos de Alturas y Confinados por Vencer — Somos SST (+ Web Scraping)".\n` +
     `  10) Licencias de Conducción por vencer de conductores en Somos SST ➔ "🪪 Licencias de Conducción por Vencer — Somos SST".\n` +
     `  11) Programa de Capacitación y Rutas LMS pendientes o vencidas en Somos SST ➔ "🎓 Programa de Capacitación y Rutas LMS Pendientes — Somos SST".\n` +
     `  12) Centro de Control SG-SST, puntaje Res. 0312 y tareas ACPM vencidas en Somos SST ➔ "🎛️ Centro de Control SG-SST, Res. 0312 y ACPM — Somos SST".\n` +

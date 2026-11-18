@@ -14,7 +14,7 @@ const fs = require('fs');
 const EXPECTED_CATALOG_COUNT = 30;
 const EXPECTED_CATALOG_VERSION = '2026.11.18-v61-n8n-curated-30';
 const EXPECTED_TENSHI_FLOW_COUNT = 16;
-const EXPECTED_TENSHI_SEED_VERSION = '2026-11-18-v7';
+const EXPECTED_TENSHI_SEED_VERSION = '2026-11-18-v8';
 const EXPECTED_CATEGORY_COUNTS = {
   salud_vencimientos: 5,
   drive_sincronizacion: 5,
@@ -338,6 +338,14 @@ const VALID_PRE_SOURCE_CONDITION_TYPES = new Set([
   'has_attached_document',
 ]);
 
+const VALID_PRE_AGENT_CONDITION_TYPES = new Set([
+  'critical_findings',
+  'new_external_items',
+  'numeric_threshold',
+  'keyword_match',
+  'cedula_in_perfil_socio_or_scrape',
+]);
+
 const VALID_STRUCTURED_VERIFIER_TOOLS = new Set([
   'tool_web_scraping_agy',
   'forensic_doc_verifier',
@@ -345,7 +353,7 @@ const VALID_STRUCTURED_VERIFIER_TOOLS = new Set([
 
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
 const INTERNAL_CODE_IDENTIFIERS_REGEX =
-  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|forensic_doc_verifier|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|google_antigravity|chrome_mcp|antigravity_native_browser|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|has_explicit_cedula_or_placa|has_attached_document|selectiveMultiPortalRouting|allowDirectNameWithoutWorkerMatch|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
+  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|forensic_doc_verifier|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|google_antigravity|chrome_mcp|antigravity_native_browser|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|has_explicit_cedula_or_placa|has_attached_document|cedula_in_perfil_socio_or_scrape|conditionalFallbackOnly|selectiveMultiPortalRouting|allowDirectNameWithoutWorkerMatch|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
 
 function getHitoConfig(nodeConfigs, hitoId) {
   if (!nodeConfigs || typeof nodeConfigs !== 'object') return {};
@@ -739,6 +747,28 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
       errors.push(
         '[Inv-08] `ifPlacement: "pre_agent"` inválido: no existe ninguna fuente de datos en Etapa 2 antes de la compuerta.',
       );
+    }
+    if (placement === 'pre_agent' && ifCfg.ifConditionType) {
+      const preAgentCondType = String(ifCfg.ifConditionType).trim();
+      if (!VALID_PRE_AGENT_CONDITION_TYPES.has(preAgentCondType)) {
+        errors.push(
+          `[Inv-08] \`ifConditionType\` inválido para \`pre_agent\`: "${preAgentCondType}". Permitidos: ${Array.from(VALID_PRE_AGENT_CONDITION_TYPES).join(', ')}.`,
+        );
+      }
+      if (preAgentCondType === 'cedula_in_perfil_socio_or_scrape') {
+        if (!sourceHitos.includes('hito2_perfil_socio')) {
+          errors.push(
+            '[Inv-08] `ifConditionType: "cedula_in_perfil_socio_or_scrape"` requiere `hito2_perfil_socio` en Etapa 2 (`hitoRole: "source_read"`).',
+          );
+        }
+        const altoRiesgoCfg =
+          nodeConfigs.tool_inputs_scraper_agy_alto_riesgo || nodeConfigs.scraper_agy_alto_riesgo || {};
+        if (!inputs.includes('scraper_agy_alto_riesgo') || altoRiesgoCfg.conditionalFallbackOnly !== true) {
+          errors.push(
+            '[Inv-08] `ifConditionType: "cedula_in_perfil_socio_or_scrape"` requiere `scraper_agy_alto_riesgo` en `inputs[]` con `conditionalFallbackOnly: true`.',
+          );
+        }
+      }
     }
     if (placement === 'post_agent') {
       const pText = String(preset.prompt || '');

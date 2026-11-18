@@ -942,6 +942,7 @@ class GestorAutomatizaciones extends Tool {
         handled: true,
         response: JSON.stringify({
           success: true,
+          origenFlujo: 'flujo_propio_empresa',
           clonadoDesdePreset: false,
           triggeredNow: Boolean(executeImmediately),
           id: alreadyInCompany._id.toString(),
@@ -1032,6 +1033,7 @@ class GestorAutomatizaciones extends Tool {
       handled: true,
       response: JSON.stringify({
         success: true,
+        origenFlujo: 'flujo_propio_empresa',
         clonadoDesdePreset: true,
         presetKey: bestPreset.presetKey || null,
         triggeredNow: Boolean(executeImmediately),
@@ -1198,6 +1200,7 @@ class GestorAutomatizaciones extends Tool {
     userInstruction = '',
     esperar_resultado = true,
     attachedMedia = null,
+    fallbackFromOwnFlow = false,
   }) {
     const { executeTenshiFlowInstant } = require('~/server/services/tenshiFlowService');
     const isVoice = Boolean(this.req?.isVoiceSession);
@@ -1218,6 +1221,8 @@ class GestorAutomatizaciones extends Tool {
       if (execRes?.completedInTurn === false || execRes?.status === 'running_background') {
         return JSON.stringify({
           success: true,
+          origenFlujo: 'flujo_global_tenshi',
+          ...(fallbackFromOwnFlow ? { fallbackDesdeEjecutarAhora: true } : {}),
           mode: 'background_continued',
           flujo: execRes?.flowName || flow?.name || 'Flujo Tenshi',
           empresa: strictCtx.companyName,
@@ -1244,6 +1249,8 @@ class GestorAutomatizaciones extends Tool {
 
         return JSON.stringify({
           success: true,
+          origenFlujo: 'flujo_global_tenshi',
+          ...(fallbackFromOwnFlow ? { fallbackDesdeEjecutarAhora: true } : {}),
           mode: 'instant',
           flujo: execRes.flowName || flow?.name || 'Flujo Tenshi',
           empresa: strictCtx.companyName,
@@ -1260,13 +1267,113 @@ class GestorAutomatizaciones extends Tool {
 
       return JSON.stringify({
         error: execRes?.error || 'Error ejecutando el flujo interno.',
+        origenFlujo: 'flujo_global_tenshi',
+        ...(fallbackFromOwnFlow ? { fallbackDesdeEjecutarAhora: true } : {}),
+        flujo: execRes?.flowName || flow?.name || 'Flujo Tenshi',
         logId: execRes?.logId || null,
       });
     } catch (flowErr) {
       return JSON.stringify({
         error: flowErr?.message || 'Error ejecutando el flujo interno.',
+        origenFlujo: 'flujo_global_tenshi',
+        ...(fallbackFromOwnFlow ? { fallbackDesdeEjecutarAhora: true } : {}),
+        flujo: flow?.name || 'Flujo Tenshi',
       });
     }
+  }
+
+  async _executeCompanyAutomation({
+    automation,
+    companyId,
+    userId,
+    matchSource = 'id',
+    matchedVoiceCommand = null,
+    automatizacion_id = '',
+    nombre = '',
+    instruccion_usuario = '',
+    redirectedFromTenshi = false,
+  }) {
+    const {
+      runAutomation,
+      calculateNextRun,
+      hasCronTrigger,
+    } = require('~/server/services/automationScheduler');
+
+    if (automation.lastRunStatus === 'running') {
+      return JSON.stringify({
+        origenFlujo: 'flujo_propio_empresa',
+        ...(redirectedFromTenshi ? { redirigidoDesdeEjecutarTenshi: true } : {}),
+        id: automation._id.toString(),
+        nombre: automation.name,
+        advertencia: `La automatización "${automation.name}" ya se encuentra ejecutándose en segundo plano en este momento.`,
+      });
+    }
+
+    // Si estaba inactiva y fue invocada por comando Tenshi, activarla también respetando límite de plan
+    const updateSet = { lastRunStatus: 'running' };
+    if (automation.status !== 'active' && matchSource === 'voiceCommand') {
+      const { limit: effectiveLimit } = await this._getEffectiveAutomationLimit(userId);
+      const currentActive = await Automation.countDocuments({
+        user: userId,
+        status: 'active',
+        isTenshiFlow: { $ne: true },
+        isSystemPreset: { $ne: true },
+      });
+      if (currentActive < effectiveLimit) {
+        updateSet.status = 'active';
+        updateSet.nextRunAt = hasCronTrigger(automation)
+          ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
+          : null;
+      }
+    }
+
+    await Automation.updateOne(
+      { _id: automation._id, ...this._buildSafeCompanyFilter(companyId) },
+      { $set: updateSet },
+    );
+
+    const cleanInstruction = String(instruccion_usuario || '').trim();
+    const attachedMedia = this.req?.__tenshiAttachedMedia || null;
+    const runOptions =
+      matchSource === 'voiceCommand' || redirectedFromTenshi || cleanInstruction || attachedMedia
+        ? {
+            isManual: true,
+            triggerSource:
+              matchSource === 'voiceCommand' || redirectedFromTenshi
+                ? 'tenshi_voice'
+                : 'manual',
+            ...(cleanInstruction ? { userInstruction: cleanInstruction } : {}),
+            ...(attachedMedia ? { attachedMedia } : {}),
+            eventPayload: {
+              commandText:
+                cleanInstruction || automatizacion_id || nombre || matchedVoiceCommand || '',
+              ...(cleanInstruction ? { userMessage: cleanInstruction } : {}),
+              matchedVoiceCommand: matchedVoiceCommand || null,
+              invokedVia: redirectedFromTenshi
+                ? 'gestor_automatizaciones_redirect_own_flow'
+                : 'gestor_automatizaciones',
+              ...(attachedMedia ? { attachedMedia } : {}),
+            },
+          }
+        : true;
+
+    runAutomation(automation, runOptions).catch((err) => {
+      console.error('[GestorAutomatizaciones Tool] Error en ejecución manual background:', err);
+    });
+
+    return JSON.stringify({
+      success: true,
+      origenFlujo: 'flujo_propio_empresa',
+      ...(redirectedFromTenshi ? { redirigidoDesdeEjecutarTenshi: true } : {}),
+      id: automation._id.toString(),
+      nombre: automation.name,
+      matchedVoiceCommand: matchedVoiceCommand || null,
+      mensaje: redirectedFromTenshi
+        ? `El ID corresponde al flujo propio de tu empresa "${automation.name}". Ejecución iniciada inmediatamente en segundo plano.`
+        : matchedVoiceCommand
+          ? `Ejecución iniciada inmediatamente en segundo plano para el flujo propio de tu empresa "${automation.name}" (comando "${matchedVoiceCommand}").`
+          : `Ejecución iniciada inmediatamente en segundo plano para la tarea propia de tu empresa "${automation.name}".`,
+    });
   }
 
   async _getEffectiveAutomationLimit(userId) {
@@ -1430,19 +1537,51 @@ class GestorAutomatizaciones extends Tool {
         const query = String(automatizacion_id || nombre || instruccion_usuario || '').trim();
         if (!query) {
           return JSON.stringify({
-            error: 'Debes indicar el nombre, código o comando del Flujo Tenshi a ejecutar.'
+            error: 'Debes indicar el nombre, código o comando del Flujo Tenshi a ejecutar.',
+            origenFlujo: 'flujo_global_tenshi',
           });
         }
+
+        // Si el usuario (o modelo) pasó el _id exacto de un flujo propio de su empresa, redirigir limpiamente sin error
+        const rawOwnIdCandidate = this._isObjectId(automatizacion_id)
+          ? String(automatizacion_id).trim()
+          : this._isObjectId(nombre)
+            ? String(nombre).trim()
+            : this._isObjectId(query)
+              ? query
+              : '';
+        if (rawOwnIdCandidate) {
+          const ownCompanyFlowById = await Automation.findOne({
+            _id: rawOwnIdCandidate,
+            ...this._buildSafeCompanyFilter(companyId),
+          });
+          if (ownCompanyFlowById) {
+            return await this._executeCompanyAutomation({
+              automation: ownCompanyFlowById,
+              companyId,
+              userId,
+              matchSource: 'id',
+              matchedVoiceCommand: null,
+              automatizacion_id,
+              nombre,
+              instruccion_usuario,
+              redirectedFromTenshi: true,
+            });
+          }
+        }
+
         const activeFlows = await listActiveTenshiFlows();
         if (!activeFlows || activeFlows.length === 0) {
           return JSON.stringify({
-            error: 'No hay Flujos Tenshi activos disponibles en el sistema en este momento.'
+            error: 'No hay Flujos Tenshi activos disponibles en el sistema en este momento.',
+            origenFlujo: 'flujo_global_tenshi',
           });
         }
         const matchRes = await matchTenshiFlowByQuery(query, activeFlows);
         if (!matchRes?.flow) {
           return JSON.stringify({
-            error: `No se encontró ningún Flujo Tenshi activo que coincida con "${query}".`
+            error: `No se encontró ningún Flujo Tenshi activo que coincida con "${query}".`,
+            origenFlujo: 'flujo_global_tenshi',
           });
         }
         const attachedMedia = this.req?.__tenshiAttachedMedia || null;
@@ -1905,6 +2044,7 @@ class GestorAutomatizaciones extends Tool {
           const { flujosDisponiblesEmpresa, summaryText } = this._formatCompanyAutomationsForError(companyAutos);
           return JSON.stringify({
             error: `Debes indicar el nombre exacto o ID del flujo/automatización que deseas ejecutar.${summaryText}`,
+            origenFlujo: 'flujo_propio_empresa',
             flujosDisponiblesEmpresa,
           });
         }
@@ -1916,12 +2056,13 @@ class GestorAutomatizaciones extends Tool {
           companyAutomations,
         } = await this._resolveTargetAutomations(companyId, userId, {
           automatizacion_id,
-          nombre,
+          nombre: nombre || (!automatizacion_id ? instruccion_usuario : ''),
         });
         const automation = matches[0];
         if (!automation) {
           const fallbackQuery = String(automatizacion_id || nombre || instruccion_usuario || '').trim();
           if (fallbackQuery) {
+            // Fallback transparente a Flujos Globales Tenshi si la empresa no tiene un flujo propio que coincida con score >= 55
             const activeFlows = await listActiveTenshiFlows();
             const matchRes = await matchTenshiFlowByQuery(fallbackQuery, activeFlows);
             if (matchRes?.flow) {
@@ -1930,6 +2071,8 @@ class GestorAutomatizaciones extends Tool {
                 strictCtx,
                 userInstruction: instruccion_usuario || nombre || automatizacion_id || '',
                 esperar_resultado: esperar_resultado !== false,
+                attachedMedia: this.req?.__tenshiAttachedMedia || null,
+                fallbackFromOwnFlow: true,
               });
             }
 
@@ -1952,60 +2095,21 @@ class GestorAutomatizaciones extends Tool {
           const { flujosDisponiblesEmpresa, summaryText } = this._formatCompanyAutomationsForError(companyAutomations);
           return JSON.stringify({
             error: `No se encontró la tarea/automatización "${automatizacion_id || nombre || ''}" ni en tu empresa ni en los 30 flujos preestablecidos para ejecutar.${summaryText}`,
+            origenFlujo: 'flujo_propio_empresa',
             flujosDisponiblesEmpresa,
           });
         }
 
-        if (automation.lastRunStatus === 'running') {
-          return JSON.stringify({
-            advertencia: `La automatización "${automation.name}" ya se encuentra ejecutándose en segundo plano en este momento.`
-          });
-        }
-
-        // Si estaba inactiva y fue invocada por comando Tenshi, activarla también respetando límite de plan
-        const updateSet = { lastRunStatus: 'running' };
-        if (automation.status !== 'active' && matchSource === 'voiceCommand') {
-          const { limit: effectiveLimit } = await this._getEffectiveAutomationLimit(userId);
-          const currentActive = await Automation.countDocuments({
-            user: userId,
-            status: 'active',
-            isTenshiFlow: { $ne: true },
-            isSystemPreset: { $ne: true },
-          });
-          if (currentActive < effectiveLimit) {
-            updateSet.status = 'active';
-            updateSet.nextRunAt = hasCronTrigger(automation)
-              ? calculateNextRun(automation.scheduleType, automation.scheduleConfig)
-              : null;
-          }
-        }
-
-        await Automation.updateOne({ _id: automation._id, ...this._buildSafeCompanyFilter(companyId) }, { $set: updateSet });
-
-        runAutomation(
+        return await this._executeCompanyAutomation({
           automation,
-          matchSource === 'voiceCommand'
-            ? {
-                triggerSource: 'tenshi_voice',
-                eventPayload: {
-                  commandText: automatizacion_id || nombre || matchedVoiceCommand || '',
-                  matchedVoiceCommand,
-                  invokedVia: 'gestor_automatizaciones',
-                },
-              }
-            : true,
-        ).catch(err => {
-          console.error('[GestorAutomatizaciones Tool] Error en ejecución manual background:', err);
-        });
-
-        return JSON.stringify({
-          success: true,
-          id: automation._id.toString(),
-          nombre: automation.name,
-          matchedVoiceCommand: matchedVoiceCommand || null,
-          mensaje: matchedVoiceCommand
-            ? `Ejecución iniciada inmediatamente en segundo plano para el flujo "${automation.name}" (comando "${matchedVoiceCommand}").`
-            : `Ejecución iniciada inmediatamente en segundo plano para la tarea "${automation.name}".`
+          companyId,
+          userId,
+          matchSource,
+          matchedVoiceCommand,
+          automatizacion_id,
+          nombre,
+          instruccion_usuario,
+          redirectedFromTenshi: false,
         });
       }
 
