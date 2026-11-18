@@ -429,7 +429,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
   const rawId = (activeNode.nodeId || '').trim();
   const cleanId = rawId.replace(
-    /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+    /^(trigger_|extractor_|ext_|hito_src_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
     '',
   );
   const isNotebookLmNode = cleanId === 'notebooklm' || cleanId === 'wappy_rag_documental';
@@ -1502,7 +1502,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         </div>
 
         <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-          Elige cómo debe conectarse este nodo a Google Antigravity. En modo Automático intentará primero con tu PC/Mac local y, si no está encendido, pasará automáticamente a Antigravity Cloud 24/7.
+          Cascada de protección automática: <strong>1° Antigravity Local · Navegador Nativo Integrado</strong> ➔ <strong>2° Antigravity Cloud 24/7</strong> ➔ <strong>3° Respaldo HTTP Seguro sin Chromium en VPS</strong>.
         </p>
 
         <div className="flex flex-wrap items-center gap-2 py-1 px-1">
@@ -3768,7 +3768,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     }
 
     // 7.2 NOTIFICAR EN WAPPY + TENSHI VOZ
-    if (cleanId.includes('wappy_notification')) {
+    if (cleanId.includes('wappy_notification') || cleanId === 'notify_wappy') {
       return (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -4351,7 +4351,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               {
                 id: 'pre_source' as const,
                 title: '🚦 Al Inicio / Pre-Fuentes: Enrutar Cédula vs Búsqueda por Nombre',
-                desc: 'Si el usuario dio Cédula (SÍ), salta directo al Web Scraping ARL; si solo dio Nombre (NO), busca primero en Perfil Sociodemográfico y converge.',
+                desc: 'Si el usuario dio Cédula (SÍ), conecta directo al Agente IA (y su herramienta Web Scraping ARL) sin leer nómina; si solo dio Nombre (NO), busca primero en Perfil Sociodemográfico y converge al Agente IA.',
               },
               {
                 id: 'pre_agent' as const,
@@ -4531,8 +4531,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               🚦 Topología Convergente Pre-Fuentes (`pre_source`)
             </span>
             <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-              • <strong>🟢 Rama SÍ (Dio Cédula):</strong> Conecta directo por el carril superior hacia el Extractor (ej. <em>Web Scraping ARL · Antigravity</em>) sin consultar nómina.<br />
-              • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge limpia hacia el Extractor y la Salida final.
+              • <strong>🟢 Rama SÍ (Dio Cédula):</strong> Conecta directo por el carril superior hacia el <strong>Agente IA</strong> (que invoca su herramienta <em>Web Scraping ARL · Antigravity</em> en <code>Herramienta +</code>) sin consultar nómina.<br />
+              • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge directamente hacia el <strong>Agente IA</strong> y la Salida final.
             </p>
           </div>
         ) : (
@@ -4855,6 +4855,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       rawId.includes('scraping') ||
       rawId.includes('web_scraper') ||
       rawId.includes('scraper_agy_') ||
+      cleanId.includes('scraper_agy_') ||
       rawId.includes('scraper_node') ||
       cleanId.includes('scraper_node'));
   const isWebSearchNode =
@@ -4867,6 +4868,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       cleanId.includes('search_node'));
 
   if (isWebScraperNode) {
+    const isOfficialAgyPortalScraper = cleanId.startsWith('scraper_agy_');
+    const isConnectedAsAgentTool =
+      activeNode.shape === 'circle_tool' || activeNode.key.startsWith('tool_inputs_');
     const rawTargetUrl =
       currentCfg.targetUrl ?? customNodeObj?.targetUrl ?? catalogScraperDef?.targetUrl ?? '';
     const parsedTargetUrls = String(rawTargetUrl || '')
@@ -4889,147 +4893,178 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       cleanId === 'extract_web_scraping_agy' ||
       cleanId === 'tool_web_scraping_agy' ||
       cleanId === 'scraper_node_antigravity' ||
-      !cleanId.includes('scraper_agy_');
+      !isOfficialAgyPortalScraper;
     const onlyOnContentChangeChecked =
       currentCfg.onlyOnContentChange !== undefined
         ? Boolean(currentCfg.onlyOnContentChange)
         : isGenericScraperMonitor;
 
     return (
-      <div className="p-3.5 rounded-2xl border border-orange-300 dark:border-orange-700/80 bg-orange-50/40 dark:bg-orange-950/20 space-y-3 min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-black uppercase text-orange-800 dark:text-orange-300 flex items-center gap-1.5">
-            <Terminal className="w-4 h-4 shrink-0" />
-            🕷️ Estudio de Web Scraping (Servidor Autónomo & Antigravity)
-          </span>
-          <span
-            className={`px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold border ${
-              isAutonomousServerEngine
-                ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
-                : antigravityStatus.connected
-                  ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
-                  : 'bg-amber-500/15 text-amber-800 border-amber-500/40 dark:text-amber-300'
-            }`}
-          >
-            {isAutonomousServerEngine
-              ? '🟢 Autónomo en Servidor 24/7 (Sin depender de PC)'
-              : antigravityStatus.connected
-                ? '🟢 Instancia Antigravity Conectada'
-                : '⚠️ Requiere tu instancia de Google Antigravity conectada'}
-          </span>
-        </div>
+      <div className="space-y-3.5 min-w-0">
+        {isOfficialAgyPortalScraper && renderFieldChecklistSection('teal')}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
-              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
-                🔗 URLs Públicas a Scrapear (Hasta 5 URLs)
-              </label>
+        <div className="p-3.5 rounded-2xl border border-emerald-500/35 dark:border-emerald-700/80 bg-emerald-500/5 dark:bg-slate-900/60 space-y-3 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase text-emerald-800 dark:text-[#C7F303] flex items-center gap-1.5">
+              <Terminal className="w-4 h-4 shrink-0" />
+              {cleanId === 'scraper_agy_arl_directo'
+                ? '🛡️ Verificación Directa ARL · Navegador Nativo Antigravity'
+                : '🕷️ Estudio de Web Scraping (Navegador Nativo Antigravity & Servidor)'}
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-xl text-[10px] font-extrabold border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300">
+                {isConnectedAsAgentTool ? '🔧 Herramienta + del Agente IA' : '📥 Etapa 2 · Extracción'}
+              </span>
               <span
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${
-                  parsedTargetUrls.length > 5
-                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
-                    : 'bg-orange-500/10 border-orange-500/30 text-orange-800 dark:text-orange-300'
+                className={`px-2.5 py-0.5 rounded-xl text-[10px] font-extrabold border ${
+                  isAutonomousServerEngine
+                    ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
+                    : antigravityStatus.connected
+                      ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 dark:text-emerald-300'
+                      : 'bg-sky-500/15 text-sky-800 border-sky-500/40 dark:text-sky-300'
                 }`}
               >
-                {parsedTargetUrls.length}/5 URLs
-                {parsedTargetUrls.length > 5 ? ' · Máx 5' : ''}
+                {isAutonomousServerEngine
+                  ? '🟢 Autónomo en Servidor 24/7'
+                  : antigravityStatus.connected
+                    ? '🟢 Antigravity Conectado · Navegador Nativo'
+                    : '🛡️ Cascada activa (Respaldo HTTP Seguro sin Chromium en VPS)'}
               </span>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-xl border border-teal-500/25 bg-white/80 dark:bg-slate-950/50 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+            <strong>Ruta de ejecución segura:</strong> 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                  🔗 Portales Oficiales / URLs Objetivo
+                </label>
+                <span
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${
+                    parsedTargetUrls.length > 5 && !isOfficialAgyPortalScraper
+                      ? 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                      : 'bg-teal-500/10 border-teal-500/30 text-teal-800 dark:text-teal-300'
+                  }`}
+                >
+                  {parsedTargetUrls.length} portal{parsedTargetUrls.length === 1 ? '' : 'es'}
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={rawTargetUrl}
+                onChange={(e) => onUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })}
+                placeholder={
+                  'Una URL pública por línea o separadas por coma:\nhttps://www.arlsura.com/afiliacion/verificar.php\nhttps://www.positivaenlinea.gov.co/nuevo/'
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-white leading-relaxed"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                  ⚡ Motor de Extracción Web (`scriptEngine`)
+                </label>
+                <select
+                  value={normalizedEngine}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, { scriptEngine: e.target.value as any })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
+                >
+                  <option value="chrome_mcp">
+                    🌐 Navegador Nativo Integrado de Antigravity (1° Local ➔ 2° Cloud ➔ 3° HTTP Seguro)
+                  </option>
+                  <option value="auto_chrome_dom">
+                    ⚡ Autónomo en Servidor · HTML + DOM JS (Sin Chromium en VPS)
+                  </option>
+                  <option value="fetch_cheerio">
+                    🚀 Rápido HTML Estático (Fetch + Cheerio)
+                  </option>
+                  <option value="python_bs4">
+                    🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
+                  </option>
+                  <option value="node_cheerio">
+                    🟢 Node.js (Cheerio + Puppeteer en Antigravity)
+                  </option>
+                  <option value="custom_script">💻 Script Personalizado CLI</option>
+                </select>
+              </div>
+
+              {isGenericScraperMonitor && (
+                <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-teal-500/30 bg-white/80 dark:bg-slate-900/70 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={onlyOnContentChangeChecked}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, { onlyOnContentChange: e.target.checked })
+                    }
+                    className="rounded border-teal-500 text-teal-600 mt-0.5 shrink-0"
+                  />
+                  <span className="leading-snug">
+                    🔐 Activar rama SÍ solo si detecta cambio real SHA-256 respecto a la corrida anterior
+                  </span>
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              💬 Instrucción Operativa para este Conector (`customInstruction`)
+            </label>
+            <input
+              type="text"
+              value={currentCfg.customInstruction || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+              }
+              placeholder="Ej: Consultar afiliación ARL por Cédula en cascada (1° Antigravity Local ➔ 2° Cloud ➔ 3° Respaldo HTTP Seguro) y descargar certificado PDF/PNG..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <label className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+                🎯 Selectores CSS Opcionales o Guía del Navegador Nativo / Script
+              </label>
+              <ExpandableButton
+                size="sm"
+                variant="teal"
+                icon={<Wand2 className="w-3.5 h-3.5" />}
+                label={
+                  isAutonomousServerEngine
+                    ? 'Sugerir Selectores CSS'
+                    : 'Autogenerar Guía para esta URL'
+                }
+                onClick={() => {
+                  const target = (parsedTargetUrls[0] || 'https://ejemplo.gov.co').trim();
+                  const autoScript = isAutonomousServerEngine
+                    ? `.noticia, article, table tr, h1, h2, a[href$='.pdf']`
+                    : normalizedEngine === 'python_bs4'
+                      ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
+                      : normalizedEngine === 'node_cheerio'
+                        ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${target}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
+                        : `Consultar ${target} mediante el Navegador Nativo Integrado de Antigravity (1° Local ➔ 2° Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS), extraer todas las tablas y soportes PDF/PNG y entregarlos en Markdown limpio.`;
+                  onUpdateNodeConfig(activeNode.key, { scriptCode: autoScript });
+                }}
+              />
             </div>
             <textarea
               rows={3}
-              value={rawTargetUrl}
-              onChange={(e) => onUpdateNodeConfig(activeNode.key, { targetUrl: e.target.value })}
-              placeholder={
-                'Una URL pública por línea o separadas por coma (máximo 5):\nhttps://www.mintrabajo.gov.co/normatividad\nhttps://www.minsalud.gov.co/Normativa'
+              value={
+                currentCfg.scriptCode ?? customNodeObj?.scriptCode ?? catalogScraperDef?.scriptCode ?? ''
               }
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-white leading-relaxed"
+              onChange={(e) => onUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })}
+              placeholder="Selectores CSS opcionales (ej. .noticia, table, article, h2) o guía para el Navegador Nativo de Antigravity..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-slate-100"
             />
           </div>
-
-          <div className="space-y-2">
-            <div>
-              <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                ⚡ Motor de Extracción Web (`scriptEngine`)
-              </label>
-              <select
-                value={normalizedEngine}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { scriptEngine: e.target.value as any })
-                }
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
-              >
-                <option value="auto_chrome_dom">
-                  ⚡ Autónomo en Servidor · HTML + DOM JS (Recomendado)
-                </option>
-                <option value="fetch_cheerio">
-                  🚀 Rápido HTML Estático (Fetch + Cheerio)
-                </option>
-                <option value="chrome_mcp">
-                  🌐 Navegador Antigravity Local para Intranet (Chrome MCP)
-                </option>
-                <option value="python_bs4">
-                  🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
-                </option>
-                <option value="node_cheerio">
-                  🟢 Node.js (Cheerio + Puppeteer en Antigravity)
-                </option>
-                <option value="custom_script">💻 Script Personalizado CLI</option>
-              </select>
-            </div>
-
-            <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-orange-500/30 bg-white/80 dark:bg-slate-900/70 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={onlyOnContentChangeChecked}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { onlyOnContentChange: e.target.checked })
-                }
-                className="rounded border-orange-500 text-orange-600 mt-0.5 shrink-0"
-              />
-              <span className="leading-snug">
-                🔐 Activar rama SÍ solo si detecta cambio real SHA-256 respecto a la corrida anterior
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-            <label className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
-              🎯 Selectores CSS Opcionales (ej. `.noticia, table, article, h2`) o Script Personalizado
-            </label>
-            <ExpandableButton
-              size="sm"
-              variant="amber"
-              icon={<Wand2 className="w-3.5 h-3.5" />}
-              label={
-                isAutonomousServerEngine
-                  ? 'Sugerir Selectores CSS'
-                  : 'Autogenerar Script para esta URL'
-              }
-              onClick={() => {
-                const target = (parsedTargetUrls[0] || 'https://ejemplo.gov.co').trim();
-                const autoScript = isAutonomousServerEngine
-                  ? `.noticia, article, table tr, h1, h2, a[href$='.pdf']`
-                  : normalizedEngine === 'python_bs4'
-                    ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${target}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor el in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(el.get_text(strip=True))`
-                    : normalizedEngine === 'node_cheerio'
-                      ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${target}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
-                      : `Abrir ${target} con Chrome DevTools MCP, extraer todas las tablas y enlaces PDF y entregarlos en Markdown limpio.`;
-                onUpdateNodeConfig(activeNode.key, { scriptCode: autoScript });
-              }}
-            />
-          </div>
-          <textarea
-            rows={3}
-            value={
-              currentCfg.scriptCode ?? customNodeObj?.scriptCode ?? catalogScraperDef?.scriptCode ?? ''
-            }
-            onChange={(e) => onUpdateNodeConfig(activeNode.key, { scriptCode: e.target.value })}
-            placeholder="Selectores CSS opcionales (ej. .noticia, table, article, h2) o script Python / Node.js personalizado..."
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-xs text-slate-800 dark:text-slate-100"
-          />
         </div>
       </div>
     );
@@ -6356,6 +6391,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
     return (
       <div className="space-y-3">
+        {(cleanId === 'google_antigravity' || cleanId === 'google_antigravity_cloud') && (
+          <>
+            <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 dark:bg-slate-900/70 text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed">
+              🛰️ <strong>Navegador Nativo Integrado de Antigravity:</strong> 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS.
+            </div>
+            {renderFieldChecklistSection('purple')}
+          </>
+        )}
+
         {cleanId === 'one_drive' && (
           <div className="p-3 rounded-xl border border-amber-300 dark:border-amber-800/70 bg-amber-50/40 dark:bg-amber-950/20 flex items-center justify-between gap-2 text-xs text-amber-900 dark:text-amber-200 font-bold">
             <span>🚧 Conector Microsoft OneDrive / SharePoint en Construcción (Próximamente)</span>

@@ -2,10 +2,40 @@
 
 const mongoose = require('mongoose');
 
-const DEFAULT_QUERY_MAX_TIME_MS = 650;
-const DEFAULT_LOOKUP_MAX_TIME_MS = 350;
+const DEFAULT_QUERY_MAX_TIME_MS = 1200;
+const DEFAULT_LOOKUP_MAX_TIME_MS = 500;
 const AUTOMATION_DEDUP_WINDOW_MS = 15000;
 const GENERAL_DEDUP_WINDOW_MS = 60000;
+const DEFAULT_ACTIVITY_CACHE_TTL_MS = 8000;
+const MAX_ACTIVITY_CACHE_ENTRIES = 200;
+const PHASE_1_CONCURRENCY = 8;
+const PHASE_2_CONCURRENCY = 6;
+const SUBSTANTIVE_PROMOTION_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+const activityMemoryCache = new Map();
+const inFlightActivityRequests = new Map();
+
+const PHASE_1_PRIORITY_KEYS = new Set([
+  'automation_log',
+  'tenshi_report',
+  'studio_project',
+  'gtc45_workspace',
+  'pesv_workspace',
+  'chemical_compat_workspace',
+  'live_editor',
+  'live_document',
+  'canvas_session',
+  'canvas_file',
+  'conversation',
+  'kanban_task',
+  'estudio_puesto',
+  'diagnostico_0312',
+  'matriz_peligros',
+  'investigacion_atel',
+  'perfil_sociodemografico',
+  'sgsst_worker',
+  'user_progress',
+]);
 
 const GENERIC_CHAT_TITLES = [
   'New Chat',
@@ -213,22 +243,87 @@ function isGenericTitle(rawTitle) {
   );
 }
 
+function isPsychosocialAnonymousOrStaleNoise(rawTitle, ts, opts = {}) {
+  const clean = String(rawTitle || '').replace(/\s+/g, ' ').trim();
+  const norm = normalizeAscii(clean);
+  if (!norm) {
+    return false;
+  }
+
+  // Sesiones públicas anónimas o check-ins de trabajadores nunca son actividad del administrador
+  if (
+    /\bsesion\s+anonima\b/.test(norm) ||
+    /\bcheck\s*in\s+voluntario\b/.test(norm) ||
+    /\bpulso\s+anonimo\b/.test(norm) ||
+    /\bregistro\s+termometro\s+psicosocial\b/.test(norm)
+  ) {
+    return true;
+  }
+
+  const isPsychosocialThermometer =
+    opts.fileType === 'animo' ||
+    /\btermometro\s+psicosocial\b/.test(norm) ||
+    norm === 'archivo canvas (termometro psicosocial)';
+
+  if (isPsychosocialThermometer) {
+    // Plantillas automáticas de Canvas/Agent sin título ejecutivo explícito del usuario
+    if (
+      opts.isAutoCanvas ||
+      norm === 'termometro psicosocial' ||
+      norm === 'archivo canvas (termometro psicosocial)'
+    ) {
+      return true;
+    }
+    if (!Number.isFinite(ts) || ts <= 0) {
+      return true;
+    }
+    const now = new Date();
+    if (now.getTime() - ts > 24 * 3600 * 1000) {
+      return true;
+    }
+    const { colDate: itemDate } = getBogotaDateParts(new Date(ts));
+    const { colDate: todayDate } = getBogotaDateParts(now);
+    if (itemDate !== todayDate) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function isMeaningfulUserPrompt(rawText) {
   if (typeof rawText !== 'string') {
     return false;
   }
   const clean = rawText.replace(/\s+/g, ' ').trim();
-  if (!clean || clean.startsWith('[RESULTADO_GUI]') || clean.length < 15) {
+  if (!clean || clean.startsWith('[RESULTADO_GUI]') || clean.startsWith('[SISTEMA INTERNO') || clean.length < 18) {
     return false;
   }
   const norm = normalizeAscii(clean)
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!norm || norm.length < 10) {
+  if (!norm || norm.length < 12) {
     return false;
   }
   if (GREETING_ONLY_REGEX.test(norm) || VOICE_ECHO_PHRASE_REGEX.test(norm)) {
+    return false;
+  }
+  // Excluir meta-consultas sobre última actividad o pendientes para no pisar la actividad real
+  if (
+    /\b(?:ultima|ultimo|ultimas|ultimos|reciente|recientes)\s+(?:actividad|actividades|tarea|tareas|gestion|informe|trabajo)\b/.test(norm) ||
+    /\ben\s+que\s+quede\b/.test(norm) ||
+    /\bque\s+fue\s+lo\s+ultimo\b/.test(norm)
+  ) {
+    return false;
+  }
+  // Excluir respuestas conversacionales cortas de 1 línea ("Sí, revisa el último número...", "Dale, hazlo así", etc.)
+  if (
+    clean.length < 70 &&
+    /^(?:si|no|ok+|oki+|dale|listo|bueno|claro|perfecto|vale|entendido|revisa\s+(?:el\s+ultimo|eso|de\s+nuevo|otra\s+vez|bien|la\s+pantalla)|mira\s+(?:eso|ahi|aca)|intenta\s+(?:de\s+nuevo|otra\s+vez)|continua|sigue)\b/.test(
+      norm,
+    )
+  ) {
     return false;
   }
   return true;
@@ -436,23 +531,22 @@ function formatAutomationLogStatus(status) {
  * Registro declarativo unificado de todas las fuentes de actividad real del sistema.
  */
 const ACTIVITY_SOURCE_DESCRIPTORS = [
-  // ── 1. Flujos y Automatizaciones (/tareas) ───────────────────────────────
+  // ── 1. Flujos, Flujos Tenshi y Automatizaciones (/tareas) ────────────────
   {
     key: 'automation_log',
     modelName: 'AutomationLog',
     requirePath: '../../models/AutomationLog',
     mode: 'find',
-    limit: 3,
+    limit: 5,
     priority: 100,
-    sort: { updatedAt: -1, runAt: -1, createdAt: -1 },
-    select: 'automation status agentName tenshiFlowName triggerSource runAt updatedAt createdAt',
+    sort: { runAt: -1 },
+    select:
+      'automation status isTenshiFlow agentName tenshiFlowName userInstruction triggerSource runAt updatedAt createdAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
-      if (!scope) return null;
-      return {
-        ...scope,
-        isTenshiFlow: { $ne: true },
-      };
+      if (ctx.cidStr) {
+        return ctx.userAndCompanyFilter(Model, { allowNullLegacy: false });
+      }
+      return { user: ctx.resolveUserValue(Model) };
     },
     enrichDocs: async (docs, ctx) => {
       const autoIds = docs.map((d) => d.automation).filter(Boolean);
@@ -462,7 +556,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
         if (AutomationModel && typeof AutomationModel.find === 'function') {
           try {
             let q = AutomationModel.find({ _id: { $in: autoIds } });
-            if (typeof q.select === 'function') q = q.select('name presetCategory agentName adminOnly');
+            if (typeof q.select === 'function') q = q.select('name presetCategory agentName adminOnly isTenshiFlow');
             if (typeof q.maxTimeMS === 'function') q = q.maxTimeMS(DEFAULT_LOOKUP_MAX_TIME_MS);
             if (typeof q.lean === 'function') q = q.lean();
             const autos = await q;
@@ -481,14 +575,18 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
       if (auto?.adminOnly && !ctx.isAdmin) {
         return null;
       }
-      const flowName = String(
-        auto?.name || doc.tenshiFlowName || doc.agentName || 'Flujo automatizado',
-      ).trim();
+      const isTenshi = Boolean(doc.isTenshiFlow || auto?.isTenshiFlow || doc.tenshiFlowName);
+      const rawFlowName = isTenshi
+        ? doc.tenshiFlowName || auto?.name || doc.agentName || 'Flujo Tenshi'
+        : auto?.name || doc.tenshiFlowName || doc.agentName || 'Flujo automatizado';
+      const flowName = String(rawFlowName)
+        .replace(/^\[Flujo\s+(?:Tenshi|WAPPY)\]\s*/i, '')
+        .trim();
       const ts = extractTimestampMs(doc, ['updatedAt', 'runAt', 'createdAt']);
-      if (!ts) return null;
+      if (!ts || isPsychosocialAnonymousOrStaleNoise(flowName, ts)) return null;
       return {
         tipo: 'automatizacion',
-        modulo: 'Flujos (/tareas)',
+        modulo: isTenshi ? 'Flujos Tenshi' : 'Flujos (/tareas)',
         categoria: 'automatizaciones',
         titulo: formatAutomationLogTitle(doc.status, flowName),
         detalle: doc.triggerSource ? `Origen: ${doc.triggerSource}` : auto?.agentName || doc.agentName || '',
@@ -504,6 +602,51 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     },
   },
   {
+    key: 'studio_project',
+    modelName: 'StudioProject',
+    requirePath: '../../models/StudioProject',
+    mode: 'find',
+    limit: 3,
+    priority: 88,
+    sort: { updatedAt: -1, createdAt: -1 },
+    select: 'title name projectName scriptTitle mode projectType status updatedAt createdAt',
+    buildFilter: (ctx, Model) => {
+      const userField = Model?.schema?.path?.('userId') ? 'userId' : 'user';
+      if (ctx.cidStr && Model?.schema?.path?.('companyId')) {
+        return ctx.userAndCompanyFilter(Model, { userField, allowNullLegacy: true });
+      }
+      return { [userField]: ctx.resolveUserValue(Model, userField) };
+    },
+    mapDoc: (doc) => {
+      const rawName = String(
+        doc.title || doc.name || doc.projectName || doc.scriptTitle || '',
+      ).trim();
+      const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
+      if (!ts) return null;
+      const isPodcast = /podcast|audio|tts/i.test(String(doc.mode || doc.projectType || ''));
+      const modulo = isPodcast ? 'Wappy Podcast' : 'Wappy Studio';
+      const titulo = rawName && !isGenericTitle(rawName)
+        ? rawName
+        : isPodcast
+          ? 'Locución en Wappy Podcast'
+          : 'Proyecto audiovisual en Wappy Studio';
+      return {
+        tipo: 'studio',
+        modulo,
+        categoria: 'studio',
+        titulo,
+        detalle: doc.mode || doc.projectType || 'Producción audiovisual',
+        estado: String(doc.status || 'editado'),
+        ts,
+        _meta: {
+          key: 'studio_project',
+          priority: 88,
+          coreTitle: normalizeCoreTitle(titulo),
+        },
+      };
+    },
+  },
+  {
     key: 'automation',
     modelName: 'Automation',
     requirePath: '../../models/Automation',
@@ -514,7 +657,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     select: 'name status agentName presetCategory adminOnly updatedAt createdAt',
     buildFilter: (ctx, Model) => {
       const scope = ctx.userAndCompanyFilter(Model, {
-        allowNullLegacy: true,
+        allowNullLegacy: !ctx.cidStr,
         skipUserWhenCompanyActive: Boolean(ctx.cidStr),
       });
       if (!scope) return null;
@@ -529,7 +672,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
       const name = String(doc.name || '').trim();
       if (!name || isGenericTitle(name)) return null;
       const updatedMs = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
-      if (!updatedMs) return null;
+      if (!updatedMs || isPsychosocialAnonymousOrStaleNoise(name, updatedMs)) return null;
       const createdMs = doc.createdAt ? new Date(doc.createdAt).getTime() : 0;
 
       let prefix = 'Flujo actualizado';
@@ -569,51 +712,80 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     modelName: 'KanbanTask',
     requirePath: '../../models/KanbanTask',
     mode: 'find',
-    limit: 3,
+    limit: 8,
     priority: 72,
     sort: { updatedAt: -1, createdAt: -1 },
     select: 'title status type actionType priority sourceModule referenceName updatedAt createdAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
         status: { $ne: 'dismissed' },
-        title: { $nin: ['New Chat', 'new chat', '', null] },
-      };
-    },
-    mapDoc: (doc) => {
-      const cleanTitle = String(doc.title || '').trim();
-      if (!cleanTitle || isGenericTitle(cleanTitle)) return null;
-      const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
-      if (!ts) return null;
-
-      const isDelegation = doc.type === 'antigravity_delegation';
-      const titulo = isDelegation && !/^delegaci[oó]n\s*:/i.test(cleanTitle)
-        ? `Delegación: ${cleanTitle}`
-        : cleanTitle;
-      const detalle = [
-        doc.actionType || '',
-        doc.priority ? `Prioridad ${doc.priority}` : '',
-        doc.referenceName || '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-
-      return {
-        tipo: isDelegation ? 'delegacion' : 'tarea',
-        modulo: isDelegation ? 'Delegación Antigravity' : doc.sourceModule || 'Centro de Control ACPM',
-        categoria: isDelegation ? 'delegaciones' : 'agenda_acpm',
-        titulo,
-        detalle,
-        estado: KANBAN_STATUS_LABELS[doc.status] || String(doc.status || 'activa'),
-        ts,
-        _meta: {
-          key: 'kanban_task',
-          priority: 72,
-          coreTitle: normalizeCoreTitle(cleanTitle),
+        title: {
+          $nin: ['New Chat', 'new chat', '', null],
+          $not: /^\s*(?:delegaci[oó]n\s*:\s*)?\[flujo\s+(?:wappy|tenshi)\]/i,
         },
       };
+    },
+    mapDocs: (docs) => {
+      const results = [];
+      for (const doc of docs) {
+        const cleanTitle = String(doc.title || '').trim();
+        if (!cleanTitle || isGenericTitle(cleanTitle)) continue;
+        const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
+        if (!ts) continue;
+
+        const isDelegation = doc.type === 'antigravity_delegation';
+        // Excluir sub-órdenes técnicas internas generadas automáticamente por flujos WAPPY/Tenshi
+        if (
+          isDelegation &&
+          (/^\s*(?:delegaci[oó]n\s*:\s*)?\[flujo\s+(?:wappy|tenshi)\]/i.test(cleanTitle) ||
+            /^(?:automation_scheduler|wappy_workflow|tenshi_flow)$/i.test(
+              String(doc.sourceModule || '').trim(),
+            ))
+        ) {
+          continue;
+        }
+        if (isPsychosocialAnonymousOrStaleNoise(cleanTitle, ts)) {
+          continue;
+        }
+
+        const isWappyStudio = /^wappy_studio$/i.test(String(doc.sourceModule || '').trim());
+        const titulo = isWappyStudio
+          ? cleanTitle
+          : isDelegation && !/^delegaci[oó]n\s*:/i.test(cleanTitle)
+            ? `Delegación: ${cleanTitle}`
+            : cleanTitle;
+        const detalle = [
+          isWappyStudio ? 'Producción en Wappy Studio' : doc.actionType || '',
+          doc.priority ? `Prioridad ${doc.priority}` : '',
+          doc.referenceName || '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+        results.push({
+          tipo: isWappyStudio ? 'studio' : isDelegation ? 'delegacion' : 'tarea',
+          modulo: isWappyStudio
+            ? 'Wappy Studio'
+            : isDelegation
+              ? 'Delegación Antigravity'
+              : doc.sourceModule || 'Centro de Control ACPM',
+          categoria: isWappyStudio ? 'studio' : isDelegation ? 'delegaciones' : 'agenda_acpm',
+          titulo,
+          detalle,
+          estado: KANBAN_STATUS_LABELS[doc.status] || String(doc.status || 'activa'),
+          ts,
+          _meta: {
+            key: 'kanban_task',
+            priority: isWappyStudio ? 86 : 72,
+            coreTitle: normalizeCoreTitle(cleanTitle),
+          },
+        });
+        if (results.length >= 3) break;
+      }
+      return results;
     },
   },
 
@@ -629,7 +801,11 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     select: 'conversationId title tags agent_id expiredAt updatedAt createdAt',
     buildFilter: (ctx) => ({
       user: ctx.uidStr,
-      title: { $nin: GENERIC_CHAT_TITLES },
+      title: {
+        $nin: GENERIC_CHAT_TITLES,
+        $not: /sesi[oó]n\s+an[oó]nima/i,
+      },
+      tags: { $nin: Array.from(INTERNAL_CONVO_TAGS) },
     }),
     mapDocs: (docs, ctx) => {
       const nowMs = Date.now();
@@ -662,7 +838,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
           continue;
         }
         const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
-        if (!ts) {
+        if (!ts || isPsychosocialAnonymousOrStaleNoise(cleanTitle, ts)) {
           continue;
         }
         results.push({
@@ -692,12 +868,13 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     modelName: 'TenshiMessage',
     requirePath: '../../models/TenshiMessage',
     mode: 'find',
-    limit: 3,
-    priority: 80,
-    sort: { createdAt: -1, updatedAt: -1 },
-    select: 'file.title file.fileType report.titulo report.aplicativo qrCode.titulo qrCode.tipo createdAt updatedAt',
+    limit: 4,
+    priority: 84,
+    sort: { createdAt: -1 },
+    select:
+      'file.title file.fileType report.titulo report.aplicativo qrCode.titulo qrCode.tipo evidenceFiles createdAt updatedAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
@@ -705,15 +882,25 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
           { 'file.title': { $exists: true, $nin: GENERIC_CHAT_TITLES } },
           { 'report.titulo': { $exists: true, $nin: GENERIC_CHAT_TITLES } },
           { 'qrCode.titulo': { $exists: true, $nin: GENERIC_CHAT_TITLES } },
+          { 'evidenceFiles.0': { $exists: true } },
         ],
       };
     },
     mapDoc: (doc) => {
-      const rawTitle = doc.file?.title || doc.report?.titulo || doc.qrCode?.titulo || '';
+      const firstEv = Array.isArray(doc.evidenceFiles) && doc.evidenceFiles[0] ? doc.evidenceFiles[0] : null;
+      const evTitle = firstEv
+        ? String(
+            firstEv.title ||
+              (firstEv.portal && firstEv.workerName
+                ? `Certificado ${firstEv.portal}: ${firstEv.workerName}`
+                : firstEv.portal || firstEv.pdfFileName || ''),
+          ).trim()
+        : '';
+      const rawTitle = doc.file?.title || doc.report?.titulo || doc.qrCode?.titulo || evTitle || '';
       const title = cleanChatTitle(rawTitle);
       if (!title) return null;
       const ts = extractTimestampMs(doc, ['createdAt', 'updatedAt']);
-      if (!ts) return null;
+      if (!ts || isPsychosocialAnonymousOrStaleNoise(title, ts)) return null;
 
       const detalle = doc.report?.aplicativo
         ? `Aplicativo: ${doc.report.aplicativo}`
@@ -721,7 +908,9 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
           ? `QR: ${doc.qrCode.tipo}`
           : doc.file?.fileType
             ? `Formato: ${doc.file.fileType}`
-            : '';
+            : firstEv?.portal
+              ? `Portal: ${firstEv.portal}`
+              : '';
 
       return {
         tipo: 'informe',
@@ -733,7 +922,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
         ts,
         _meta: {
           key: 'tenshi_report',
-          priority: 80,
+          priority: 84,
           coreTitle: normalizeCoreTitle(title),
         },
       };
@@ -745,11 +934,11 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     requirePath: '../../models/TenshiMessage',
     mode: 'find',
     limit: 8,
-    priority: 45,
+    priority: 25,
     sort: { createdAt: -1 },
     select: 'content createdAt updatedAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
@@ -762,7 +951,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
           continue;
         }
         const ts = extractTimestampMs(doc, ['createdAt', 'updatedAt']);
-        if (!ts) continue;
+        if (!ts || isPsychosocialAnonymousOrStaleNoise(doc.content, ts)) continue;
         const snippet = truncateText(doc.content, 85);
         return [
           {
@@ -775,7 +964,8 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
             ts,
             _meta: {
               key: 'tenshi_prompt',
-              priority: 45,
+              priority: 25,
+              isChatPromptOnly: true,
               coreTitle: normalizeCoreTitle(snippet),
             },
           },
@@ -790,8 +980,8 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     requirePath: '../../models/ChatSSTMessage',
     mode: 'find',
     limit: 3,
-    priority: 42,
-    sort: { createdAt: -1, updatedAt: -1 },
+    priority: 24,
+    sort: { createdAt: -1 },
     select: 'content senderName groupId createdAt updatedAt',
     buildFilter: (ctx, Model) => ({
       user: ctx.resolveUserValue(Model),
@@ -803,7 +993,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
           continue;
         }
         const ts = extractTimestampMs(doc, ['createdAt', 'updatedAt']);
-        if (!ts) continue;
+        if (!ts || isPsychosocialAnonymousOrStaleNoise(doc.content, ts)) continue;
         const snippet = truncateText(doc.content, 75);
         return [
           {
@@ -816,7 +1006,8 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
             ts,
             _meta: {
               key: 'chat_sst_message',
-              priority: 42,
+              priority: 24,
+              isChatPromptOnly: true,
               coreTitle: normalizeCoreTitle(snippet),
             },
           },
@@ -837,7 +1028,7 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     sort: { contentUpdatedAt: -1, updatedAt: -1 },
     select: 'fileName conversationId contentUpdatedAt updatedAt createdAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
@@ -859,6 +1050,9 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
         const ts = extractTimestampMs(doc, ['contentUpdatedAt', 'updatedAt', 'createdAt']);
         if (!ts) continue;
         const title = isDefaultName ? 'Documento en Editor en Vivo' : rawName;
+        if (isPsychosocialAnonymousOrStaleNoise(title, ts)) {
+          continue;
+        }
         return [
           {
             tipo: 'documento',
@@ -885,12 +1079,12 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     modelName: 'CanvasSession',
     requirePath: '../../models/CanvasSession',
     mode: 'find',
-    limit: 3,
+    limit: 5,
     priority: 65,
     sort: { updatedAt: -1, createdAt: -1 },
     select: 'title fileType conversationId updatedAt createdAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
@@ -917,6 +1111,14 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
         if (!ts) continue;
         const typeLabel = CANVAS_TYPE_LABELS[doc.fileType] || doc.fileType || 'Canvas';
         const title = isDefault ? `Archivo Canvas (${typeLabel})` : rawTitle;
+        if (
+          isPsychosocialAnonymousOrStaleNoise(title, ts, {
+            fileType: doc.fileType,
+            isAutoCanvas: doc.fileType === 'animo' && (isDefault || /^term[oó]metro\s+psicosocial$/i.test(rawTitle)),
+          })
+        ) {
+          continue;
+        }
         return [
           {
             tipo: 'canvas',
@@ -939,16 +1141,66 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
     },
   },
   {
+    key: 'canvas_file',
+    modelName: 'CanvasFile',
+    requirePath: '../../models/CanvasFile',
+    mode: 'find',
+    limit: 4,
+    priority: 65,
+    sort: { updatedAt: -1, createdAt: -1 },
+    select: 'title fileType conversationId updatedAt createdAt',
+    buildFilter: (ctx, Model) => {
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
+      if (!scope) return null;
+      return scope;
+    },
+    mapDocs: (docs) => {
+      for (const doc of docs) {
+        const rawTitle = String(doc.title || '').trim();
+        const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
+        if (!ts) continue;
+        const typeLabel = CANVAS_TYPE_LABELS[doc.fileType] || doc.fileType || 'Canvas';
+        const title = rawTitle && !isGenericTitle(rawTitle) ? rawTitle : `Archivo Canvas (${typeLabel})`;
+        if (
+          isPsychosocialAnonymousOrStaleNoise(title, ts, {
+            fileType: doc.fileType,
+            isAutoCanvas: doc.fileType === 'animo' && (!rawTitle || /^term[oó]metro\s+psicosocial$/i.test(rawTitle)),
+          })
+        ) {
+          continue;
+        }
+        return [
+          {
+            tipo: 'canvas',
+            modulo: 'WAPPY Canvas',
+            categoria: 'documentos',
+            titulo: title,
+            detalle: typeLabel,
+            estado: 'editado',
+            ts,
+            _meta: {
+              key: 'canvas_file',
+              priority: 65,
+              conversationId: doc.conversationId ? String(doc.conversationId) : '',
+              coreTitle: normalizeCoreTitle(title),
+            },
+          },
+        ];
+      }
+      return [];
+    },
+  },
+  {
     key: 'live_document',
     modelName: 'LiveDocument',
     requirePath: '../../models/LiveDocument',
     mode: 'find',
-    limit: 3,
+    limit: 4,
     priority: 62,
     sort: { updatedAt: -1, createdAt: -1 },
     select: 'title originalFileName originalFileType updatedAt createdAt',
     buildFilter: (ctx, Model) => {
-      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: true });
+      const scope = ctx.userAndCompanyFilter(Model, { allowNullLegacy: !ctx.cidStr });
       if (!scope) return null;
       return {
         ...scope,
@@ -969,6 +1221,9 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
         const ts = extractTimestampMs(doc, ['updatedAt', 'createdAt']);
         if (!ts) continue;
         const title = isDefault ? 'Documento en Vivo' : rawTitle;
+        if (isPsychosocialAnonymousOrStaleNoise(title, ts)) {
+          continue;
+        }
         return [
           {
             tipo: 'documento',
@@ -2362,42 +2617,18 @@ const ACTIVITY_SOURCE_DESCRIPTORS = [
       };
     },
   },
+  // MoodTelemetry corresponde a pulsos públicos anónimos de colaboradores vía QR, nunca a gestiones del administrador SST
   {
     key: 'mood_telemetry',
     modelName: 'MoodTelemetry',
     requirePath: '../../models/MoodTelemetry',
     mode: 'findOne',
-    priority: 70,
-    isEnabled: (ctx) => Boolean(ctx.cidObj),
+    priority: 0,
+    isEnabled: () => false,
     sort: { updatedAt: -1, createdAt: -1 },
     select: 'mood department updatedAt createdAt',
-    buildFilter: (ctx) => ({
-      companyId: ctx.cidObj,
-      isDemo: { $ne: true },
-    }),
-    mapDoc: (doc) => {
-      const ts = extractTimestampMs(doc);
-      if (!ts) return null;
-      const moodLabel =
-        doc.mood === 'happy'
-          ? 'positivo'
-          : doc.mood === 'sad'
-            ? 'alerta emocional'
-            : 'neutral';
-      const titulo = doc.department
-        ? `Termómetro Psicosocial (${doc.department})`
-        : 'Registro Termómetro Psicosocial';
-      return {
-        tipo: 'sgsst',
-        modulo: 'Termómetro Psicosocial',
-        categoria: 'sgsst',
-        titulo,
-        detalle: 'Pulso de clima laboral',
-        estado: moodLabel,
-        ts,
-        _meta: { key: 'mood_telemetry', priority: 70, coreTitle: normalizeCoreTitle(titulo) },
-      };
-    },
+    buildFilter: () => null,
+    mapDoc: () => null,
   },
 
   // ── 6. Academia, Eventos, Tienda, Soporte ────────────────────────────────
@@ -2713,8 +2944,56 @@ function rankAndDeduplicateCandidates(rawCandidates, limit) {
     return (b._meta?.priority || 0) - (a._meta?.priority || 0);
   });
 
+  // Priorización ejecutiva: nunca promover un mensaje suelto de chat (sin entregable/informe/evidencia)
+  // como `ultimaActividad` principal por encima de flujos ejecutados, informes, matrices, documentos,
+  // Wappy Studio o módulos SG-SST trabajados recientemente (dentro de los últimos 7 días).
+  if (accepted.length > 1 && accepted[0]?._meta?.isChatPromptOnly) {
+    const newestChatTs = accepted[0].ts;
+    const substantiveIdx = accepted.findIndex(
+      (item, idx) =>
+        idx > 0 &&
+        !item._meta?.isChatPromptOnly &&
+        (item._meta?.priority || 0) >= 55 &&
+        newestChatTs - item.ts <= SUBSTANTIVE_PROMOTION_WINDOW_MS,
+    );
+    if (substantiveIdx > 0) {
+      const [promoted] = accepted.splice(substantiveIdx, 1);
+      accepted.unshift(promoted);
+    }
+  }
+
   const safeLimit = Math.max(1, Number.isFinite(Number(limit)) ? Number(limit) : 5);
   return accepted.slice(0, safeLimit).map(buildPublicActivityItem);
+}
+
+async function runDescriptorsWithConcurrency(items, ctx, collectedCandidates, concurrency, shouldStopFn) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return;
+  }
+  const workerCount = Math.max(1, Math.min(concurrency || 6, items.length));
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      if (typeof shouldStopFn === 'function' && shouldStopFn()) {
+        return;
+      }
+      const current = items[cursor];
+      cursor += 1;
+      if (!current) continue;
+      await runDescriptor(current.desc, current.Model, ctx, collectedCandidates);
+    }
+  }
+
+  const workers = [];
+  for (let i = 0; i < workerCount; i += 1) {
+    workers.push(worker());
+  }
+  await Promise.allSettled(workers);
+}
+
+function clearSystemActivityCache() {
+  activityMemoryCache.clear();
 }
 
 async function runDescriptor(descriptor, Model, baseCtx, collectedCandidates) {
@@ -2793,7 +3072,9 @@ async function getLatestSystemActivity({
   companyId = null,
   viewerRole = '',
   limit = 5,
-  timeoutMs = 1500,
+  timeoutMs = 2000,
+  bypassCache = false,
+  cacheTtlMs = DEFAULT_ACTIVITY_CACHE_TTL_MS,
 } = {}) {
   const startedAt = Date.now();
   const ctx = buildContext({ userId, companyId, viewerRole });
@@ -2806,47 +3087,151 @@ async function getLatestSystemActivity({
     };
   }
 
-  const collectedCandidates = [];
-  const activeDescriptors = [];
-  for (const desc of ACTIVITY_SOURCE_DESCRIPTORS) {
-    if (desc.isEnabled && !desc.isEnabled(ctx)) {
-      continue;
+  const safeLimit = Math.max(1, Number.isFinite(Number(limit)) ? Number(limit) : 5);
+  const effectiveTtl = !bypassCache && Number.isFinite(Number(cacheTtlMs))
+    ? Math.max(0, Number(cacheTtlMs))
+    : 0;
+  const cacheKey = `${ctx.uidStr}::${ctx.cidStr || 'none'}::${ctx.isAdmin ? 'admin' : 'user'}`;
+
+  if (effectiveTtl > 0) {
+    const cached = activityMemoryCache.get(cacheKey);
+    if (cached && cached.expiresAt > startedAt && Array.isArray(cached.candidates)) {
+      const topCached = rankAndDeduplicateCandidates(cached.candidates, safeLimit);
+      return {
+        ultimaActividad: topCached[0] || null,
+        actividadesRecientes: topCached,
+        sourceCount: cached.sourceCount || 0,
+        elapsedMs: Date.now() - startedAt,
+      };
     }
-    const Model = resolveModel(desc.modelName, desc.requirePath);
-    if (Model) {
-      activeDescriptors.push({ desc, Model });
+
+    const inFlight = inFlightActivityRequests.get(cacheKey);
+    if (inFlight) {
+      try {
+        const shared = await inFlight;
+        const topShared = rankAndDeduplicateCandidates(shared.candidates || [], safeLimit);
+        return {
+          ultimaActividad: topShared[0] || null,
+          actividadesRecientes: topShared,
+          sourceCount: shared.sourceCount || 0,
+          elapsedMs: Date.now() - startedAt,
+        };
+      } catch (_) {
+        // Si falló la promesa compartida, continuar con ejecución limpia
+      }
     }
   }
 
-  const tasks = activeDescriptors.map(({ desc, Model }) =>
-    runDescriptor(desc, Model, ctx, collectedCandidates),
-  );
-  const safeTimeoutMs = Math.max(50, Number.isFinite(Number(timeoutMs)) ? Number(timeoutMs) : 1500);
+  const executeCollection = async () => {
+    const collectedCandidates = [];
+    const phase1Descriptors = [];
+    const phase2Descriptors = [];
 
-  let timer = null;
-  const deadlinePromise = new Promise((resolve) => {
-    timer = setTimeout(() => resolve('timeout'), safeTimeoutMs);
-  });
-
-  try {
-    await Promise.race([Promise.allSettled(tasks), deadlinePromise]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
+    for (const desc of ACTIVITY_SOURCE_DESCRIPTORS) {
+      if (desc.isEnabled && !desc.isEnabled(ctx)) {
+        continue;
+      }
+      const Model = resolveModel(desc.modelName, desc.requirePath);
+      if (!Model) {
+        continue;
+      }
+      if (PHASE_1_PRIORITY_KEYS.has(desc.key)) {
+        phase1Descriptors.push({ desc, Model });
+      } else {
+        phase2Descriptors.push({ desc, Model });
+      }
     }
+
+    const totalSources = phase1Descriptors.length + phase2Descriptors.length;
+    const safeTimeoutMs = Math.max(100, Number.isFinite(Number(timeoutMs)) ? Number(timeoutMs) : 2000);
+    let timedOut = false;
+    let timer = null;
+
+    const deadlinePromise = new Promise((resolve) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        resolve('timeout');
+      }, safeTimeoutMs);
+    });
+
+    const phasedWorkPromise = (async () => {
+      // Fase 1 prioritaria (~18 fuentes de alta actividad real) con concurrencia controlada (evita saturar el pool)
+      await runDescriptorsWithConcurrency(
+        phase1Descriptors,
+        ctx,
+        collectedCandidates,
+        PHASE_1_CONCURRENCY,
+        () => timedOut,
+      );
+      if (timedOut) {
+        return;
+      }
+      // Fase 2 secundaria (~25 colecciones adicionales de Hitos/Soporte) con concurrencia acotada
+      await runDescriptorsWithConcurrency(
+        phase2Descriptors,
+        ctx,
+        collectedCandidates,
+        PHASE_2_CONCURRENCY,
+        () => timedOut,
+      );
+    })();
+
+    try {
+      await Promise.race([phasedWorkPromise, deadlinePromise]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+
+    return {
+      candidates: [...collectedCandidates],
+      sourceCount: totalSources,
+      timedOut,
+    };
+  };
+
+  let rawOutcome;
+  if (effectiveTtl > 0) {
+    const sharedPromise = executeCollection();
+    inFlightActivityRequests.set(cacheKey, sharedPromise);
+    try {
+      rawOutcome = await sharedPromise;
+    } finally {
+      if (inFlightActivityRequests.get(cacheKey) === sharedPromise) {
+        inFlightActivityRequests.delete(cacheKey);
+      }
+    }
+
+    if (!rawOutcome.timedOut || rawOutcome.candidates.length > 0) {
+      if (activityMemoryCache.size >= MAX_ACTIVITY_CACHE_ENTRIES) {
+        const oldestKey = activityMemoryCache.keys().next().value;
+        if (oldestKey !== undefined) {
+          activityMemoryCache.delete(oldestKey);
+        }
+      }
+      activityMemoryCache.set(cacheKey, {
+        expiresAt: Date.now() + effectiveTtl,
+        candidates: rawOutcome.candidates,
+        sourceCount: rawOutcome.sourceCount,
+      });
+    }
+  } else {
+    rawOutcome = await executeCollection();
   }
 
-  const topItems = rankAndDeduplicateCandidates([...collectedCandidates], limit);
+  const topItems = rankAndDeduplicateCandidates(rawOutcome.candidates, safeLimit);
   return {
     ultimaActividad: topItems[0] || null,
     actividadesRecientes: topItems,
-    sourceCount: activeDescriptors.length,
+    sourceCount: rawOutcome.sourceCount,
     elapsedMs: Date.now() - startedAt,
   };
 }
 
 module.exports = {
   getLatestSystemActivity,
+  clearSystemActivityCache,
   formatRelativeActivityDate,
   ACTIVITY_SOURCE_DESCRIPTORS,
   resolveModel,

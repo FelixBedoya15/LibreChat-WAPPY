@@ -5,16 +5,33 @@ const CompanyInfo = require('~/models/CompanyInfo');
 
 const INVALID_MARKER_COMPANY_IDS = new Set(['TENSHI_GLOBAL', 'SYSTEM_PRESET']);
 
-const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-17-v2';
+const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v3';
 
 const LEGACY_REPLACED_TENSHI_SEED_KEYS = ['tenshi_flow_verificacion_alturas_arl_cedula'];
 
+const FIRST_GLOBAL_TENSHI_FLOW_DESCRIPTION =
+  'Consulta al instante la afiliación laboral y descarga el certificado oficial ARL en portales reales de Colombia mediante la herramienta Web Scraping ARL del Agente IA Tenshi usando el navegador nativo de Google Antigravity (en cascada Local, Cloud y respaldo HTTP liviano sin abrir navegador en el VPS). Evalúa primero si el usuario entregó el número de cédula: si lo dio, omite por completo Perfil Sociodemográfico (Hito 2) y pasa directo a Tenshi y su herramienta ARL; si solo dio el nombre, busca primero el documento en Perfil Sociodemográfico (Hito 2) de la empresa activa y entrega el certificado PDF o PNG listo para abrir en el chat de Tenshi.';
+
+const FIRST_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER = [
+  'trigger_tenshi_ia',
+  'if_router',
+  'hito2_perfil_socio',
+  'agent_root',
+  'model_llm',
+  'memory_ctx',
+  'tool_inputs_scraper_agy_arl_directo',
+  'action_notify_wappy',
+];
+
 const FIRST_GLOBAL_TENSHI_FLOW = {
+  key: 'tenshi_flow_verificacion_arl_cedula',
   presetKey: 'tenshi_flow_verificacion_arl_cedula',
+  systemPresetKey: 'tenshi_flow_verificacion_arl_cedula',
   name: '🛡️ Verificación Instantánea y Certificado ARL por Cédula',
   presetCategory: 'salud_vencimientos',
-  presetDescription:
-    'Consulta al instante la afiliación laboral y descarga el certificado oficial ARL en portales reales de Colombia mediante Web Scraping con Google Antigravity. Evalúa primero si el usuario entregó el número de cédula: si lo dio, omite por completo Perfil Sociodemográfico (Hito 2) y consulta directo la ARL; si solo dio el nombre, busca primero el documento en Perfil Sociodemográfico (Hito 2) de la empresa activa y entrega el certificado PDF o PNG listo para abrir en el chat de Tenshi.',
+  presetDescription: FIRST_GLOBAL_TENSHI_FLOW_DESCRIPTION,
+  description: FIRST_GLOBAL_TENSHI_FLOW_DESCRIPTION,
+  modelOverride: 'gemini-3.5-flash-lite',
   isTenshiFlow: true,
   isSystemPreset: false,
   adminOnly: true,
@@ -38,19 +55,24 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
   workflowNodes: {
     trigger: 'trigger_tenshi',
     triggers: ['trigger_tenshi'],
-    extractors: ['scraper_agy_arl_directo'],
+    extractors: [],
     aiEngine: 'wappy',
     aiModel: 'gemini-3.5-flash-lite',
+    modelId: 'gemini-3.5-flash-lite',
+    memoryEnabled: true,
     memoryNode: 'wappy_memory_company',
     memories: ['wappy_memory_company'],
     includeIfNode: true,
-    inputs: ['google_antigravity'],
+    inputs: ['scraper_agy_arl_directo'],
     hitos: ['hito2_perfil_socio'],
     outputs: ['wappy_notification'],
+    actions: ['notify_wappy'],
+    nodeExecutionOrder: FIRST_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER,
     canvasLayout: {
       positions: {},
       edges: [],
       logicNodes: [],
+      nodeExecutionOrder: FIRST_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER,
       nodeConfigs: {
         trigger_trigger_tenshi: {
           voiceCommands: [
@@ -81,23 +103,24 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
         if_router: {
           ifPlacement: 'pre_source',
           ifConditionType: 'has_explicit_cedula',
-          ifConditionLabel: '¿El usuario proporcionó número de cédula?',
+          ifConditionLabel: '¿El usuario entregó número de cédula?',
           conditionTrueLabel:
-            'Consultar directo en Web Scraping ARL con Google Antigravity sin leer Perfil Sociodemográfico',
+            'Pasar directo al Agente IA Tenshi y su herramienta Web Scraping ARL sin leer Perfil Sociodemográfico',
           conditionFalseLabel:
-            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL',
+            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL con Tenshi',
         },
         if_condition: {
           ifPlacement: 'pre_source',
           ifConditionType: 'has_explicit_cedula',
-          ifConditionLabel: '¿El usuario proporcionó número de cédula?',
+          ifConditionLabel: '¿El usuario entregó número de cédula?',
           conditionTrueLabel:
-            'Consultar directo en Web Scraping ARL con Google Antigravity sin leer Perfil Sociodemográfico',
+            'Pasar directo al Agente IA Tenshi y su herramienta Web Scraping ARL sin leer Perfil Sociodemográfico',
           conditionFalseLabel:
-            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL',
+            'Buscar por nombre en Perfil Sociodemográfico (Hito 2) y luego consultar ARL con Tenshi',
         },
         tool_hitos_hito2_perfil_socio: {
           hitoRole: 'source_read',
+          dataRole: 'source_read',
           hitoOperationMode: 'read_only',
           appActionMode: 'read_only',
           recordFilterMode: 'name_lookup_only',
@@ -107,6 +130,7 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
         },
         hito2_perfil_socio: {
           hitoRole: 'source_read',
+          dataRole: 'source_read',
           hitoOperationMode: 'read_only',
           appActionMode: 'read_only',
           recordFilterMode: 'name_lookup_only',
@@ -114,27 +138,21 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
           customInstruction:
             'Únicamente cuando el usuario NO entregue número de cédula, busca por nombre exacto en el Perfil Sociodemográfico (Hito 2) de la empresa activa para obtener cédula, tipo de documento, ARL declarada y fecha de nacimiento. Prohibido escanear toda la nómina o ejecutarse si la cédula ya vino en la orden.',
         },
-        extractor_scraper_agy_arl_directo: {
+        tool_inputs_scraper_agy_arl_directo: {
           antigravityMode: 'auto',
-          scriptEngine: 'chrome_mcp',
+          engine: 'antigravity_native_browser',
+          scriptEngine: 'antigravity_native_browser',
+          vpsSafeDirectFallback: true,
           customInstruction:
-            'Consulta el certificado de afiliación ARL priorizando primero Google Antigravity Local, segundo Google Antigravity Cloud y como última opción respaldo ligero directo en servidor (protección de recursos del VPS), descargando los soportes oficiales PDF o captura PNG disponibles en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
+            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
         },
         scraper_agy_arl_directo: {
           antigravityMode: 'auto',
-          scriptEngine: 'chrome_mcp',
+          engine: 'antigravity_native_browser',
+          scriptEngine: 'antigravity_native_browser',
+          vpsSafeDirectFallback: true,
           customInstruction:
-            'Consulta el certificado de afiliación ARL priorizando primero Google Antigravity Local, segundo Google Antigravity Cloud y como última opción respaldo ligero directo en servidor (protección de recursos del VPS), descargando los soportes oficiales PDF o captura PNG disponibles en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
-        },
-        tool_inputs_google_antigravity: {
-          antigravityMode: 'auto',
-          customInstruction:
-            'Conector oficial de automatización con Google Antigravity en cascada de protección: prioridad Local, failover automático a Cloud 24/7 y última opción respaldo directo liviano.',
-        },
-        google_antigravity: {
-          antigravityMode: 'auto',
-          customInstruction:
-            'Conector oficial de automatización con Google Antigravity en cascada de protección: prioridad Local, failover automático a Cloud 24/7 y última opción respaldo directo liviano.',
+            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
         },
         out_wappy_notification: {
           customInstruction:
@@ -149,15 +167,15 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
   },
   prompt:
     'Actúa como Tenshi, copiloto experto en Seguridad y Salud en el Trabajo (SG-SST) de WAPPY IA bajo la Ley 1562 de 2012 y el Decreto 1072 de 2015.\n\n' +
-    'Tu misión en este turno es sintetizar ÚNICAMENTE los hallazgos reales devueltos por el flujo condicional de verificación ARL:\n' +
-    '1) Si el usuario entregó el número de cédula, el sistema omitió por completo la lectura de Perfil Sociodemográfico (Hito 2) y consultó directamente los portales ARL mediante Web Scraping con Google Antigravity.\n' +
-    '2) Si el usuario NO entregó número de cédula, el sistema buscó primero por nombre dentro del Perfil Sociodemográfico (Hito 2) de la empresa activa para identificar su documento y luego ejecutó la consulta en los portales ARL.\n\n' +
+    'Tu misión en este turno es sintetizar ÚNICAMENTE los hallazgos reales obtenidos a través de tu herramienta conectada de Web Scraping ARL:\n' +
+    '1) Si el usuario entregó el número de cédula, el enrutador condicional omitió por completo la lectura de Perfil Sociodemográfico (Hito 2) y te entregó directamente el documento para consultar los portales ARL mediante el navegador nativo de Google Antigravity.\n' +
+    '2) Si el usuario NO entregó número de cédula, el sistema buscó primero por nombre dentro del Perfil Sociodemográfico (Hito 2) de la empresa activa para identificar su documento y luego ejecutó tu herramienta de consulta en los portales ARL.\n\n' +
     'Reglas obligatorias de respuesta en este mismo turno:\n' +
-    '- Ya tienes en el contexto los resultados reales ejecutados por el Web Scraping ARL con Google Antigravity; NO re-delegues una nueva consulta salvo fallo explícito ni inventes estados, fechas o administradoras.\n' +
+    '- Ya tienes en el contexto los resultados reales ejecutados por tu herramienta Web Scraping ARL mediante el navegador nativo de Google Antigravity; NO re-delegues una segunda orden conversacional ni inventes estados, fechas o administradoras.\n' +
     '- Si SÍ se emitieron y descargaron certificados oficiales (.PDF o captura .PNG), confirma explícitamente al usuario con claridad: "El certificado (o los certificados) oficial(es) de ARL ya fue(ron) emitido(s), lo(s) recibiste aquí mismo en este chat de Tenshi y ya lo(s) puedes abrir o descargar directamente desde la bandeja de certificados adjunta".\n' +
     '- En las tablas resumen usa exclusivamente estados limpios (por ejemplo: ✅ AFILIADO ACTIVO, ❌ SIN REGISTRO, 📎 En bandeja) sin insertar URLs ni enlaces crudos dentro de las celdas.\n' +
     '- Si la persona NO aparece activa en ARL SURA ni Positiva y la consulta no incluyó fecha de nacimiento, debes avisar explícitamente que algunas administradoras como ARL Seguros Bolívar exigen fecha de nacimiento para consultar en su portal; pide que nos comparta la fecha de nacimiento (junto con su cédula si prefiere no tocar nómina) para ampliar esa verificación, e informa con transparencia si los portales con clave privada empresarial (como Colmena o AXA Colpatria) requieren acceso autenticado del portal empresa.\n' +
-    '- Menciona brevemente el canal con el que se ejecutó la consulta (Google Antigravity Local, Google Antigravity Cloud o respaldo directo liviano del servidor) cuando esté disponible en el reporte técnico.\n' +
+    '- Menciona brevemente el canal con el que se ejecutó la consulta (Google Antigravity Local, Google Antigravity Cloud o respaldo HTTP liviano directo en servidor) cuando esté disponible en el reporte técnico.\n' +
     '- PROHIBIDO suponer o inventar vigencia, fecha de afiliación o nombre de empresa si no aparece literalmente en los hallazgos reales.',
 };
 
@@ -166,8 +184,8 @@ const DEFAULT_TENSHI_FLOWS = [FIRST_GLOBAL_TENSHI_FLOW];
 let _seedTenshiPromise = null;
 
 /**
- * Siembra de forma idempotente los Flujos Tenshi iniciales del sistema sin sobreescribir
- * ni resucitar flujos editados o eliminados intencionalmente por el Administrador.
+ * Siembra y migra de forma idempotente los Flujos Tenshi iniciales del sistema sin resucitar
+ * flujos eliminados intencionalmente por el Administrador ni perder el _id ni el historial.
  */
 async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = {}) {
   if (!mongoose.connection?.db || mongoose.connection.readyState !== 1) {
@@ -181,6 +199,7 @@ async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = 
     try {
       const seedsCollection = mongoose.connection.db.collection('tenshi_flow_seeds');
       const seededKeys = [];
+      const migratedKeys = [];
 
       // Retirar de forma segura semillas globales reemplazadas por una versión superior
       if (LEGACY_REPLACED_TENSHI_SEED_KEYS.length > 0) {
@@ -210,20 +229,73 @@ async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = 
       }
 
       for (const starterDef of DEFAULT_TENSHI_FLOWS) {
-        const seedMarker = !force
-          ? await seedsCollection.findOne({ presetKey: starterDef.presetKey })
-          : null;
-        if (seedMarker) {
-          continue;
-        }
+        const canonicalKey = starterDef.key || starterDef.presetKey;
+        const seedMarker = await seedsCollection.findOne({ presetKey: canonicalKey });
 
         const existingFlow = await Automation.findOne({
           isTenshiFlow: true,
           companyId: 'TENSHI_GLOBAL',
-          presetKey: starterDef.presetKey,
+          $or: [{ presetKey: canonicalKey }, { systemPresetKey: canonicalKey }],
         })
-          .select('_id')
+          .select('_id workflowNodes')
           .lean();
+
+        const existingWf = existingFlow?.workflowNodes || {};
+        const existingInputs = Array.isArray(existingWf.inputs) ? existingWf.inputs : [];
+        const existingExtractors = Array.isArray(existingWf.extractors) ? existingWf.extractors : [];
+        const existingCfgs = existingWf?.canvasLayout?.nodeConfigs || {};
+        const hasLegacyArlTopology = Boolean(
+          existingFlow &&
+            (existingInputs.includes('google_antigravity') ||
+              existingExtractors.length > 0 ||
+              existingCfgs.google_antigravity ||
+              existingCfgs.tool_inputs_google_antigravity ||
+              existingCfgs.extractor_scraper_agy_arl_directo),
+        );
+        const isOutdatedSeedVersion = Boolean(
+          seedMarker && seedMarker.version !== DEFAULT_TENSHI_FLOW_SEED_VERSION,
+        );
+
+        if (seedMarker && !force) {
+          if (!isOutdatedSeedVersion && !hasLegacyArlTopology) {
+            continue;
+          }
+
+          if (existingFlow) {
+            await Automation.updateOne(
+              { _id: existingFlow._id },
+              {
+                $set: {
+                  presetKey: canonicalKey,
+                  systemPresetKey: canonicalKey,
+                  presetDescription: starterDef.presetDescription,
+                  description: starterDef.description || starterDef.presetDescription,
+                  workflowNodes: starterDef.workflowNodes,
+                  prompt: starterDef.prompt,
+                  modelOverride: starterDef.modelOverride || 'gemini-3.5-flash-lite',
+                },
+              },
+              { strict: false },
+            );
+            migratedKeys.push(canonicalKey);
+          }
+
+          await seedsCollection.updateOne(
+            { presetKey: canonicalKey },
+            {
+              $set: {
+                presetKey: canonicalKey,
+                version: DEFAULT_TENSHI_FLOW_SEED_VERSION,
+                updatedAt: new Date(),
+              },
+              $setOnInsert: {
+                seededAt: new Date(),
+              },
+            },
+            { upsert: true },
+          );
+          continue;
+        }
 
         if (!existingFlow) {
           await Automation.create({
@@ -231,15 +303,35 @@ async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = 
             ...(resolvedUserObjectId ? { user: resolvedUserObjectId } : {}),
             nextRunAt: null,
           });
-          seededKeys.push(starterDef.presetKey);
+          seededKeys.push(canonicalKey);
+        } else if (force || hasLegacyArlTopology || isOutdatedSeedVersion) {
+          await Automation.updateOne(
+            { _id: existingFlow._id },
+            {
+              $set: {
+                presetKey: canonicalKey,
+                systemPresetKey: canonicalKey,
+                presetDescription: starterDef.presetDescription,
+                description: starterDef.description || starterDef.presetDescription,
+                workflowNodes: starterDef.workflowNodes,
+                prompt: starterDef.prompt,
+                modelOverride: starterDef.modelOverride || 'gemini-3.5-flash-lite',
+              },
+            },
+            { strict: false },
+          );
+          migratedKeys.push(canonicalKey);
         }
 
         await seedsCollection.updateOne(
-          { presetKey: starterDef.presetKey },
+          { presetKey: canonicalKey },
           {
-            $setOnInsert: {
-              presetKey: starterDef.presetKey,
+            $set: {
+              presetKey: canonicalKey,
               version: DEFAULT_TENSHI_FLOW_SEED_VERSION,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: {
               seededAt: new Date(),
             },
           },
@@ -249,8 +341,16 @@ async function ensureDefaultTenshiFlows({ ownerUserId = null, force = false } = 
 
       return {
         seeded: seededKeys.length > 0,
+        migrated: migratedKeys.length > 0,
         seededKeys,
-        reason: seededKeys.length > 0 ? 'seeded' : 'already_initialized',
+        migratedKeys,
+        version: DEFAULT_TENSHI_FLOW_SEED_VERSION,
+        reason:
+          seededKeys.length > 0
+            ? 'seeded'
+            : migratedKeys.length > 0
+              ? 'migrated'
+              : 'already_initialized',
       };
     } catch (seedErr) {
       console.warn('[tenshiFlowService] Aviso sembrando Flujos Tenshi iniciales:', seedErr?.message);

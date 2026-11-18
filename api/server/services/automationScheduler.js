@@ -1092,9 +1092,14 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
         .map((cn) => ({ ...(cn || {}), ...(cn?.config || {}) })),
     ].filter((c) => c && typeof c === 'object');
     const needsAntigravityBridge = scraperConfigCandidates.some((c) => {
-      const eng = normalizeScraperEngine(c.scriptEngine, '');
+      const eng = normalizeScraperEngine(c.scriptEngine || c.engine, '');
       const agyMode = String(c.antigravityMode || c.mode || '').toLowerCase().trim();
-      return eng === 'chrome_mcp' || eng === 'antigravity_local' || agyMode === 'local';
+      return (
+        eng === 'chrome_mcp' ||
+        eng === 'antigravity_native_browser' ||
+        eng === 'antigravity_local' ||
+        agyMode === 'local'
+      );
     });
     if (needsAntigravityBridge) {
       requiredTools.add('google_antigravity');
@@ -1105,6 +1110,30 @@ function resolveRequiredToolsForWorkflow(workflowNodes = {}) {
   }
 
   return Array.from(requiredTools);
+}
+
+function formatHumanScraperEngineLabel(rawEngine = '') {
+  const norm = normalizeScraperEngine(rawEngine, 'antigravity_native_browser');
+  if (
+    norm === 'antigravity_native_browser' ||
+    norm === 'chrome_mcp' ||
+    norm === 'antigravity_local'
+  ) {
+    return 'Navegador nativo de Google Antigravity';
+  }
+  if (norm === 'auto_chrome_dom') {
+    return 'Extracción autónoma DOM/HTTP';
+  }
+  if (norm === 'fetch_cheerio') {
+    return 'HTTP ligero (Fetch + Cheerio)';
+  }
+  if (norm === 'python_bs4') {
+    return 'Python en Google Antigravity';
+  }
+  if (norm === 'node_cheerio') {
+    return 'Node.js en Google Antigravity';
+  }
+  return norm || 'Navegador nativo de Google Antigravity';
 }
 
 /**
@@ -5381,8 +5410,10 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         if (cfg.targetUrl && String(cfg.targetUrl).trim()) {
           parts.push(`URL(s) / Consulta Objetivo: "${String(cfg.targetUrl).trim()}"`);
         }
-        if (cfg.scriptEngine) {
-          parts.push(`Motor Script Antigravity: ${normalizeScraperEngine(cfg.scriptEngine, 'auto_chrome_dom')}`);
+        if (cfg.scriptEngine || cfg.engine) {
+          parts.push(
+            `Motor Navegador Antigravity: ${formatHumanScraperEngineLabel(cfg.scriptEngine || cfg.engine)}`,
+          );
         }
         if (cfg.scriptCode && String(cfg.scriptCode).trim()) {
           parts.push(`Script de Extracción / Selectores: "${String(cfg.scriptCode).trim()}"`);
@@ -5451,8 +5482,10 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         if (cn.targetUrl && String(cn.targetUrl).trim()) {
           cnParts.push(`URL Objetivo: "${String(cn.targetUrl).trim()}"`);
         }
-        if (cn.scriptEngine) {
-          cnParts.push(`Motor Script Antigravity: ${normalizeScraperEngine(cn.scriptEngine, 'auto_chrome_dom')}`);
+        if (cn.scriptEngine || cn.engine) {
+          cnParts.push(
+            `Motor Navegador Antigravity: ${formatHumanScraperEngineLabel(cn.scriptEngine || cn.engine)}`,
+          );
         }
         if (cn.scriptCode && String(cn.scriptCode).trim()) {
           cnParts.push(`Script: "${String(cn.scriptCode).trim()}"`);
@@ -5711,15 +5744,47 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             const missingPreSourceResult =
               `Para verificar el certificado de ARL sin escanear toda la nómina, por favor indícame el **número de cédula** (si prefieres consulta directa sin revisar tu base interna) o el **nombre completo exacto del trabajador** registrado en **${compDisplayMissing}**. Si la persona está afiliada en una ARL que solicita fecha de nacimiento (como ARL Seguros Bolívar), puedes indicarla en el mismo mensaje.`;
 
-            liveTracker.upsertStep({
-              nodeKey: 'extractor_scraper_agy_arl_directo',
-              nodeId: 'scraper_agy_arl_directo',
-              title: 'Web Scraping ARL · Google Antigravity',
-              category: 'extractor',
-              status: 'skipped',
-              durationMs: 0,
-              outputPreview: '⏭️ Omitido (0 consultas externas): falta cédula o coincidencia nominal en Hito 2.',
-            });
+            const wfInputsMissing = Array.isArray(automation.workflowNodes?.inputs)
+              ? automation.workflowNodes.inputs
+              : [];
+            const wfExtractorsMissing = Array.isArray(automation.workflowNodes?.extractors)
+              ? automation.workflowNodes.extractors
+              : [];
+            const skippedPreSourceScraperSteps = [
+              ...wfInputsMissing
+                .filter((inId) => isAntigravityScraperIdentifier(`tool_inputs_${inId}`, inId, null))
+                .map((inId) => ({
+                  nodeKey: `tool_inputs_${inId}`,
+                  nodeId: inId,
+                  category: 'input',
+                })),
+              ...wfExtractorsMissing
+                .filter((extId) => isAntigravityScraperIdentifier(`extractor_${extId}`, extId, null))
+                .map((extId) => ({
+                  nodeKey: `extractor_${extId}`,
+                  nodeId: extId,
+                  category: 'extractor',
+                })),
+            ];
+            if (skippedPreSourceScraperSteps.length === 0) {
+              skippedPreSourceScraperSteps.push({
+                nodeKey: 'tool_inputs_scraper_agy_arl_directo',
+                nodeId: 'scraper_agy_arl_directo',
+                category: 'input',
+              });
+            }
+            for (const skStep of skippedPreSourceScraperSteps) {
+              liveTracker.upsertStep({
+                nodeKey: skStep.nodeKey,
+                nodeId: skStep.nodeId,
+                title: 'Web Scraping ARL · Google Antigravity',
+                category: skStep.category,
+                status: 'skipped',
+                durationMs: 0,
+                outputPreview:
+                  '⏭️ Omitido (0 consultas externas): falta cédula o coincidencia nominal en Hito 2.',
+              });
+            }
             liveTracker.upsertStep({
               nodeKey: 'agent_root',
               nodeId: automation.agentId || 'ai_agent_root',
@@ -5729,7 +5794,10 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               durationMs: 0,
               outputPreview: '⏭️ Omitido (0 tokens LLM): falta cédula o nombre coincidente en la orden.',
             });
-            liveTracker.markSkippedKeys(['extractor_scraper_agy_arl_directo', 'agent_root']);
+            liveTracker.markSkippedKeys([
+              ...skippedPreSourceScraperSteps.map((s) => s.nodeKey),
+              'agent_root',
+            ]);
             liveTracker.setActiveStage(null, 'Esperando cédula o nombre del trabajador');
             const missingSnap = liveTracker.getSnapshot();
             await AutomationLog.updateOne(
@@ -5911,11 +5979,35 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               (hId === 'hito2_perfil_socio' || hId === 'hito2_condiciones_salud'),
           );
 
+        const hasExplicitConversationalAntigravityNode =
+          wfInputs.includes('google_antigravity') ||
+          wfInputs.includes('google_antigravity_cloud') ||
+          selectedAiEngine !== 'wappy';
+
+        for (const sc of scraperCandidates) {
+          const runningKey = sc.nodeKey || `tool_inputs_${sc.nodeId}`;
+          liveTracker.upsertStep({
+            nodeKey: runningKey,
+            nodeId: sc.nodeId,
+            title: sc.customNodeObj?.title || formatHumanWorkflowNodeTitle(sc.nodeId),
+            category: String(runningKey).startsWith('tool_inputs_') ? 'input' : 'extractor',
+            status: 'running',
+            outputPreview:
+              'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
+          });
+        }
+        liveTracker.setActiveStage(
+          scraperCandidates[0].nodeKey || `tool_inputs_${scraperCandidates[0].nodeId}`,
+          'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
+        );
+        await liveTracker.flush();
+
         const scrapeExecList = await Promise.all(
           scraperCandidates.map(async (sc) => {
             const mergedNodeCfg = {
               ...(sc.customNodeObj?.config || {}),
-              ...(allNodeCfg[sc.nodeKey] || allNodeCfg[sc.nodeId] || {}),
+              ...(allNodeCfg[sc.nodeId] || {}),
+              ...(allNodeCfg[sc.nodeKey] || {}),
             };
             const scrapeRes = await executeRealAntigravityScraperVerification({
               userIdStr: String(automation.user),
@@ -5939,6 +6031,8 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
                   ? 'Perfil Sociodemográfico (Hito 2)'
                   : '',
               isTenshiFlowRun: isGlobalTenshiFlow,
+              flowScope: isGlobalTenshiFlow ? 'tenshi' : 'automation',
+              hasConversationalAntigravityNode: hasExplicitConversationalAntigravityNode,
               triggerSource,
               hasWorkerSourceStage2,
               skipWorkerDbHydration: isPreSourceIf,
@@ -6026,11 +6120,11 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
 
           const stepStatus = scrapeRes?.error ? 'error' : 'done';
           const resolvedScraperEngine = normalizeScraperEngine(
-            scrapeRes?.scriptEngine || mergedNodeCfg?.scriptEngine,
-            'auto_chrome_dom',
+            scrapeRes?.scriptEngine || mergedNodeCfg?.scriptEngine || mergedNodeCfg?.engine,
+            'antigravity_native_browser',
           );
           const scraperStepObj = {
-            nodeKey: sc.nodeKey || `extractor_${sc.nodeId}`,
+            nodeKey: sc.nodeKey || `tool_inputs_${sc.nodeId}`,
             nodeId: sc.nodeId,
             title: scrapeRes?.portalLabel || formatHumanWorkflowNodeTitle(sc.nodeId),
             category: String(sc.nodeKey || '').startsWith('tool_inputs_') ? 'input' : 'extractor',
@@ -6039,7 +6133,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             inputCount: Number(scrapeRes?.urlsProcessed || 1),
             outputCount: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.length : 1,
             outputPreview: isGenericScraperResult
-              ? `${scrapeRes?.urlsProcessed || 1} URL(s) procesada(s) · Motor: ${resolvedScraperEngine} · SHA-256: ${scrapeRes?.contentHash ? String(scrapeRes.contentHash).slice(0, 12) : 'N/A'}`
+              ? `${scrapeRes?.urlsProcessed || 1} URL(s) procesada(s) · Motor: ${formatHumanScraperEngineLabel(resolvedScraperEngine)} · SHA-256: ${scrapeRes?.contentHash ? String(scrapeRes.contentHash).slice(0, 12) : 'N/A'}`
               : String(scrapeRes?.inputSummary || scrapeRes?.portalLabel || 'Verificación completada'),
             outputItems: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems.slice(0, 15) : [],
             ...(scrapeRes?.error ? { error: String(scrapeRes.error) } : {}),
@@ -6099,9 +6193,12 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     ) {
       const compDisplayMissing = automationCompany?.companyName || 'tu empresa activa';
       const isArlPrimaryFlow =
-        Array.isArray(automation.workflowNodes?.extractors) &&
-        automation.workflowNodes.extractors.includes('scraper_agy_arl_directo') &&
-        !automation.workflowNodes.extractors.includes('scraper_agy_alto_riesgo');
+        ((Array.isArray(automation.workflowNodes?.extractors) &&
+          automation.workflowNodes.extractors.includes('scraper_agy_arl_directo')) ||
+          (Array.isArray(automation.workflowNodes?.inputs) &&
+            automation.workflowNodes.inputs.includes('scraper_agy_arl_directo'))) &&
+        !(automation.workflowNodes?.extractors || []).includes('scraper_agy_alto_riesgo') &&
+        !(automation.workflowNodes?.inputs || []).includes('scraper_agy_alto_riesgo');
       const missingCedulaPromptResult = isArlPrimaryFlow
         ? `Para consultar en vivo la afiliación ARL y descargar el certificado oficial, por favor indícame el **número de cédula** (y si pertenece a una ARL que lo exija, como Seguros Bolívar, añade su fecha de nacimiento) o dime el **nombre completo del trabajador** registrado en **${compDisplayMissing}**.`
         : `Para consultar en tiempo real el certificado en portales oficiales, por favor indícame el **número de cédula** (o el nombre completo del trabajador de **${compDisplayMissing}**, o dime explícitamente si deseas auditar toda la nómina registrada).`;
@@ -6882,9 +6979,19 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     const preservedNotebookMcpTools = includesNotebookLmNode
       ? existingAgentTools.filter((t) => typeof t === 'string' && t.endsWith('_mcp_notebooklm'))
       : [];
-    agent.tools = hasExplicitCanvasGraph
+    const computedAgentTools = hasExplicitCanvasGraph
       ? Array.from(new Set([...dynamicWorkflowTools, ...preservedNotebookMcpTools]))
       : Array.from(new Set([...existingAgentTools, ...dynamicWorkflowTools]));
+    const suppressSomosSstOnPreSourceYes =
+      isPreSourceIf &&
+      preSourceRouterState.hasExplicitCedula &&
+      connectedAgentToolHitos.length === 0 &&
+      !(Array.isArray(wfCanvasObj.outputs) ? wfCanvasObj.outputs : []).some(
+        (o) => o === 'acpm_task' || o === 'somos_sst_update' || o === 'canvas_doc',
+      );
+    agent.tools = suppressSomosSstOnPreSourceYes
+      ? computedAgentTools.filter((t) => t !== 'somos_sst')
+      : computedAgentTools;
 
     // Build mock request & response with explicit companyId, isAutomation flag, and app reports collector
     const req = {
@@ -8881,6 +8988,8 @@ async function executeRealAntigravityScraperVerification({
   upstreamInputItems = [],
   upstreamSourceTitle = '',
   isTenshiFlowRun = false,
+  flowScope = '',
+  hasConversationalAntigravityNode = false,
   triggerSource = 'manual',
   hasWorkerSourceStage2 = false,
   skipWorkerDbHydration = false,
@@ -8888,6 +8997,15 @@ async function executeRealAntigravityScraperVerification({
   requireNameMatchIfNoCedula = false,
 }) {
   const companyId = rawCompanyId || targetCompanyIdStr || '';
+  const isTenshiInstantCtx =
+    Boolean(isTenshiFlowRun) ||
+    String(flowScope || '').toLowerCase() === 'tenshi' ||
+    String(triggerSource || '').toLowerCase().startsWith('tenshi');
+  const hasSeparateConversationalAntigravityNode = Boolean(
+    hasConversationalAntigravityNode ||
+      allNodeConfigs?.google_antigravity ||
+      allNodeConfigs?.tool_inputs_google_antigravity,
+  );
   const t0 = Date.now();
   const stepLogs = [];
   const addLog = (level, message, detail = '') => {
@@ -8935,7 +9053,11 @@ async function executeRealAntigravityScraperVerification({
     }
     addLog('info', `Iniciando lectura de carpeta local "${folderPath}" vía Google Antigravity (${antigravityMode})`);
     let folderChatPromise = Promise.resolve(null);
-    if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+    if (
+      typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' &&
+      !isTenshiInstantCtx &&
+      hasSeparateConversationalAntigravityNode
+    ) {
       folderChatPromise = global
         .dispatchWorkflowOrderToAntigravityChat({
           userId: userIdStr,
@@ -9100,9 +9222,10 @@ async function executeRealAntigravityScraperVerification({
     const effectiveUrls = urlsList.length > 0 ? urlsList : [targetUrl];
     const primaryTargetUrl = effectiveUrls[0] || targetUrl;
     const scriptEngine = normalizeScraperEngine(
-      nodeCfg?.scriptEngine || customNodeObj?.scriptEngine,
+      nodeCfg?.scriptEngine || nodeCfg?.engine || customNodeObj?.scriptEngine || customNodeObj?.engine,
       'auto_chrome_dom',
     );
+    const scriptEngineHuman = formatHumanScraperEngineLabel(scriptEngine);
     const scriptCode = String(
       nodeCfg?.scriptCode || customNodeObj?.scriptCode || '',
     ).trim();
@@ -9115,10 +9238,14 @@ async function executeRealAntigravityScraperVerification({
     }
     addLog(
       'info',
-      `Extrayendo contenido web y evidencia desde "${effectiveUrls.join(', ')}" (motor: ${scriptEngine} · modo ${antigravityMode})`,
+      `Extrayendo contenido web y evidencia desde "${effectiveUrls.join(', ')}" (motor: ${scriptEngineHuman} · modo ${antigravityMode})`,
     );
     let scrapeChatPromise = Promise.resolve(null);
-    if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function') {
+    if (
+      typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' &&
+      !isTenshiInstantCtx &&
+      hasSeparateConversationalAntigravityNode
+    ) {
       scrapeChatPromise = global
         .dispatchWorkflowOrderToAntigravityChat({
           userId: userIdStr,
@@ -9564,7 +9691,7 @@ async function executeRealAntigravityScraperVerification({
 
     if (upstreamWorkers.length > 0) {
       companyWorkers = upstreamWorkers;
-      if (companyWorkers.some((w) => !w.arl || !w.fechaNacimiento)) {
+      if (!skipWorkerDbHydration && companyWorkers.some((w) => !w.arl || !w.fechaNacimiento)) {
         try {
           const liveHydrationData = await inspectNodeLiveData({
             userId: userIdStr,
@@ -9905,9 +10032,10 @@ async function executeRealAntigravityScraperVerification({
     customNodeObj?.targetUrl ||
     portalMeta.defaultUrls;
   const scriptEngineStr = normalizeScraperEngine(
-    nodeCfg?.scriptEngine || customNodeObj?.scriptEngine,
-    'chrome_mcp',
+    nodeCfg?.scriptEngine || nodeCfg?.engine || customNodeObj?.scriptEngine || customNodeObj?.engine,
+    'antigravity_native_browser',
   );
+  const scriptEngineHumanLabel = formatHumanScraperEngineLabel(scriptEngineStr);
   const scriptCodeStr = nodeCfg?.scriptCode || customNodeObj?.scriptCode || '';
 
   // 4. Ejecutar consultas reales en lotes de 10 en paralelo a través del daemon Antigravity
@@ -10454,10 +10582,25 @@ async function executeRealAntigravityScraperVerification({
     );
   }
 
-  // 4.5. Registrar en el hilo dedicado de Flujo Autónomo WAPPY en Google Antigravity IDE (`wappy-push-daemon.js`)
-  // la tabla REAL ya verificada cédula por cédula para que el usuario vea el detalle exacto en su IDE y NUNCA se envíe a Tenshi Voz.
+  // 4.5. Despacho conversacional secundario al IDE de Google Antigravity (`language_server`):
+  // PROHIBIDO enviar una segunda orden `nueva_orden` cuando el scraper estructurado YA obtuvo hallazgos/certificados
+  // reales vía `osint_mintrabajo_request` / HTTP, cuando se ejecuta en un Flujo Tenshi instantáneo, o cuando el flujo
+  // NO incluye un nodo conversacional separado `google_antigravity` (evitando duplicar invocación y +15s de espera).
   let chatDispatchRes = null;
-  if (typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' && verificationRows.length > 0) {
+  const alreadyResolvedStructuredPortalData =
+    relayUsedCount > 0 ||
+    directFallbackCount > 0 ||
+    evidences.length > 0 ||
+    verifiedWithCoursesCount > 0 ||
+    verifiedNoCoursesCount > 0;
+  const shouldDispatchSecondaryIdeChatOrder =
+    typeof global.dispatchWorkflowOrderToAntigravityChat === 'function' &&
+    verificationRows.length > 0 &&
+    !isTenshiInstantCtx &&
+    !isInteractiveTenshiRequest &&
+    hasSeparateConversationalAntigravityNode &&
+    !alreadyResolvedStructuredPortalData;
+  if (shouldDispatchSecondaryIdeChatOrder) {
     const verifiedRowsMarkdown = verificationRows
       .map(
         (r, idx) =>
@@ -10466,7 +10609,7 @@ async function executeRealAntigravityScraperVerification({
       .join('\n');
     const orderInstruction =
       `Ejecución de nodo de flujo autónomo "${portalMeta.title}" para la empresa "${companyName}".\n` +
-      `- Motor configurado: ${scriptEngineStr} (Modo: ${antigravityMode})\n` +
+      `- Motor configurado: ${scriptEngineHumanLabel} (Modo: ${antigravityMode})\n` +
       `- URL(s) objetivo consultadas en vivo: ${targetUrlsStr}\n` +
       `- Cédulas numéricas consultadas en vivo desde tu Mac/PC: ${validTargets.length} (${verifiedWithCoursesCount} con registro/certificado · ${verifiedNoCoursesCount} sin registro activo · ${evidences.length} certificado(s)/soporte(s) descargado(s))\n` +
       (promptText ? `- Solicitud del flujo: ${promptText.trim()}\n` : '') +
@@ -10479,7 +10622,7 @@ async function executeRealAntigravityScraperVerification({
         companyName,
         title: `[Flujo WAPPY] ${portalMeta.title} — ${companyName}`,
         instruction: orderInstruction,
-        recursoObjetivo: `Google Antigravity (${scriptEngineStr}) · ${targetUrlsStr.slice(0, 90)}`,
+        recursoObjetivo: `Google Antigravity (${scriptEngineHumanLabel}) · ${targetUrlsStr.slice(0, 90)}`,
         antigravityMode,
         waitTimeoutMs: 1200,
       })
@@ -11611,6 +11754,33 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
     if (isAntigravityScraperIdentifier(nodeKey, nodeId, null)) {
       try {
+        const isSimTenshiRun = Boolean(
+          params?.isTenshiFlow || String(agentId || '').includes('tenshi'),
+        );
+        let effectiveScraperIncoming = incomingItems;
+        let effectiveScraperSourceTitle = incomingSource.title;
+        if (
+          isPreSourceSim &&
+          ifEvaluation.branchTaken === 'NO' &&
+          (!Array.isArray(effectiveScraperIncoming) ||
+            !effectiveScraperIncoming.some(
+              (it) => it && (it['Cédula / Documento'] || it.cedula || it.documento),
+            ))
+        ) {
+          for (const [, stepEntry] of stepOutputsByKey.entries()) {
+            if (
+              stepEntry.category === 'hito' &&
+              Array.isArray(stepEntry.outputItems) &&
+              stepEntry.outputItems.some(
+                (it) => it && (it['Cédula / Documento'] || it.cedula || it.documento),
+              )
+            ) {
+              effectiveScraperIncoming = stepEntry.outputItems;
+              effectiveScraperSourceTitle = stepEntry.title || effectiveScraperSourceTitle;
+              break;
+            }
+          }
+        }
         const realScraperRes = await executeRealAntigravityScraperVerification({
           userIdStr,
           companyId: targetCompanyIdStr,
@@ -11623,10 +11793,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           allNodeConfigs: nodeConfigs,
           mockTriggerInput,
           promptText: prompt,
-          upstreamInputItems: incomingItems,
-          upstreamSourceTitle: incomingSource.title,
-          isTenshiFlowRun: Boolean(params?.isTenshiFlow || String(agentId || '').includes('tenshi')),
-          triggerSource: params?.isTenshiFlow || String(agentId || '').includes('tenshi') ? 'tenshi_sandbox' : 'sandbox',
+          upstreamInputItems: effectiveScraperIncoming,
+          upstreamSourceTitle: effectiveScraperSourceTitle,
+          isTenshiFlowRun: isSimTenshiRun,
+          flowScope: isSimTenshiRun ? 'tenshi' : 'sandbox',
+          hasConversationalAntigravityNode:
+            configuredInputs.includes('google_antigravity') ||
+            configuredInputs.includes('google_antigravity_cloud') ||
+            selectedAiEngine !== 'wappy',
+          triggerSource: isSimTenshiRun ? 'tenshi_sandbox' : 'sandbox',
           skipWorkerDbHydration: Boolean(isPreSourceSim),
           preSourceBranch: isPreSourceSim ? (ifEvaluation.branchTaken === 'SI' ? 'yes' : 'no') : '',
           requireNameMatchIfNoCedula: Boolean(isPreSourceSim && ifEvaluation.branchTaken === 'NO'),
@@ -11815,12 +11990,19 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     const preserveUpstreamItemsBeforeAgent =
       isTargetWriteHitoStep && agentOutputs.length === 0 && incomingItems.length > 0;
 
+    const isNonProducerBootstrapState =
+      currentPipelineItems.length === 0 ||
+      lastProducerNode.nodeKey === 'inicio' ||
+      lastProducerNode.nodeKey === 'trigger_root' ||
+      lastProducerNode.nodeKey === 'if_router' ||
+      lastProducerNode.nodeKey === 'if_condition';
+
     if (
       !preserveUpstreamItemsBeforeAgent &&
       (category === 'extractor' ||
         category === 'hito' ||
         category === 'tool' ||
-        currentPipelineItems.length <= 1)
+        isNonProducerBootstrapState)
     ) {
       currentPipelineItems = stepOutputItems;
       lastProducerNode = { nodeKey, title: stepItem.title };
@@ -12138,6 +12320,43 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
     // 2. NODO MOTOR / MODELO IA (sub_model)
     if (category === 'model' || nodeKey === 'sub_model') {
+      if (isPreSourceSim && preSourceNoMatchAbort) {
+        await emitProgress({
+          type: 'step_start',
+          nodeKey,
+          nodeId: effectiveAiModel,
+          category: 'model',
+        });
+        const skippedModelStep = {
+          stepIndex: ++stepCounter,
+          nodeKey,
+          nodeId: effectiveAiModel,
+          category: 'model',
+          title: `${stepCustomTitle || `🧠 Motor IA (${effectiveAiModel})`} (⏭️ Omitido — 0 tokens LLM)`,
+          status: 'skipped',
+          durationMs: 1,
+          recordsCount: 0,
+          surgicalFields: [],
+          inputSummary: '⏭️ Omitido — Falta cédula o coincidencia nominal en Hito 2',
+          inputContext: '⏭️ Omitido — Falta cédula o coincidencia nominal en Hito 2',
+          outputPreview:
+            '⏭️ Omitido (0 tokens LLM): Cortocircuito limpio porque no se encontró coincidencia nominal en Perfil Sociodemográfico (Hito 2).',
+          sourceNodeKey: lastProducerNode.nodeKey,
+          sourceNodeTitle: lastProducerNode.title,
+          inputItems: [],
+          outputItems: [],
+          logs: [],
+          error: null,
+        };
+        nodeTrace.push(skippedModelStep);
+        await emitProgress({
+          type: 'step_done',
+          nodeKey,
+          nodeId: effectiveAiModel,
+          step: skippedModelStep,
+        });
+        continue;
+      }
       await emitProgress({
         type: 'step_start',
         nodeKey,
@@ -12254,8 +12473,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       if (
         isPreSourceSim &&
         preSourceNoMatchAbort &&
-        category === 'extractor' &&
-        isAntigravityScraperIdentifier(nodeKey, nodeId, null)
+        (category === 'memory' ||
+          ((category === 'extractor' || category === 'tool') &&
+            isAntigravityScraperIdentifier(nodeKey, nodeId, null)))
       ) {
         await emitProgress({ type: 'step_start', nodeKey, nodeId, category });
         const skippedScraperStep = {
@@ -12263,7 +12483,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           nodeKey,
           nodeId,
           category,
-          title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — 0 consultas externas)`,
+          title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — ${category === 'memory' ? '0 consumo IA' : '0 consultas externas'})`,
           status: 'skipped',
           durationMs: 1,
           recordsCount: 0,
@@ -12271,7 +12491,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           inputSummary: '⏭️ Omitido — Sin cédula ni trabajador coincidente en Hito 2',
           inputContext: '⏭️ Omitido — Sin cédula ni trabajador coincidente en Hito 2',
           outputPreview:
-            '⏭️ Omitido (0 consultas externas): No se recibió número de cédula ni nombre coincidente en Perfil Sociodemográfico (Hito 2).',
+            category === 'memory'
+              ? '⏭️ Omitido: No se invocó el Agente IA al faltar cédula o coincidencia nominal en Perfil Sociodemográfico (Hito 2).'
+              : '⏭️ Omitido (0 consultas externas): No se recibió número de cédula ni nombre coincidente en Perfil Sociodemográfico (Hito 2).',
           sourceNodeKey: lastProducerNode.nodeKey,
           sourceNodeTitle: lastProducerNode.title,
           inputItems: [],
@@ -12854,8 +13076,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           : '',
         cn.content || cn.subtitle || cnCfg.customInstruction || '',
         cn.targetUrl || cnCfg.targetUrl ? `🌐 URL: ${cn.targetUrl || cnCfg.targetUrl}` : '',
-        cn.scriptEngine || cnCfg.scriptEngine
-          ? `⚙️ Motor: ${normalizeScraperEngine(cn.scriptEngine || cnCfg.scriptEngine, 'auto_chrome_dom')}`
+        cn.scriptEngine || cn.engine || cnCfg.scriptEngine || cnCfg.engine
+          ? `⚙️ Motor: ${formatHumanScraperEngineLabel(cn.scriptEngine || cn.engine || cnCfg.scriptEngine || cnCfg.engine)}`
           : '',
         cn.scriptCode || cnCfg.scriptCode
           ? `💻 Script: ${String(cn.scriptCode || cnCfg.scriptCode).slice(0, 260)}`

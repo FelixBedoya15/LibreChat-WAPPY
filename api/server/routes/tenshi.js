@@ -1389,8 +1389,8 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 userId: targetUserId,
                 companyId: companyInfo?._id || null,
                 viewerRole: req.user?.role || '',
-                limit: 5,
-                timeoutMs: 900,
+                limit: 6,
+                timeoutMs: 2000,
             }).catch(() => null),
         ]);
 
@@ -1503,9 +1503,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         let recentSystemActivityBlock = '';
-        const recentSystemItems = Array.isArray(systemActivityResult?.actividadesRecientes)
+        const rawSystemItems = Array.isArray(systemActivityResult?.actividadesRecientes)
             ? systemActivityResult.actividadesRecientes
             : [];
+        const cleanCurrentQueryNorm = String(userQuery || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const recentSystemItems = rawSystemItems.filter((act) => {
+            if (!act || !act.titulo || /\bsesi[oó]n\s+an[oó]nima\b/i.test(act.titulo)) {
+                return false;
+            }
+            if (act.tipo === 'chat_tenshi' && cleanCurrentQueryNorm) {
+                const actPrefix = String(act.titulo).replace(/…$/, '').trim().toLowerCase();
+                if (actPrefix && cleanCurrentQueryNorm.startsWith(actPrefix)) {
+                    return false;
+                }
+            }
+            return true;
+        }).slice(0, 5);
         if (recentSystemItems.length > 0) {
             recentSystemActivityBlock = `### ⚡ [ACTIVIDAD RECIENTE REAL EN TODO EL SISTEMA (DEL MÁS RECIENTE AL MÁS ANTIGUO)]:\n`;
             recentSystemItems.forEach((act, idx) => {

@@ -190,6 +190,7 @@ export interface CanvasNodeConfig {
   emailSenderFilter?: string;
   emailSubjectFilter?: string;
   onlyWithAttachments?: boolean;
+  qrPortalType?: string;
   qrPortalTarget?: string;
   qrSeverityFilter?: 'all' | 'critical_only';
   sourceAgentId?: string;
@@ -422,6 +423,7 @@ export interface WorkflowNodesConfig {
   inputs: string[];
   hitos: string[];
   outputs: string[];
+  actions?: string[];
   canvasLayout?: {
     positions?: Record<string, CanvasNodePosition>;
     edges?: CanvasWireEdge[];
@@ -710,14 +712,14 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'extract_web_scraping_agy',
-    label: 'Web Scraping Inteligente (Hasta 5 URLs · Auto DOM / Chrome / Script)',
+    label: 'Web Scraping Inteligente (Hasta 5 URLs · Auto DOM / Navegador Nativo AGY / Script)',
     shortLabel: 'Web Scraping',
     badge: 'web_scraper_live + SHA-256',
     description:
-      'Extrae contenido, tablas y normativa de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante Chrome DevTools MCP y scripts Antigravity, con selectores CSS y detección de cambios SHA-256.',
+      'Extrae contenido, tablas y normativa de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante el Navegador Nativo Integrado de Antigravity (1° Local ➔ 2° Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS), con selectores CSS y detección de cambios SHA-256.',
     category: 'extractor',
     toolHint:
-      'web_scraper_live (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección real de cambios SHA-256 o script Python/Node/Chrome Antigravity)',
+      'web_scraper_live (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección real de cambios SHA-256 o Navegador Nativo Integrado de Antigravity)',
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
@@ -738,10 +740,10 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     shortLabel: 'Web Scraping ARL',
     badge: 'Antigravity · 5 ARL',
     description:
-      'Verifica por Cédula directamente en los portales oficiales de ARL SURA, ARL Positiva, ARL Colmena, ARL AXA Colpatria y ARL Seguros Bolívar (sin RUAF) vía Google Antigravity.',
+      'Verifica por Cédula en los portales oficiales de ARL SURA, ARL Positiva, ARL Colmena, ARL AXA Colpatria y ARL Seguros Bolívar (sin RUAF) con cascada de protección: 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS.',
     category: 'extractor',
     toolHint:
-      'Verificar afiliación y descargar certificado de ARL por Cédula vía Google Antigravity en ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar',
+      'Verificar afiliación y descargar certificado de ARL por Cédula en ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar (1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS)',
     badgeColor: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
   },
   {
@@ -1173,11 +1175,11 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
   {
     id: 'scraper_node_antigravity',
     nodeType: 'web_scraper',
-    label: 'Nodo: Web Scraping Inteligente (Auto DOM / Chrome / Script)',
+    label: 'Nodo: Web Scraping Inteligente (Auto DOM / Navegador Nativo AGY / Script)',
     shortLabel: 'Web Scraping',
     subtitle: 'Auto DOM · Hasta 5 URLs + SHA-256',
     content:
-      'Extrae contenido estructurado, tablas y documentos de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o vía script/navegador en Google Antigravity, con selectores CSS y detección de cambios SHA-256.',
+      'Extrae contenido estructurado, tablas y documentos de hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante el Navegador Nativo Integrado de Antigravity (1° Local ➔ 2° Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS), con selectores CSS y detección de cambios SHA-256.',
     targetUrl: 'https://www.mintrabajo.gov.co',
     scriptEngine: 'auto_chrome_dom',
   },
@@ -1208,18 +1210,19 @@ export const SKILL_RULE_SUBAGENT_NODES: Array<{
     subtitle: 'Antigravity · 5 ARL',
     badge: 'Antigravity · 5 ARL',
     content:
-      'Verifica afiliación activa y descarga certificados de ARL por Cédula directamente en los 5 portales oficiales (ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar, sin pasar por RUAF) vía Google Antigravity.',
+      'Verifica afiliación activa y descarga certificados de ARL por Cédula directamente en los 5 portales oficiales (ARL SURA, Positiva, Colmena, AXA Colpatria y Seguros Bolívar, sin pasar por RUAF) con cascada de protección: 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS.',
     targetUrl:
       'https://www.arlsura.com/afiliacion/verificar.php, https://www.positivaenlinea.gov.co/nuevo/, https://afiliacionarl.colmenaseguros.com/, https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/, https://www.segurosbolivar.com/arl',
     scriptEngine: 'chrome_devtools_mcp',
-    scriptCode: `// 🛡️ SCRIPT ANTIGRAVITY: Consulta Directa en las 5 ARL de Colombia (Sin RUAF)
+    scriptCode: `// 🛡️ NAVEGADOR NATIVO ANTIGRAVITY: Consulta Directa en las 5 ARL de Colombia (Sin RUAF)
+// Cascada: 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS
 // Recorre por Cédula (CC) las páginas oficiales directas:
 // 1. ARL SURA: https://www.arlsura.com/afiliacion/verificar.php
 // 2. ARL Positiva: https://www.positivaenlinea.gov.co/nuevo/
 // 3. ARL Colmena: https://afiliacionarl.colmenaseguros.com/
 // 4. ARL AXA Colpatria: https://asesoriavirtual.axacolpatria.co/prod_esst/certificados/
 // 5. ARL Seguros Bolívar: https://www.segurosbolivar.com/arl
-// Devuelve en cuál ARL figura ACTIVO, clase de riesgo (I-V), empleador y certificado PDF.`,
+// Devuelve en cuál ARL figura ACTIVO, clase de riesgo (I-V), empleador y certificado PDF/PNG.`,
   },
   {
     id: 'scraper_agy_pensiones_directo',
@@ -1442,6 +1445,7 @@ export const TRIGGER_NODES: WorkflowNodeDef[] = [
 
 export function normalizeTriggerId(rawId?: string): string {
   if (!rawId) return 'schedule_cron';
+  if (rawId === 'tenshi_ia') return 'trigger_tenshi';
   if (rawId === 'gmail_inbox_watch' || rawId === 'gmail_watch') return 'trigger_email';
   if (rawId === 'webhook_event') return 'trigger_webhook';
   if (rawId === 'trigger_whatsapp') return 'schedule_cron';
@@ -1702,10 +1706,14 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   // 🟣 CONECTORES MCP, ANTIGRAVITY & ONEDRIVE (EN CONSTRUCCIÓN)
   {
     id: 'google_antigravity',
-    label: 'Google Antigravity Local (Puente MCP Mac / PC)',
+    label: 'Google Antigravity Local (Navegador Nativo + Puente MCP Mac/PC)',
     shortLabel: 'Antigravity Local',
+    badge: 'Navegador Nativo + MCP',
+    description:
+      'Conecta tu Mac/PC vía Push SSE con el Navegador Nativo Integrado de Antigravity en cascada de protección: 1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS.',
     category: 'mcp_tools',
-    toolHint: 'google_antigravity (puente reactivo MCP con Mac/PC)',
+    toolHint:
+      'google_antigravity (1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS)',
     badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
   },
   {
@@ -1718,14 +1726,14 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
   },
   {
     id: 'tool_web_scraping_agy',
-    label: 'Web Scraping en Vivo (Auto DOM / Antigravity MCP)',
+    label: 'Web Scraping en Vivo (Auto DOM / Navegador Nativo Antigravity)',
     shortLabel: 'Web Scraping Live',
-    badge: 'web_scraper_live + MCP',
+    badge: 'web_scraper_live + AGY',
     description:
-      'Permite al Agente IA consultar hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante Chrome DevTools MCP y scripts Antigravity, con selectores CSS y detección de cambios SHA-256.',
+      'Permite al Agente IA consultar hasta 5 URLs públicas de forma autónoma en servidor (HTML + DOM JS / Fetch Cheerio) o mediante el Navegador Nativo Integrado de Antigravity (1° Local ➔ 2° Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS), con selectores CSS y detección de cambios SHA-256.',
     category: 'mcp_tools',
     toolHint:
-      'web_scraper_live / google_antigravity (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección SHA-256 o Chrome MCP)',
+      'web_scraper_live / google_antigravity (extracción web autónoma multi-URL HTML+DOM JS, selectores CSS, detección SHA-256 o Navegador Nativo Antigravity)',
     badgeColor: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
   },
   {
@@ -1739,6 +1747,17 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
     badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
   },
 ];
+
+/**
+ * Conectores especializados de Web Scraping por Cédula/Placa que pueden conectarse
+ * directamente en el puerto «Herramienta +» del Agente IA (estilo n8n AI Agent Tool).
+ */
+export const WEB_SCRAPER_AGENT_TOOL_NODES: WorkflowNodeDef[] = EXTRACTOR_NODES.filter((n) =>
+  n.id.startsWith('scraper_agy_'),
+).map((n) => ({
+  ...n,
+  category: 'mcp_tools',
+}));
 
 export const HITO_APP_NODES: WorkflowNodeDef[] = [
   // ═══ HITO 1: GOBERNANZA Y CIMIENTO LEGAL (15 APLICATIVOS) ═══
@@ -2420,62 +2439,79 @@ export const OUTPUT_ACTION_NODES: WorkflowNodeDef[] = [
 ];
 
 export function getNodeDefById(id: string): WorkflowNodeDef | undefined {
-  const normId =
-    id === 'gmail_inbox_watch' || id === 'gmail_watch'
-      ? 'trigger_email'
-      : id === 'webhook_event'
-        ? 'trigger_webhook'
-        : id === 'drive_folder_watch' || id === 'drive_watch' || id === 'sgsst_db_audit' || id === 'sst_deadline_watch'
-          ? 'schedule_cron'
-          : id === 'hito2_cronograma'
-            ? 'hito7_acpm'
-            : id === 'hito6_capacitaciones'
-              ? 'hito5_capacitaciones'
-              : id === 'matriz_legal'
-                ? 'hito1_matriz_legal'
-                : id === 'hito1_politica'
-                  ? 'hito1_politica_objetivos'
-                  : id === 'hito6_emergencias'
-                    ? 'hito1_plan_emergencias'
-                    : id;
-  const direct =
-    TRIGGER_NODES.find((n) => n.id === normId) ||
-    EXTRACTOR_NODES.find((n) => n.id === normId) ||
-    MEMORY_NODES.find((n) => n.id === normId) ||
-    INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
-    HITO_APP_NODES.find((n) => n.id === normId || n.sgsstAppId === normId) ||
-    OUTPUT_ACTION_NODES.find((n) => n.id === normId);
-  if (direct) return direct;
+  const raw = String(id || '').trim();
+  if (!raw) return undefined;
+  const stripped = raw.replace(
+    /^(trigger_|extractor_|ext_|hito_src_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+    '',
+  );
+  const mapAlias = (candidate: string): string =>
+    candidate === 'tenshi_ia'
+      ? 'trigger_tenshi'
+      : candidate === 'notify_wappy'
+        ? 'wappy_notification'
+        : candidate === 'gmail_inbox_watch' || candidate === 'gmail_watch'
+          ? 'trigger_email'
+          : candidate === 'webhook_event'
+            ? 'trigger_webhook'
+            : candidate === 'drive_folder_watch' ||
+                candidate === 'drive_watch' ||
+                candidate === 'sgsst_db_audit' ||
+                candidate === 'sst_deadline_watch'
+              ? 'schedule_cron'
+              : candidate === 'hito2_cronograma'
+                ? 'hito7_acpm'
+                : candidate === 'hito6_capacitaciones'
+                  ? 'hito5_capacitaciones'
+                  : candidate === 'matriz_legal'
+                    ? 'hito1_matriz_legal'
+                    : candidate === 'hito1_politica'
+                      ? 'hito1_politica_objetivos'
+                      : candidate === 'hito6_emergencias'
+                        ? 'hito1_plan_emergencias'
+                        : candidate;
 
-  const skillOrSubagent = SKILL_RULE_SUBAGENT_NODES.find((n) => n.id === normId);
-  if (skillOrSubagent) {
-    return {
-      id: skillOrSubagent.id,
-      label: skillOrSubagent.label,
-      shortLabel: skillOrSubagent.shortLabel,
-      category: skillOrSubagent.nodeType,
-      toolHint: skillOrSubagent.subtitle,
-      badge: skillOrSubagent.subtitle,
-      description: skillOrSubagent.content,
-      defaultConstruction: Boolean(skillOrSubagent.defaultConstruction),
-      badgeColor:
-        'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
-    };
-  }
+  const candidates = Array.from(new Set([mapAlias(raw), mapAlias(stripped)]));
+  for (const normId of candidates) {
+    const direct =
+      TRIGGER_NODES.find((n) => n.id === normId) ||
+      EXTRACTOR_NODES.find((n) => n.id === normId) ||
+      MEMORY_NODES.find((n) => n.id === normId) ||
+      INPUT_CONNECTOR_NODES.find((n) => n.id === normId) ||
+      HITO_APP_NODES.find((n) => n.id === normId || n.sgsstAppId === normId) ||
+      OUTPUT_ACTION_NODES.find((n) => n.id === normId);
+    if (direct) return direct;
 
-  const modelOpt = AI_ENGINE_MODELS.find((m) => m.id === normId || m.model === normId);
-  if (modelOpt) {
-    return {
-      id: modelOpt.id,
-      label: modelOpt.label,
-      shortLabel: modelOpt.shortLabel,
-      category: 'ai_model',
-      badge: modelOpt.engine === 'wappy' ? 'Motor WAPPY Cloud' : 'Google Antigravity',
-      description: modelOpt.description,
-      toolHint: `${modelOpt.engine} (${modelOpt.model})`,
-      badgeColor:
-        'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-    };
+    const skillOrSubagent = SKILL_RULE_SUBAGENT_NODES.find((n) => n.id === normId);
+    if (skillOrSubagent) {
+      return {
+        id: skillOrSubagent.id,
+        label: skillOrSubagent.label,
+        shortLabel: skillOrSubagent.shortLabel,
+        category: skillOrSubagent.nodeType,
+        toolHint: skillOrSubagent.subtitle,
+        badge: skillOrSubagent.subtitle,
+        description: skillOrSubagent.content,
+        defaultConstruction: Boolean(skillOrSubagent.defaultConstruction),
+        badgeColor:
+          'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+      };
+    }
+
+    const modelOpt = AI_ENGINE_MODELS.find((m) => m.id === normId || m.model === normId);
+    if (modelOpt) {
+      return {
+        id: modelOpt.id,
+        label: modelOpt.label,
+        shortLabel: modelOpt.shortLabel,
+        category: 'ai_model',
+        badge: modelOpt.engine === 'wappy' ? 'Motor WAPPY Cloud' : 'Google Antigravity',
+        description: modelOpt.description,
+        toolHint: `${modelOpt.engine} (${modelOpt.model})`,
+        badgeColor:
+          'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+      };
+    }
   }
   return undefined;
 }
@@ -8721,7 +8757,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
       'Indicadores, Tarifas, UVT o SMLMV Actualizados',
       'Texto Principal Limpio (Sin Menús ni Publicidad)',
       'Selectores CSS / XPath Personalizados del Script',
-      'Captura de Pantalla de Evidencia (Chrome DevTools MCP)',
+      'Captura de Pantalla de Evidencia (Navegador Nativo Antigravity)',
     ],
     quickCombos: [
       {
@@ -8739,7 +8775,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         fields: [
           'Consulta de Estado por Número de Cédula / NIT / Placa',
           'Tablas de Datos HTML Convertidas a Markdown / JSON',
-          'Captura de Pantalla de Evidencia (Chrome DevTools MCP)',
+          'Captura de Pantalla de Evidencia (Navegador Nativo Antigravity)',
         ],
       },
       {
@@ -8914,9 +8950,9 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
       'Delegación Reactiva por Puente Push SSE hacia tu Mac/PC',
       'Acceso Completo a las 110+ Herramientas del Servidor MCP WAPPY',
       'Lectura y Escritura Directa en Carpetas Locales del Computador',
-      'Ejecución de Scripts Locales (Python, Node.js, Playwright, Chrome MCP)',
+      'Navegador Nativo Integrado de Antigravity y Ejecución de Scripts Locales (Python / Node.js)',
       'Sincronización Bidireccional en Vivo con los 8 Hitos de Somos SST',
-      'Respaldo Automático en WAPPY Cloud si el Computador está Apagado',
+      'Cascada de Protección: 1° Antigravity Local ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
       'Cero Invención de Datos (Validación contra Base de Datos Real)',
       'Entrega de Bitácora Detallada en Consola Antigravity y WAPPY',
     ],
@@ -8932,11 +8968,11 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
       {
-        label: '⚡ Ejecución de Scripts (Python/Playwright) + Respaldo Cloud Automático',
-        description: 'Ideal para flujos con Web Scraping o automatización avanzada',
+        label: '⚡ Navegador Nativo Antigravity + Cascada Local ➔ Cloud ➔ HTTP Seguro',
+        description: 'Ideal para flujos con Web Scraping o automatización avanzada sin Chromium en VPS',
         fields: [
-          'Ejecución de Scripts Locales (Python, Node.js, Playwright, Chrome MCP)',
-          'Respaldo Automático en WAPPY Cloud si el Computador está Apagado',
+          'Navegador Nativo Integrado de Antigravity y Ejecución de Scripts Locales (Python / Node.js)',
+          'Cascada de Protección: 1° Antigravity Local ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
           'Entrega de Bitácora Detallada en Consola Antigravity y WAPPY',
         ],
       },
@@ -9917,7 +9953,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
       'Extracción Limpia de Tablas HTML hacia Formato Markdown y JSON',
       'Captura de Enlaces a Resoluciones, Decretos y Documentos PDF Oficiales',
       'Limpieza de DOM (Eliminar Menús, Scripts, Banners y Ruido Visual)',
-      'Manejo de Paginación y Espera de Renderizado Dinámico (Playwright / Chrome MCP)',
+      'Manejo de Paginación y Renderizado Dinámico (Navegador Nativo Antigravity)',
       'Validación de Estructura de Columnas Antes de Entregar al Agente',
       'Respeto de Tiempos de Respuesta y Reporte Transparente de Errores HTTP',
       'Cruce de Datos Extraídos con la Matriz Legal o Expedientes SST',
@@ -9934,10 +9970,10 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
       {
-        label: '⚡ Renderizado Dinámico Playwright/Chrome MCP + Cruce con Somos SST',
-        description: 'Ideal para portales interactivos que requieren navegador real',
+        label: '⚡ Renderizado Dinámico Navegador Nativo Antigravity + Cruce con Somos SST',
+        description: 'Ideal para portales interactivos mediante el Navegador Nativo Integrado de Antigravity',
         fields: [
-          'Manejo de Paginación y Espera de Renderizado Dinámico (Playwright / Chrome MCP)',
+          'Manejo de Paginación y Renderizado Dinámico (Navegador Nativo Antigravity)',
           'Validación de Estructura de Columnas Antes de Entregar al Agente',
           'Cruce de Datos Extraídos con la Matriz Legal o Expedientes SST',
         ],
@@ -10025,7 +10061,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     fieldsLabel: 'Tareas de Extracción y Scripts del Sub-Agente Ingeniero de Scraping',
     fields: [
       'Ejecución de Script Python (BeautifulSoup / Playwright) o Node.js (Cheerio)',
-      'Navegación e Inspección DOM en Vivo con Chrome DevTools MCP',
+      'Navegación e Inspección DOM en Vivo con Navegador Nativo Integrado de Antigravity',
       'Extracción de Tablas Completas y Conversión a Markdown / JSON',
       'Descarga y Listado de Documentos PDF, Circulares y Anexos',
       'Consulta Automatizada de Registros por Cédula, NIT o Placa',
@@ -10045,10 +10081,10 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
         ],
       },
       {
-        label: '⚡ Consulta por Cédula/NIT/Placa + Chrome MCP + Captura de Evidencia',
-        description: 'Inspección automatizada de portales con navegador real',
+        label: '⚡ Consulta por Cédula/NIT/Placa + Navegador Nativo AGY + Captura de Evidencia',
+        description: 'Inspección automatizada de portales con el Navegador Nativo Integrado de Antigravity',
         fields: [
-          'Navegación e Inspección DOM en Vivo con Chrome DevTools MCP',
+          'Navegación e Inspección DOM en Vivo con Navegador Nativo Integrado de Antigravity',
           'Consulta Automatizada de Registros por Cédula, NIT o Placa',
           'Captura de Evidencia Visual de la Página Consultada',
         ],
@@ -10243,9 +10279,9 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     reportTags: ['sgsst-tareas-alto-riesgo', 'sgsst-equipo-alturas'],
   },
   scraper_agy_arl_directo: {
-    moduleTitle: '🛡️ Consulta en Vivo · Verificación y Certificados de ARL Directos por Cédula',
-    moduleBadge: 'En Vivo · ARL Directas',
-    fieldsLabel: 'Portales Directos de ARL Consultados Hoy en Vivo y Soportes Descargados (.PDF y .PNG)',
+    moduleTitle: '🛡️ Herramienta · Verificación y Certificados de ARL Directos por Cédula (Navegador Nativo Antigravity)',
+    moduleBadge: 'Antigravity · 5 ARL',
+    fieldsLabel: 'Portales Directos de ARL Consultados en Vivo (1° AGY Local · Navegador Nativo ➔ 2° AGY Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS)',
     fields: [
       'ARL SURA — Verificación Pública de Afiliación y Certificado: https://www.arlsura.com/afiliacion/verificar.php',
       'ARL Positiva — Consulta y Certificado de Afiliación en Línea: https://www.positivaenlinea.gov.co/nuevo/',
@@ -10258,7 +10294,7 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     quickCombos: [
       {
         label: '⚡ Barrido en Vivo de ARL Directas (SURA, Positiva, Colmena, AXA y Bolívar) + PDF/PNG',
-        description: 'Verifica cobertura real de riesgos laborales por Cédula y deposita los soportes PDF/PNG en bandeja aparte',
+        description: '1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
         fields: [
           'ARL SURA — Verificación Pública de Afiliación y Certificado: https://www.arlsura.com/afiliacion/verificar.php',
           'ARL Positiva — Consulta y Certificado de Afiliación en Línea: https://www.positivaenlinea.gov.co/nuevo/',
@@ -10770,22 +10806,24 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     reportTags: [],
   },
   google_antigravity: {
-    moduleTitle: '🛰️ Conector MCP · Google Antigravity Local (Puente Reactivo Mac / PC)',
+    moduleTitle: '🛰️ Conector MCP · Google Antigravity Local (Navegador Nativo + Puente Reactivo Mac/PC)',
     moduleBadge: 'MCP · Antigravity Local',
-    fieldsLabel: 'Capacidades Delegadas a tu Instancia Local de Google Antigravity',
+    fieldsLabel: 'Capacidades Delegadas (1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS)',
     fields: [
       'Ejecución de Herramientas MCP y Scripts Locales vía Puente Push SSE',
-      'Inspección de Portales Oficiales con Navegador Real (Chrome DevTools MCP)',
+      'Inspección de Portales Oficiales con Navegador Nativo Integrado de Antigravity (sin abrir Chrome externo)',
+      'Cascada de Protección: 1° Antigravity Local ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
       'Lectura de Carpetas Locales autorizadas y Generación de Soportes PDF/PNG',
       'Retorno de Evidencias Descargadas a la Bandeja Aparte de WAPPY',
     ],
     quickCombos: [
       {
-        label: '⚡ Navegador Real Chrome MCP + Extracción Oficial + Soportes PDF/PNG',
-        description: 'Delega tareas avanzadas en tu Mac/PC conectado sin latencia de polling',
+        label: '⚡ Navegador Nativo Antigravity + Cascada Local/Cloud + Soportes PDF/PNG',
+        description: '1° Antigravity Local · Navegador Nativo ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
         fields: [
           'Ejecución de Herramientas MCP y Scripts Locales vía Puente Push SSE',
-          'Inspección de Portales Oficiales con Navegador Real (Chrome DevTools MCP)',
+          'Inspección de Portales Oficiales con Navegador Nativo Integrado de Antigravity (sin abrir Chrome externo)',
+          'Cascada de Protección: 1° Antigravity Local ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS',
           'Retorno de Evidencias Descargadas a la Bandeja Aparte de WAPPY',
         ],
       },
@@ -10838,21 +10876,21 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     reportTags: [],
   },
   scraper_node_antigravity: {
-    moduleTitle: '🕷️ Nodo Scraper Personalizado · Script Python / Node / Playwright en Antigravity',
+    moduleTitle: '🕷️ Nodo Scraper Personalizado · Navegador Nativo / Script en Antigravity',
     moduleBadge: 'Scraper · Script Propio',
-    fieldsLabel: 'Datos y Soportes que Extraerá tu Script en Google Antigravity',
+    fieldsLabel: 'Datos y Soportes que Extraerá tu Nodo en Google Antigravity',
     fields: [
-      'Ejecución de Script Python (BS4 / Playwright), Node.js (Cheerio) o Chrome MCP',
+      'Ejecución mediante Navegador Nativo Integrado de Antigravity, Python (BS4 / Playwright) o Node.js (Cheerio)',
       'Tablas y Registros Normalizados en Formato JSON / Markdown',
       'Descarga de Archivos Oficiales (.PDF / .PNG) en la Bandeja de Certificados',
       'Control de Tiempos de Espera y Reporte Transparente de Estado HTTP',
     ],
     quickCombos: [
       {
-        label: '⚡ Script Playwright/BS4 + Tablas JSON/Markdown + Soportes PDF/PNG',
-        description: 'Configuración lista para portales web personalizados',
+        label: '⚡ Navegador Nativo Antigravity / Script + Tablas JSON/Markdown + Soportes PDF/PNG',
+        description: 'Configuración lista para portales web personalizados sin Chromium en VPS',
         fields: [
-          'Ejecución de Script Python (BS4 / Playwright), Node.js (Cheerio) o Chrome MCP',
+          'Ejecución mediante Navegador Nativo Integrado de Antigravity, Python (BS4 / Playwright) o Node.js (Cheerio)',
           'Tablas y Registros Normalizados en Formato JSON / Markdown',
           'Descarga de Archivos Oficiales (.PDF / .PNG) en la Bandeja de Certificados',
         ],
@@ -11541,7 +11579,7 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
   }
 
   const cleanId = raw.replace(
-    /^(trigger_|extractor_|ext_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
+    /^(trigger_|extractor_|ext_|hito_src_|hito_|out_|tool_inputs_|tool_hitos_|sub_memory_|custom_)/,
     '',
   );
 
@@ -11842,7 +11880,7 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
     };
   }
   if (cleanId === 'google_antigravity') {
-    return MODULE_METADATA_MAP.antigravity_mcp_engine;
+    return MODULE_METADATA_MAP.google_antigravity || MODULE_METADATA_MAP.antigravity_mcp_engine;
   }
   if (cleanId === 'google_antigravity_cloud') {
     return MODULE_METADATA_MAP.antigravity_cloud_mcp_engine;
@@ -12009,7 +12047,7 @@ export function getNodeModuleMetadata(nodeId: string, shape?: string): NodeModul
         'Estado de Afiliación / Consulta por Cédula',
         'Precios / Tarifas / Indicadores',
         'Texto Completo Limpio (Markdown)',
-        'Capturas de Pantalla (Chrome MCP)',
+        'Capturas de Pantalla (Navegador Nativo Antigravity)',
       ],
       quickCombos: [
         {
@@ -12303,15 +12341,22 @@ export function buildPromptFromWorkflowNodes(
     .map(
       (id) =>
         INPUT_CONNECTOR_NODES.find((n) => n.id === id) ||
+        EXTRACTOR_NODES.find((e) => e.id === id) ||
         HITO_APP_NODES.find((h) => h.id === id) ||
-        SKILL_RULE_SUBAGENT_NODES.find((s) => s.id === id),
+        getNodeDefById(id),
     )
     .filter(Boolean) as WorkflowNodeDef[];
   const hitoDefs = (nodes.hitos || [])
     .map((id) => getNodeDefById(id))
     .filter(Boolean) as WorkflowNodeDef[];
-  const outputDefs = (nodes.outputs || [])
-    .map((id) => OUTPUT_ACTION_NODES.find((n) => n.id === id))
+  const rawOutputsOrActions =
+    Array.isArray(nodes.outputs) && nodes.outputs.length > 0
+      ? nodes.outputs
+      : Array.isArray(nodes.actions)
+        ? nodes.actions
+        : [];
+  const outputDefs = rawOutputsOrActions
+    .map((id) => getNodeDefById(id))
     .filter(Boolean) as WorkflowNodeDef[];
   const nodeConfigs = nodes.canvasLayout?.nodeConfigs || {};
 

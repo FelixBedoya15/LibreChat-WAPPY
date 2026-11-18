@@ -167,9 +167,10 @@ class GeminiLiveClient extends EventEmitter {
 
                             // 3. Handle AI AUDIO + TEXT RESPONSE (modelTurn)
                             if (response.serverContent.modelTurn) {
-                                const parts = response.serverContent.modelTurn.parts;
+                                const parts = response.serverContent.modelTurn.parts || [];
                                 for (const part of parts) {
-                                    if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
+                                    if (!part || part.thought) continue;
+                                    if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
                                         // Audio received
                                         const audioData = part.inlineData.data;
                                         this.emit('audio', audioData);

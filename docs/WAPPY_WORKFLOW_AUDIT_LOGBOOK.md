@@ -184,3 +184,42 @@ node .agents/skills/wappy-workflow-architecture/scripts/run-logical-test-suite.j
 | **5** | Rama NO por nombre (`Carlos Andrés Gómez`) en empresa de varios trabajadores | Consulta puntual `name_lookup_only` en Hito 2 (`1` solo scrape con `CC 71234567` y `fechaNacimiento` hidratada) y emisión de certificado | ✅ PASS |
 | **6 & 8** | Rama NO sin coincidencia / nombre perteneciente a otra empresa (`companyId` B desde `companyId` A) | Corte inmediato con `0` scrapes externos, `0` llamadas al LLM y `0` fuga de datos entre empresas | ✅ PASS |
 | **7** | Suite lógica general (`run-logical-test-suite.js`) | `25/25 PRUEBAS LÓGICAS SUPERADAS AL 100%` con limpieza total en MongoDB | ✅ PASS |
+
+---
+
+## 📋 Auditoría #006 — Refactorización `n8n` 100 % Pura (`AI Agent` + `Herramienta +`) en `tenshi_flow_verificacion_arl_cedula` (`v3`) y Eliminación de Doble Despacho a `language_server`
+
+- **Fecha:** `2026-11-18`
+- **Flujo Auditado:** `FIRST_GLOBAL_TENSHI_FLOW` (`key / presetKey: 'tenshi_flow_verificacion_arl_cedula'`, `DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v3'`, modelo `gemini-3.5-flash-lite`)
+- **Archivos Auditados e Intervenidos:**
+  - `api/server/services/tenshiFlowService.js`
+  - `api/server/services/automationScheduler.js`
+  - `.agents/skills/wappy-workflow-architecture/scripts/validate-workflow-logic.js`
+  - `docs/WAPPY_WORKFLOW_AUDIT_LOGBOOK.md`
+
+### 1. Causa Raíz Corregida y Decisiones de Arquitectura `n8n`
+1. **Topología `AI Agent` + `Herramienta +` 100 % Pura (Cero Nodos de Relleno):**
+   - `extractors: []` (cero nodos de scraping antes del Agente IA).
+   - `inputs: ['scraper_agy_arl_directo']`: `🛡️ Web Scraping ARL` (`tool_inputs_scraper_agy_arl_directo`) queda como la **única** herramienta en el puerto `Herramienta +` debajo de `Agente IA: Tenshi` (`engine: 'antigravity_native_browser'`, `vpsSafeDirectFallback: true`), eliminando por completo el conector redundante `google_antigravity` de `inputs`, `nodeConfigs` y `nodeExecutionOrder`.
+   - `nodeExecutionOrder` alineado causalmente: `['trigger_tenshi_ia', 'if_router', 'hito2_perfil_socio', 'agent_root', 'model_llm', 'memory_ctx', 'tool_inputs_scraper_agy_arl_directo', 'action_notify_wappy']`.
+2. **Migración Automática en Caliente en MongoDB (`ensureDefaultTenshiFlows` `2026-11-18-v3`):**
+   - Cuando `tenshi_flow_seeds.version !== '2026-11-18-v3'` o el flujo global existente aún conserva `google_antigravity` o `extractors` no vacío, se actualiza en caliente (`Automation.updateOne` con `strict: false`) preservando intactos el `_id` en producción y su historial de ejecuciones (`AutomationLog`).
+3. **Eliminación de Doble Invocación Redundante a `language_server` (~16 s ahorrados por consulta):**
+   - En el paso `4.5` del motor estructurado de scraping (`automationScheduler.js`), cuando `osint_mintrabajo_request` / HTTP ya obtuvo los hallazgos reales y certificados PDF/PNG (o cuando se ejecuta en un Flujo Tenshi instantáneo `flowScope === 'tenshi'` / sin nodo conversacional separado `google_antigravity`), se suprime por completo el segundo despacho `nueva_orden` hacia `dispatchWorkflowOrderToAntigravityChat` (`language_server`).
+   - En `Rama SÍ` (`has_explicit_cedula = true`), además de `0` lecturas previas a `Perfil Sociodemográfico (Hito 2)`, se suprime `somos_sst` de `agent.tools` para garantizar síntesis inmediata en 1 solo turno de `gemini-3.5-flash-lite`.
+4. **Endurecimiento del Validador Determinista (`validate-workflow-logic.js`):**
+   - `Inv-08` e `Inv-19` validan como 100 % canónica la topología `ifPlacement === 'pre_source'` con `extractors: []` y `scraper_agy_*` en `inputs[]` (`Herramienta +`), exigiendo configuraciones espejo (`nodeConfigs[id]` + `nodeConfigs['tool_inputs_' + id]`) y bloqueando en `Inv-04` la coexistencia redundante `scraper_agy_* + google_antigravity` en `inputs[]`.
+
+### 2. Resultados Medidos en Validación Estática y Suite E2E en MongoDB Real
+
+| Código | Escenario Auditado | Resultado Medido | Estado |
+| :-: | :--- | :--- | :-: |
+| **VAL.30** | `validate-workflow-logic.js` sobre catálogo curado SG-SST | `30/30 PASS · 0 errores · 0 advertencias` (`v=2026.11.13-v60-n8n-curated-30`) | ✅ PASS |
+| **VAL.T1** | `validate-workflow-logic.js --tenshi` sobre `FIRST_GLOBAL_TENSHI_FLOW` (`v=2026-11-18-v3`) | `1/1 PASS · 0 errores · 0 advertencias` (`IF: pre_source \| Etapa2: [hito2_perfil_socio] \| Herramienta+: [scraper_agy_arl_directo]`) + bloqueo `[Inv-04]` ante `google_antigravity` redundante | ✅ PASS |
+| **A006.2** | Migración en caliente `2026-11-17-v2` ➔ `2026-11-18-v3` en `ensureDefaultTenshiFlows` | Preserva el mismo `_id` e historial, limpia `google_antigravity` / `extractors`, fija `modelOverride: 'gemini-3.5-flash-lite'` y no re-escribe en corridas siguientes | ✅ PASS |
+| **A006.3** | **Rama SÍ** (`1.037.654.321` explícita) en `runAutomation` | `0` consultas a Hito 2, `1` llamada `action='arl'`, **`0` órdenes secundarias a `language_server`**, `liveSteps` registra `tool_inputs_scraper_agy_arl_directo=done` y adjunta `1` PDF en `evidenceFiles` | ✅ PASS |
+| **A006.4** | **Rama NO** con nombre registrado (`Carlos Andrés Gómez` en `Empresa A`) | `1` lectura aislada `name_lookup_only` en Hito 2 (cero doble hidratación), raspa solo `CC 71234567` con `fechaNacimiento`, **`0` órdenes secundarias a `language_server`** | ✅ PASS |
+| **A006.5** | **Rama NO** sin coincidencia / nombre de `Empresa B` consultado desde `Empresa A` | Cortocircuito limpio: `0` llamadas de scraping, `0` tokens LLM, `tool_inputs_scraper_agy_arl_directo=skipped` y `agent_root=skipped` | ✅ PASS |
+| **A006.6** | Paridad en `runWorkflowSandboxSimulation` (`pre_source` + `tool_inputs_scraper_agy_arl_directo`) | `0` scrapes y `0` agentes ejecutados cuando no hay coincidencia nominal; preserva `currentPipelineItems` de Hito 2 tras `sub_memory` cuando sí coincide | ✅ PASS |
+| **SUITE.25** | `run-logical-test-suite.js` completo contra MongoDB real | `25/25 PRUEBAS LÓGICAS SUPERADAS AL 100%` (`0` residuos en MongoDB) | ✅ PASS |
+

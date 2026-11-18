@@ -324,6 +324,7 @@ const VALID_SCRAPER_ENGINES = new Set([
   'auto_chrome_dom',
   'fetch_cheerio',
   'chrome_mcp',
+  'antigravity_native_browser',
   'python_bs4',
   'node_cheerio',
   'custom_script',
@@ -331,7 +332,7 @@ const VALID_SCRAPER_ENGINES = new Set([
 
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
 const INTERNAL_CODE_IDENTIFIERS_REGEX =
-  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
+  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|google_antigravity|chrome_mcp|antigravity_native_browser|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
 
 function getHitoConfig(nodeConfigs, hitoId) {
   if (!nodeConfigs || typeof nodeConfigs !== 'object') return {};
@@ -525,6 +526,12 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
       '[Inv-04] Redundancia visual en lienzo: ya existe ingesta Gmail en Etapa 1/2; no dupliques "google_gmail" en inputs[].',
     );
   }
+  const specializedInputScrapers = inputs.filter((inId) => String(inId).startsWith('scraper_agy_'));
+  if (specializedInputScrapers.length > 0 && inputs.includes('google_antigravity')) {
+    errors.push(
+      `[Inv-04] Redundancia prohibida en Herramienta +: [${specializedInputScrapers.join(', ')}] ya ejecuta nativamente en Google Antigravity; elimina el nodo relleno "google_antigravity" de \`inputs[]\`.`,
+    );
+  }
 
   // Invariante 5 (Arquitectura n8n): Todo Hito debe ser `source_read` o `agent_tool` (PROHIBIDO `target_write_report`),
   // guardado tanto en `nodeConfigs[hitoId]` como en `nodeConfigs['tool_hitos_' + hitoId]`
@@ -689,7 +696,9 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
     }
 
     if (placement === 'pre_source') {
-      // En `pre_source`, la compuerta enruta ANTES de consultar fuentes (Rama SÍ directo vs Rama NO búsqueda nominal -> Extractor convergente -> Agente -> Salidas convergentes)
+      // En `pre_source` estilo n8n (AI Agent + Herramienta +):
+      // Rama SÍ va directo al Agente IA y su Herramienta + (ej. `scraper_agy_arl_directo` en `inputs[]`, con `extractors: []`),
+      // mientras Rama NO consulta primero el Hito `source_read` (`name_lookup_only`) y converge hacia el Agente IA -> Salidas.
       for (const outId of outputs) {
         if (!VALID_OUTPUTS.has(outId)) {
           errors.push(`[Inv-09] Nodo de salida desconocido: "${outId}".`);
@@ -703,9 +712,12 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
           '[Inv-08] El enrutador `pre_source` requiere al menos un aplicativo fuente en Rama NO (`hitoRole: "source_read"`).',
         );
       }
-      if (extractors.length === 0) {
+      const hasAgentStructuredScraperTool = inputs.some(
+        (inId) => String(inId).startsWith('scraper_agy_') || inId === 'tool_web_scraping_agy',
+      );
+      if (extractors.length === 0 && !hasAgentStructuredScraperTool && agentToolHitos.length === 0) {
         errors.push(
-          '[Inv-08] El enrutador `pre_source` requiere un extractor/scraper convergente antes del Agente IA.',
+          '[Inv-08] El enrutador `pre_source` requiere una herramienta estructurada en `Herramienta +` (`inputs[]`, ej. `scraper_agy_*`) o un extractor convergente.',
         );
       }
     } else {
@@ -902,9 +914,31 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
   }
   for (const agyWsId of extractors.filter((e) => String(e).startsWith('scraper_agy_'))) {
     const wsCfg = nodeConfigs[`extractor_${agyWsId}`] || nodeConfigs[agyWsId] || {};
-    if (!VALID_SCRAPER_ENGINES.has(String(wsCfg.scriptEngine || ''))) {
+    const resolvedEng = String(wsCfg.scriptEngine || wsCfg.engine || '');
+    if (!VALID_SCRAPER_ENGINES.has(resolvedEng)) {
       errors.push(
-        `[Inv-19] El scraper especializado "${agyWsId}" debe declarar \`scriptEngine\` válido (${Array.from(VALID_SCRAPER_ENGINES).join(', ')}).`,
+        `[Inv-19] El scraper especializado "${agyWsId}" en extractors[] debe declarar \`scriptEngine\`/\`engine\` válido (${Array.from(VALID_SCRAPER_ENGINES).join(', ')}).`,
+      );
+    }
+  }
+  for (const agyToolId of inputs.filter((inId) => String(inId).startsWith('scraper_agy_'))) {
+    const directCfg = nodeConfigs[agyToolId];
+    const prefixedCfg = nodeConfigs[`tool_inputs_${agyToolId}`];
+    if (!directCfg || typeof directCfg !== 'object') {
+      errors.push(
+        `[Inv-19] Falta configuración espejo en \`nodeConfigs["${agyToolId}"]\` para la herramienta "${agyToolId}".`,
+      );
+    }
+    if (!prefixedCfg || typeof prefixedCfg !== 'object') {
+      errors.push(
+        `[Inv-19] Falta configuración espejo en \`nodeConfigs["tool_inputs_${agyToolId}"]\` para la herramienta "${agyToolId}".`,
+      );
+    }
+    const wsCfg = prefixedCfg || directCfg || {};
+    const resolvedEng = String(wsCfg.scriptEngine || wsCfg.engine || '');
+    if (!VALID_SCRAPER_ENGINES.has(resolvedEng)) {
+      errors.push(
+        `[Inv-19] La herramienta scraper "${agyToolId}" en Herramienta + (\`inputs[]\`) debe declarar \`engine\`/\`scriptEngine\` válido (${Array.from(VALID_SCRAPER_ENGINES).join(', ')}).`,
       );
     }
   }
@@ -1029,14 +1063,25 @@ function main() {
   const presetFilter = presetFilterIdx >= 0 ? args[presetFilterIdx + 1] : null;
   const jsonFileIdx = args.indexOf('--file');
   const jsonFile = jsonFileIdx >= 0 ? args[jsonFileIdx + 1] : null;
+  const isTenshiAudit = args.includes('--tenshi');
 
   let workflows = [];
   let catalogVersion = null;
-  const isFullSystemCatalogAudit = !jsonFile && !presetFilter;
+  const isFullSystemCatalogAudit = !jsonFile && !presetFilter && !isTenshiAudit;
 
   if (jsonFile) {
     const raw = JSON.parse(fs.readFileSync(path.resolve(jsonFile), 'utf8'));
     workflows = Array.isArray(raw) ? raw : [raw];
+  } else if (isTenshiAudit) {
+    require('module-alias')({ base: path.resolve(__dirname, '../../../../api') });
+    const tenshiPath = path.resolve(
+      __dirname,
+      '../../../../api/server/services/tenshiFlowService.js',
+    );
+    delete require.cache[tenshiPath];
+    const tenshiMod = require(tenshiPath);
+    workflows = tenshiMod.DEFAULT_TENSHI_FLOWS || [];
+    catalogVersion = tenshiMod.DEFAULT_TENSHI_FLOW_SEED_VERSION || null;
   } else {
     const catalogPath = path.resolve(
       __dirname,
@@ -1119,7 +1164,9 @@ function main() {
   }
 
   for (const { preset, origIdx } of filteredWorkflows) {
-    const report = validateSingleWorkflow(preset, origIdx, { isCustomFile: Boolean(jsonFile) });
+    const report = validateSingleWorkflow(preset, origIdx, {
+      isCustomFile: Boolean(jsonFile || isTenshiAudit),
+    });
     archetypeStats[report.ifPlacement] = (archetypeStats[report.ifPlacement] || 0) + 1;
     categoryStats[report.presetCategory] = (categoryStats[report.presetCategory] || 0) + 1;
     totalWarnings += report.warnings.length;

@@ -102,6 +102,7 @@ import {
   TRIGGER_NODES,
   EXTRACTOR_NODES,
   INPUT_CONNECTOR_NODES,
+  WEB_SCRAPER_AGENT_TOOL_NODES,
   HITO_APP_NODES,
   OUTPUT_ACTION_NODES,
   SKILL_RULE_SUBAGENT_NODES,
@@ -705,6 +706,7 @@ export function resolveCanvasHitoRole(
   const cfg = {
     ...(nodeConfigsMap?.[hitoId] || {}),
     ...(nodeConfigsMap?.[`hito_${hitoId}`] || {}),
+    ...(nodeConfigsMap?.[`hito_src_${hitoId}`] || {}),
     ...(nodeConfigsMap?.[`tool_hitos_${hitoId}`] || {}),
   };
   if (cfg.hitoRole === 'source_read') {
@@ -731,11 +733,14 @@ function resolveEffectiveNodeCfg(
   if (
     node.shape === 'square_hito' ||
     node.group === 'hitos' ||
-    node.key.startsWith('tool_hitos_')
+    node.key.startsWith('tool_hitos_') ||
+    node.key.startsWith('hito_src_')
   ) {
     return {
       ...(nodeConfigsMap[node.nodeId] || {}),
       ...(nodeConfigsMap[`hito_${node.nodeId}`] || {}),
+      ...(nodeConfigsMap[`hito_src_${node.nodeId}`] || {}),
+      ...(nodeConfigsMap[`tool_hitos_${node.nodeId}`] || {}),
       ...(nodeConfigsMap[node.key] || {}),
     };
   }
@@ -745,7 +750,33 @@ function resolveEffectiveNodeCfg(
       ...(nodeConfigsMap['if_router'] || {}),
     };
   }
-  return nodeConfigsMap[node.key] || {};
+  if (node.key.startsWith('tool_inputs_') || node.group === 'inputs') {
+    return {
+      ...(nodeConfigsMap[`extractor_${node.nodeId}`] || {}),
+      ...(nodeConfigsMap[node.nodeId] || {}),
+      ...(nodeConfigsMap[node.key] || {}),
+    };
+  }
+  if (node.key.startsWith('extractor_') || node.shape === 'square_extractor') {
+    return {
+      ...(nodeConfigsMap[node.nodeId] || {}),
+      ...(nodeConfigsMap[node.key] || {}),
+    };
+  }
+  if (node.shape === 'trigger') {
+    return {
+      ...(nodeConfigsMap[node.nodeId] || {}),
+      ...(nodeConfigsMap[`trigger_${node.nodeId}`] || {}),
+      ...(nodeConfigsMap[node.key] || {}),
+    };
+  }
+  if (node.shape === 'square_output' || node.key.startsWith('out_')) {
+    return {
+      ...(nodeConfigsMap[node.nodeId] || {}),
+      ...(nodeConfigsMap[node.key] || {}),
+    };
+  }
+  return nodeConfigsMap[node.key] || nodeConfigsMap[node.nodeId] || {};
 }
 
 export function resolveOutputIfBranch(
@@ -851,13 +882,19 @@ export default function WappyWorkflowCanvas({
     | 'outputs'
   >('triggers');
   const [selectedToolSubgroup, setSelectedToolSubgroup] = useState<
-    'all_tools' | 'wappy_tools' | 'google_tools' | 'api_tools' | 'mcp_tools' | 'sgsst_hitos'
+    | 'all_tools'
+    | 'wappy_tools'
+    | 'google_tools'
+    | 'api_tools'
+    | 'mcp_tools'
+    | 'scraping_tools'
+    | 'sgsst_hitos'
   >('all_tools');
   const [toolPortPickerOpen, setToolPortPickerOpen] = useState<boolean>(false);
   const [toolPortPickerSearch, setToolPortPickerSearch] = useState<string>('');
-  const [toolPortPickerFilter, setToolPortPickerFilter] = useState<'all' | 'connectors' | 'hitos'>(
-    'all',
-  );
+  const [toolPortPickerFilter, setToolPortPickerFilter] = useState<
+    'all' | 'connectors' | 'scrapers' | 'hitos'
+  >('all');
   const [zoom, setZoom] = useState<number>(compact ? 0.68 : 0.9);
 
   // Nodo actualmente abierto en el Inspector de Configuración por Nodo de 3 Columnas estilo n8n (al hacer clic sobre cualquier nodo)
@@ -1284,9 +1321,19 @@ export default function WappyWorkflowCanvas({
     const nodeConfigsMap = workflowNodes?.canvasLayout?.nodeConfigs;
 
     // Precalcular listas activas para alinear etapas de izquierda a derecha sin cruces ni superposiciones
-    const toolInputs = (Array.isArray(workflowNodes?.inputs) ? workflowNodes.inputs : []).filter(
-      (toolId) =>
-        !isNodeIdBlockedInWorkflow(toolId, disabledSgsstApps) && Boolean(getNodeDefById(toolId)),
+    const toolInputs = Array.from(
+      new Set(
+        (Array.isArray(workflowNodes?.inputs) ? workflowNodes.inputs : [])
+          .map((toolId) => {
+            const cleanToolId = String(toolId || '').trim();
+            if (!cleanToolId || isNodeIdBlockedInWorkflow(cleanToolId, disabledSgsstApps)) {
+              return '';
+            }
+            const def = getNodeDefById(cleanToolId);
+            return def ? def.id : '';
+          })
+          .filter(Boolean),
+      ),
     );
     const hitosList = (Array.isArray(workflowNodes?.hitos) ? workflowNodes.hitos : []).filter(
       (hitoId) => {
@@ -1312,7 +1359,10 @@ export default function WappyWorkflowCanvas({
       activeExtractors.includes('extract_ai_doc_ocr') &&
       !isNodeIdBlockedInWorkflow('extract_ai_doc_ocr', disabledSgsstApps);
     const rawStage2Extractors = activeExtractors.filter(
-      (id) => id !== 'extract_ai_doc_ocr' && !isNodeIdBlockedInWorkflow(id, disabledSgsstApps),
+      (id) =>
+        id !== 'extract_ai_doc_ocr' &&
+        !toolInputs.includes(id) &&
+        !isNodeIdBlockedInWorkflow(id, disabledSgsstApps),
     );
     const stage2Total = rawStage2Extractors.length + sourceHitosList.length;
     const hasStage2Sources =
@@ -1326,20 +1376,33 @@ export default function WappyWorkflowCanvas({
       ...(nodeConfigsMap?.['if_router'] || {}),
     } as Record<string, any>;
     const rawIfPlacement = mergedIfCfg?.ifPlacement;
-    const isPreSourceIf =
-      includeIfNode &&
-      rawIfPlacement === 'pre_source' &&
-      (rawStage2Extractors.length > 0 || sourceHitosList.length > 0);
+    const isPreSourceIf = includeIfNode && rawIfPlacement === 'pre_source';
     const isPreAgentIf =
       includeIfNode && !isPreSourceIf && rawIfPlacement === 'pre_agent' && hasStage2Sources;
 
-    const rawOutputs = Array.isArray(workflowNodes?.outputs)
-      ? workflowNodes.outputs.filter(
-          (outId) =>
-            !isNodeIdBlockedInWorkflow(outId, disabledSgsstApps) && Boolean(getNodeDefById(outId)),
-        )
-      : ['email_report'];
-    const baseOutputs = workflowNodes?.outputs !== undefined ? rawOutputs : ['email_report'];
+    const rawOutputCandidates = Array.isArray(workflowNodes?.outputs)
+      ? workflowNodes.outputs
+      : Array.isArray(workflowNodes?.actions)
+        ? workflowNodes.actions
+        : ['email_report'];
+    const rawOutputs = Array.from(
+      new Set(
+        rawOutputCandidates
+          .map((outId) => {
+            const cleanOutId = String(outId || '').trim();
+            if (!cleanOutId || isNodeIdBlockedInWorkflow(cleanOutId, disabledSgsstApps)) {
+              return '';
+            }
+            const def = getNodeDefById(cleanOutId);
+            return def ? def.id : '';
+          })
+          .filter(Boolean),
+      ),
+    );
+    const baseOutputs =
+      workflowNodes?.outputs !== undefined || workflowNodes?.actions !== undefined
+        ? rawOutputs
+        : ['email_report'];
     const shouldSplitOutputsByIf = includeIfNode && !isPreSourceIf;
     const sortedOutputItems = shouldSplitOutputsByIf
       ? baseOutputs
@@ -1380,10 +1443,10 @@ export default function WappyWorkflowCanvas({
 
     // Coordenadas limpias por columnas causales de izquierda a derecha (estilo n8n, 0 superposiciones)
     const stage2BaseX = 168;
-    const preSourceHitoColX = 332;
+    const preSourceHitoColX = 336;
     const extractorColX = isPreSourceIf
       ? sourceHitosList.length > 0
-        ? 488
+        ? 492
         : 336
       : stage2BaseX;
 
@@ -1397,15 +1460,19 @@ export default function WappyWorkflowCanvas({
     let computedOutBaseX = 0;
 
     if (isPreSourceIf) {
-      // Topología P (pre_source IF): Triggers (28) -> IF (176) --(sí)--> Web Scraping ARL (488|336) -> Agente IA (644|492) -> Salidas
-      //                                                    \--(no)--> Hito 2 Rama NO (332, y=184) --/
+      // Topología P (pre_source IF estilo n8n):
+      // Sin extractores en Etapa 2 (`extractors: []`):
+      //   Triggers (28) -> IF (176) --(sí, verde)--> Agente IA: Tenshi (516) [con Web Scraping ARL en Herramienta +] -> Salidas
+      //                           \--(no)--> H2: Sociodemográfico (336, y=176) --/
+      // Con extractores en Etapa 2:
+      //   Triggers (28) -> IF (176) --(sí)--> Extractor (492|336) -> Agente IA -> Salidas
       ifBaseX = 176;
       let colAfterSourcesX =
         rawStage2Extractors.length > 0
           ? extractorColX + 156
           : sourceHitosList.length > 0
-            ? preSourceHitoColX + 156
-            : ifBaseX + 160;
+            ? preSourceHitoColX + 180
+            : ifBaseX + 168;
       if (preIfLogicNodes.length > 0) {
         preLogicBaseX = colAfterSourcesX;
         colAfterSourcesX += 148;
@@ -1511,7 +1578,11 @@ export default function WappyWorkflowCanvas({
       customNodesList.length;
     const minSubLeftBound = isPreSourceIf
       ? Math.max(
-          sourceHitosList.length > 0 ? preSourceHitoColX + 116 : ifBaseX + 94,
+          sourceHitosList.length > 0
+            ? rawStage2Extractors.length === 0
+              ? preSourceHitoColX + 152
+              : preSourceHitoColX + 116
+            : ifBaseX + 94,
           hasAiDocExtractor
             ? aiExtractorBaseX + 92
             : preIfLogicNodes.length > 0
@@ -1529,7 +1600,10 @@ export default function WappyWorkflowCanvas({
             : stage2Total > 0
               ? stage2BaseX + 88
               : 28;
-    const subStartX = Math.max(minSubLeftBound, agentPos.x - 36);
+    const subStartX = Math.max(
+      minSubLeftBound,
+      isPreSourceIf && rawStage2Extractors.length === 0 ? agentPos.x - 24 : agentPos.x - 36,
+    );
     const subEndX = subStartX + Math.max(0, totalSubCount - 1) * 112 + 62;
 
     // Asegurar que la columna final de salidas nunca choque horizontalmente con los sub-nodos circulares
@@ -1645,7 +1719,7 @@ export default function WappyWorkflowCanvas({
             : agentPos.x - 40;
 
     if (isPreSourceIf) {
-      // En `pre_source`: primero Columna 3 (x = 332, y = 184+): `sourceHitoNodes` (Rama NO · Por Nombre)
+      // En `pre_source`: Columna 3 (x = 336, y = 176+): `sourceHitoNodes` (Rama NO · Por Nombre)
       sourceHitosList.forEach((hitoId, hIdx) => {
         const def = getNodeDefById(hitoId);
         if (!def) return;
@@ -1654,8 +1728,8 @@ export default function WappyWorkflowCanvas({
           { key, nodeId: hitoId, shape: 'square_hito', group: 'hitos' },
           nodeConfigsMap,
         );
-        const defaultY = 184 + hIdx * 136;
-        const savedHito = customPositions[key];
+        const defaultY = 176 + hIdx * 136;
+        const savedHito = customPositions[key] || customPositions[`hito_src_${hitoId}`];
         const minHitoX = effectiveIfPos ? effectiveIfPos.x + 84 : 260;
         const maxHitoX =
           rawStage2Extractors.length > 0 ? extractorColX - 56 : stage2RightBound;
@@ -1906,7 +1980,7 @@ export default function WappyWorkflowCanvas({
         mainColumns.push({
           x: preSourceHitoColX,
           width: 72,
-          bottom: 184 + (sourceHitosList.length - 1) * 136 + 72 + 38,
+          bottom: 176 + (sourceHitosList.length - 1) * 136 + 72 + 38,
         });
       }
       if (rawStage2Extractors.length > 0) {
@@ -2050,7 +2124,7 @@ export default function WappyWorkflowCanvas({
             : (toolId === 'pronostico_clima_sst' || toolId === 'buscar_centros_emergencia') &&
                 activeCompanyInfo?.city
               ? `Sede: ${activeCompanyInfo.city}`
-              : 'Herramienta IA';
+              : def.badge || 'Herramienta IA';
       list.push({
         key,
         nodeId: toolId,
@@ -2525,9 +2599,13 @@ export default function WappyWorkflowCanvas({
     };
 
     if (ifNode && isPreSourceIfWire) {
-      // Topología P (`pre_source` IF):
-      // Triggers ──> IF ──(sí, carril superior verde #10b981)──────────────────────────> Web Scraping ARL ──> [Extractor IA Docs] ──> Agente IA ──> Salidas
-      //                 └──(no, #64748b)──> Hito 2 Rama NO ──(#0ea5e9 convergente)────/
+      // Topología P (`pre_source` IF estilo n8n):
+      // Cuando NO hay extractores en Etapa 2 (`rawExtractorNodes.length === 0`):
+      //   Triggers ──> IF ──(sí, verde #10b981, directo)──────────────────────> Agente IA: Tenshi ──> Salidas
+      //                   └──(no, #64748b)──> H2: Sociodemográfico ──(#0ea5e9)─/
+      // Cuando SÍ hay extractores en Etapa 2:
+      //   Triggers ──> IF ──(sí, verde #10b981)──> Extractor ──> Agente IA ──> Salidas
+      //                   └──(no, #64748b)──> H2: Sociodemográfico ──/
       if (triggerNodes.length > 0) {
         connectStageGroups(triggerNodes, [ifNode], 'wire_trig_presource_if', '#94a3b8');
       }
@@ -2547,7 +2625,7 @@ export default function WappyWorkflowCanvas({
                 ? [agentNode]
                 : outputNodes;
 
-      // Puerto SÍ (`y1 = routerNode.y + 22`, verde `#10b981`, label `'sí'`) -> directo a `rawExtractorNodes` por arriba sin cruzar `sourceHitoNodes`
+      // Puerto SÍ (`y1 = routerNode.y + 22`, verde `#10b981`, label `'sí'`) -> directo a `agent_root` (o `rawExtractorNodes`) por arriba sin pasar por `H2: Sociodemográfico`
       convergeTargets.forEach((dst, sIdx) => {
         pushWire({
           id: `wire_if_yes_${dst.key}`,
@@ -2565,7 +2643,7 @@ export default function WappyWorkflowCanvas({
         });
       });
 
-      // Puerto NO (`y1 = routerNode.y + 50`, `#64748b`, label `'no'`): hacia `sourceHitoNodes` y converge en `rawExtractorNodes` (`#0ea5e9`)
+      // Puerto NO (`y1 = routerNode.y + 50`, `#64748b`, label `'no'`): hacia `H2: Sociodemográfico` y su salida directo a `agent_root` (o `convergeTargets`) (`#0ea5e9`)
       if (sourceHitoNodes.length > 0) {
         sourceHitoNodes.forEach((hNode, nIdx) => {
           pushWire({
@@ -3232,19 +3310,40 @@ export default function WappyWorkflowCanvas({
     const prevConfigs = workflowNodes?.canvasLayout?.nodeConfigs || {};
     const hitoRawId = nodeKey.startsWith('tool_hitos_')
       ? nodeKey.replace(/^tool_hitos_/, '')
+      : nodeKey.startsWith('hito_src_')
+        ? nodeKey.replace(/^hito_src_/, '')
+        : null;
+    const toolInputRawId = nodeKey.startsWith('tool_inputs_')
+      ? nodeKey.replace(/^tool_inputs_/, '')
+      : null;
+    const extractorRawId = nodeKey.startsWith('extractor_')
+      ? nodeKey.replace(/^extractor_/, '')
       : null;
     const baseMergedPrev: CanvasNodeConfig = hitoRawId
       ? {
           ...(prevConfigs[hitoRawId] || {}),
           ...(prevConfigs[`hito_${hitoRawId}`] || {}),
+          ...(prevConfigs[`hito_src_${hitoRawId}`] || {}),
+          ...(prevConfigs[`tool_hitos_${hitoRawId}`] || {}),
           ...(prevConfigs[nodeKey] || {}),
         }
-      : nodeKey === 'if_router' || nodeKey === 'if_condition'
+      : toolInputRawId
         ? {
-            ...(prevConfigs['if_condition'] || {}),
-            ...(prevConfigs['if_router'] || {}),
+            ...(prevConfigs[`extractor_${toolInputRawId}`] || {}),
+            ...(prevConfigs[toolInputRawId] || {}),
+            ...(prevConfigs[nodeKey] || {}),
           }
-        : prevConfigs[nodeKey] || {};
+        : extractorRawId
+          ? {
+              ...(prevConfigs[extractorRawId] || {}),
+              ...(prevConfigs[nodeKey] || {}),
+            }
+          : nodeKey === 'if_router' || nodeKey === 'if_condition'
+            ? {
+                ...(prevConfigs['if_condition'] || {}),
+                ...(prevConfigs['if_router'] || {}),
+              }
+            : prevConfigs[nodeKey] || {};
 
     const nextConfig: CanvasNodeConfig = {
       ...baseMergedPrev,
@@ -3257,9 +3356,22 @@ export default function WappyWorkflowCanvas({
     };
     if (hitoRawId) {
       syncedConfigs[hitoRawId] = nextConfig;
+      syncedConfigs[`tool_hitos_${hitoRawId}`] = nextConfig;
       if (prevConfigs[`hito_${hitoRawId}`]) {
         syncedConfigs[`hito_${hitoRawId}`] = nextConfig;
       }
+      if (prevConfigs[`hito_src_${hitoRawId}`]) {
+        syncedConfigs[`hito_src_${hitoRawId}`] = nextConfig;
+      }
+    }
+    if (toolInputRawId) {
+      syncedConfigs[toolInputRawId] = nextConfig;
+      if (prevConfigs[`extractor_${toolInputRawId}`]) {
+        syncedConfigs[`extractor_${toolInputRawId}`] = nextConfig;
+      }
+    }
+    if (extractorRawId) {
+      syncedConfigs[extractorRawId] = nextConfig;
     }
     if (nodeKey === 'if_router' || nodeKey === 'if_condition') {
       syncedConfigs['if_condition'] = nextConfig;
@@ -3375,6 +3487,15 @@ export default function WappyWorkflowCanvas({
     const alreadyExists = prevCustom.find((c) => c.key === baseKey);
     if (alreadyExists) {
       setActiveConfigNodeKey(alreadyExists.key);
+      return;
+    }
+    const strippedCatalogId = baseKey.replace(/^custom_/, '');
+    if ((workflowNodes.inputs || []).includes(strippedCatalogId)) {
+      setActiveConfigNodeKey(`tool_inputs_${strippedCatalogId}`);
+      return;
+    }
+    if (activeExtractors.includes(strippedCatalogId)) {
+      setActiveConfigNodeKey(`extractor_${strippedCatalogId}`);
       return;
     }
     const newCustomNode: CanvasCustomUserNode = {
@@ -3779,11 +3900,28 @@ export default function WappyWorkflowCanvas({
       nodeKey: string,
       allNodeCfgs: Record<string, CanvasNodeConfig>,
     ): CanvasNodeConfig | undefined => {
-      if (nodeKey.startsWith('tool_hitos_')) {
-        const rawHitoId = nodeKey.replace(/^tool_hitos_/, '');
+      if (nodeKey.startsWith('tool_hitos_') || nodeKey.startsWith('hito_src_')) {
+        const rawHitoId = nodeKey.replace(/^(tool_hitos_|hito_src_)/, '');
         return {
           ...(allNodeCfgs[rawHitoId] || {}),
           ...(allNodeCfgs[`hito_${rawHitoId}`] || {}),
+          ...(allNodeCfgs[`hito_src_${rawHitoId}`] || {}),
+          ...(allNodeCfgs[`tool_hitos_${rawHitoId}`] || {}),
+          ...(allNodeCfgs[nodeKey] || {}),
+        };
+      }
+      if (nodeKey.startsWith('tool_inputs_')) {
+        const rawToolId = nodeKey.replace(/^tool_inputs_/, '');
+        return {
+          ...(allNodeCfgs[`extractor_${rawToolId}`] || {}),
+          ...(allNodeCfgs[rawToolId] || {}),
+          ...(allNodeCfgs[nodeKey] || {}),
+        };
+      }
+      if (nodeKey.startsWith('extractor_') && nodeKey !== 'extractor_extract_ai_doc_ocr') {
+        const rawExtId = nodeKey.replace(/^extractor_/, '');
+        return {
+          ...(allNodeCfgs[rawExtId] || {}),
           ...(allNodeCfgs[nodeKey] || {}),
         };
       }
@@ -4617,6 +4755,8 @@ export default function WappyWorkflowCanvas({
           }
         } else if (vn.shape === 'square_extractor') {
           nextExtractors = nextExtractors.filter((id) => id !== vn.nodeId);
+          delete nextNodeConfigs[vn.nodeId];
+          delete nextNodeConfigs[`extractor_${vn.nodeId}`];
         } else if (vn.shape === 'circle_memory') {
           nextMemories = nextMemories.filter((id) => id !== vn.nodeId);
         } else if (vn.shape === 'circle_tool') {
@@ -4624,13 +4764,19 @@ export default function WappyWorkflowCanvas({
             nextHitos = nextHitos.filter((id) => id !== vn.nodeId);
             delete nextNodeConfigs[vn.nodeId];
             delete nextNodeConfigs[`hito_${vn.nodeId}`];
+            delete nextNodeConfigs[`hito_src_${vn.nodeId}`];
+            delete nextNodeConfigs[`tool_hitos_${vn.nodeId}`];
           } else {
             nextInputs = nextInputs.filter((id) => id !== vn.nodeId);
+            delete nextNodeConfigs[vn.nodeId];
+            delete nextNodeConfigs[`tool_inputs_${vn.nodeId}`];
           }
         } else if (vn.shape === 'square_hito') {
           nextHitos = nextHitos.filter((id) => id !== vn.nodeId);
           delete nextNodeConfigs[vn.nodeId];
           delete nextNodeConfigs[`hito_${vn.nodeId}`];
+          delete nextNodeConfigs[`hito_src_${vn.nodeId}`];
+          delete nextNodeConfigs[`tool_hitos_${vn.nodeId}`];
         } else if (vn.shape === 'square_output') {
           nextOutputs = nextOutputs.filter((id) => id !== vn.nodeId);
         } else if (vn.shape === 'if' || vn.key === 'if_router') {
@@ -5228,6 +5374,9 @@ export default function WappyWorkflowCanvas({
     const nextNodeConfigs = { ...(workflowNodes?.canvasLayout?.nodeConfigs || {}) };
     let nextEdges = [...(workflowNodes?.canvasLayout?.edges || [])];
     let nextRemovedWires = [...(workflowNodes?.canvasLayout?.removedWires || [])];
+    let deduplicatedExtractors: string[] | undefined;
+    let deduplicatedInputs: string[] | undefined;
+    let deduplicatedCustomNodes: CanvasCustomUserNode[] | undefined;
 
     if (exists) {
       delete nextPositions[key];
@@ -5235,12 +5384,74 @@ export default function WappyWorkflowCanvas({
       if (group === 'hitos') {
         delete nextNodeConfigs[nodeId];
         delete nextNodeConfigs[`hito_${nodeId}`];
+        delete nextNodeConfigs[`hito_src_${nodeId}`];
+      } else if (group === 'inputs' || group === 'extractors') {
+        delete nextNodeConfigs[nodeId];
       }
       nextEdges = nextEdges.filter(
         (ed: any) => ed.from !== key && ed.to !== key && ed.source !== key && ed.target !== key,
       );
       nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(key));
     } else {
+      // Evitar duplicación entre Etapa 2 (`extractors` / `customNodes`) y `Herramienta +` (`inputs`)
+      if (group === 'inputs') {
+        if (activeExtractors.includes(nodeId)) {
+          deduplicatedExtractors = activeExtractors.filter((id) => id !== nodeId);
+          const oldExtKey = `extractor_${nodeId}`;
+          const migratedCfg = {
+            ...(nextNodeConfigs[nodeId] || {}),
+            ...(nextNodeConfigs[oldExtKey] || {}),
+            ...(nextNodeConfigs[key] || {}),
+          };
+          if (Object.keys(migratedCfg).length > 0) {
+            nextNodeConfigs[key] = migratedCfg;
+            nextNodeConfigs[nodeId] = migratedCfg;
+          }
+          delete nextPositions[oldExtKey];
+          delete nextNodeConfigs[oldExtKey];
+          nextEdges = nextEdges.filter(
+            (ed: any) =>
+              ed.from !== oldExtKey &&
+              ed.to !== oldExtKey &&
+              ed.source !== oldExtKey &&
+              ed.target !== oldExtKey,
+          );
+          nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(oldExtKey));
+        }
+        const prevCustom = workflowNodes?.canvasLayout?.customNodes || [];
+        const dupCustomKey = `custom_${nodeId}`;
+        if (prevCustom.some((cn) => cn.key === dupCustomKey)) {
+          deduplicatedCustomNodes = prevCustom.filter((cn) => cn.key !== dupCustomKey);
+          delete nextPositions[dupCustomKey];
+          delete nextNodeConfigs[dupCustomKey];
+        }
+      } else if (group === 'extractors') {
+        const currInputs = Array.isArray(workflowNodes.inputs) ? workflowNodes.inputs : [];
+        if (currInputs.includes(nodeId)) {
+          deduplicatedInputs = currInputs.filter((id) => id !== nodeId);
+          const oldToolKey = `tool_inputs_${nodeId}`;
+          const migratedCfg = {
+            ...(nextNodeConfigs[nodeId] || {}),
+            ...(nextNodeConfigs[oldToolKey] || {}),
+            ...(nextNodeConfigs[key] || {}),
+          };
+          if (Object.keys(migratedCfg).length > 0) {
+            nextNodeConfigs[key] = migratedCfg;
+            nextNodeConfigs[nodeId] = migratedCfg;
+          }
+          delete nextPositions[oldToolKey];
+          delete nextNodeConfigs[oldToolKey];
+          nextEdges = nextEdges.filter(
+            (ed: any) =>
+              ed.from !== oldToolKey &&
+              ed.to !== oldToolKey &&
+              ed.source !== oldToolKey &&
+              ed.target !== oldToolKey,
+          );
+          nextRemovedWires = nextRemovedWires.filter((rw) => !rw.includes(oldToolKey));
+        }
+      }
+
       if (dropPos) {
         nextPositions[key] = {
           x: Math.max(20, Math.round(dropPos.x - 32)),
@@ -5283,8 +5494,11 @@ export default function WappyWorkflowCanvas({
     onChange({
       ...workflowNodes,
       [group]: nextList,
+      ...(deduplicatedExtractors !== undefined ? { extractors: deduplicatedExtractors } : {}),
+      ...(deduplicatedInputs !== undefined ? { inputs: deduplicatedInputs } : {}),
       canvasLayout: {
         ...(workflowNodes?.canvasLayout || {}),
+        ...(deduplicatedCustomNodes !== undefined ? { customNodes: deduplicatedCustomNodes } : {}),
         positions: nextPositions,
         nodeConfigs: nextNodeConfigs,
         edges: nextEdges,
@@ -5955,17 +6169,45 @@ export default function WappyWorkflowCanvas({
       ) {
         return true;
       }
-      if (node.key === 'trigger_root' && (k === 'trigger_root' || k === 'trigger_cron')) {
-        return true;
-      }
-      if (node.shape === 'square_extractor' && k === `extractor_${node.nodeId}`) return true;
       if (
-        node.shape === 'circle_tool' &&
-        (k === `tool_hitos_${node.nodeId}` || k === `tool_inputs_${node.nodeId}`)
+        node.key === 'trigger_root' &&
+        (k === 'trigger_root' ||
+          k === 'trigger_cron' ||
+          k === `trigger_${node.nodeId}` ||
+          (node.nodeId === 'trigger_tenshi' && k === 'tenshi_ia'))
       ) {
         return true;
       }
-      if (node.shape === 'square_output' && k === `out_${node.nodeId}`) return true;
+      if (
+        node.shape === 'square_extractor' &&
+        (k === `extractor_${node.nodeId}` || k === `tool_inputs_${node.nodeId}`)
+      ) {
+        return true;
+      }
+      if (
+        node.shape === 'square_hito' &&
+        (k === `tool_hitos_${node.nodeId}` ||
+          k === `hito_src_${node.nodeId}` ||
+          k === `hito_${node.nodeId}`)
+      ) {
+        return true;
+      }
+      if (
+        node.shape === 'circle_tool' &&
+        (k === `tool_hitos_${node.nodeId}` ||
+          k === `tool_inputs_${node.nodeId}` ||
+          k === `extractor_${node.nodeId}`)
+      ) {
+        return true;
+      }
+      if (
+        node.shape === 'square_output' &&
+        (k === `out_${node.nodeId}` ||
+          (node.nodeId === 'wappy_notification' &&
+            (k === 'notify_wappy' || k === 'out_notify_wappy')))
+      ) {
+        return true;
+      }
       if (node.shape === 'logic' && k === `logic_${node.nodeId}`) return true;
       return false;
     },
@@ -6323,6 +6565,18 @@ export default function WappyWorkflowCanvas({
                   badge: `8 · ${
                     (workflowNodes?.canvasLayout?.customNodes || []).filter(
                       (c) => c.nodeType === 'web_scraper' || c.nodeType === 'web_search',
+                    ).length +
+                    (workflowNodes.inputs || []).filter(
+                      (id) =>
+                        id === 'extract_web_scraping_agy' ||
+                        id === 'extract_web_search' ||
+                        id.startsWith('scraper_agy_'),
+                    ).length +
+                    activeExtractors.filter(
+                      (id) =>
+                        id === 'extract_web_scraping_agy' ||
+                        id === 'extract_web_search' ||
+                        id.startsWith('scraper_agy_'),
                     ).length
                   }`,
                   variant: 'amber' as const,
@@ -6388,7 +6642,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'connectors' ? (
               <span>
-                🔧 <strong>Etapa 5 — Herramientas del Agente («Herramienta +» estilo n8n):</strong> Filtra entre <strong>🟢 Herramientas WAPPY</strong>, <strong>🔵 Google Workspace</strong>, <strong>🟠 APIs Externas</strong>, <strong>🟣 Conectores MCP</strong> y <strong>🛡️ Aplicativos de Somos SST (Hitos 1–8)</strong> para colgarlos debajo del Agente IA.
+                🔧 <strong>Etapa 5 — Herramientas del Agente («Herramienta +» estilo n8n):</strong> Filtra entre <strong>🟢 Herramientas WAPPY</strong>, <strong>🔵 Google Workspace</strong>, <strong>🟠 APIs Externas</strong>, <strong>🟣 Conectores MCP</strong>, <strong>🕷️ Web Scraping AGY</strong> y <strong>🛡️ Aplicativos de Somos SST (Hitos 1–8)</strong> para colgarlos debajo del Agente IA.
               </span>
             ) : paletteTab === 'skills_rules' ? (
               <span>
@@ -6400,7 +6654,7 @@ export default function WappyWorkflowCanvas({
               </span>
             ) : paletteTab === 'scraping' ? (
               <span>
-                🕷️ <strong>Etapa 8 — Web Scraping con Google Antigravity y Búsqueda Web Viva:</strong> Ejecuta scripts reales de <strong>Python / Playwright / Chrome DevTools MCP</strong> en tu instancia de Antigravity (Alturas, ARL, Pensiones, ReTHUS, RUNT/SIMIT, Antecedentes) o consulta la web en vivo.
+                🕷️ <strong>Etapa 8 — Web Scraping con Google Antigravity y Búsqueda Web Viva:</strong> Ejecuta inspección real en el <strong>Navegador Nativo Integrado de Antigravity</strong> o scripts <strong>Python / Playwright</strong> (1° Antigravity Local ➔ 2° Antigravity Cloud ➔ 3° Respaldo HTTP Seguro sin Chromium en VPS).
               </span>
             ) : paletteTab === 'hitos' ? (
               <span>
@@ -6691,19 +6945,19 @@ export default function WappyWorkflowCanvas({
                             className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white"
                           >
                             <option value="auto_chrome_dom">
-                              ⚡ Autónomo en Servidor · HTML + DOM JS (Recomendado)
+                              ⚡ Cascada Nativa Antigravity · Navegador Integrado + Respaldo HTTP (Recomendado)
                             </option>
                             <option value="fetch_cheerio">
-                              🚀 Rápido HTML Estático (Fetch + Cheerio)
+                              🚀 Rápido HTML Estático sin Navegador (Fetch + Cheerio)
                             </option>
                             <option value="chrome_mcp">
-                              🌐 Navegador Antigravity Local para Intranet (Chrome MCP)
+                              🌐 Navegador Nativo Integrado de Antigravity (Portales / Intranet)
                             </option>
                             <option value="python_bs4">
                               🐍 Python (BeautifulSoup4 + Playwright en Antigravity)
                             </option>
                             <option value="node_cheerio">
-                              🟢 Node.js (Cheerio + Puppeteer en Antigravity)
+                              🟢 Node.js (Cheerio + HTTP en Antigravity)
                             </option>
                             <option value="custom_script">
                               💻 Script / Comando Personalizado en Antigravity
@@ -6742,7 +6996,7 @@ export default function WappyWorkflowCanvas({
                                   ? `import requests\nfrom bs4 import BeautifulSoup\n\nurl = "${urlSample}"\nresp = requests.get(url, timeout=20)\nsoup = BeautifulSoup(resp.text, "html.parser")\nfor row in soup.select("table tr, h1, h2, a[href$='.pdf']"):\n    print(row.get_text(strip=True))`
                                   : newCustomNodeForm.scriptEngine === 'node_cheerio'
                                     ? `const axios = require('axios');\nconst cheerio = require('cheerio');\n(async () => {\n  const { data } = await axios.get('${urlSample}');\n  const $ = cheerio.load(data);\n  $('table tr, h1, h2').each((_, el) => console.log($(el).text().trim()));\n})();`
-                                    : `Abrir ${urlSample} con Chrome DevTools MCP, extraer todas las tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
+                                    : `Abrir ${urlSample} en el Navegador Nativo Integrado de Antigravity (sin abrir Chrome externo), extraer tablas, titulares y enlaces PDF y devolverlos en Markdown limpio.`;
                             setNewCustomNodeForm((prev) => ({ ...prev, scriptCode: generated }));
                           }}
                         />
@@ -6910,13 +7164,24 @@ export default function WappyWorkflowCanvas({
                         item.id === 'scraper_agy_pensiones_directo' ||
                         item.id === 'scraper_agy_salud_rethus',
                     );
+                    const isInCustomNodes = (workflowNodes?.canvasLayout?.customNodes || []).some(
+                      (c) => c.key === item.customNodePayload.key,
+                    );
+                    const isInToolInputs = (workflowNodes.inputs || []).includes(item.id);
+                    const isInExtractors = activeExtractors.includes(item.id);
                     const isAlreadyOnCanvas =
                       !isItemUnderConstruction &&
-                      (workflowNodes?.canvasLayout?.customNodes || []).some(
-                        (c) => c.key === item.customNodePayload.key,
-                      );
+                      (isInCustomNodes || isInToolInputs || isInExtractors);
+                    const resolvedCustomOrCatalogKey = isInToolInputs
+                      ? `tool_inputs_${item.id}`
+                      : isInExtractors
+                        ? `extractor_${item.id}`
+                        : item.customNodePayload.key;
                     const isInspectingThisCustom =
-                      isAlreadyOnCanvas && activeConfigNodeKey === item.customNodePayload.key;
+                      isAlreadyOnCanvas && activeConfigNodeKey === resolvedCustomOrCatalogKey;
+                    const isOfficialAgentToolScraper = WEB_SCRAPER_AGENT_TOOL_NODES.some(
+                      (s) => s.id === item.id,
+                    );
                     return (
                       <div
                         key={item.id}
@@ -6924,6 +7189,17 @@ export default function WappyWorkflowCanvas({
                         onDragStart={(e) => {
                           if (isItemUnderConstruction) {
                             e.preventDefault();
+                            return;
+                          }
+                          if (isOfficialAgentToolScraper && !isInCustomNodes && !isInExtractors) {
+                            e.dataTransfer.setData(
+                              'application/wappy-flow-node',
+                              JSON.stringify({
+                                kind: 'node',
+                                group: 'inputs',
+                                nodeId: item.id,
+                              }),
+                            );
                             return;
                           }
                           e.dataTransfer.setData(
@@ -6941,8 +7217,14 @@ export default function WappyWorkflowCanvas({
                             );
                             return;
                           }
-                          if (isAlreadyOnCanvas) {
+                          if (isInToolInputs) {
+                            toggleOrAddCatalogNode('inputs', item.id);
+                          } else if (isInExtractors) {
+                            toggleOrAddCatalogNode('extractors', item.id);
+                          } else if (isInCustomNodes) {
                             handleRemoveCustomNode(item.customNodePayload.key);
+                          } else if (isOfficialAgentToolScraper) {
+                            toggleOrAddCatalogNode('inputs', item.id);
                           } else {
                             handleAddCustomNodeToCanvas(item.customNodePayload);
                           }
@@ -7018,7 +7300,7 @@ export default function WappyWorkflowCanvas({
                                   icon={<Sliders className="w-3 h-3" />}
                                   label="Configurar"
                                   title="Configurar este nodo y ver su Estado en Vivo"
-                                  onClick={() => openNodeConfigInspector(item.customNodePayload.key)}
+                                  onClick={() => openNodeConfigInspector(resolvedCustomOrCatalogKey)}
                                 />
                               </div>
                             )}
@@ -7164,7 +7446,7 @@ export default function WappyWorkflowCanvas({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Barra de sub-grupos discriminados para 5. Herramientas (WAPPY · Google · APIs · MCP · Somos SST) */}
+              {/* Barra de sub-grupos discriminados para 5. Herramientas (WAPPY · Google · APIs · MCP · Web Scraping AGY · Somos SST) */}
               {paletteTab === 'connectors' && (
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
@@ -7173,10 +7455,20 @@ export default function WappyWorkflowCanvas({
                       const activeHitoAppsForTools = HITO_APP_NODES.filter(
                         (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
                       );
+                      const activeScraperTools = WEB_SCRAPER_AGENT_TOOL_NODES.filter(
+                        (s) =>
+                          !isWorkflowNodeUnderConstruction(s, disabledSgsstApps) &&
+                          !INPUT_CONNECTOR_NODES.some((ic) => ic.id === s.id),
+                      );
                       const toolsInSubgroup =
                         tTab.id === 'all_tools'
-                          ? [...INPUT_CONNECTOR_NODES, ...activeHitoAppsForTools]
-                          : INPUT_CONNECTOR_NODES.filter((n) => n.category === tTab.id);
+                          ? [...INPUT_CONNECTOR_NODES, ...activeScraperTools, ...activeHitoAppsForTools]
+                          : tTab.id === 'mcp_tools'
+                            ? [
+                                ...INPUT_CONNECTOR_NODES.filter((n) => n.category === 'mcp_tools'),
+                                ...activeScraperTools,
+                              ]
+                            : INPUT_CONNECTOR_NODES.filter((n) => n.category === tTab.id);
                       const activeInputs = workflowNodes.inputs || [];
                       const activeToolHitoIds = (workflowNodes.hitos || []).filter(
                         (hid) =>
@@ -7224,6 +7516,34 @@ export default function WappyWorkflowCanvas({
                         />
                       );
                     })}
+                    {(() => {
+                      const activeScraperTools = WEB_SCRAPER_AGENT_TOOL_NODES.filter(
+                        (s) => !isWorkflowNodeUnderConstruction(s, disabledSgsstApps),
+                      );
+                      const connectedScrapersCount = activeScraperTools.filter((s) =>
+                        (workflowNodes.inputs || []).includes(s.id),
+                      ).length;
+                      return (
+                        <ExpandableButton
+                          type="button"
+                          size="sm"
+                          variant="amber"
+                          isActive={selectedToolSubgroup === 'scraping_tools'}
+                          icon={<Terminal className="w-3.5 h-3.5" />}
+                          badge={
+                            connectedScrapersCount > 0
+                              ? `${activeScraperTools.length} · ✓${connectedScrapersCount}`
+                              : activeScraperTools.length
+                          }
+                          label="🕷️ Web Scraping AGY"
+                          title="Conectar conectores de Web Scraping con Navegador Nativo Antigravity (ARL, Alturas, RUNT/SIMIT, Antecedentes) en «Herramienta +»"
+                          onClick={() => {
+                            setSelectedToolSubgroup('scraping_tools');
+                            setConstructionNotice(null);
+                          }}
+                        />
+                      );
+                    })()}
                     {(() => {
                       const activeHitoApps = HITO_APP_NODES.filter(
                         (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
@@ -7374,14 +7694,32 @@ export default function WappyWorkflowCanvas({
                       ? HITO_APP_NODES.filter(
                           (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
                         )
-                      : selectedToolSubgroup === 'all_tools'
-                        ? [
-                            ...INPUT_CONNECTOR_NODES,
-                            ...HITO_APP_NODES.filter(
-                              (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
-                            ),
-                          ]
-                        : INPUT_CONNECTOR_NODES.filter((n) => n.category === selectedToolSubgroup)
+                      : selectedToolSubgroup === 'scraping_tools'
+                        ? WEB_SCRAPER_AGENT_TOOL_NODES.filter(
+                            (s) => !isWorkflowNodeUnderConstruction(s, disabledSgsstApps),
+                          )
+                        : selectedToolSubgroup === 'all_tools'
+                          ? [
+                              ...INPUT_CONNECTOR_NODES,
+                              ...WEB_SCRAPER_AGENT_TOOL_NODES.filter(
+                                (s) =>
+                                  !isWorkflowNodeUnderConstruction(s, disabledSgsstApps) &&
+                                  !INPUT_CONNECTOR_NODES.some((ic) => ic.id === s.id),
+                              ),
+                              ...HITO_APP_NODES.filter(
+                                (h) => !isWorkflowNodeUnderConstruction(h, disabledSgsstApps),
+                              ),
+                            ]
+                          : selectedToolSubgroup === 'mcp_tools'
+                            ? [
+                                ...INPUT_CONNECTOR_NODES.filter((n) => n.category === 'mcp_tools'),
+                                ...WEB_SCRAPER_AGENT_TOOL_NODES.filter(
+                                  (s) =>
+                                    !isWorkflowNodeUnderConstruction(s, disabledSgsstApps) &&
+                                    !INPUT_CONNECTOR_NODES.some((ic) => ic.id === s.id),
+                                ),
+                              ]
+                            : INPUT_CONNECTOR_NODES.filter((n) => n.category === selectedToolSubgroup)
                     : paletteTab === 'hitos'
                       ? selectedHitoFilter === 'all' || selectedHitoFilter === 'external'
                         ? HITO_APP_NODES
@@ -7436,6 +7774,11 @@ export default function WappyWorkflowCanvas({
                             ? `out_${node.id}`
                             : `tool_inputs_${node.id}`;
                   const isInspectingTile = isSelected && activeConfigNodeKey === canvasKeyForTile;
+                  const isConnectedInOppositeStage =
+                    !isUnderConstruction &&
+                    !isSelected &&
+                    ((groupKey === 'inputs' && activeExtractors.includes(node.id)) ||
+                      (groupKey === 'extractors' && (workflowNodes.inputs || []).includes(node.id)));
 
                   return (
                     <div
@@ -7471,7 +7814,11 @@ export default function WappyWorkflowCanvas({
                       title={
                         isUnderConstruction
                           ? `🚧 ${node.label} — Aplicativo en Construcción en Somos SST (No seleccionable)`
-                          : `${node.label} — Arrastra al lienzo o haz clic para ${isSelected ? 'quitar' : 'conectar'}`
+                          : isConnectedInOppositeStage
+                            ? groupKey === 'inputs'
+                              ? `${node.label} — Actualmente en Etapa 2. Haz clic para moverlo a «Herramienta +» del Agente IA sin duplicarlo`
+                              : `${node.label} — Actualmente en «Herramienta +». Haz clic para moverlo a Etapa 2 sin duplicarlo`
+                            : `${node.label} — Arrastra al lienzo o haz clic para ${isSelected ? 'quitar' : 'conectar'}`
                       }
                       className={`group/tile flex flex-col items-center w-[92px] shrink-0 select-none ${
                         isUnderConstruction
@@ -7524,6 +7871,10 @@ export default function WappyWorkflowCanvas({
                       {isUnderConstruction ? (
                         <span className="mt-0.5 px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[8px] font-extrabold uppercase tracking-tight">
                           🚧 En Constr.
+                        </span>
+                      ) : isConnectedInOppositeStage ? (
+                        <span className="mt-0.5 px-1.5 py-0.2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-700 dark:text-sky-300 text-[8px] font-extrabold tracking-tight">
+                          {groupKey === 'inputs' ? '📥 En Etapa 2' : '🔧 Herramienta +'}
                         </span>
                       ) : (
                         isSelected && (
@@ -8961,6 +9312,10 @@ export default function WappyWorkflowCanvas({
               const isMemoryCircle = node.shape === 'circle_memory';
               const isHitoCircleTool =
                 node.group === 'hitos' || node.key.startsWith('tool_hitos_');
+              const isWebScraperCircleTool =
+                node.nodeId === 'extract_web_scraping_agy' ||
+                node.nodeId.startsWith('scraper_agy_');
+              const isArlScraperCircleTool = node.nodeId === 'scraper_agy_arl_directo';
 
               return (
                 <div
@@ -9003,7 +9358,11 @@ export default function WappyWorkflowCanvas({
                           ? 'border-pink-400 dark:border-pink-700 hover:border-pink-500'
                           : isHitoCircleTool
                             ? 'border-teal-400 dark:border-teal-600 hover:border-teal-500'
-                            : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
+                            : isArlScraperCircleTool
+                              ? 'border-emerald-400 dark:border-emerald-600 hover:border-emerald-500'
+                              : isWebScraperCircleTool
+                                ? 'border-amber-400 dark:border-amber-600 hover:border-amber-500'
+                                : 'border-slate-300 dark:border-slate-600 hover:border-purple-500'
                     }`}
                   >
                     {renderOfficialNodeSvg(node.nodeId, 'w-7 h-7')}
@@ -9035,13 +9394,21 @@ export default function WappyWorkflowCanvas({
                       className={`text-[8.5px] font-semibold truncate ${
                         isHitoCircleTool
                           ? 'text-teal-600 dark:text-teal-400'
-                          : 'text-slate-400'
+                          : isArlScraperCircleTool
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : isWebScraperCircleTool
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-400'
                       }`}
                       title={buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     >
                       {isHitoCircleTool
                         ? node.subtitle
-                        : buildNodeConfigSummary(nodeCfg) || node.subtitle}
+                        : isWebScraperCircleTool
+                          ? Array.isArray(nodeCfg?.fields) && nodeCfg.fields.length > 0
+                            ? `${nodeCfg.fields.length} portales`
+                            : node.subtitle
+                          : buildNodeConfigSummary(nodeCfg) || node.subtitle}
                     </div>
                     {showAntigravityBadge && (
                       <div className="mt-0.5 flex justify-center">
@@ -12479,6 +12846,7 @@ export default function WappyWorkflowCanvas({
         typeof document !== 'undefined' &&
         (() => {
           const safeInputs = Array.isArray(workflowNodes?.inputs) ? workflowNodes.inputs : [];
+          const safeExtractors = Array.isArray(workflowNodes?.extractors) ? workflowNodes.extractors : [];
           const safeHitos = Array.isArray(workflowNodes?.hitos) ? workflowNodes.hitos : [];
           const nodeConfigsMap = workflowNodes?.canvasLayout?.nodeConfigs;
           const searchNormalized = (toolPortPickerSearch || '').trim().toLowerCase();
@@ -12490,7 +12858,23 @@ export default function WappyWorkflowCanvas({
               node,
               canvasKey: `tool_inputs_${node.id}`,
               isConnected: safeInputs.includes(node.id),
-              isConnectedAsSource: false,
+              isConnectedAsSource: safeExtractors.includes(node.id),
+            }));
+
+          const scraperItems = (
+            Array.isArray(WEB_SCRAPER_AGENT_TOOL_NODES) ? WEB_SCRAPER_AGENT_TOOL_NODES : []
+          )
+            .filter(
+              (node) =>
+                !isWorkflowNodeUnderConstruction(node, disabledSgsstApps) &&
+                !connectorItems.some((ci) => ci.node.id === node.id),
+            )
+            .map((node) => ({
+              kind: 'scrapers' as const,
+              node,
+              canvasKey: `tool_inputs_${node.id}`,
+              isConnected: safeInputs.includes(node.id),
+              isConnectedAsSource: safeExtractors.includes(node.id),
             }));
 
           const hitoItems = (Array.isArray(HITO_APP_NODES) ? HITO_APP_NODES : [])
@@ -12507,11 +12891,14 @@ export default function WappyWorkflowCanvas({
               };
             });
 
-          const allItems = [...connectorItems, ...hitoItems];
+          const allItems = [...connectorItems, ...scraperItems, ...hitoItems];
           const connectedTotalCount = allItems.filter((item) => item.isConnected).length;
 
           const filteredItems = allItems.filter((item) => {
             if (toolPortPickerFilter === 'connectors' && item.kind !== 'connectors') {
+              return false;
+            }
+            if (toolPortPickerFilter === 'scrapers' && item.kind !== 'scrapers') {
               return false;
             }
             if (toolPortPickerFilter === 'hitos' && item.kind !== 'hitos') {
@@ -12616,8 +13003,18 @@ export default function WappyWorkflowCanvas({
                       icon={<Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label="Conectores & IA"
                       badge={connectorItems.length}
-                      title="Filtrar conectores externos, NotebookLM, Flow y Web Scraping"
+                      title="Filtrar conectores externos, NotebookLM, Flow y Antigravity"
                       onClick={() => setToolPortPickerFilter('connectors')}
+                    />
+                    <ExpandableButton
+                      variant="amber"
+                      size="sm"
+                      isActive={toolPortPickerFilter === 'scrapers'}
+                      icon={<Terminal className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label="Web Scraping AGY"
+                      badge={scraperItems.length}
+                      title="Filtrar conectores de Web Scraping con Navegador Nativo Antigravity (ARL, Alturas, RUNT/SIMIT, Antecedentes)"
+                      onClick={() => setToolPortPickerFilter('scrapers')}
                     />
                     <ExpandableButton
                       variant="emerald"
@@ -12716,25 +13113,31 @@ export default function WappyWorkflowCanvas({
                                   label="Desconectar"
                                   title={`Quitar ${node.label || node.id} del puerto Herramienta +`}
                                   onClick={() => {
-                                    toggleOrAddCatalogNode(kind === 'connectors' ? 'inputs' : 'hitos', node.id);
+                                    toggleOrAddCatalogNode(kind === 'hitos' ? 'hitos' : 'inputs', node.id);
                                   }}
                                 />
                               </>
                             ) : (
                               <>
-                                {kind === 'hitos' && isConnectedAsSource && (
+                                {isConnectedAsSource && (
                                   <span className="mr-auto inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 dark:text-sky-300">
-                                    En uso como fuente
+                                    {kind === 'hitos' ? 'En uso como fuente' : 'En Etapa 2 · Extracción'}
                                   </span>
                                 )}
                                 <ExpandableButton
                                   variant="emerald"
                                   size="sm"
                                   icon={<Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                                  label={kind === 'hitos' && isConnectedAsSource ? 'Usar como Herramienta' : 'Conectar'}
+                                  label={
+                                    isConnectedAsSource
+                                      ? kind === 'hitos'
+                                        ? 'Usar como Herramienta'
+                                        : 'Mover a Herramienta +'
+                                      : 'Conectar'
+                                  }
                                   title={`Conectar ${node.label || node.id} al puerto Herramienta +`}
                                   onClick={() => {
-                                    if (kind === 'connectors') {
+                                    if (kind !== 'hitos') {
                                       setToolPortPickerOpen(false);
                                       toggleOrAddCatalogNode('inputs', node.id);
                                     } else {

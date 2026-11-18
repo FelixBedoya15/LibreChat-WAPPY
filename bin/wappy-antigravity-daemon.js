@@ -45,7 +45,7 @@ const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hi
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const DAEMON_VERSION = '2.6.5';
+const DAEMON_VERSION = '2.6.6';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -1246,7 +1246,7 @@ function watchDirectTrajectoryCompletion({
       const justInvokedSubagent = lastStepToolCalls.some((tc) => tc?.name === 'invoke_subagent');
       const isTransitionalSubagentMsg =
         justInvokedSubagent ||
-        /(?:he\s+activado|acabo\s+de\s+activar|invocando|lanzando|delegando)[\s\S]{0,80}(?:subagente|image-generator)/i.test(
+        /(?:he\s+activado|acabo\s+de\s+activar|invocando|lanzando|delegando)[\s\S]{0,80}(?:subagente|image-generator|browser|navegador\s+integrado)/i.test(
           finalResponseText
         ) ||
         /en\s+cuanto\s+est[eé]\s+lista/i.test(finalResponseText);
@@ -3328,10 +3328,17 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
   }
 
   const titulo = orden.titulo || orden.title || 'Consulta Delegada por Tenshi';
-  const instruccion = orden.instruccion || orden.descripcion || orden.description || '';
+  const rawInstruccionInput = String(orden.instruccion || orden.descripcion || orden.description || '');
+  const instruccion = rawInstruccionInput.replace(
+    /\b(?:chrome_devtools_mcp|chrome_mcp)\b/gi,
+    "antigravity_native_browser (navegador nativo integrado 'browser' subagent de Antigravity)",
+  );
   const empresa = orden.empresa || orden.companyName || 'Empresa Activa en WAPPY';
   const rawFormato = String(orden.formatoEntregable || orden.formato || 'respuesta').toLowerCase().trim();
-  const recurso = orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP';
+  const recurso = String(orden.recursoObjetivo || 'Datos Empresariales WAPPY MCP').replace(
+    /\b(?:chrome_devtools_mcp|chrome_mcp)\b/gi,
+    "Navegador Nativo Integrado de Antigravity ('browser' subagent)",
+  );
   const routingProfile = resolveOrderRoutingProfile(orden);
 
   // Exclusivo para el iMac / MacBook Pro de Félix: abre la Bitácora visual en su Antigravity; para cualquier otro usuario, cero invasión:
@@ -3522,11 +3529,12 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `INSTRUCCIÓN DE NODO DE FLUJO AUTÓNOMO WAPPY (CANAL EXCLUSIVO DE FLUJOS /TAREAS — PROHIBIDO ENVIAR A TENSHI VOZ):`,
       `1. Esta orden proviene directamente de un NODO DE FLUJO AUTÓNOMO en /tareas para la empresa "${empresa}" (NO proviene de Tenshi Voz).`,
       `2. En la sección "Instrucción del Usuario" de arriba ya se incluyen los RESULTADOS REALES CONSULTADOS CÉDULA POR CÉDULA en el portal oficial para cada trabajador recibido del nodo anterior.`,
-      `3. Presenta en este hilo la tabla Markdown completa con todos los trabajadores consultados (Cédula, Nombre, Cargo, Estado en Portal Oficial y Detalle) sin omitir ni resumir nombres, e invoca 'wappy_completar_orden_delegada_tenshi' enviando:`,
+      `3. Si el nodo requiere navegar una URL adicional, verificar un portal web o ejecutar web scraping interactivo, usa EXCLUSIVAMENTE el navegador nativo integrado de Google Antigravity ('browser' subagent / built-in webview); PROHIBIDO abrir ventanas externas de Chrome/Safari/Brave o ejecutar 'open' / 'xdg-open'.`,
+      `4. Presenta en este hilo la tabla Markdown completa con todos los trabajadores consultados (Cédula, Nombre, Cargo, Estado en Portal Oficial y Detalle) sin omitir ni resumir nombres, e invoca 'wappy_completar_orden_delegada_tenshi' enviando:`,
       `   - ordenId: "${ordenId}"`,
       `   - formato: "respuesta"`,
       `   - resultado: Resumen técnico y tabla consolidada devuelta al flujo autónomo de WAPPY.`,
-      `4. PROHIBIDO escribir que la respuesta fue inyectada en Tenshi Voz; indica siempre que el resultado fue entregado al Flujo Autónomo de WAPPY (/tareas).`,
+      `5. PROHIBIDO escribir que la respuesta fue inyectada en Tenshi Voz; indica siempre que el resultado fue entregado al Flujo Autónomo de WAPPY (/tareas).`,
     ];
   } else if (isQuestionOnly) {
     executionInstructions = [
@@ -3564,6 +3572,28 @@ async function dispatchOrderToAntigravity(orden, wappyUrl, apiKey, preferredConv
       `   - contenido: El cuerpo completo del documento en Markdown estructurado con sus tablas técnicas (mínimo 300 caracteres)`,
       `   (Respaldo directo: si la herramienta MCP no aparece disponible, guarda el Markdown en un archivo temporal y ejecuta con run_command: node "${helperScript}" --complete-order="${ordenId}" --formato="documento" --resultado="Documento generado" --contenido-file="<RUTA_ARCHIVO_MD>")`,
     ];
+  }
+
+  const involvesWebOrPortalNavigation =
+    !isOriginalFileCopy &&
+    !isImageGeneration &&
+    !isWappyStudioOrder &&
+    /(?:https?:\/\/|www\.|\b(?:scrape|scraping|scraper|web_scraper|navega\w*|browser|webview|portal\w*|p[aá]gina|sitio\s+web|url|arl|sura|positiva|bol[ií]var|colmena|axa|mintrabajo|adres|rethus|porvenir|colpensiones|simit|ramajudicial|ruaf|pila|runt|osint|procuradur[ií]a|contralor[ií]a)\b)/i.test(
+      `${titulo} ${rawInstruccionInput} ${recurso}`,
+    );
+
+  if (involvesWebOrPortalNavigation) {
+    executionInstructions.push(
+      ``,
+      `🌐 DIRECTRIZ OBLIGATORIA DE NAVEGADOR NATIVO INTEGRADO DE ANTIGRAVITY (CERO NAVEGADORES EXTERNOS):`,
+      `- Google Antigravity 2.x cuenta nativamente con su propio navegador integrado ('browser' subagent / built-in webview).`,
+      `- Si esta orden involucra web scraping, navegación web o consulta de portales oficiales, utiliza EXCLUSIVAMENTE el navegador nativo integrado de Antigravity (mediante 'invoke_subagent' con 'browser' o 'read_url_content' / webview nativo).`,
+      `- PROHIBIDO ejecutar 'open', '/usr/bin/open', 'xdg-open', 'cmd /c start' o abrir ventanas externas de Chrome, Safari, Brave o Edge en el computador del usuario.`,
+    );
+  } else if (!isOriginalFileCopy && !isImageGeneration && !isWappyStudioOrder) {
+    executionInstructions.push(
+      `Nota de Navegación: Si requieres consultar cualquier URL o portal web, usa siempre el navegador nativo integrado de Antigravity ('browser' subagent / webview nativo) y nunca abras navegadores externos ('open' / 'xdg-open' / Chrome / Safari).`,
+    );
   }
 
   const bin = resolveAgentApiBinary();
@@ -5074,36 +5104,6 @@ function startSseWorker(cliArgs) {
                           try {
                             const reqAction = String(parsedData.action || 'query').toLowerCase().trim();
                             log(`🔍 [Antigravity Relay] Ejecutando acción "${reqAction}" desde IP Local (${parsedData.cedula || parsedData.folderPath || parsedData.targetUrl || parsedData.nombre || 'N/A'})...`);
-                            if (
-                              process.platform === 'darwin' &&
-                              isOwnerAdminMac() &&
-                              reqAction !== 'pc_folder' &&
-                              (!global.__lastVisualPortalOpenedAt ||
-                                Date.now() - global.__lastVisualPortalOpenedAt > 25000)
-                            ) {
-                              global.__lastVisualPortalOpenedAt = Date.now();
-                              const visualPortalMap = {
-                                query: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
-                                alto_riesgo: 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx',
-                                antecedentes: 'https://consultaprocesos.ramajudicial.gov.co/Procesos/NombreRazonSocial',
-                                arl: 'https://www.arlsura.com/index.php/com-es-afiliado?tmpl=component',
-                                pensiones: 'https://www.porvenir.com.co/web/certificados-y-extractos/certificado-de-afiliacion',
-                                salud_rethus: 'https://aplicaciones.adres.gov.co/bdua_internet/Pages/ConsultarAfiliadoWeb.aspx',
-                                vial_pesv: 'https://www.fcm.org.co/simit/#/home-public',
-                              };
-                              const portalToOpen =
-                                reqAction === 'web_scrape'
-                                  ? String(parsedData.targetUrl || 'https://app2.mintrabajo.gov.co/CentrosEntrenamiento/consulta_ext.aspx')
-                                      .split(',')[0]
-                                      .trim()
-                                  : visualPortalMap[reqAction] || visualPortalMap.query;
-                              try {
-                                spawn('/usr/bin/open', ['-g', '-a', 'Google Chrome', portalToOpen], {
-                                  detached: true,
-                                  stdio: 'ignore',
-                                }).unref();
-                              } catch (_) {}
-                            }
                             const candidateOsintPaths = [
                               path.resolve(__dirname, '..', 'api', 'server', 'services', 'osintWorkerService.js'),
                               '/Users/venta/Documents/GitHub/LibreChat-WAPPY/api/server/services/osintWorkerService.js',

@@ -9885,6 +9885,54 @@ async function tryGenerateImageViaAntigravity({
 const pendingAntigravityWorkflowResolvers = new Map();
 
 /**
+ * Normaliza las instrucciones de órdenes delegadas a Google Antigravity (`nueva_orden`, flujos y scraping)
+ * para garantizar que el agente utilice exclusivamente el navegador nativo integrado de Antigravity
+ * (`browser` subagent / built-in webview) y jamás abra navegadores externos en el equipo del usuario.
+ */
+function normalizeAntigravityOrderBrowserInstructions({
+  title = '',
+  instruction = '',
+  recursoObjetivo = '',
+  outputType = '',
+  sourceModule = '',
+} = {}) {
+  const normSource = String(sourceModule || '').toLowerCase().trim();
+  const normOut = String(outputType || '').toLowerCase().trim();
+  let cleanInstruction = String(instruction || '').replace(
+    /\b(?:chrome_devtools_mcp|chrome_mcp)\b/gi,
+    "antigravity_native_browser (navegador nativo integrado 'browser' subagent de Antigravity)",
+  ).trim();
+  const cleanRecurso = String(recursoObjetivo || '').replace(
+    /\b(?:chrome_devtools_mcp|chrome_mcp)\b/gi,
+    "Navegador Nativo Integrado de Antigravity ('browser' subagent)",
+  ).trim();
+
+  const skipDirective =
+    normSource === 'healthcheck_e2e' ||
+    normSource === 'healthcheck_report' ||
+    normSource === 'wappy_studio' ||
+    normSource === 'image_priority' ||
+    normOut === 'imagen' ||
+    normOut === 'image' ||
+    normOut === 'copia_archivo';
+
+  const involvesWebOrPortal =
+    !skipDirective &&
+    /(?:https?:\/\/|www\.|\b(?:scrape|scraping|scraper|web_scraper|navega\w*|browser|webview|portal\w*|p[aá]gina|sitio\s+web|url|arl|sura|positiva|bol[ií]var|colmena|axa|mintrabajo|adres|rethus|porvenir|colpensiones|simit|ramajudicial|ruaf|pila|runt|osint|procuradur[ií]a|contralor[ií]a)\b)/i.test(
+      `${title} ${instruction} ${recursoObjetivo}`,
+    );
+
+  if (involvesWebOrPortal && !/\[DIRECTRIZ DE NAVEGADOR NATIVO DE ANTIGRAVITY\]/i.test(cleanInstruction)) {
+    cleanInstruction = `${cleanInstruction}\n\n[DIRECTRIZ DE NAVEGADOR NATIVO DE ANTIGRAVITY]: Utiliza EXCLUSIVAMENTE el navegador nativo integrado de Google Antigravity ('browser' subagent / built-in webview) para cualquier navegación web, web scraping o consulta de portales oficiales. NUNCA abras navegadores externos en el computador del usuario (PROHIBIDO ejecutar 'open', 'xdg-open', 'cmd /c start' o abrir ventanas externas de Google Chrome, Safari o Brave).`;
+  }
+
+  return {
+    instruction: cleanInstruction,
+    recursoObjetivo: cleanRecurso || String(recursoObjetivo || '').trim(),
+  };
+}
+
+/**
  * Despacha una orden real (`event: nueva_orden`) al daemon de Google Antigravity (`wappy-push-daemon.js`)
  * para que abra/active el hilo de chat en Google Antigravity IDE (`agentapi new-conversation` / `send-message`)
  * cuando un nodo de un flujo autónomo (Scraper, Skill, Sub-Agente, Carpeta PC o Motor Antigravity) se ejecuta.
@@ -9948,7 +9996,15 @@ async function dispatchWorkflowOrderToAntigravityChat({
         : null) || (await getActiveCompany(targetUserId).catch(() => null));
     const resolvedCompanyName = companyName || company?.companyName || 'Empresa Activa';
     const finalTitle = String(title || 'Ejecución de Nodo en Google Antigravity').trim().slice(0, 140);
-    const cleanInstruction = String(instruction || finalTitle).trim();
+    const normalizedBrowserTexts = normalizeAntigravityOrderBrowserInstructions({
+      title: finalTitle,
+      instruction: String(instruction || finalTitle).trim(),
+      recursoObjetivo,
+      outputType: 'respuesta',
+      sourceModule: 'sgsst_workflow_antigravity',
+    });
+    const cleanInstruction = normalizedBrowserTexts.instruction;
+    const finalWorkflowRecurso = normalizedBrowserTexts.recursoObjetivo || recursoObjetivo;
 
     const kanbanTask = await KanbanTask.create({
       user: targetUserId,
@@ -9958,7 +10014,7 @@ async function dispatchWorkflowOrderToAntigravityChat({
         `[ORDEN DE FLUJO AUTÓNOMO WAPPY -> GOOGLE ANTIGRAVITY (${mode.toUpperCase()})]\n` +
         `Empresa: ${resolvedCompanyName} (NIT: ${company?.nit || 'N/A'})\n` +
         `Instrucción: ${cleanInstruction}\n` +
-        `Recurso Objetivo: ${recursoObjetivo}\n` +
+        `Recurso Objetivo: ${finalWorkflowRecurso}\n` +
         `Formato Esperado: respuesta`,
       status: 'todo',
       dueDate: new Date(Date.now() + 60 * 60 * 1000),
@@ -10011,8 +10067,10 @@ async function dispatchWorkflowOrderToAntigravityChat({
         titulo: finalTitle,
         instruccion: cleanInstruction,
         descripcion: kanbanTask.description,
-        recursoObjetivo,
+        recursoObjetivo: finalWorkflowRecurso,
         formatoEntregable: 'respuesta',
+        browserMode: 'antigravity_native_browser',
+        openExternalBrowser: false,
         estado: 'todo',
         prioridad: 'alta',
         sourceModule: 'sgsst_workflow_antigravity',
@@ -10074,7 +10132,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.6.5';
+const MIN_REQUIRED_DAEMON_VERSION = '2.6.6';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -10191,7 +10249,9 @@ async function executeCloudFailoverForAntigravityOrder(taskId, targetUserId, dia
     const mFormato = taskDesc.match(/Formato Esperado:\s*([^\n\r]+)/i);
     const expectedFormat = (mFormato ? mFormato[1].trim().toLowerCase() : '') || resolveAntigravityOutputFormat('', taskDesc);
     const mInstr = taskDesc.match(/Instrucci[oó]n:\s*([\s\S]*?)(?:\nRecurso Objetivo:|\nFormato Esperado:|$)/i);
-    const cleanInstruction = (mInstr ? mInstr[1].trim() : taskDesc || task.title || '').trim();
+    const cleanInstruction = (mInstr ? mInstr[1].trim() : taskDesc || task.title || '')
+      .replace(/\s*\[DIRECTRIZ DE NAVEGADOR NATIVO DE ANTIGRAVITY\]:[\s\S]*$/i, '')
+      .trim();
 
     logger.warn(
       `[MCP Bridge] 🛡️ Activando Cloud Failover automático para orden ${idStr} ("${task.title}", formato: ${expectedFormat}). Motivo local: ${diagnosticInfo.error || 'Timeout / sin respuesta local'}`
@@ -11150,10 +11210,19 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     );
 
     const finalTitle = titulo || title || `Orden Antigravity: ${(tarea || instruccion || 'Consulta / Procesamiento').slice(0, 60)}`;
-    const finalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
-    const finalResource = carpeta_o_recurso || folderPath || 'Datos Empresariales WAPPY MCP';
-    const finalOutputType = resolveAntigravityOutputFormat(tipo_entregable || outputType, finalDesc, finalFiles);
+    const rawFinalDesc = instruccion || instruction || tarea || task || 'Procesar requerimiento delegado desde Tenshi.';
+    const rawFinalResource = carpeta_o_recurso || folderPath || 'Datos Empresariales WAPPY MCP';
+    const finalOutputType = resolveAntigravityOutputFormat(tipo_entregable || outputType, rawFinalDesc, finalFiles);
     const finalSourceModule = String(sourceModule || 'tenshi_voice').trim();
+    const normalizedDelegatedTexts = normalizeAntigravityOrderBrowserInstructions({
+      title: finalTitle,
+      instruction: rawFinalDesc,
+      recursoObjetivo: rawFinalResource,
+      outputType: finalOutputType,
+      sourceModule: finalSourceModule,
+    });
+    const finalDesc = normalizedDelegatedTexts.instruction || rawFinalDesc;
+    const finalResource = normalizedDelegatedTexts.recursoObjetivo || rawFinalResource;
 
     // CORTAFUEGOS DE PRIVACIDAD EN SERVIDOR:
     // Bloquear cualquier orden de healthcheck_e2e o healthcheck_report si el usuario no es la cuenta propietaria de Félix
@@ -11228,6 +11297,8 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       descripcion: kanbanTask?.description || finalDesc,
       recursoObjetivo: finalResource,
       formatoEntregable: finalOutputType,
+      browserMode: 'antigravity_native_browser',
+      openExternalBrowser: false,
       archivos: finalFiles,
       estado: 'todo',
       prioridad: finalPriority,
@@ -12809,6 +12880,8 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
           forceEvidence,
           eventTarget,
           antigravityMode: mode,
+          browserMode: 'antigravity_native_browser',
+          openExternalBrowser: false,
         })}\n\n`;
 
         for (const clientConn of liveGroup) {
