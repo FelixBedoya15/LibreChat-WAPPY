@@ -269,12 +269,24 @@ const VersionMenuDropdown = ({
 
 interface CanvasPanelProps {
   conversationId: string | null;
+  embeddedInTenshiHero?: boolean;
+  onCloseOverride?: () => void;
+  onSelectConversationOverride?: (convoId: string) => void;
+  isEmbeddedVisible?: boolean;
+  onSessionStateChange?: (hasContent: boolean, title?: string) => void;
 }
 
 const POLL_INTERVAL_MS = 2500;
 const DEBOUNCE_SAVE_MS = 10000;
 
-const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
+const CanvasPanel: React.FC<CanvasPanelProps> = ({
+  conversationId,
+  embeddedInTenshiHero = false,
+  onCloseOverride,
+  onSelectConversationOverride,
+  isEmbeddedVisible = true,
+  onSessionStateChange,
+}) => {
   const { showToast } = useToastContext();
   const { token, user } = useAuthContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO' || user?.role === 'USER_IPEVAR' || user?.role === 'IPEVAR';
@@ -286,8 +298,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
   const setEphemeralAgent = useSetRecoilState(ephemeralAgentByConvoId(conversationId ?? 'new'));
 
   const handleCloseCanvas = useCallback(() => {
-    setIsCanvasActive(false);
     setIsMaximized(false);
+    if (embeddedInTenshiHero) {
+      setIsCanvasActive(false);
+      onCloseOverride?.();
+      return;
+    }
+    setIsCanvasActive(false);
     setEphemeralAgent((prev: any) => {
       if (!prev?.tools) return prev;
       return {
@@ -300,12 +317,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         ),
       };
     });
-  }, [setIsCanvasActive, setIsMaximized, setEphemeralAgent]);
+  }, [embeddedInTenshiHero, onCloseOverride, setIsCanvasActive, setIsMaximized, setEphemeralAgent]);
 
   // Ephemeral agent state to check which tools are active
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
-  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
+  const [streamingCanvas, setStreamingCanvas] = useRecoilState(store.streamingCanvasState);
   const streamingLoadedAtRef = useRef<number>(streamingCanvas?.content ? Date.now() : 0);
+  const onSessionStateChangeRef = useRef(onSessionStateChange);
+  onSessionStateChangeRef.current = onSessionStateChange;
 
   const extractSmartTitle = useCallback((rawContent: string, candidateTitle?: string) => {
     const cleanCandidate = (candidateTitle || '').trim();
@@ -359,6 +378,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     (fileType !== 'text' && fileType !== 'actos_condiciones' && fileType !== 'animo') ||
     fileType === 'actos_condiciones' ||
     fileType === 'animo';
+
+  useEffect(() => {
+    onSessionStateChangeRef.current?.(hasActiveSession, title);
+  }, [hasActiveSession, title]);
 
   // References to handle syncing correctly without stale closures
   const contentRef = useRef<string>(initialStreamingContent);
@@ -945,6 +968,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
   useEffect(() => {
     if (!conversationId || conversationId === 'new') return;
+    if (embeddedInTenshiHero && !isEmbeddedVisible) return;
 
     // Set periodic polling to retrieve agent changes in real-time
     // isSubmitting in deps resets the interval when agent state changes
@@ -953,7 +977,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [conversationId, fetchSession, isSubmitting]);
+  }, [conversationId, fetchSession, isSubmitting, embeddedInTenshiHero, isEmbeddedVisible]);
 
   // ── Agent finish listener: force immediate re-fetch when agent stops ──────
   // This is the primary mechanism for showing canvas content after tool execution.
@@ -994,7 +1018,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     contentRef.current = initialContent;
     titleRef.current = initialTitle;
 
-    if (setConversation) {
+    if (!embeddedInTenshiHero && setConversation) {
       setConversation((prev: any) => ({
         ...prev,
         conversationId: newConvoId,
@@ -1006,7 +1030,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
     queryClient.invalidateQueries([QueryKeys.allConversations]);
 
-    navigate(`/c/${newConvoId}`, { replace: true });
+    if (!embeddedInTenshiHero) {
+      navigate(`/c/${newConvoId}`, { replace: true });
+    }
   };
 
   // ── Debounced Auto-Save ──────────────────────────────────────────────────
@@ -1109,7 +1135,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     if (!conversationId || conversationId === 'new') {
       const newConvoId = v4();
       await copyEphemeralAgent(newConvoId);
-      if (setConversation) {
+      if (!embeddedInTenshiHero && setConversation) {
         setConversation((prev: any) => ({
           ...prev,
           conversationId: newConvoId,
@@ -1118,7 +1144,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       await saveSession(newConvoId, false, true);
       queryClient.invalidateQueries([QueryKeys.messages, newConvoId]);
       queryClient.invalidateQueries([QueryKeys.allConversations]);
-      navigate(`/c/${newConvoId}`, { replace: true });
+      if (!embeddedInTenshiHero) {
+        navigate(`/c/${newConvoId}`, { replace: true });
+      }
     } else {
       await saveSession(undefined, false, true);
     }
@@ -1158,6 +1186,10 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
         setHistory([]);
         lastUpdatedAtRef.current = data.updatedAt;
         downloadRef.current = null;
+        if (embeddedInTenshiHero) {
+          streamingLoadedAtRef.current = 0;
+          setStreamingCanvas(null);
+        }
       }
     } catch (e) {
       console.error('[CanvasPanel] Reset error:', e);
@@ -1250,29 +1282,34 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     };
 
     const theme = getThemeColors();
+    const compactHeader = Boolean(embeddedInTenshiHero && !isMaximized);
 
     return (
-      <div className="w-full shrink-0 px-4 pb-2 pt-4">
-        <div className="group flex items-center gap-3">
+      <div className={compactHeader ? 'w-full shrink-0 px-3 pb-1.5 pt-2.5' : 'w-full shrink-0 px-4 pb-2 pt-4'}>
+        <div className="group flex min-w-0 items-center gap-2.5 sm:gap-3">
           {hasActiveSession && (
             <button
               onClick={handleResetSession}
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-sm transition-all duration-300 hover:scale-105 hover:bg-surface-hover"
+              className={`flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-surface-primary text-text-primary shadow-sm transition-all duration-300 hover:scale-105 hover:bg-surface-hover ${
+                compactHeader ? 'h-8 w-8' : 'h-10 w-10'
+              }`}
               aria-label="Volver a la selección de lienzos"
               title="Volver a la selección de lienzos"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className={compactHeader ? 'h-4 w-4' : 'h-5 w-5'} />
             </button>
           )}
 
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${theme.bg} ${theme.border} ${theme.text}`}
+            className={`flex shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+              compactHeader ? 'h-8 w-8' : 'h-10 w-10'
+            } ${theme.bg} ${theme.border} ${theme.text}`}
           >
             {getIcon()}
           </div>
 
           {editing ? (
-            <div className="flex flex-1 items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <input
                 ref={inputRef}
                 value={draft}
@@ -1281,7 +1318,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                   if (e.key === 'Enter') commit();
                   if (e.key === 'Escape') setEditing(false);
                 }}
-                className={`flex-1 border-b-2 bg-transparent py-0.5 text-xl font-bold text-text-primary outline-none ${theme.border.replace('/20', '')}`}
+                className={`min-w-0 flex-1 border-b-2 bg-transparent py-0.5 font-bold text-text-primary outline-none ${
+                  compactHeader ? 'text-sm sm:text-base' : 'text-xl'
+                } ${theme.border.replace('/20', '')}`}
                 autoFocus
               />
               <button
@@ -1301,7 +1340,11 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </div>
           ) : (
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <h2 className="truncate text-xl font-bold leading-tight text-text-primary">
+              <h2
+                className={`truncate font-bold leading-tight text-text-primary ${
+                  compactHeader ? 'text-sm sm:text-base' : 'text-xl'
+                }`}
+              >
                 {title}
               </h2>
               {fileType !== 'animo' && (
@@ -1316,7 +1359,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
             </div>
           )}
         </div>
-        <div className={`mt-3 h-px bg-gradient-to-r ${theme.grad} to-transparent`} />
+        <div className={`${compactHeader ? 'mt-2' : 'mt-3'} h-px bg-gradient-to-r ${theme.grad} to-transparent`} />
       </div>
     );
   };
@@ -1457,54 +1500,69 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
     );
   }
 
+  const isCompactEmbedded = Boolean(embeddedInTenshiHero && !isMaximized);
+  const headerBtnSizeClass = isCompactEmbedded
+    ? 'h-8 min-w-[32px] px-2 sm:h-9 sm:min-w-[36px] sm:px-2.5'
+    : 'h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3';
+
   const panelContent = (
     <div
       className={`flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary ${
         isMaximized
           ? 'fixed inset-0 z-[9990] m-0 h-screen w-screen rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
-          : 'relative pt-[max(env(safe-area-inset-top),1.5rem)] sm:pt-0'
+          : isCompactEmbedded
+            ? 'relative'
+            : 'relative pt-[max(env(safe-area-inset-top),1.5rem)] sm:pt-0'
       }`}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
-        className="relative z-[300] flex shrink-0 items-center justify-between overflow-visible border-b border-border-light bg-surface-secondary px-3 sm:px-4 py-2 sm:py-0"
-        style={{ minHeight: '3.75rem' }}
+        className={`relative z-[300] flex w-full max-w-full shrink-0 items-center justify-between gap-1.5 overflow-visible border-b border-border-light bg-surface-secondary ${
+          isCompactEmbedded
+            ? 'px-2.5 sm:px-3 py-1.5'
+            : 'px-3 sm:px-4 py-2 sm:py-0'
+        }`}
+        style={{ minHeight: isCompactEmbedded ? '3.1rem' : '3.75rem' }}
       >
-        {/* Botón Cerrar Móvil (Accesible inmediatamente debajo del notch) */}
-        <button
-          onClick={handleCloseCanvas}
-          className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700 font-bold text-xs shrink-0 active:scale-95 mr-2"
-          aria-label="Cerrar lienzo"
-          title="Cerrar lienzo"
-        >
-          <X className="h-4 w-4" />
-          <span>Cerrar</span>
-        </button>
+        {/* Botón Cerrar Móvil (Accesible inmediatamente debajo del notch en modo standalone/maximizado) */}
+        {!isCompactEmbedded && (
+          <button
+            onClick={handleCloseCanvas}
+            className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700 font-bold text-xs shrink-0 active:scale-95 mr-1"
+            aria-label="Cerrar lienzo"
+            title="Cerrar lienzo"
+          >
+            <X className="h-4 w-4" />
+            <span>Cerrar</span>
+          </button>
+        )}
 
-        <div className="mr-2 flex min-w-0 flex-shrink items-center gap-2 sm:gap-3 overflow-hidden">
-          <div className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 shadow-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5 overflow-hidden">
+          <div
+            className={`hidden ${isCompactEmbedded ? 'lg:flex' : 'sm:flex'} h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 shadow-xs`}
+          >
             <FileEdit className="h-4 w-4" />
           </div>
-          <div className="min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex items-center gap-1.5">
               <h2 className="truncate text-xs sm:text-sm font-extrabold text-text-primary">Canvas</h2>
               <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
                 2.0
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSubmitting ? 'animate-pulse bg-teal-500' : 'bg-green-500'}`}
               />
               <span className="truncate text-[11px] sm:text-xs text-text-secondary">{title}</span>
               {isSaving && (
-                <span className="text-[10px] italic text-text-tertiary">Guardando...</span>
+                <span className="shrink-0 text-[10px] italic text-text-tertiary">Guardando...</span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2 overflow-visible py-1">
+        <div className={`flex shrink-0 flex-nowrap items-center ${isCompactEmbedded ? 'gap-1' : 'gap-1.5 sm:gap-2'} overflow-visible py-0.5`}>
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={async (e) => {
@@ -1513,8 +1571,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                 await saveSession(undefined, true);
               }}
               disabled={isSaving}
-              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`group flex ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 shadow-xs transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50`}
               aria-label="Guardar cambios"
+              title="Guardar cambios"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
                 {isSaving ? (
@@ -1571,7 +1630,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
                     }).catch((err) => console.error('Download register error:', err));
                   }
                 }}
-                className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`group flex ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50`}
                 aria-label="Descargar archivo"
                 title={
                   fileType === 'presentation'
@@ -1599,12 +1658,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsReportHistoryOpen(!isReportHistoryOpen)}
-              className={`hidden sm:flex group h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
+              className={`hidden sm:flex group ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
                 isReportHistoryOpen
                   ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
                   : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
               }`}
               aria-label="Historial de reportes"
+              title="Historial de reportes"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
                 <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1618,12 +1678,13 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`hidden sm:flex group h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
+              className={`hidden sm:flex group ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${
                 isHistoryOpen
                   ? 'bg-orange-500/20 border-orange-500/50 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30'
                   : 'bg-orange-500/10 border-orange-500/30 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20'
               }`}
               aria-label="Versiones de documento"
+              title="Versiones de documento"
             >
               <div className="relative flex flex-shrink-0 items-center justify-center">
                 <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1636,13 +1697,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="hidden sm:flex group h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+            className={`${embeddedInTenshiHero ? 'flex' : 'hidden sm:flex'} group ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95`}
             aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
+            title={isMaximized ? 'Contraer a vista con Tenshi' : 'Expandir a pantalla completa'}
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
               {isMaximized ? <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </div>
-            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+            <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               <span className="text-xs font-bold tracking-wide">
                 {isMaximized ? 'Contraer' : 'Expandir'}
               </span>
@@ -1651,16 +1713,16 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
 
           <button
             onClick={handleCloseCanvas}
-            className="hidden sm:flex group h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
-            aria-label="Cerrar lienzo"
-            title="Cerrar lienzo"
+            className={`${isCompactEmbedded ? 'flex' : 'hidden sm:flex'} group ${headerBtnSizeClass} flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-slate-500/10 dark:bg-zinc-800/80 border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 shadow-xs outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95`}
+            aria-label={isCompactEmbedded ? 'Volver al chat' : 'Cerrar lienzo'}
+            title={isCompactEmbedded ? 'Volver al chat' : 'Cerrar lienzo'}
           >
             <div className="relative flex flex-shrink-0 items-center justify-center">
               <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
-            <div className="flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
+            <div className="hidden sm:flex max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-[200px] group-hover:opacity-100">
               <span className="text-xs font-bold tracking-wide">
-                Cerrar
+                {isCompactEmbedded ? 'Volver al chat' : 'Cerrar'}
               </span>
             </div>
           </button>
@@ -1671,7 +1733,14 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
       <ReportHistory
         onSelectReport={(convoId) => {
           setIsReportHistoryOpen(false);
-          navigate(`/c/${convoId}`);
+          if (embeddedInTenshiHero) {
+            streamingLoadedAtRef.current = 0;
+            lastUpdatedAtRef.current = null;
+            setStreamingCanvas(null);
+            onSelectConversationOverride?.(convoId);
+          } else {
+            navigate(`/c/${convoId}`);
+          }
         }}
         isOpen={isReportHistoryOpen}
         toggleOpen={() => setIsReportHistoryOpen((h) => !h)}
@@ -1694,7 +1763,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           </>
         ) : (
           /* Premium Empty State Guide — WAPPY Canvas Studio 2.0 */
-          <div className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-10">
+          <div className={`relative flex-1 overflow-y-auto ${isCompactEmbedded ? 'px-3 py-4 sm:px-5 sm:py-6' : 'px-4 py-6 sm:px-8 sm:py-10'}`}>
             {/* Ambient Background Glows */}
             <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
             <div className="pointer-events-none absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
@@ -1723,7 +1792,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
               </div>
 
               {/* Bento 2x2 Grid — 4 Specialized Studios */}
-              <div className="grid w-full grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              <div className={`grid w-full grid-cols-1 ${isCompactEmbedded ? 'lg:grid-cols-2' : 'sm:grid-cols-2'} gap-3.5 pt-2`}>
                 {/* 1. Documento Word */}
                 <button
                   onClick={() => {
@@ -2294,15 +2363,17 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({ conversationId }) => {
           </div>
         )}
 
-        {/* Botón flotante de salida rápida para celulares (garantiza que el usuario nunca quede atrapado) */}
-        <button
-          onClick={handleCloseCanvas}
-          className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 dark:bg-zinc-800/95 text-white shadow-2xl active:scale-90 border border-slate-400/30 backdrop-blur-md focus:outline-none"
-          aria-label="Cerrar lienzo"
-          title="Cerrar lienzo"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {/* Botón flotante de salida rápida para celulares (solo fuera de modo embebido o al maximizar para no tapar MobileBottomNav) */}
+        {(!embeddedInTenshiHero || isMaximized) && (
+          <button
+            onClick={handleCloseCanvas}
+            className="fixed bottom-6 right-6 z-[99999999] flex sm:hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900/90 dark:bg-zinc-800/95 text-white shadow-2xl active:scale-90 border border-slate-400/30 backdrop-blur-md focus:outline-none"
+            aria-label="Cerrar lienzo"
+            title="Cerrar lienzo"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
     </div>
   );

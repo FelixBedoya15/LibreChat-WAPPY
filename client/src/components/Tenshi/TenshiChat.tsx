@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import {
   Send,
   Sparkles,
   RotateCcw,
+  FileEdit,
   FileText,
   Edit2,
   Trash2,
@@ -55,9 +56,11 @@ import { useAuthContext, useNewConvo } from '~/hooks';
 import { useAgentsMapContext } from '~/Providers';
 import { useListAgentsQuery } from '~/data-provider';
 import { resolveInspectionProtocol, INSPECTION_PROTOCOLS, ERGONOMIC_PHASES, type InspectionProtocol } from '~/utils/inspectionProtocols';
-import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
+
+const CanvasPanel = React.lazy(() => import('~/components/Canvas/CanvasPanel'));
 import { getDehydratedDOM, executeGUIAction, getVisibleScreenContent } from '../Chat/TenshiPageController';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
 import { cn, clearMessagesCache } from '~/utils';
@@ -1513,6 +1516,17 @@ export default function TenshiChat() {
   }));
 
   const [isHeroChatOpen, setIsHeroChatOpen] = useState(false);
+  const [heroPanelTab, setHeroPanelTab] = useState<'chat' | 'canvas'>('chat');
+  const [heroCanvasConvoId, setHeroCanvasConvoId] = useState<string | null>(null);
+  const [hasOpenedHeroCanvas, setHasOpenedHeroCanvas] = useState(false);
+  const [heroCanvasHasContent, setHeroCanvasHasContent] = useState(false);
+
+  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
+  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
+  const streamingCanvasRef = useRef<any>(streamingCanvas);
+  streamingCanvasRef.current = streamingCanvas;
+  const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
+  const [canvasMaximized, setCanvasMaximized] = useRecoilState<boolean>(store.canvasMaximized);
 
   // Controla si el usuario ya salió voluntariamente a Wappy normal dentro de esta sesión montada
   const hasExitedHeroInMountRef = useRef<boolean>(
@@ -1540,18 +1554,28 @@ export default function TenshiChat() {
     }
     return false;
   });
+  const isMobileHeroModeRef = useRef<boolean>(isMobileHeroMode);
+  isMobileHeroModeRef.current = isMobileHeroMode;
+
+  useEffect(() => {
+    if (heroPanelTab === 'canvas' && !hasOpenedHeroCanvas) {
+      setHasOpenedHeroCanvas(true);
+    }
+  }, [heroPanelTab, hasOpenedHeroCanvas]);
 
   const exitHeroModeToWorkspace = useCallback(() => {
     hasExitedHeroInMountRef.current = true;
     setIsMobileHeroMode(false);
     setIsHeroChatOpen(false);
+    setHeroPanelTab('chat');
+    setCanvasMaximized(false);
     if (typeof window !== 'undefined') {
       safeSetItem('tenshi_mobile_hero_minimized', 'true', window.sessionStorage);
       safeSetItem('tenshi_mobile_hero_exited', 'true', window.sessionStorage);
       safeRemoveItem('tenshi_mobile_hero_forced', window.sessionStorage);
       window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
     }
-  }, []);
+  }, [setCanvasMaximized]);
 
   // Sincronizar atributo global y evento reactivo para MobileBottomNav y NavToggle
   useEffect(() => {
@@ -1676,6 +1700,101 @@ export default function TenshiChat() {
     }
   }, [agentsMap, agentsData]);
   const [isOpen, setIsOpen] = useState(false);
+
+  /**
+   * Abre un documento, informe o aplicativo HTML en el Canvas:
+   * - En Modo Hero de Tenshi (PC y Celular): abre el Canvas integrado en el panel izquierdo / overlay
+   *   SIN expulsar del Hero ni activar un segundo CanvasPanel oculto en ChatView.
+   * - Fuera del Modo Hero (burbuja flotante en WAPPY clásico): conserva el flujo clásico del workspace.
+   */
+  const openCanvasInTenshi = useCallback(
+    (
+      rawPayload: {
+        id?: string;
+        title?: string;
+        fileType?: string;
+        content: string;
+        messageId?: string;
+        isStreaming?: boolean;
+      },
+      opts?: { fullScreen?: boolean },
+    ) => {
+      const contentStr =
+        typeof rawPayload?.content === 'string'
+          ? rawPayload.content
+          : String(rawPayload?.content ?? '');
+      const rawType = String(rawPayload?.fileType || '').toLowerCase().trim();
+      const isWappyEditorDocument =
+        rawType === 'text' ||
+        rawType === 'word' ||
+        rawType === 'doc' ||
+        rawType === 'docx' ||
+        rawType === 'documento' ||
+        rawType === 'informe' ||
+        ((contentStr.includes('wappy-standard-header-banner') ||
+          contentStr.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) &&
+          !contentStr.includes('<!DOCTYPE html'));
+      const isStandaloneHtmlApp =
+        !isWappyEditorDocument &&
+        (rawType === 'html' || contentStr.includes('<!DOCTYPE html') || contentStr.includes('<html'));
+      const normalizedType:
+        | 'text'
+        | 'excel'
+        | 'presentation'
+        | 'html'
+        | 'animo'
+        | 'actos_condiciones' =
+        rawType === 'excel' ||
+        rawType === 'presentation' ||
+        rawType === 'animo' ||
+        rawType === 'actos_condiciones'
+          ? rawType
+          : isStandaloneHtmlApp
+            ? 'html'
+            : 'text';
+
+      const resolvedId = (rawPayload?.id || '').trim() || `tenshi-canvas-${Date.now()}`;
+      const canvasPayload = {
+        id: resolvedId,
+        title: (rawPayload?.title || '').trim() || 'Documento SG-SST',
+        fileType: normalizedType,
+        content: contentStr,
+        messageId: rawPayload?.messageId || '',
+        isStreaming: Boolean(rawPayload?.isStreaming),
+      };
+
+      if (isMobileHeroModeRef.current) {
+        setStreamingCanvas(canvasPayload);
+        setHeroCanvasConvoId(resolvedId);
+        setCanvasMaximized(false);
+        setHasOpenedHeroCanvas(true);
+        setHeroPanelTab('canvas');
+        setIsHeroChatOpen(true);
+        return;
+      }
+
+      setIsOpen(false);
+      const needsNavigation = !window.location.pathname.startsWith('/c/');
+      if (needsNavigation) {
+        navigate('/c/new');
+      }
+
+      const applyCanvasState = () => {
+        setStreamingCanvas(canvasPayload);
+        setIsCanvasActive(true);
+        if (opts?.fullScreen) {
+          setCanvasMaximized(true);
+        }
+      };
+
+      applyCanvasState();
+      if (needsNavigation) {
+        setTimeout(applyCanvasState, 150);
+        setTimeout(applyCanvasState, 380);
+      }
+    },
+    [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized],
+  );
   const [viewMode, setViewMode] = useState<'live' | 'chat'>('live');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [messages, setMessages] = useState<TenshiChatMessage[]>([
@@ -1762,6 +1881,10 @@ export default function TenshiChat() {
         setLightboxImage(null);
         return;
       }
+      if (canvasMaximized) {
+        setCanvasMaximized(false);
+        return;
+      }
       if (isMobileHeroMode) {
         if (isHeroChatOpen) {
           setIsHeroChatOpen(false);
@@ -1772,7 +1895,7 @@ export default function TenshiChat() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxImage, isMobileHeroMode, isHeroChatOpen, exitHeroModeToWorkspace]);
+  }, [lightboxImage, canvasMaximized, setCanvasMaximized, isMobileHeroMode, isHeroChatOpen, exitHeroModeToWorkspace]);
   const lastActivityRef = useRef<number>(Date.now());
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -2676,12 +2799,6 @@ export default function TenshiChat() {
   latestChatMessageRef.current = latestChatMessage;
   const { conversation } = store.useCreateConversationAtom(0);
   const { newConversation } = useNewConvo(0);
-  const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
-  const streamingCanvas = useRecoilValue(store.streamingCanvasState);
-  const streamingCanvasRef = useRef<any>(streamingCanvas);
-  streamingCanvasRef.current = streamingCanvas;
-  const setStreamingCanvas = useSetRecoilState(store.streamingCanvasState);
-  const setCanvasMaximized = useSetRecoilState(store.canvasMaximized);
   const currentConvoId = conversation?.conversationId;
   const activeConsultationConvoIdRef = useRef<string | null>(null);
   const activeConsultationAgentIdRef = useRef<string | null>(null);
@@ -3577,25 +3694,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const content = (action as any).data?.content || action.args?.content || (action as any).content || '';
             const canvasId = (action as any).canvasId || (action as any).data?.canvasId || `canvas-${Date.now()}`;
 
-            // Salir del Modo Hero para que el usuario vea el Editor Canvas a pantalla completa
-            exitHeroModeToWorkspace();
-
-            // 1. Asegurar que estamos en una vista compatible con el editor Canvas si no estamos en chat
-            if (!window.location.pathname.startsWith('/c/')) {
-              navigate('/c/new');
-            }
-
-            // 2. Desplegar en Canvas y lanzar en pantalla completa en el editor
-            setStreamingCanvas({
-              id: canvasId,
-              title,
-              fileType,
-              content,
-              messageId: '',
-              isStreaming: false,
-            });
-            setIsCanvasActive(true);
-            setCanvasMaximized(true);
+            // Abrir en Canvas integrado (en Hero Mode) o a pantalla completa en workspace clásico
+            openCanvasInTenshi(
+              {
+                id: canvasId,
+                title,
+                fileType,
+                content,
+                messageId: '',
+                isStreaming: false,
+              },
+              { fullScreen: true },
+            );
 
             // 3. Entregar siempre en el chat de Tenshi con tarjeta interactiva y botones de descarga al final
             if (content) {
@@ -3624,13 +3734,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   },
                 ];
               });
-              setIsOpen(true);
+              if (!isMobileHeroModeRef.current) {
+                setIsOpen(true);
+              }
               setTimeout(() => {
                 scrollMessagesToBottom(true);
               }, 150);
             }
 
-            resultMsg = `Archivo "${title}" (${fileType}) entregado en el editor a pantalla completa y en el chat de Tenshi con botones de descarga.`;
+            resultMsg = `Archivo "${title}" (${fileType}) entregado en el visor Canvas y en el chat de Tenshi con botones de descarga.`;
           } else if (action.name === 'wappy_seleccionar_empresa' || action.name === 'wappy_activar_empresa') {
             tenshiAudio.playSuccess();
             const resData = (action as any).result || {};
@@ -3883,7 +3995,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const params = action.args?.parametros || {};
 
             if (tool.includes('canvas')) {
-              setIsCanvasActive(true);
+              if (isMobileHeroModeRef.current) {
+                setHasOpenedHeroCanvas(true);
+                setHeroPanelTab('canvas');
+                setIsHeroChatOpen(true);
+              } else {
+                setIsCanvasActive(true);
+              }
             }
 
             if (tool.includes('gtc45') || tool.includes('ipevar')) {
@@ -4098,6 +4216,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 : contenido;
               const canvasFileType = isHtml ? 'html' : (formato === 'word' || formato === 'documento' ? 'text' : formato);
 
+              const agCanvasId = `antigravity-report-${Date.now()}`;
               setMessages((prev) => [
                 ...prev,
                 {
@@ -4107,24 +4226,35 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     title: titulo,
                     fileType: canvasFileType,
                     content: contenido,
-                    canvasId: `antigravity-report-${Date.now()}`,
+                    canvasId: agCanvasId,
                   },
                 },
               ]);
-              setIsOpen(true);
 
-              if (window.location.pathname.startsWith('/c/')) {
-                setStreamingCanvas({
-                  id: `antigravity-${Date.now()}`,
+              if (isMobileHeroModeRef.current) {
+                openCanvasInTenshi({
+                  id: agCanvasId,
                   title: titulo,
                   fileType: canvasFileType,
                   content: contenido,
                   messageId: '',
                   isStreaming: false,
                 });
-                setIsCanvasActive(true);
+              } else {
+                setIsOpen(true);
+                if (window.location.pathname.startsWith('/c/')) {
+                  setStreamingCanvas({
+                    id: agCanvasId,
+                    title: titulo,
+                    fileType: canvasFileType,
+                    content: contenido,
+                    messageId: '',
+                    isStreaming: false,
+                  });
+                  setIsCanvasActive(true);
+                }
               }
-              resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el chat de Tenshi.`;
+              resultMsg = `Entregable de Antigravity "${titulo}" completado y presentado en el visor Canvas de Tenshi.`;
             } else {
               const ordenId = res.ordenId || res.detalles?.ordenId || action.args?.ordenId || '';
               const messageId = `antigravity-delegated-${Date.now()}`;
@@ -4529,23 +4659,39 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               htmlReport: html,
             })
             .catch(() => {});
-          setStreamingCanvas({
-            id: canvasId,
-            title: reportTitle,
-            fileType: 'html',
-            content: html,
-            messageId: canvasId,
-            isStreaming: false,
-          });
-          setIsCanvasActive(true);
-          setIsOpen(true);
           setIsVisionExpanded(false);
 
-          if (newConvoId && newConvoId !== 'new' && newConvoId !== conversation?.conversationId) {
-            console.log('[TenshiChat] Navegando a la nueva conversación creada para el informe:', newConvoId);
-            queryClient.invalidateQueries([QueryKeys.messages]);
-            queryClient.invalidateQueries([QueryKeys.allConversations]);
-            navigate(`/c/${newConvoId}`, { replace: true });
+          if (isMobileHeroModeRef.current) {
+            openCanvasInTenshi({
+              id: newConvoId && newConvoId !== 'new' ? newConvoId : canvasId,
+              title: reportTitle,
+              fileType: 'html',
+              content: html,
+              messageId: canvasId,
+              isStreaming: false,
+            });
+            if (newConvoId && newConvoId !== 'new') {
+              queryClient.invalidateQueries([QueryKeys.messages]);
+              queryClient.invalidateQueries([QueryKeys.allConversations]);
+            }
+          } else {
+            setStreamingCanvas({
+              id: canvasId,
+              title: reportTitle,
+              fileType: 'html',
+              content: html,
+              messageId: canvasId,
+              isStreaming: false,
+            });
+            setIsCanvasActive(true);
+            setIsOpen(true);
+
+            if (newConvoId && newConvoId !== 'new' && newConvoId !== conversation?.conversationId) {
+              console.log('[TenshiChat] Navegando a la nueva conversación creada para el informe:', newConvoId);
+              queryClient.invalidateQueries([QueryKeys.messages]);
+              queryClient.invalidateQueries([QueryKeys.allConversations]);
+              navigate(`/c/${newConvoId}`, { replace: true });
+            }
           }
         }
       },
@@ -4553,7 +4699,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         console.log('[Tenshi Voice] onConversationUpdated received:', updatedConvoId);
         queryClient.invalidateQueries([QueryKeys.messages]);
         queryClient.invalidateQueries([QueryKeys.allConversations]);
-        if (updatedConvoId && updatedConvoId !== 'new' && updatedConvoId !== conversation?.conversationId) {
+        if (
+          !isMobileHeroModeRef.current &&
+          updatedConvoId &&
+          updatedConvoId !== 'new' &&
+          updatedConvoId !== conversation?.conversationId
+        ) {
           console.log('[TenshiChat] Navegando a la conversación actualizada:', updatedConvoId);
           navigate(`/c/${updatedConvoId}`, { replace: true });
         }
@@ -4575,7 +4726,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice]
+    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice, openCanvasInTenshi]
   );
 
   const {
@@ -6526,40 +6677,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         ];
       });
 
-      if (sourceModule !== 'agent_tool') {
+      if (sourceModule !== 'agent_tool' && !isMobileHeroModeRef.current) {
         setIsOpen(true);
       }
       refetchHistoryRef.current?.();
 
       // Si NO es una simple pregunta conversacional ni una copia de archivo original, y sí se generó un documento o aplicativo,
-      // abrirlo automáticamente en el Canvas (Editor de Documentos de WAPPY / LiveEditor) incluso si el usuario está en /aplicaciones
+      // abrirlo automáticamente en el Canvas (integrado en Modo Hero o a pantalla completa en WAPPY clásico)
       if (!isConversationalReply && !isOriginalFileCopy && fileObj && contenido) {
-        exitHeroModeToWorkspace();
-        const canvasPayload = {
-          id: fileObj.canvasId,
-          title: finalTitle,
-          fileType: canvasFileType as any,
-          content: contenido,
-          messageId: '',
-          isStreaming: false,
-        };
-
-        const needsNavigation = !window.location.pathname.startsWith('/c/');
-        if (needsNavigation) {
-          navigate('/c/new');
-        }
-
-        const applyCanvas = () => {
-          setStreamingCanvas(canvasPayload);
-          setIsCanvasActive(true);
-          setCanvasMaximized(true);
-        };
-
-        applyCanvas();
-        if (needsNavigation) {
-          setTimeout(applyCanvas, 180);
-          setTimeout(applyCanvas, 420);
-        }
+        openCanvasInTenshi(
+          {
+            id: fileObj.canvasId,
+            title: finalTitle,
+            fileType: canvasFileType,
+            content: contenido,
+            messageId: '',
+            isStreaming: false,
+          },
+          { fullScreen: true },
+        );
       }
 
       if (isVoiceActiveRef.current) {
@@ -6588,7 +6724,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         clearTimeout(antigravityVoiceAnnounceTimerRef.current);
       }
     };
-  }, [navigate, setIsCanvasActive, setCanvasMaximized, setStreamingCanvas]);
+  }, [navigate, openCanvasInTenshi, setIsCanvasActive, setCanvasMaximized, setStreamingCanvas]);
 
   // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity en tiempo real (en celular y escritorio, incluso sin voz activa)
   useEffect(() => {
@@ -6855,6 +6991,25 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       };
       setMessages((prev) => [...prev, assistantMsg]);
       window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
+
+      // En Modo Hero de Tenshi, si la respuesta escrita trae un documento/archivo o informe HTML, abrirlo directo en el Canvas integrado
+      if (isMobileHeroModeRef.current) {
+        if (responseData.file?.content) {
+          openCanvasInTenshi({
+            id: responseData.file.canvasId || `tenshi-file-${Date.now()}`,
+            title: responseData.file.title || 'Documento SG-SST',
+            fileType: responseData.file.fileType || 'text',
+            content: responseData.file.content,
+          });
+        } else if (responseData.htmlReport) {
+          openCanvasInTenshi({
+            id: `tenshi-html-report-${Date.now()}`,
+            title: 'Informe Oficial SG-SST',
+            fileType: 'html',
+            content: responseData.htmlReport,
+          });
+        }
+      }
 
       if (delegatedOrder?.ordenId && assistantMsgId) {
         iniciarMonitoreoOrden(
@@ -7879,6 +8034,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     window.open(blobUrl, '_blank');
   };
 
+  const handleViewHtmlReport = useCallback(
+    (html: string, reportTitle = 'Informe Oficial SG-SST') => {
+      if (isMobileHeroModeRef.current) {
+        openCanvasInTenshi({
+          id: `tenshi-html-report-${Date.now()}`,
+          title: reportTitle,
+          fileType: 'html',
+          content: html,
+        });
+      } else {
+        openHtmlReport(html);
+      }
+    },
+    [openCanvasInTenshi],
+  );
+
   const getHtmlFromMsg = (msg: { content: string; htmlReport?: string }) => {
     if (msg.htmlReport) return msg.htmlReport;
     if (msg.content.includes('<!DOCTYPE html>') || msg.content.includes('<html')) {
@@ -8035,65 +8206,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleOpenFileInCanvas = useCallback(
     (file: TenshiFileAttachment, fullScreen = true) => {
-      // Documentos del Editor de Documentos de WAPPY ('text', 'word', 'documento', 'informe' o que contengan el cabezote WAPPY sin <!DOCTYPE html>)
-      // DEBEN abrirse como 'text' (en CanvasTextEditor / LiveEditor) y NUNCA como 'html' (visor de código/iframe).
-      const rawType = String(file.fileType || '').toLowerCase().trim();
-      const contentStr = typeof file.content === 'string' ? file.content : '';
-      const isWappyEditorDocument =
-        rawType === 'text' ||
-        rawType === 'word' ||
-        rawType === 'doc' ||
-        rawType === 'docx' ||
-        rawType === 'documento' ||
-        rawType === 'informe' ||
-        ((contentStr.includes('wappy-standard-header-banner') ||
-          contentStr.includes('INFORMACIÓN RESUMIDA DE LA ENTIDAD')) &&
-          !contentStr.includes('<!DOCTYPE html'));
-
-      const isStandaloneHtmlApp =
-        !isWappyEditorDocument &&
-        (rawType === 'html' || contentStr.includes('<!DOCTYPE html') || contentStr.includes('<html'));
-
-      const normFileType = isStandaloneHtmlApp
-        ? 'html'
-        : isWappyEditorDocument
-        ? 'text'
-        : (file.fileType as any || 'text');
-
-      const canvasPayload = {
-        id: file.canvasId || `canvas-${Date.now()}`,
-        title: file.title || 'Documento SG-SST',
-        fileType: normFileType,
-        content: file.content || '',
-        messageId: '',
-        isStreaming: false,
-      };
-
-      // Minimizar el panel de chat para que el usuario vea el Canvas a pantalla completa,
-      // pero manteniendo a Tenshi visible y flotando en la esquina superior de z-index.
-      setIsOpen(false);
-      exitHeroModeToWorkspace();
-
-      const needsNavigation = !window.location.pathname.startsWith('/c/');
-      if (needsNavigation) {
-        navigate('/c/new');
-      }
-
-      const applyCanvasState = () => {
-        setStreamingCanvas(canvasPayload);
-        setIsCanvasActive(true);
-        if (fullScreen) {
-          setCanvasMaximized(true);
-        }
-      };
-
-      applyCanvasState();
-      if (needsNavigation) {
-        setTimeout(applyCanvasState, 150);
-        setTimeout(applyCanvasState, 380);
-      }
+      openCanvasInTenshi(
+        {
+          id: file.canvasId || `canvas-${Date.now()}`,
+          title: file.title || 'Documento SG-SST',
+          fileType: file.fileType,
+          content: file.content || '',
+          messageId: '',
+          isStreaming: false,
+        },
+        { fullScreen },
+      );
     },
-    [navigate, setStreamingCanvas, setIsCanvasActive, setCanvasMaximized],
+    [openCanvasInTenshi],
   );
 
   const requestTechnicalReport = useCallback(() => {
@@ -8487,8 +8612,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                             type="button"
                             onClick={() => {
                               if (richVoiceCard.htmlReport) {
-                                openHtmlReport(richVoiceCard.htmlReport);
+                                handleViewHtmlReport(
+                                  richVoiceCard.htmlReport,
+                                  richVoiceCard.title || 'Informe Oficial SG-SST',
+                                );
                               } else if (richVoiceCard.actionPrompt) {
+                                setHeroPanelTab('chat');
                                 setIsHeroChatOpen(true);
                                 handleSend(richVoiceCard.actionPrompt);
                               }
@@ -8627,6 +8756,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         onClick={() => {
                           const promptToSend = ambientTip.prompt;
                           setAmbientTip(null);
+                          setHeroPanelTab('chat');
                           setIsHeroChatOpen(true);
                           handleSend(promptToSend);
                         }}
@@ -8694,8 +8824,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         type="button"
                         onClick={() => {
                           if (richVoiceCard.htmlReport) {
-                            openHtmlReport(richVoiceCard.htmlReport);
+                            handleViewHtmlReport(
+                              richVoiceCard.htmlReport,
+                              richVoiceCard.title || 'Informe Oficial SG-SST',
+                            );
                           } else if (richVoiceCard.actionPrompt) {
+                            setHeroPanelTab('chat');
                             setIsHeroChatOpen(true);
                             handleSend(richVoiceCard.actionPrompt);
                           }
@@ -8903,24 +9037,71 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </div>
                 )}
 
-                {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Micrófono Live] [Mute] [Cámara] + [Compartir Pantalla en PC]) */}
-                <div className="inline-flex items-center justify-center gap-2.5 sm:gap-3 md:gap-3.5 p-1.5 md:px-3.5 md:py-1.5 mb-1 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40 shrink-0">
+                {/* 3. 🌟 Botonera Cápsula de Tenshi ACTIVA ([Chat] [Canvas] [Micrófono Live] [Mute] [Cámara] + [Compartir Pantalla en PC]) */}
+                <div className="inline-flex items-center justify-center gap-2 sm:gap-3 md:gap-3.5 p-1.5 md:px-3.5 md:py-1.5 mb-1 rounded-full bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl shadow-black/40 shrink-0">
                 {/* Botón Chat */}
                 <button
                   type="button"
                   onClick={() => {
                     tenshiAudio.playBlip();
-                    setIsHeroChatOpen((prev) => !prev);
+                    if (!isHeroChatOpen) {
+                      setHeroPanelTab('chat');
+                      setIsHeroChatOpen(true);
+                    } else if (heroPanelTab === 'canvas') {
+                      setHeroPanelTab('chat');
+                    } else {
+                      setIsHeroChatOpen(false);
+                    }
                   }}
-                  title={isHeroChatOpen ? 'Cerrar chat' : 'Abrir chat con Tenshi'}
+                  title={
+                    isHeroChatOpen && heroPanelTab === 'chat'
+                      ? 'Cerrar chat'
+                      : 'Abrir chat con Tenshi'
+                  }
                   className={cn(
                     'p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
-                    isHeroChatOpen
+                    isHeroChatOpen && heroPanelTab === 'chat'
                       ? 'text-emerald-400 bg-emerald-500/15 ring-2 ring-emerald-400/50 shadow-md shadow-emerald-500/20'
                       : 'text-zinc-200 ring-1 ring-white/15 hover:text-white hover:bg-white/10'
                   )}
                 >
                   <MessageSquare className="h-5 w-5" />
+                </button>
+
+                {/* Botón Canvas / Documento Integrado */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    tenshiAudio.playBlip();
+                    if (!isHeroChatOpen) {
+                      setHasOpenedHeroCanvas(true);
+                      setHeroPanelTab('canvas');
+                      setIsHeroChatOpen(true);
+                    } else if (heroPanelTab === 'chat') {
+                      setHasOpenedHeroCanvas(true);
+                      setHeroPanelTab('canvas');
+                    } else {
+                      setIsHeroChatOpen(false);
+                    }
+                  }}
+                  title={
+                    isHeroChatOpen && heroPanelTab === 'canvas'
+                      ? 'Cerrar Canvas'
+                      : 'Abrir Canvas / Documento'
+                  }
+                  className={cn(
+                    'relative p-2.5 rounded-full transition-all active:scale-90 cursor-pointer',
+                    isHeroChatOpen && heroPanelTab === 'canvas'
+                      ? 'text-teal-300 bg-teal-500/20 ring-2 ring-teal-400/50 shadow-md shadow-teal-500/20'
+                      : Boolean(streamingCanvas?.content) || heroCanvasHasContent
+                        ? 'text-emerald-300 ring-1 ring-emerald-400/40 bg-emerald-500/10 hover:text-white hover:bg-emerald-500/20'
+                        : 'text-zinc-200 ring-1 ring-white/15 hover:text-white hover:bg-white/10'
+                  )}
+                >
+                  <FileEdit className="h-5 w-5" />
+                  {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
+                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-zinc-900 animate-pulse" />
+                  )}
                 </button>
 
                 {/* Botón Micrófono / Live Mode */}
@@ -9014,15 +9195,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
             </div>
 
-            {/* 4. Panel de Chat: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
+            {/* 4. Panel de Chat y Canvas Integrado: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
             {(isDesktopPanoramic || isHeroChatOpen) && (
               <div
                 aria-hidden={!isHeroChatOpen}
-                onDragEnter={handleComposerDragEnter}
-                onDragOver={handleComposerDragOver}
-                onDragLeave={handleComposerDragLeave}
-                onDrop={handleComposerDrop}
-                onPaste={handleComposerPaste}
+                onDragEnter={heroPanelTab === 'chat' ? handleComposerDragEnter : undefined}
+                onDragOver={heroPanelTab === 'chat' ? handleComposerDragOver : undefined}
+                onDragLeave={heroPanelTab === 'chat' ? handleComposerDragLeave : undefined}
+                onDrop={heroPanelTab === 'chat' ? handleComposerDrop : undefined}
+                onPaste={heroPanelTab === 'chat' ? handleComposerPaste : undefined}
                 style={
                   isDesktopPanoramic
                     ? {
@@ -9050,38 +9231,108 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     : 'absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300'
                 )}
               >
-              {renderDragDropOverlay()}
-              {/* Cabecera del Panel de Chat */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/80 shrink-0">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm font-bold text-slate-800 dark:text-zinc-100">
-                    Chat con Tenshi
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
+              {heroPanelTab === 'chat' && renderDragDropOverlay()}
+              {/* Cabecera del Panel Izquierdo Hero (Selector Chat / Canvas) */}
+              <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/85 dark:bg-zinc-900/85 shrink-0">
+                <div
+                  role="tablist"
+                  aria-label="Vista del panel de Tenshi"
+                  className="inline-flex min-w-0 items-center gap-1 p-1 rounded-2xl bg-white/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs shrink-0"
+                >
                   <button
                     type="button"
-                    onClick={handleClearHistory}
-                    className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
-                    title="Reiniciar chat"
+                    role="tab"
+                    aria-selected={heroPanelTab === 'chat'}
+                    onClick={() => {
+                      tenshiAudio.playBlip();
+                      setHeroPanelTab('chat');
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                      heroPanelTab === 'chat'
+                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+                    )}
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reiniciar</span>
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                    <span>Chat</span>
                   </button>
+
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={heroPanelTab === 'canvas'}
+                    onClick={() => {
+                      tenshiAudio.playBlip();
+                      setHasOpenedHeroCanvas(true);
+                      setHeroPanelTab('canvas');
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                      heroPanelTab === 'canvas'
+                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+                    )}
+                  >
+                    <FileEdit className="w-3.5 h-3.5 shrink-0" />
+                    <span>Canvas</span>
+                    {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse"
+                        title="Documento cargado en Canvas"
+                      />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {heroPanelTab === 'chat' ? (
+                    <ExpandableButton
+                      type="button"
+                      variant="neutral"
+                      size="sm"
+                      icon={<RotateCcw className="h-3.5 w-3.5" />}
+                      label="Reiniciar"
+                      onClick={handleClearHistory}
+                      title="Reiniciar chat"
+                    />
+                  ) : (
+                    streamingCanvas?.fileType === 'html' &&
+                    Boolean(streamingCanvas?.content) && (
+                      <ExpandableButton
+                        type="button"
+                        variant="fuchsia"
+                        size="sm"
+                        icon={<ExternalLink className="h-3.5 w-3.5" />}
+                        label="Abrir en pestaña"
+                        onClick={() => openHtmlReport(streamingCanvas.content)}
+                        title="Abrir informe HTML en nueva pestaña"
+                      />
+                    )
+                  )}
+                  <ExpandableButton
+                    type="button"
+                    variant="neutral"
+                    size="sm"
+                    icon={<X className="h-3.5 w-3.5" />}
+                    label="Cerrar"
                     onClick={() => {
                       tenshiAudio.playBlip();
                       setIsHeroChatOpen(false);
+                      setCanvasMaximized(false);
                     }}
-                    className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-600 dark:hover:text-zinc-200"
-                    title="Cerrar chat"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    title={heroPanelTab === 'canvas' ? 'Cerrar panel' : 'Cerrar chat'}
+                  />
                 </div>
               </div>
+
+              {/* Cuerpo Chat (se mantiene montado para conservar historial, scroll y borrador al alternar pestañas) */}
+              <div
+                className={cn(
+                  'min-h-0 flex-1 flex-col overflow-hidden',
+                  heroPanelTab === 'chat' ? 'flex' : 'hidden',
+                )}
+              >
 
               {/* Selector de Personalidad Adaptativa (1 Clic - Móvil) con Letrero Estilo WAPPY */}
               <div className="flex flex-col gap-1.5 border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 shrink-0">
@@ -9424,7 +9675,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                           type="button"
                           onClick={() => {
                             if (richVoiceCard.htmlReport) {
-                              openHtmlReport(richVoiceCard.htmlReport);
+                              handleViewHtmlReport(
+                                richVoiceCard.htmlReport,
+                                richVoiceCard.title || 'Informe Oficial SG-SST',
+                              );
                             } else if (richVoiceCard.actionPrompt) {
                               handleSend(richVoiceCard.actionPrompt);
                             }
@@ -9562,8 +9816,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         {msg.htmlReport && !msg.file && (
                           <button
                             type="button"
-                            onClick={() => openHtmlReport(msg.htmlReport!)}
-                            className="mt-2.5 w-full text-center py-2 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-500/20 active:scale-95"
+                            onClick={() => handleViewHtmlReport(msg.htmlReport!, 'Informe Oficial SG-SST')}
+                            className="mt-2.5 w-full text-center py-2 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-500/20 active:scale-95 cursor-pointer"
                           >
                             Ver Informe Oficial
                           </button>
@@ -9710,6 +9964,41 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </button>
                 </div>
               </div>
+              </div>
+
+              {/* Cuerpo Canvas Integrado (carga diferida al abrir la pestaña o al recibir un informe/documento) */}
+              {hasOpenedHeroCanvas && (
+                <div
+                  className={cn(
+                    'flex-1 min-h-0 w-full overflow-hidden',
+                    heroPanelTab === 'canvas' ? 'flex flex-col' : 'hidden',
+                  )}
+                >
+                  <Suspense
+                    fallback={
+                      <div className="flex h-full w-full items-center justify-center gap-2 text-xs font-semibold text-teal-600 dark:text-teal-400">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Cargando Canvas...</span>
+                      </div>
+                    }
+                  >
+                    <CanvasPanel
+                      conversationId={heroCanvasConvoId || `tenshi-hero-canvas-${user?.id || 'session'}`}
+                      embeddedInTenshiHero={true}
+                      isEmbeddedVisible={isHeroChatOpen && heroPanelTab === 'canvas'}
+                      onCloseOverride={() => {
+                        setHeroPanelTab('chat');
+                      }}
+                      onSelectConversationOverride={(convoId) => {
+                        setHeroCanvasConvoId(convoId);
+                      }}
+                      onSessionStateChange={(hasContent) => {
+                        setHeroCanvasHasContent(hasContent);
+                      }}
+                    />
+                  </Suspense>
+                </div>
+              )}
             </div>
           )}
           </div>
