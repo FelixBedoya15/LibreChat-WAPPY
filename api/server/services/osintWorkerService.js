@@ -2736,34 +2736,352 @@ function sanitizeExtractedArlEntity(raw = '', { isPerson = true } = {}) {
   return s;
 }
 
+const WIN_ANSI_EXTENDED_MAP = {
+  0x80: '\u20AC',
+  0x82: '\u201A',
+  0x83: '\u0192',
+  0x84: '\u201E',
+  0x85: '\u2026',
+  0x86: '\u2020',
+  0x87: '\u2021',
+  0x88: '\u02C6',
+  0x89: '\u2030',
+  0x8a: '\u0160',
+  0x8b: '\u2039',
+  0x8c: '\u0152',
+  0x8e: '\u017D',
+  0x91: '\u2018',
+  0x92: '\u2019',
+  0x93: '\u201C',
+  0x94: '\u201D',
+  0x95: '\u2022',
+  0x96: '\u2013',
+  0x97: '\u2014',
+  0x98: '\u02DC',
+  0x99: '\u2122',
+  0x9a: '\u0161',
+  0x9b: '\u203A',
+  0x9c: '\u0153',
+  0x9e: '\u017E',
+  0x9f: '\u0178',
+};
+
+function decodePdfWinAnsiBytes(bytes) {
+  if (!bytes || bytes.length === 0) return '';
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    let out = '';
+    for (let i = 2; i + 1 < bytes.length; i += 2) {
+      out += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    }
+    return out;
+  }
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i] & 0xff;
+    if (b === 0) continue;
+    out += WIN_ANSI_EXTENDED_MAP[b] || String.fromCharCode(b);
+  }
+  return out;
+}
+
+function decodePdfLiteralToken(raw = '') {
+  const bytes = [];
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch !== '\\') {
+      bytes.push(raw.charCodeAt(i) & 0xff);
+      continue;
+    }
+    i += 1;
+    if (i >= raw.length) break;
+    const esc = raw[i];
+    if (esc === 'n') bytes.push(10);
+    else if (esc === 'r') bytes.push(13);
+    else if (esc === 't') bytes.push(9);
+    else if (esc === 'b') bytes.push(8);
+    else if (esc === 'f') bytes.push(12);
+    else if (esc === '(' || esc === ')' || esc === '\\') bytes.push(esc.charCodeAt(0));
+    else if (esc === '\r') {
+      if (raw[i + 1] === '\n') i += 1;
+    } else if (esc === '\n') {
+      // Salto de línea escapado en literal PDF
+    } else if (esc >= '0' && esc <= '7') {
+      let oct = esc;
+      if (raw[i + 1] >= '0' && raw[i + 1] <= '7') oct += raw[++i];
+      if (raw[i + 1] >= '0' && raw[i + 1] <= '7') oct += raw[++i];
+      bytes.push(parseInt(oct, 8) & 0xff);
+    } else {
+      bytes.push(esc.charCodeAt(0) & 0xff);
+    }
+  }
+  return decodePdfWinAnsiBytes(bytes);
+}
+
+function decodePdfHexUnicodeTarget(hex = '') {
+  const clean = String(hex || '').replace(/[^0-9a-fA-F]/g, '');
+  if (!clean) return '';
+  if (clean.length % 4 === 0) {
+    let u = '';
+    for (let i = 0; i < clean.length; i += 4) {
+      u += String.fromCharCode(parseInt(clean.slice(i, i + 4), 16));
+    }
+    return u;
+  }
+  const bytes = [];
+  for (let i = 0; i < clean.length; i += 2) {
+    bytes.push(parseInt(clean.slice(i, i + 2).padEnd(2, '0'), 16));
+  }
+  return decodePdfWinAnsiBytes(bytes);
+}
+
+function decodePdfHexToken(hexRaw = '', cmap = null) {
+  const clean = String(hexRaw || '').replace(/\s+/g, '');
+  if (!clean || !/^[0-9a-fA-F]+$/.test(clean)) return '';
+  const even = clean.length % 2 === 0 ? clean : `${clean}0`;
+
+  if (/^feff/i.test(even)) {
+    const bytes = [];
+    for (let i = 0; i < even.length; i += 2) {
+      bytes.push(parseInt(even.slice(i, i + 2), 16));
+    }
+    return decodePdfWinAnsiBytes(bytes);
+  }
+
+  if (cmap && cmap.size > 0) {
+    const has4DigitKeys = cmap.__keyHexLen === 4;
+    const step = has4DigitKeys && even.length % 4 === 0 ? 4 : 2;
+    let mapped = '';
+    let hits = 0;
+    for (let i = 0; i < even.length; i += step) {
+      const codeHex = even.slice(i, i + step).toUpperCase();
+      if (cmap.has(codeHex)) {
+        mapped += cmap.get(codeHex);
+        hits += 1;
+      } else if (step === 4 && codeHex.startsWith('00')) {
+        const chCode = parseInt(codeHex.slice(2), 16);
+        if (chCode >= 32) mapped += WIN_ANSI_EXTENDED_MAP[chCode] || String.fromCharCode(chCode);
+      } else if (step === 2) {
+        const chCode = parseInt(codeHex, 16);
+        if (chCode >= 32) mapped += WIN_ANSI_EXTENDED_MAP[chCode] || String.fromCharCode(chCode);
+      }
+    }
+    if (hits > 0 && mapped) return mapped;
+  }
+
+  // Detectar secuencias UTF-16BE sin BOM (00XX00YY...)
+  if (even.length >= 8 && even.length % 4 === 0) {
+    let zeroHighBytes = 0;
+    const totalGlyphs = even.length / 4;
+    for (let i = 0; i < even.length; i += 4) {
+      if (even.slice(i, i + 2) === '00') zeroHighBytes += 1;
+    }
+    if (zeroHighBytes >= Math.ceil(totalGlyphs * 0.7)) {
+      let utf16Out = '';
+      for (let i = 0; i < even.length; i += 4) {
+        const code = parseInt(even.slice(i, i + 4), 16);
+        if (code > 0) utf16Out += String.fromCharCode(code);
+      }
+      if (utf16Out.trim()) return utf16Out;
+    }
+  }
+
+  const bytes = [];
+  for (let i = 0; i < even.length; i += 2) {
+    bytes.push(parseInt(even.slice(i, i + 2), 16));
+  }
+  return decodePdfWinAnsiBytes(bytes);
+}
+
+/**
+ * Fallback 100% nativo en Node.js puro (zlib + decodificador PDF literal/hex/ToUnicode CMap)
+ * para extraer texto legible de certificados oficiales (ARL SURA, Positiva, Contraloría)
+ * en computadores de usuarios externos donde `node_modules/pdf-parse` no está instalado.
+ */
+function extractPdfTextPureNode(pdfBuf) {
+  if (!Buffer.isBuffer(pdfBuf) || pdfBuf.length < 100) return '';
+  const decodedStreams = [];
+  let idx = 0;
+  let streamCount = 0;
+
+  while ((idx = pdfBuf.indexOf('stream', idx)) !== -1 && streamCount < 80) {
+    if (idx >= 3 && pdfBuf.subarray(idx - 3, idx).toString('ascii') === 'end') {
+      idx += 6;
+      continue;
+    }
+    const nextByte = pdfBuf[idx + 6];
+    if (nextByte !== 10 && nextByte !== 13 && nextByte !== 32) {
+      idx += 6;
+      continue;
+    }
+    const dictWindow = pdfBuf.subarray(Math.max(0, idx - 280), idx).toString('latin1');
+    if (/\/Subtype\s*\/Image|\/Filter\s*(?:\[\s*)?\/(?:DCTDecode|JPXDecode)|\/FontFile\d*\b/i.test(dictWindow)) {
+      const skipEnd = pdfBuf.indexOf('endstream', idx + 6);
+      idx = skipEnd > idx ? skipEnd + 9 : idx + 6;
+      continue;
+    }
+    let start = idx + 6;
+    while (start < pdfBuf.length && pdfBuf[start] === 32) start += 1;
+    if (pdfBuf[start] === 13 && pdfBuf[start + 1] === 10) start += 2;
+    else if (pdfBuf[start] === 10 || pdfBuf[start] === 13) start += 1;
+
+    const end = pdfBuf.indexOf('endstream', start);
+    if (end <= start) {
+      idx += 6;
+      continue;
+    }
+    streamCount += 1;
+    let sub = pdfBuf.subarray(start, end);
+    while (sub.length > 0 && (sub[sub.length - 1] === 10 || sub[sub.length - 1] === 13)) {
+      sub = sub.subarray(0, sub.length - 1);
+    }
+
+    if (sub.length > 0 && sub.length <= 2 * 1024 * 1024) {
+      let textStream = '';
+      try {
+        textStream = zlib.inflateSync(sub).toString('latin1');
+      } catch (_) {
+        try {
+          textStream = zlib.inflateRawSync(sub).toString('latin1');
+        } catch (__) {
+          const rawCandidate = sub.toString('latin1');
+          if (/\b(?:BT|ET|Tj|TJ|beginbfchar|beginbfrange)\b/.test(rawCandidate)) {
+            textStream = rawCandidate;
+          }
+        }
+      }
+      if (textStream) decodedStreams.push(textStream);
+    }
+    idx = end + 9;
+  }
+
+  if (decodedStreams.length === 0) return '';
+
+  // Paso 1: Construir mapa ToUnicode CMap si el PDF usa fuentes embebidas CID (ej. SURA / Positiva / iText)
+  const cmap = new Map();
+  for (const st of decodedStreams) {
+    if (!st.includes('beginbfchar') && !st.includes('beginbfrange')) continue;
+    for (const block of st.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+      for (const pair of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        const src = pair[1].toUpperCase();
+        const dst = decodePdfHexUnicodeTarget(pair[2]);
+        if (dst) {
+          cmap.set(src, dst);
+          if (src.length === 4) cmap.__keyHexLen = 4;
+        }
+      }
+    }
+    for (const block of st.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+      for (const rng of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+        const startCode = parseInt(rng[1], 16);
+        const endCode = parseInt(rng[2], 16);
+        const dstStart = parseInt(rng[3], 16);
+        const keyWidth = rng[1].length;
+        if (keyWidth === 4) cmap.__keyHexLen = 4;
+        if (!Number.isNaN(startCode) && !Number.isNaN(endCode) && endCode >= startCode && endCode - startCode <= 512) {
+          for (let c = startCode; c <= endCode; c++) {
+            const k = c.toString(16).toUpperCase().padStart(keyWidth, '0');
+            cmap.set(k, String.fromCharCode(dstStart + (c - startCode)));
+          }
+        }
+      }
+    }
+  }
+
+  // Paso 2: Extraer operadores de texto PDF dentro de bloques BT...ET (o globales de respaldo)
+  const lines = [];
+  const extractFromBlock = (contentStr) => {
+    let currentLine = '';
+    const tokenRe =
+      /\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*(?:Tj|'|")|<([0-9a-fA-F\s]+)>\s*Tj|\[([\s\S]*?)\]\s*TJ|\b(Td|TD|T\*|ET)\b/g;
+    let m;
+    while ((m = tokenRe.exec(contentStr)) !== null) {
+      if (m[1] !== undefined) {
+        currentLine += decodePdfLiteralToken(m[1]);
+      } else if (m[2] !== undefined) {
+        currentLine += decodePdfHexToken(m[2], cmap);
+      } else if (m[3] !== undefined) {
+        const arrBody = m[3];
+        const subRe = /\(([^()\\]*(?:\\.[^()\\]*)*)\)|<([0-9a-fA-F\s]+)>|(-?\d+(?:\.\d+)?)/g;
+        let sm;
+        while ((sm = subRe.exec(arrBody)) !== null) {
+          if (sm[1] !== undefined) {
+            currentLine += decodePdfLiteralToken(sm[1]);
+          } else if (sm[2] !== undefined) {
+            currentLine += decodePdfHexToken(sm[2], cmap);
+          } else if (sm[3] !== undefined) {
+            const kerning = parseFloat(sm[3]);
+            if (kerning <= -120 && currentLine && !currentLine.endsWith(' ')) {
+              currentLine += ' ';
+            }
+          }
+        }
+      } else if (m[4]) {
+        if (currentLine.trim()) {
+          lines.push(currentLine.replace(/\s+/g, ' ').trim());
+        }
+        currentLine = '';
+      }
+    }
+    if (currentLine.trim()) {
+      lines.push(currentLine.replace(/\s+/g, ' ').trim());
+    }
+  };
+
+  for (const st of decodedStreams) {
+    if (st.includes('beginbfchar') || st.includes('beginbfrange')) continue;
+    const btBlocks = Array.from(st.matchAll(/\bBT\b([\s\S]*?)\bET\b/g));
+    if (btBlocks.length > 0) {
+      for (const b of btBlocks) extractFromBlock(`${b[1]} ET`);
+    } else if (/\b(?:Tj|TJ)\b/.test(st)) {
+      extractFromBlock(st);
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
 async function extractArlHolderAndEmployerFromPdf(pdfBuf) {
   if (
     !pdfBuf ||
     !Buffer.isBuffer(pdfBuf) ||
     pdfBuf.length < 100 ||
     pdfBuf.length > 8 * 1024 * 1024 ||
-    !pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF') ||
-    typeof pdfParse !== 'function'
+    !pdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
   ) {
-    return { titular: null, empleador: null };
+    return { titular: null, empleador: null, estado: null };
   }
 
   let timer = null;
   try {
-    const parseTask = Promise.resolve(pdfParse(pdfBuf, { max: 2 })).catch(() => null);
-    const timeoutTask = new Promise((resolve) => {
-      timer = setTimeout(() => resolve(null), 2500);
-      if (typeof timer.unref === 'function') timer.unref();
-    });
-    const parsed = await Promise.race([parseTask, timeoutTask]);
-    const rawText = String(parsed?.text || '');
+    let rawText = '';
+    if (typeof pdfParse === 'function') {
+      const parseTask = Promise.resolve(pdfParse(pdfBuf, { max: 2 })).catch(() => null);
+      const timeoutTask = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), 2500);
+        if (typeof timer.unref === 'function') timer.unref();
+      });
+      const parsed = await Promise.race([parseTask, timeoutTask]);
+      rawText = String(parsed?.text || '');
+    }
     if (!rawText.trim()) {
-      return { titular: null, empleador: null };
+      rawText = extractPdfTextPureNode(pdfBuf);
+    }
+    if (!rawText.trim()) {
+      return { titular: null, empleador: null, estado: null };
     }
 
     const flat = rawText.replace(/\s+/g, ' ').trim();
     let titular = '';
     let empleador = '';
+    let estado = null;
+
+    if (!/no\s+se\s+encuentra\s+afiliad/i.test(flat)) {
+      if (/\b(?:afiliad[oa]\s+activ[oa]|estado\s*:?\s*activ[oa]|se\s+encuentra\s+afiliad[oa])\b/i.test(flat)) {
+        estado = 'AFILIADO ACTIVO';
+      } else if (/\b(?:estado\s*:?\s*(?:retirad[oa]|inactiv[oa])|afiliaci[oó]n\s+inactiva)\b/i.test(flat)) {
+        estado = 'RETIRADO / INACTIVO';
+      }
+    }
 
     const personPatterns = [
       /(?:(?:certifica|hace\s+constar)\s*:?\s*que(?:\s+el\s*\(\s*la\s*\)\s*se[ñn]or\s*\(\s*a\s*\)|\s+el\s+se[ñn]or|\s+la\s+se[ñn]ora|\s+se[ñn]or\s*\(\s*a\s*\))?\s*:?\s*)([A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜa-záéíóúñü\s.'-]{4,90}?)(?=\s*,?\s*(?:identificad[oa]|portador|con\s+(?:c[eé]dula|documento|tipo\s+de\s+documento|cc\b|c\.c\.|ce\b|ti\b|ppt\b|pep\b)))/i,
@@ -2817,9 +3135,10 @@ async function extractArlHolderAndEmployerFromPdf(pdfBuf) {
     return {
       titular: titular || null,
       empleador: empleador || null,
+      estado,
     };
   } catch (_) {
-    return { titular: null, empleador: null };
+    return { titular: null, empleador: null, estado: null };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -2984,7 +3303,7 @@ async function consultarArlRealPorCedula({
                 pdfBase64 = rCert.buf.toString('base64');
                 pdfFileName = `Certificado_ARL_SURA_${cleanCedula}.pdf`;
               }
-              if (typeof pdfParse === 'function' && (needsTitularRecovery || !empleadorDetalle)) {
+              if (needsTitularRecovery || !empleadorDetalle) {
                 const pdfMeta = await extractArlHolderAndEmployerFromPdf(rCert.buf);
                 if (pdfMeta.titular && needsTitularRecovery) {
                   recoveredTitular = pdfMeta.titular;
@@ -3052,7 +3371,7 @@ async function consultarArlRealPorCedula({
             pdfBase64 = rPos.buf.toString('base64');
             pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
           }
-          if (typeof pdfParse === 'function' && (needsTitularRecovery || !empleadorDetalle)) {
+          if (needsTitularRecovery || !empleadorDetalle) {
             const pdfMeta = await extractArlHolderAndEmployerFromPdf(rPos.buf);
             if (pdfMeta.titular && needsTitularRecovery) {
               recoveredTitular = pdfMeta.titular;
@@ -3150,10 +3469,7 @@ async function consultarArlRealPorCedula({
                       pdfBase64 = decodedPdf.toString('base64');
                       pdfFileName = `Certificado_ARL_Positiva_${cleanCedula}.pdf`;
                     }
-                    if (
-                      typeof pdfParse === 'function' &&
-                      ((needsTitularRecovery && !recoveredTitular) || !empleadorDetalle)
-                    ) {
+                    if ((needsTitularRecovery && !recoveredTitular) || !empleadorDetalle) {
                       const pdfMeta = await extractArlHolderAndEmployerFromPdf(decodedPdf);
                       if (pdfMeta.titular && needsTitularRecovery && !recoveredTitular) {
                         recoveredTitular = pdfMeta.titular;
@@ -5457,6 +5773,8 @@ async function ejecutarWebScrapeConEvidencia({
 }
 
 module.exports = {
+  extractPdfTextPureNode,
+  extractArlHolderAndEmployerFromPdf,
   convertPdfBase64ToPngBase64,
   captureWebOrHtmlEvidence,
   ejecutarWebScrapeConEvidencia,

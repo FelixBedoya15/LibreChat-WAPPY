@@ -10132,7 +10132,7 @@ function getCurrentDaemonVersion() {
 }
 
 const daemonUpdateCooldown = new Map();
-const MIN_REQUIRED_DAEMON_VERSION = '2.6.6';
+const MIN_REQUIRED_DAEMON_VERSION = '2.7.0';
 
 function compareSemver(a, b) {
   const pa = String(a || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
@@ -10600,20 +10600,26 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
       })}\n\n`
     );
 
-    // Compatibilidad universal de versiones: el servidor acepta cualquier versión >= MIN_REQUIRED_DAEMON_VERSION (2.5.2)
-    // sin reiniciar el daemon en despliegues rutinarios. Solo auto-actualiza versiones legacy (< 2.5.2) máximo 1 vez cada 6h.
+    // Compatibilidad universal de versiones: el servidor acepta cualquier versión >= MIN_REQUIRED_DAEMON_VERSION (2.7.0)
+    // sin reiniciar el daemon en despliegues rutinarios. Si conecta una versión anterior (< 2.7.0), dispara auto-actualización
+    // silenciosa con cooldown de 60s para que reciba v2.7.0 + wappy-osint-portals.js + Skills sin intervención manual.
     if (isDaemonClient && compareSemver(clientVersion, MIN_REQUIRED_DAEMON_VERSION) < 0) {
       const lastSent = daemonUpdateCooldown.get(targetUserId) || 0;
-      if (Date.now() - lastSent > 6 * 3600 * 1000) {
+      if (Date.now() - lastSent > 60 * 1000) {
         daemonUpdateCooldown.set(targetUserId, Date.now());
+        const reqHost = String(req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club').trim();
+        const reqProto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').trim();
+        const updateOriginUrl = /^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(reqHost)
+          ? 'https://wappy.club'
+          : `${reqProto}://${reqHost}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
         setTimeout(() => {
           try {
-            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa de versión legacy (v${clientVersion || 'legacy'} -> v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
+            logger.info(`[MCP Bridge] 🔄 Enviando auto-actualización silenciosa (v${clientVersion || 'legacy'} -> v${CURRENT_DAEMON_VERSION}) al daemon de usuario ${targetUserId}...`);
             res.write(
               `event: launch_connector\ndata: ${JSON.stringify({
                 service: 'notebooklm',
                 token: 'wappy_daemon_autoupdate',
-                originUrl: 'https://wappy.club',
+                originUrl: updateOriginUrl,
                 timestamp: new Date().toISOString(),
               })}\n\n`
             );
@@ -10723,6 +10729,7 @@ router.get('/antigravity/daemon.js', async (req, res) => {
     const daemonPaths = [
       path.resolve(__dirname, '../../../bin/wappy-antigravity-daemon.js'),
       path.resolve(process.cwd(), 'bin/wappy-antigravity-daemon.js'),
+      path.resolve(process.cwd(), '../bin/wappy-antigravity-daemon.js'),
       '/app/bin/wappy-antigravity-daemon.js',
     ];
     for (const p of daemonPaths) {
@@ -10736,6 +10743,132 @@ router.get('/antigravity/daemon.js', async (req, res) => {
   } catch (error) {
     logger.error('[MCP Bridge] Error sirviendo /antigravity/daemon.js:', error);
     return res.status(500).send('// Error interno sirviendo daemon.js');
+  }
+});
+
+/**
+ * GET /api/mcp-bridge/antigravity/osint-portals.js
+ * Sirve el motor auto-contenido de consultas a portales oficiales colombianos (ARL SURA, Positiva, Bolívar,
+ * MinTrabajo Alturas, ADRES/ReTHUS, AFP, Rama Judicial, Contraloría y SIMIT) para instancias de usuarios externos.
+ */
+router.get('/antigravity/osint-portals.js', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const osintPaths = [
+      path.resolve(__dirname, '../services/osintWorkerService.js'),
+      path.resolve(process.cwd(), 'api/server/services/osintWorkerService.js'),
+      path.resolve(process.cwd(), 'server/services/osintWorkerService.js'),
+      '/app/api/server/services/osintWorkerService.js',
+    ];
+    for (const p of osintPaths) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(fs.readFileSync(p, 'utf8'));
+      }
+    }
+    return res.status(404).send('// Archivo osintWorkerService.js no encontrado en el servidor.');
+  } catch (error) {
+    logger.error('[MCP Bridge] Error sirviendo /antigravity/osint-portals.js:', error);
+    return res.status(500).send('// Error interno sirviendo osint-portals.js');
+  }
+});
+
+/**
+ * GET /api/mcp-bridge/antigravity/skills-pack.json
+ * Construye dinámicamente el paquete oficial de Skills Operativas de WAPPY (SKILL.md + scripts/*.js + references/*.md)
+ * desde api/config/antigravity-skills/ junto con las directrices globales AGENTS.md / GEMINI.md (v2.7.0).
+ */
+router.get('/antigravity/skills-pack.json', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const skillsDirCandidates = [
+      path.resolve(__dirname, '../../config/antigravity-skills'),
+      path.resolve(process.cwd(), 'api/config/antigravity-skills'),
+      path.resolve(process.cwd(), 'config/antigravity-skills'),
+      '/app/api/config/antigravity-skills',
+    ];
+    const baseSkillsDir = skillsDirCandidates.find((d) => fs.existsSync(d) && fs.statSync(d).isDirectory());
+    if (!baseSkillsDir) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Directorio api/config/antigravity-skills no encontrado en el servidor.',
+      });
+    }
+
+    const extractFrontmatterField = (mdText, fieldName) => {
+      const fmMatch = String(mdText || '').match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (!fmMatch) return '';
+      const lineMatch = fmMatch[1].match(new RegExp(`^${fieldName}:\\s*(.+)$`, 'm'));
+      if (!lineMatch) return '';
+      return lineMatch[1].trim().replace(/^["']|["']$/g, '');
+    };
+
+    const readSubFolderFiles = (skillFolderPath, subDirName, executable = false) => {
+      const subPath = path.join(skillFolderPath, subDirName);
+      if (!fs.existsSync(subPath) || !fs.statSync(subPath).isDirectory()) return [];
+      const entries = fs.readdirSync(subPath, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+      const list = [];
+      for (const entry of entries) {
+        if (!entry.isFile() || entry.name.startsWith('.')) continue;
+        const fullFile = path.join(subPath, entry.name);
+        list.push({
+          name: entry.name,
+          relativePath: `${subDirName}/${entry.name}`,
+          executable,
+          content: fs.readFileSync(fullFile, 'utf8'),
+        });
+      }
+      return list;
+    };
+
+    const skills = [];
+    const dirEntries = fs.readdirSync(baseSkillsDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const dirEntry of dirEntries) {
+      if (!dirEntry.isDirectory() || dirEntry.name.startsWith('.')) continue;
+      const skillId = dirEntry.name;
+      const skillFolderPath = path.join(baseSkillsDir, skillId);
+      const skillMdPath = path.join(skillFolderPath, 'SKILL.md');
+      if (!fs.existsSync(skillMdPath)) continue;
+      const skillMd = fs.readFileSync(skillMdPath, 'utf8');
+      skills.push({
+        id: skillId,
+        name: extractFrontmatterField(skillMd, 'name') || skillId,
+        description: extractFrontmatterField(skillMd, 'description') || '',
+        skillMd,
+        scripts: readSubFolderFiles(skillFolderPath, 'scripts', true),
+        references: readSubFolderFiles(skillFolderPath, 'references', false),
+      });
+    }
+
+    const globalRulesMarkerStart = '<!-- WAPPY_OFFICIAL_ECOSYSTEM_V2_7 -->';
+    const globalRulesMarkerEnd = '<!-- /WAPPY_OFFICIAL_ECOSYSTEM_V2_7 -->';
+    const globalRulesBlock = [
+      globalRulesMarkerStart,
+      '## Ecosistema Operativo Oficial WAPPY IA v2.7.0 (Skills Maestras, Portales Colombianos & MCP)',
+      '- **3 Skills Maestras Operativas Instaladas (`~/.gemini/antigravity/skills/` y `~/.gemini/config/skills/`):**',
+      '  1. `wappy-portales-colombia-sst`: Úsala SIEMPRE para consultar por cédula, NIT, nombre o placa en portales oficiales de Colombia (ARL SURA/Positiva/Bolívar, Curso de Alturas MinTrabajo, EPS ADRES/ReTHUS, Pensiones AFP, Rama Judicial + Contraloría y SIMIT PESV). Ejecuta primero Nivel 1 (`node ~/.gemini/antigravity/skills/wappy-portales-colombia-sst/scripts/consultar-portal-colombia.js`) y escala a Nivel 2 únicamente con el subagente nativo `browser` de Antigravity. **PROHIBIDO** abrir navegadores externos (`open`, `xdg-open`, Chrome/Safari) o resolver/evadir CAPTCHAs.',
+      '  2. `wappy-copiloto-sgsst-mcp`: Úsala SIEMPRE al consultar o modificar datos del SG-SST en WAPPY IA (`Somos SST` Hitos 1–8, trabajadores, GTC 45, PESV, Químicos SGA, 0312, ATEL, ACPM, LMS y `LiveEditor`). Verifica siempre primero la empresa activa (`wappy_consultar_perfil_empresa`). Para autodiagnóstico o reparación usa `node ~/.gemini/antigravity/skills/wappy-copiloto-sgsst-mcp/scripts/diagnostico-wappy.js --status`.',
+      '  3. `wappy-ordenes-y-entregables-tenshi`: Úsala SIEMPRE al responder órdenes del Puente Reactivo Push de WAPPY o al enviar archivos locales (`.pdf`, `.png`, `.xlsx`, `.docx`, `.mp4`), documentos `LiveEditor` o aplicativos `html` a Tenshi mediante `node ~/.gemini/antigravity/skills/wappy-ordenes-y-entregables-tenshi/scripts/entregar-a-tenshi.js`. Respeta el aislamiento estricto entre Tenshi Voz/Chat y Nodos de Flujos Autónomos (`/tareas`).',
+      globalRulesMarkerEnd,
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.json({
+      ok: true,
+      packVersion: '2.7.0',
+      daemonVersion: getCurrentDaemonVersion(),
+      generatedAt: new Date().toISOString(),
+      skillsCount: skills.length,
+      globalRulesMarkerStart,
+      globalRulesMarkerEnd,
+      globalRulesBlock,
+      skills,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error sirviendo /antigravity/skills-pack.json:', error);
+    return res.status(500).json({ ok: false, error: 'Error interno construyendo skills-pack.json.' });
   }
 });
 
@@ -11473,12 +11606,14 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
   }
 });
 
-router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
+async function handleAntigravityCompletarOrder(req, res) {
   try {
     let targetUserId = (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id;
     const {
       ordenId,
       id,
+      titulo,
+      title,
       resultado,
       result,
       contenido,
@@ -11492,21 +11627,59 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
       deliverable,
       archivoOriginal,
       media,
-    } = req.body;
+    } = req.body || {};
 
-    const targetId = ordenId || id;
-    if (!targetId) {
-      return res.status(400).json({ error: 'Debes proporcionar el ordenId a completar.' });
-    }
-
+    const rawTargetId = String(req.params?.id || ordenId || id || '').trim();
+    const isAutoOrder = !rawTargetId || rawTargetId === 'auto' || rawTargetId === 'direct';
     const userId = targetUserId;
-    let task = await KanbanTask.findOne({ _id: targetId, user: userId });
-    if (!task && mongoose.Types.ObjectId.isValid(targetId)) {
-      task = await KanbanTask.findOne({ _id: targetId, user: userId, type: 'antigravity_delegation' });
+    let task = null;
+
+    if (!isAutoOrder) {
+      if (mongoose.Types.ObjectId.isValid(rawTargetId)) {
+        task = await KanbanTask.findOne({ _id: rawTargetId, user: userId });
+        if (!task) {
+          task = await KanbanTask.findOne({ _id: rawTargetId, user: userId, type: 'antigravity_delegation' });
+        }
+      }
+      if (!task) {
+        return res.status(404).json({ error: 'Orden no encontrada.' });
+      }
+    } else {
+      const hasAnyPayload = Boolean(
+        archivoOriginal || media || contenido || content || resultado || result || resumen
+      );
+      if (!hasAnyPayload) {
+        return res.status(400).json({ error: 'Debes proporcionar el ordenId o un entregable válido.' });
+      }
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+      task = await KanbanTask.findOne({
+        user: userId,
+        type: 'antigravity_delegation',
+        status: { $in: ['in-progress', 'todo'] },
+        sourceModule: {
+          $nin: ['image_priority', 'healthcheck_e2e', 'healthcheck_report', 'sgsst_workflow_antigravity', 'sgsst_automation'],
+        },
+        createdAt: { $gte: tenMinAgo },
+      }).sort({ createdAt: -1 });
+
+      if (!task) {
+        const activeComp = await getActiveCompany(userId).catch(() => null);
+        const adHocTitle =
+          String(titulo || title || archivoOriginal?.name || media?.name || '').trim() ||
+          'Entregable Directo desde Google Antigravity';
+        task = await KanbanTask.create({
+          user: userId,
+          companyId: activeComp?._id || undefined,
+          title: adHocTitle,
+          description: `Entrega espontánea desde CLI oficial de Google Antigravity.\nFormato Esperado: ${formato || (archivoOriginal ? 'copia_archivo' : 'respuesta')}`,
+          type: 'antigravity_delegation',
+          sourceModule: 'tenshi_voice',
+          status: 'in-progress',
+          priority: 'high',
+        });
+      }
     }
-    if (!task) {
-      return res.status(404).json({ error: 'Orden no encontrada.' });
-    }
+    const targetId = task._id.toString();
     if (task.user) {
       targetUserId = String(task.user);
     }
@@ -11993,7 +12166,10 @@ router.post('/antigravity/completar', requireApiKeyOrJwt, async (req, res) => {
     logger.error('[MCP Bridge] Error completando orden de Antigravity:', error);
     return res.status(500).json({ error: `Error completando orden: ${error.message}` });
   }
-});
+}
+
+router.post('/antigravity/completar', requireApiKeyOrJwt, handleAntigravityCompletarOrder);
+router.post('/antigravity/ordenes/:id/completar', requireApiKeyOrJwt, handleAntigravityCompletarOrder);
 
 // ============================================================================
 // 42. MEDLINEPLUS CONNECT (NIH) Y GUÍAS DE REHABILITACIÓN / FISIOTERAPIA LABORAL

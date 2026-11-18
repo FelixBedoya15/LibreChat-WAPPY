@@ -41,11 +41,18 @@ const STUDIO_THREAD_FILE = path.join(AGY_DIR, 'wappy-studio-thread.json');
 const HEALTHCHECK_THREAD_FILE = path.join(AGY_DIR, 'wappy-healthcheck-thread.json');
 const IMAGE_THREAD_FILE = path.join(AGY_DIR, 'wappy-image-thread.json');
 const STUDIO_CURRENT_HTML_FILE = '/tmp/wappy_studio_current.html';
+const OSINT_PORTALS_DEST = path.join(AGY_DIR, 'wappy-osint-portals.js');
+const ECOSYSTEM_VERSION_FILE = path.join(AGY_DIR, 'wappy-ecosystem-version.json');
+const REQUIRED_WAPPY_CORE_SKILLS = [
+  'wappy-portales-colombia-sst',
+  'wappy-copiloto-sgsst-mcp',
+  'wappy-ordenes-y-entregables-tenshi',
+];
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio / Agentes SST
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
 const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para el Generador Prioritario de Imágenes
-const DAEMON_VERSION = '2.6.6';
+const DAEMON_VERSION = '2.7.0';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 
 /**
@@ -446,14 +453,400 @@ function ensureWappyStudioSubagents() {
 }
 
 function resolveEffectiveServerUrl(candidateOrigin, fallbackWappyUrl) {
-  const fb = String(fallbackWappyUrl || 'https://wappy.club').replace(/\/$/, '') || 'https://wappy.club';
-  const cand = String(candidateOrigin || '').replace(/\/$/, '');
+  const fb = String(fallbackWappyUrl || 'https://wappy.club').replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club').replace(/\/$/, '') || 'https://wappy.club';
+  const cand = String(candidateOrigin || '').replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club').replace(/\/$/, '');
   if (!cand) return fb;
   // Evitar que una petición interna (127.0.0.1 o localhost) sobreescriba el dominio real del servidor
   if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(cand) && !/^https?:\/\/(127\.0\.0\.1|localhost)/i.test(fb)) {
     return fb;
   }
   return cand;
+}
+
+const DEFAULT_ECOSYSTEM_RULES_START = '<!-- WAPPY_OFFICIAL_ECOSYSTEM_V2_7 -->';
+const DEFAULT_ECOSYSTEM_RULES_END = '<!-- /WAPPY_OFFICIAL_ECOSYSTEM_V2_7 -->';
+const DEFAULT_ECOSYSTEM_RULES_BLOCK = [
+  DEFAULT_ECOSYSTEM_RULES_START,
+  '## Ecosistema Operativo Oficial WAPPY IA v2.7.0 (Skills Maestras, Portales Colombianos & MCP)',
+  '- **3 Skills Maestras Operativas Instaladas (`~/.gemini/antigravity/skills/` y `~/.gemini/config/skills/`):**',
+  '  1. `wappy-portales-colombia-sst`: Úsala SIEMPRE para consultar por cédula, NIT, nombre o placa en portales oficiales de Colombia (ARL SURA/Positiva/Bolívar, Curso de Alturas MinTrabajo, EPS ADRES/ReTHUS, Pensiones AFP, Rama Judicial + Contraloría y SIMIT PESV). Ejecuta primero Nivel 1 (`node ~/.gemini/antigravity/skills/wappy-portales-colombia-sst/scripts/consultar-portal-colombia.js`) y escala a Nivel 2 únicamente con el subagente nativo `browser` de Antigravity. **PROHIBIDO** abrir navegadores externos (`open`, `xdg-open`, Chrome/Safari) o resolver/evadir CAPTCHAs.',
+  '  2. `wappy-copiloto-sgsst-mcp`: Úsala SIEMPRE al consultar o modificar datos del SG-SST en WAPPY IA (`Somos SST` Hitos 1–8, trabajadores, GTC 45, PESV, Químicos SGA, 0312, ATEL, ACPM, LMS y `LiveEditor`). Verifica siempre primero la empresa activa (`wappy_consultar_perfil_empresa`). Para autodiagnóstico o reparación usa `node ~/.gemini/antigravity/skills/wappy-copiloto-sgsst-mcp/scripts/diagnostico-wappy.js --status`.',
+  '  3. `wappy-ordenes-y-entregables-tenshi`: Úsala SIEMPRE al responder órdenes del Puente Reactivo Push de WAPPY o al enviar archivos locales (`.pdf`, `.png`, `.xlsx`, `.docx`, `.mp4`), documentos `LiveEditor` o aplicativos `html` a Tenshi mediante `node ~/.gemini/antigravity/skills/wappy-ordenes-y-entregables-tenshi/scripts/entregar-a-tenshi.js`. Respeta el aislamiento estricto entre Tenshi Voz/Chat y Nodos de Flujos Autónomos (`/tareas`).',
+  DEFAULT_ECOSYSTEM_RULES_END,
+].join('\n');
+
+function fetchRemoteTextAsync(urlStr, headers = {}, timeoutMs = 20000, redirectsLeft = 4) {
+  return new Promise((resolve, reject) => {
+    let parsed;
+    try {
+      parsed = new URL(urlStr);
+    } catch (err) {
+      return reject(err);
+    }
+    const client = parsed.protocol === 'https:' ? https : http;
+    const req = client.get(
+      parsed,
+      {
+        headers: {
+          'User-Agent': `Wappy-Antigravity-Daemon/${DAEMON_VERSION}`,
+          Accept: '*/*',
+          ...headers,
+        },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        if (
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location &&
+          redirectsLeft > 0
+        ) {
+          res.resume();
+          const nextUrl = new URL(res.headers.location, parsed).href;
+          return resolve(fetchRemoteTextAsync(nextUrl, headers, timeoutMs, redirectsLeft - 1));
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`HTTP ${res.statusCode} en ${urlStr}`));
+        }
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      },
+    );
+    req.on('timeout', () => req.destroy(new Error(`Timeout (${timeoutMs}ms) en ${urlStr}`)));
+    req.on('error', reject);
+  });
+}
+
+function upsertWappyEcosystemGlobalRules(
+  blockContent = DEFAULT_ECOSYSTEM_RULES_BLOCK,
+  markerStart = DEFAULT_ECOSYSTEM_RULES_START,
+  markerEnd = DEFAULT_ECOSYSTEM_RULES_END,
+) {
+  const docTargets = [
+    path.join(HOME_DIR, '.gemini', 'GEMINI.md'),
+    path.join(AGY_DIR, 'AGENTS.md'),
+  ];
+  const escStart = markerStart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escEnd = markerEnd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const exactRegex = new RegExp(`${escStart}[\\s\\S]*?${escEnd}`, 'g');
+  const anyVersionRegex =
+    /<!--\s*WAPPY_OFFICIAL_ECOSYSTEM_V[0-9_]+\s*-->[\s\S]*?<!--\s*\/WAPPY_OFFICIAL_ECOSYSTEM_V[0-9_]+\s*-->/g;
+
+  for (const docPath of docTargets) {
+    try {
+      fs.mkdirSync(path.dirname(docPath), { recursive: true });
+      const existing = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
+      let nextDoc;
+      if (exactRegex.test(existing)) {
+        nextDoc = existing.replace(exactRegex, blockContent.trim());
+      } else if (anyVersionRegex.test(existing)) {
+        nextDoc = existing.replace(anyVersionRegex, blockContent.trim());
+      } else {
+        const prefix = existing.trimEnd();
+        nextDoc = prefix ? `${prefix}\n\n${blockContent.trim()}\n` : `${blockContent.trim()}\n`;
+      }
+      if (nextDoc !== existing) {
+        fs.writeFileSync(docPath, nextDoc, 'utf8');
+      }
+    } catch (_) {}
+  }
+}
+
+function resolveLocalRepoCandidates() {
+  const roots = [
+    path.resolve(__dirname, '..'),
+    '/Users/venta/Documents/GitHub/LibreChat-WAPPY',
+  ];
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
+      if (savedEnv?.workspaceCwd) roots.push(savedEnv.workspaceCwd);
+    }
+  } catch (_) {}
+  return Array.from(new Set(roots));
+}
+
+async function ensureOsintPortalsFileAsync(wappyUrl, apiKey, { force = false } = {}) {
+  try {
+    fs.mkdirSync(AGY_DIR, { recursive: true });
+    if (!force && fs.existsSync(OSINT_PORTALS_DEST)) {
+      const st = fs.statSync(OSINT_PORTALS_DEST);
+      if (st.size > 10000) return OSINT_PORTALS_DEST;
+    }
+
+    const cleanUrl = resolveEffectiveServerUrl(wappyUrl, 'https://wappy.club');
+    const authHeaders = {};
+    if (apiKey) {
+      authHeaders['x-api-key'] = apiKey;
+      authHeaders.Authorization = `Bearer ${apiKey}`;
+    }
+
+    let osintCode = '';
+    try {
+      osintCode = await fetchRemoteTextAsync(
+        `${cleanUrl}/api/mcp-bridge/antigravity/osint-portals.js`,
+        authHeaders,
+        25000,
+      );
+    } catch (_) {}
+
+    if (!osintCode || !osintCode.includes('consultarArlRealPorCedula')) {
+      for (const repoRoot of resolveLocalRepoCandidates()) {
+        const localSvc = path.join(repoRoot, 'api', 'server', 'services', 'osintWorkerService.js');
+        if (fs.existsSync(localSvc)) {
+          osintCode = fs.readFileSync(localSvc, 'utf8');
+          if (osintCode.includes('consultarArlRealPorCedula')) break;
+        }
+      }
+    }
+
+    if (osintCode && osintCode.includes('consultarArlRealPorCedula')) {
+      const tmpDest = `${OSINT_PORTALS_DEST}.tmp.${process.pid}.${Date.now()}`;
+      fs.writeFileSync(tmpDest, osintCode, { encoding: 'utf8', mode: 0o644 });
+      fs.renameSync(tmpDest, OSINT_PORTALS_DEST);
+      return OSINT_PORTALS_DEST;
+    }
+  } catch (_) {}
+  return fs.existsSync(OSINT_PORTALS_DEST) ? OSINT_PORTALS_DEST : null;
+}
+
+function isLocalWappyEcosystemComplete() {
+  try {
+    if (!fs.existsSync(ECOSYSTEM_VERSION_FILE)) return false;
+    const meta = JSON.parse(fs.readFileSync(ECOSYSTEM_VERSION_FILE, 'utf8')) || {};
+    if (meta.version !== DAEMON_VERSION) return false;
+    if (!fs.existsSync(OSINT_PORTALS_DEST) || fs.statSync(OSINT_PORTALS_DEST).size < 10000) {
+      return false;
+    }
+    for (const root of [path.join(CONFIG_DIR, 'skills'), path.join(AGY_DIR, 'skills')]) {
+      for (const id of REQUIRED_WAPPY_CORE_SKILLS) {
+        const skDir = path.join(root, id);
+        if (!fs.existsSync(path.join(skDir, 'SKILL.md'))) return false;
+        const scriptsDir = path.join(skDir, 'scripts');
+        if (!fs.existsSync(scriptsDir)) return false;
+        const hasJs = fs.readdirSync(scriptsDir).some((f) => f.endsWith('.js'));
+        if (!hasJs) return false;
+      }
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function writeSkillPackEntryToDisk(sk) {
+  if (!sk || !sk.id || !sk.skillMd) return false;
+  const skillRoots = [path.join(CONFIG_DIR, 'skills'), path.join(AGY_DIR, 'skills')];
+  for (const rootDir of skillRoots) {
+    const skDir = path.join(rootDir, sk.id);
+    fs.mkdirSync(skDir, { recursive: true });
+    fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.skillMd, 'utf8');
+
+    if (Array.isArray(sk.scripts) && sk.scripts.length > 0) {
+      const sDir = path.join(skDir, 'scripts');
+      fs.mkdirSync(sDir, { recursive: true });
+      for (const sc of sk.scripts) {
+        if (!sc?.name || typeof sc.content !== 'string') continue;
+        const scDest = path.join(sDir, path.basename(sc.name));
+        fs.writeFileSync(scDest, sc.content, { encoding: 'utf8', mode: 0o755 });
+        try {
+          fs.chmodSync(scDest, 0o755);
+        } catch (_) {}
+      }
+    }
+
+    if (Array.isArray(sk.references) && sk.references.length > 0) {
+      const rDir = path.join(skDir, 'references');
+      fs.mkdirSync(rDir, { recursive: true });
+      for (const rf of sk.references) {
+        if (!rf?.name || typeof rf.content !== 'string') continue;
+        fs.writeFileSync(path.join(rDir, path.basename(rf.name)), rf.content, 'utf8');
+      }
+    }
+  }
+  return true;
+}
+
+function loadLocalRepoSkillsPackFallback() {
+  for (const repoRoot of resolveLocalRepoCandidates()) {
+    const localSkillsBase = path.join(repoRoot, 'api', 'config', 'antigravity-skills');
+    if (!fs.existsSync(localSkillsBase) || !fs.statSync(localSkillsBase).isDirectory()) continue;
+    const skills = [];
+    for (const d of fs.readdirSync(localSkillsBase, { withFileTypes: true })) {
+      if (!d.isDirectory() || d.name.startsWith('.')) continue;
+      const skFolder = path.join(localSkillsBase, d.name);
+      const mdPath = path.join(skFolder, 'SKILL.md');
+      if (!fs.existsSync(mdPath)) continue;
+      const readSub = (subName) => {
+        const sp = path.join(skFolder, subName);
+        if (!fs.existsSync(sp) || !fs.statSync(sp).isDirectory()) return [];
+        return fs
+          .readdirSync(sp, { withFileTypes: true })
+          .filter((e) => e.isFile() && !e.name.startsWith('.'))
+          .map((e) => ({
+            name: e.name,
+            content: fs.readFileSync(path.join(sp, e.name), 'utf8'),
+          }));
+      };
+      skills.push({
+        id: d.name,
+        skillMd: fs.readFileSync(mdPath, 'utf8'),
+        scripts: readSub('scripts'),
+        references: readSub('references'),
+      });
+    }
+    if (skills.length > 0) {
+      return {
+        packVersion: DAEMON_VERSION,
+        globalRulesMarkerStart: DEFAULT_ECOSYSTEM_RULES_START,
+        globalRulesMarkerEnd: DEFAULT_ECOSYSTEM_RULES_END,
+        globalRulesBlock: DEFAULT_ECOSYSTEM_RULES_BLOCK,
+        skills,
+      };
+    }
+  }
+  return null;
+}
+
+let ecosystemSyncInFlight = null;
+
+/**
+ * Sincroniza silenciosamente el Ecosistema Oficial WAPPY v2.7.0 en cualquier instancia de usuario:
+ * 1) Motor determinista de portales colombianos (~/.gemini/antigravity/wappy-osint-portals.js)
+ * 2) Las 3 Skills Maestras Operativas + scripts CLI + referencias (skills-pack.json)
+ * 3) Las 7 Skills + 4 Subagentes Especialistas de Wappy Studio (skills-bundle.json)
+ * 4) Directrices globales idempotentes en ~/.gemini/GEMINI.md y ~/.gemini/antigravity/AGENTS.md
+ * 5) Sello de versión en ~/.gemini/antigravity/wappy-ecosystem-version.json
+ */
+async function syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, { force = false } = {}) {
+  if (!force && isLocalWappyEcosystemComplete()) {
+    return { ok: true, skipped: true, version: DAEMON_VERSION };
+  }
+  if (ecosystemSyncInFlight) {
+    return ecosystemSyncInFlight;
+  }
+
+  ecosystemSyncInFlight = (async () => {
+    try {
+      fs.mkdirSync(AGY_DIR, { recursive: true });
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+
+      const cleanUrl = resolveEffectiveServerUrl(wappyUrl, 'https://wappy.club');
+      const authHeaders = {};
+      if (apiKey) {
+        authHeaders['x-api-key'] = apiKey;
+        authHeaders.Authorization = `Bearer ${apiKey}`;
+      }
+
+      // 1) Motor de portales colombianos wappy-osint-portals.js
+      const osintPath = await ensureOsintPortalsFileAsync(cleanUrl, apiKey, { force: true });
+
+      // 2) Pack Oficial de 3 Skills Operativas (SKILL.md + scripts/*.js + references/*.md)
+      let pack = null;
+      try {
+        const rawPack = await fetchRemoteTextAsync(
+          `${cleanUrl}/api/mcp-bridge/antigravity/skills-pack.json`,
+          authHeaders,
+          20000,
+        );
+        pack = JSON.parse(rawPack);
+      } catch (_) {
+        pack = loadLocalRepoSkillsPackFallback();
+      }
+
+      const installedCoreIds = [];
+      if (pack && Array.isArray(pack.skills)) {
+        for (const sk of pack.skills) {
+          if (writeSkillPackEntryToDisk(sk)) {
+            installedCoreIds.push(sk.id);
+          }
+        }
+      }
+
+      // 3) Pack Oficial de 7 Skills + 4 Subagentes de Wappy Studio
+      let studioSkillsCount = 0;
+      try {
+        const rawStudio = await fetchRemoteTextAsync(
+          `${cleanUrl}/api/studio/antigravity/skills-bundle.json`,
+          authHeaders,
+          20000,
+        );
+        const bundle = JSON.parse(rawStudio);
+        const stSkills = Array.isArray(bundle?.skills) ? bundle.skills : [];
+        const stAgents = Array.isArray(bundle?.subagents) ? bundle.subagents : [];
+        for (const rootDir of [path.join(CONFIG_DIR, 'skills'), path.join(AGY_DIR, 'skills')]) {
+          fs.mkdirSync(rootDir, { recursive: true });
+          for (const sk of stSkills) {
+            if (!sk?.id || !sk.content) continue;
+            const skDir = path.join(rootDir, sk.id);
+            fs.mkdirSync(skDir, { recursive: true });
+            fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.content, 'utf8');
+          }
+        }
+        for (const agRoot of [path.join(CONFIG_DIR, 'agents'), path.join(AGY_DIR, 'agents')]) {
+          fs.mkdirSync(agRoot, { recursive: true });
+          for (const sub of stAgents) {
+            const promptMd = sub?.systemPrompt || sub?.content;
+            if (!sub?.id || !promptMd) continue;
+            fs.writeFileSync(path.join(agRoot, `${sub.id}.md`), promptMd, 'utf8');
+          }
+        }
+        studioSkillsCount = stSkills.length;
+      } catch (_) {
+        ensureWappyStudioSubagents();
+      }
+
+      // 4) Actualizar idempotentemente GEMINI.md y AGENTS.md
+      upsertWappyEcosystemGlobalRules(
+        pack?.globalRulesBlock || DEFAULT_ECOSYSTEM_RULES_BLOCK,
+        pack?.globalRulesMarkerStart || DEFAULT_ECOSYSTEM_RULES_START,
+        pack?.globalRulesMarkerEnd || DEFAULT_ECOSYSTEM_RULES_END,
+      );
+
+      // 5) Guardar estado de sincronización cuando los componentes esenciales están listos
+      const coreComplete = REQUIRED_WAPPY_CORE_SKILLS.every((reqId) =>
+        fs.existsSync(path.join(AGY_DIR, 'skills', reqId, 'SKILL.md')),
+      );
+      if (osintPath && coreComplete) {
+        fs.writeFileSync(
+          ECOSYSTEM_VERSION_FILE,
+          JSON.stringify(
+            {
+              version: DAEMON_VERSION,
+              packVersion: pack?.packVersion || DAEMON_VERSION,
+              syncedAt: new Date().toISOString(),
+              coreSkills: installedCoreIds,
+              studioSkillsCount,
+              osintEngineReady: true,
+            },
+            null,
+            2,
+          ),
+          'utf8',
+        );
+        log(
+          `✨ Ecosistema Oficial WAPPY v${DAEMON_VERSION} auto-sincronizado (${installedCoreIds.length} Skills Operativas + ${studioSkillsCount} Skills Studio + wappy-osint-portals.js).`,
+        );
+      }
+
+      return {
+        ok: Boolean(osintPath && coreComplete),
+        version: DAEMON_VERSION,
+        coreSkills: installedCoreIds,
+        studioSkillsCount,
+        osintEngineReady: Boolean(osintPath),
+      };
+    } catch (err) {
+      log(`Aviso sincronizando ecosistema WAPPY v${DAEMON_VERSION}: ${err.message}`);
+      return { ok: false, error: err.message };
+    } finally {
+      ecosystemSyncInFlight = null;
+    }
+  })();
+
+  return ecosystemSyncInFlight;
 }
 
 /**
@@ -4118,7 +4511,7 @@ function listOurWorkerPids() {
 /**
  * Instala el servicio persistente en segundo plano (Daemon + LaunchAgent en macOS + Startup/Run en Windows)
  */
-function installAndStartDaemon(cliArgs) {
+async function installAndStartDaemon(cliArgs) {
   ensureDirs();
   captureAntigravityEnv();
   purgeProcessSessionVars();
@@ -4319,6 +4712,19 @@ function installAndStartDaemon(cliArgs) {
 
   console.log(`📡 Escuchando eventos en tiempo real desde: ${wappyUrl}/api/mcp-bridge/antigravity/stream (entorno: ${daemonEnv})`);
   console.log(`⚡ Latencia de despacho: 0 ms (vía agentapi Reactive Wakeup — Auto-arranque OS activo).`);
+
+  // Auto-entrenar instancia del usuario en segundo plano / pre-salida (motor portales + 3 Skills Operativas + 7 Skills Studio)
+  if (!cliArgs['from-update']) {
+    try {
+      await Promise.race([
+        syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, {
+          force: Boolean(cliArgs['sync-skills'] || cliArgs.syncSkills),
+        }),
+        new Promise((resolve) => setTimeout(resolve, 14000)),
+      ]);
+    } catch (_) {}
+  }
+
   process.exit(0);
 }
 
@@ -5107,6 +5513,7 @@ function startSseWorker(cliArgs) {
                             const candidateOsintPaths = [
                               path.resolve(__dirname, '..', 'api', 'server', 'services', 'osintWorkerService.js'),
                               '/Users/venta/Documents/GitHub/LibreChat-WAPPY/api/server/services/osintWorkerService.js',
+                              OSINT_PORTALS_DEST,
                             ];
                             try {
                               if (fs.existsSync(ENV_FILE)) {
@@ -5133,10 +5540,9 @@ function startSseWorker(cliArgs) {
                               };
                             }
 
-                            let osintSvc = null;
-                            for (const candPath of candidateOsintPaths) {
+                            const tryLoadOsintFromPath = (candPath) => {
                               try {
-                                if (fs.existsSync(candPath)) {
+                                if (candPath && fs.existsSync(candPath)) {
                                   const resolved = require.resolve(candPath);
                                   const mtimeMs = Number(fs.statSync(resolved).mtimeMs || 0);
                                   const cacheObj = global.__wappyOsintModuleCache;
@@ -5150,10 +5556,26 @@ function startSseWorker(cliArgs) {
                                     cacheObj.resolvedPath = resolved;
                                     cacheObj.mtimeMs = mtimeMs;
                                   }
-                                  osintSvc = cacheObj.mod;
-                                  break;
+                                  return cacheObj.mod;
                                 }
                               } catch (_) {}
+                              return null;
+                            };
+
+                            let osintSvc = null;
+                            for (const candPath of candidateOsintPaths) {
+                              osintSvc = tryLoadOsintFromPath(candPath);
+                              if (osintSvc) break;
+                            }
+
+                            // Descarga al vuelo bajo demanda si aún no existía wappy-osint-portals.js en disco
+                            if (!osintSvc) {
+                              const downloadedOsintPath = await ensureOsintPortalsFileAsync(wappyUrl, apiKey, {
+                                force: true,
+                              });
+                              if (downloadedOsintPath) {
+                                osintSvc = tryLoadOsintFromPath(downloadedOsintPath);
+                              }
                             }
 
                             let result = null;
@@ -5645,6 +6067,13 @@ function startSseWorker(cliArgs) {
   };
 
   syncStreams();
+  // Auto-sincronizar en segundo plano (sin bloquear SSE) las Skills Oficiales + wappy-osint-portals.js (v2.7.0)
+  setTimeout(() => {
+    const primaryCred = resolveCredentials(cliArgs);
+    syncOfficialWappyEcosystemAsync(primaryCred.wappyUrl, primaryCred.apiKey).catch((err) =>
+      log(`Aviso en syncOfficialWappyEcosystemAsync: ${err.message}`),
+    );
+  }, 1200);
   // Revisar cada 20s si el usuario agregó o actualizó una clave en mcp_config.json
   setInterval(syncStreams, 20000);
 
@@ -5730,14 +6159,16 @@ async function completeOrderCli(cliArgs) {
  */
 async function sendLocalFileCopyToWappy(cliArgs) {
   const rawFilePath = cliArgs['send-file'] || cliArgs.sendFile || '';
-  const ordenId = cliArgs['orden-id'] || cliArgs.ordenId || '';
+  const ordenId = String(cliArgs['orden-id'] || cliArgs.ordenId || 'auto').trim() || 'auto';
+  const titulo = String(cliArgs.title || cliArgs.titulo || '').trim();
   const resumen =
     cliArgs.resumen ||
+    cliArgs.summary ||
     cliArgs.resultado ||
     'Aquí tienes la copia original intacta del archivo solicitado desde tu computador.';
 
-  if (!rawFilePath || !ordenId) {
-    console.error('Uso: --send-file="<ruta_absoluta>" --orden-id="<ordenId>" [--resumen="..."]');
+  if (!rawFilePath) {
+    console.error('Uso: --send-file="<ruta_absoluta>" [--orden-id="<ordenId>"] [--resumen="..."]');
     process.exit(1);
   }
 
@@ -5796,6 +6227,7 @@ async function sendLocalFileCopyToWappy(cliArgs) {
     const completeUrl = `${wappyUrl}/api/mcp-bridge/antigravity/completar`;
     const resp = await jsonRequest(completeUrl, 'POST', apiKey, {
       ordenId,
+      titulo: titulo || fileName,
       formato: 'copia_archivo',
       resultado: resumen,
       resumen,
@@ -5886,9 +6318,20 @@ if (require.main === module) {
   const cliArgs = parseArgs();
   if (cliArgs.help || cliArgs.h || cliArgs.version || cliArgs.v) {
     console.log(
-      `WAPPY <-> Google Antigravity Push Bridge v${DAEMON_VERSION}\nUso: node wappy-push-daemon.js [--install | --worker | --ensure | --stop | --link-company="<nombre/id/nit>" --workspace="<ruta>" | --list-workspaces | --complete-order=<id> | --send-file=<ruta> | --notebooklm | --googleflow]`
+      `WAPPY <-> Google Antigravity Push Bridge v${DAEMON_VERSION}\nUso: node wappy-push-daemon.js [--install | --worker | --ensure | --stop | --sync-skills | --link-company="<nombre/id/nit>" --workspace="<ruta>" | --list-workspaces | --complete-order=<id> | --send-file=<ruta> | --notebooklm | --googleflow]`
     );
     process.exit(0);
+  } else if (cliArgs['sync-skills'] || cliArgs.syncSkills || cliArgs['sync-ecosystem']) {
+    const { wappyUrl, apiKey } = resolveCredentials(cliArgs);
+    syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, { force: true })
+      .then((res) => {
+        console.log(JSON.stringify(res, null, 2));
+        process.exit(res?.ok ? 0 : 1);
+      })
+      .catch((err) => {
+        console.error('❌ Error sincronizando ecosistema WAPPY:', err.message);
+        process.exit(1);
+      });
   } else if (cliArgs['link-company'] || cliArgs.linkCompany) {
     linkCompanyCli(cliArgs);
   } else if (cliArgs['list-workspaces'] || cliArgs.listWorkspaces) {
@@ -5950,7 +6393,11 @@ if (require.main === module) {
 
 module.exports = {
   startSseWorker,
+  startWorker: startSseWorker,
   installAndStartDaemon,
+  installAndStart: installAndStartDaemon,
+  syncOfficialWappyEcosystemAsync,
+  ensureOsintPortalsFileAsync,
   resolveCredentials,
   resolveAllCredentials,
   sendLocalFileCopyToWappy,
