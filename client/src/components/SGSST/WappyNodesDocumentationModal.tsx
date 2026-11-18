@@ -1053,7 +1053,7 @@ const NodeCanvasStageReplica: React.FC<{
   }, [node]);
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner overflow-hidden relative">
+    <div className="shrink-0 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#f8fafc] dark:bg-[#0b1120] shadow-inner overflow-hidden relative">
       {/* Cabecera flotante del Escenario de Lienzo */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-2 min-w-0">
@@ -2292,7 +2292,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
               </div>
               <div className="min-w-0">
                 <h2 className="text-base sm:text-xl font-extrabold bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent tracking-tight truncate">
-                  📘 Enciclopedia SmartDown de Nodos WAPPY
+                  Enciclopedia SmartDown de Nodos WAPPY
                 </h2>
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-500/10 border border-slate-400/30 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-200">
@@ -2572,7 +2572,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
           <div
             className={`${
               mobileShowDetail ? 'hidden lg:flex' : 'flex'
-            } flex-col w-full lg:w-[340px] xl:w-[375px] shrink-0 border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/50 min-h-0`}
+            } flex-col flex-1 lg:flex-none w-full lg:w-[340px] xl:w-[375px] lg:shrink-0 border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/50 min-h-0`}
           >
             <div className="px-4 py-2.5 border-b border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-[11px] font-extrabold text-slate-600 dark:text-slate-300 shrink-0">
               <span>
@@ -2596,7 +2596,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+            <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5">
               {filteredNodes.length === 0 ? (
                 <div className="p-6 text-center space-y-2">
                   <AlertTriangle className="w-7 h-7 text-amber-500 mx-auto" />
@@ -2712,11 +2712,11 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
           {/* PANEL PRINCIPAL DERECHO: ESCENARIO DEL NODO + DOCUMENTACIÓN SMARTDOWN COMPLETA */}
           <div
             className={`${
-              mobileShowDetail ? 'flex' : 'hidden lg:flex'
-            } flex-1 flex-col min-w-0 min-h-0 overflow-y-auto bg-white dark:bg-slate-950 p-4 sm:p-6 space-y-5`}
+              mobileShowDetail ? 'block' : 'hidden lg:block'
+            } flex-1 min-w-0 min-h-0 overflow-y-auto bg-white dark:bg-slate-950 p-4 sm:p-6`}
           >
             {/* Botón volver en móvil (< lg) */}
-            <div className="flex lg:hidden items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex lg:hidden items-center justify-between pb-2 mb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
               <ExpandableButton
                 type="button"
                 size="sm"
@@ -2732,9 +2732,9 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
             </div>
 
             {selectedNode && currentNodeDoc && (
-              <>
+              <div className="space-y-5 min-w-0">
                 {/* Encabezado de Ficha del Nodo Seleccionado */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800 min-w-0">
+                <div className="shrink-0 flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800 min-w-0">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="px-2.5 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-[10.5px] font-extrabold">
@@ -2774,7 +2774,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
 
                 {/* CONTENIDO SMARTDOWN: VISTA VISUAL RICA vs CÓDIGO .MD PURO */}
                 {viewMode === 'visual' ? (
-                  <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-surface-primary/60 dark:bg-slate-900/40 p-4 sm:p-6">
+                  <div className="shrink-0 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-surface-primary/60 dark:bg-slate-900/40 p-4 sm:p-6">
                     <SmartDownVisualArticle
                       doc={currentNodeDoc}
                       node={selectedNode}
@@ -2783,7 +2783,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
                     />
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 text-slate-100 overflow-hidden">
+                  <div className="shrink-0 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 text-slate-100 overflow-hidden">
                     <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-extrabold text-[#C7F303] flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5" />
@@ -2810,7 +2810,7 @@ export const WappyNodesDocumentationModal: React.FC<WappyNodesDocumentationModal
                     </pre>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
