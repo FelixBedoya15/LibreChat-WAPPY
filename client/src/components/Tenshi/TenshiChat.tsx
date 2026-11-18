@@ -43,7 +43,12 @@ import {
   PhoneOff,
   Loader2,
   ShieldCheck,
+  Plus,
+  Upload,
+  AlertCircle,
+  Music,
 } from 'lucide-react';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { useAuthContext, useNewConvo } from '~/hooks';
@@ -100,11 +105,12 @@ export interface TenshiQrAttachment {
 }
 
 export interface TenshiAttachedMedia {
+  id?: string;
   name: string;
   type: 'image' | 'video' | 'audio' | 'document';
   mimeType: string;
   size: number;
-  dataUrl: string;
+  dataUrl?: string;
   publicUrl?: string;
   previewUrl?: string;
   thumbnailUrl?: string;
@@ -133,10 +139,12 @@ export interface TenshiChatMessage {
   content: string;
   htmlReport?: string;
   isLiveVoice?: boolean;
+  _localCreatedAt?: number;
   file?: TenshiFileAttachment;
   qrCode?: TenshiQrAttachment;
   image?: string;
   media?: TenshiAttachedMedia;
+  attachments?: TenshiAttachedMedia[];
   widget?: TenshiWidgetPayload;
   evidenceFiles?: TenshiEvidenceFile[];
   delegatedOrderId?: string;
@@ -288,6 +296,331 @@ export function formatBytes(bytes: number) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+const MAX_ATTACHMENTS_PER_MSG = 10;
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB para docs, imágenes y audios
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB para clips de video
+const MAX_VIDEO_INLINE_BYTES = 12 * 1024 * 1024; // 12 MB máximo para inlineData de video completo
+
+function createAttachmentId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `att_${crypto.randomUUID()}`;
+  }
+  return `att_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function formatAttachmentDuration(seconds?: number): string {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return '';
+  const total = Math.round(seconds);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+const VIDEO_EXT_MIME: Record<string, string> = {
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  avi: 'video/x-msvideo',
+  '3gp': 'video/3gpp',
+  mpeg: 'video/mpeg',
+  mpg: 'video/mpeg',
+  ogv: 'video/ogg',
+};
+
+const AUDIO_EXT_MIME: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  opus: 'audio/opus',
+  weba: 'audio/webm',
+  wma: 'audio/x-ms-wma',
+};
+
+const IMAGE_EXT_MIME: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  avif: 'image/avif',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+  ico: 'image/x-icon',
+};
+
+const DOC_EXT_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt: 'application/vnd.oasis.opendocument.text',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  csv: 'text/csv',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  json: 'application/json',
+  xml: 'application/xml',
+  yaml: 'text/yaml',
+  yml: 'text/yaml',
+  rtf: 'application/rtf',
+  svg: 'image/svg+xml',
+};
+
+function detectAttachmentMeta(file: File): {
+  mediaType: 'image' | 'video' | 'audio' | 'document';
+  mimeType: string;
+} {
+  const rawMime = (file.type || '').trim().toLowerCase();
+  const ext = (file.name.split('.').pop() || '').trim().toLowerCase();
+
+  // SVG se procesa como documento de texto UTF-8 (Gemini inlineData no admite SVG como imagen raster)
+  if (rawMime === 'image/svg+xml' || ext === 'svg') {
+    return { mediaType: 'document', mimeType: 'image/svg+xml' };
+  }
+
+  if (rawMime.startsWith('video/') || Boolean(VIDEO_EXT_MIME[ext])) {
+    return {
+      mediaType: 'video',
+      mimeType: rawMime || VIDEO_EXT_MIME[ext] || 'video/mp4',
+    };
+  }
+
+  if (rawMime.startsWith('audio/') || Boolean(AUDIO_EXT_MIME[ext])) {
+    return {
+      mediaType: 'audio',
+      mimeType: rawMime || AUDIO_EXT_MIME[ext] || 'audio/mpeg',
+    };
+  }
+
+  if (rawMime.startsWith('image/') || Boolean(IMAGE_EXT_MIME[ext])) {
+    return {
+      mediaType: 'image',
+      mimeType: rawMime || IMAGE_EXT_MIME[ext] || 'image/jpeg',
+    };
+  }
+
+  return {
+    mediaType: 'document',
+    mimeType: rawMime || DOC_EXT_MIME[ext] || 'application/octet-stream',
+  };
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => {
+      console.warn('[Tenshi Media] No se pudo leer archivo:', file.name);
+      resolve('');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractVideoPosterAndDuration(
+  blobUrl: string,
+  preloadMode: 'auto' | 'metadata' = 'metadata',
+): Promise<{ thumbnailUrl?: string; duration?: number }> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const tempVideo = document.createElement('video');
+    tempVideo.preload = preloadMode;
+    tempVideo.muted = true;
+    tempVideo.playsInline = true;
+
+    const finish = (res: { thumbnailUrl?: string; duration?: number }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
+      tempVideo.onloadedmetadata = null;
+      tempVideo.onloadeddata = null;
+      tempVideo.onseeked = null;
+      tempVideo.onerror = null;
+      try {
+        tempVideo.removeAttribute('src');
+        tempVideo.load();
+      } catch (_) {}
+      resolve(res);
+    };
+
+    const safetyTimer = setTimeout(() => {
+      const dur =
+        Number.isFinite(tempVideo.duration) && tempVideo.duration > 0
+          ? Math.round(tempVideo.duration)
+          : undefined;
+      finish({ duration: dur });
+    }, 2500);
+
+    const captureFrame = (durationSec?: number) => {
+      if (settled) return;
+      try {
+        const vw = tempVideo.videoWidth || 640;
+        const vh = tempVideo.videoHeight || 360;
+        if (vw > 0 && vh > 0) {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.min(vw, 640);
+          const scale = canvas.width / vw;
+          canvas.height = Math.max(1, Math.round(vh * scale));
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+            const thumbUrl = canvas.toDataURL('image/jpeg', 0.82);
+            finish({
+              thumbnailUrl: thumbUrl,
+              duration:
+                durationSec && Number.isFinite(durationSec) && durationSec > 0
+                  ? Math.round(durationSec)
+                  : undefined,
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[Tenshi Video] No se pudo capturar canvas snapshot:', e);
+      }
+      finish({
+        duration:
+          durationSec && Number.isFinite(durationSec) && durationSec > 0
+            ? Math.round(durationSec)
+            : undefined,
+      });
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      const duration =
+        Number.isFinite(tempVideo.duration) && tempVideo.duration > 0 ? tempVideo.duration : undefined;
+      if (duration && duration > 1) {
+        tempVideo.onseeked = () => captureFrame(duration);
+        try {
+          tempVideo.currentTime = Math.min(1.5, duration / 2);
+        } catch (_) {
+          captureFrame(duration);
+        }
+        setTimeout(() => captureFrame(duration), 650);
+      } else {
+        tempVideo.onloadeddata = () => captureFrame(duration);
+        setTimeout(() => captureFrame(duration), 550);
+      }
+    };
+
+    tempVideo.onerror = () => finish({});
+    tempVideo.src = blobUrl;
+  });
+}
+
+function getAttachmentVisualMeta(att: TenshiAttachedMedia): {
+  badge: string;
+  boxClass: string;
+  badgeClass: string;
+  iconKind: 'image' | 'video' | 'audio' | 'excel' | 'ppt' | 'code' | 'doc';
+} {
+  const ext = (att.name?.split('.').pop() || '').trim().toLowerCase();
+  const mime = (att.mimeType || '').toLowerCase();
+
+  if (att.type === 'image') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'IMG',
+      boxClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+      badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+      iconKind: 'image',
+    };
+  }
+  if (att.type === 'video') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'VIDEO',
+      boxClass: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300',
+      badgeClass: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300',
+      iconKind: 'video',
+    };
+  }
+  if (att.type === 'audio') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'AUDIO',
+      boxClass: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300',
+      badgeClass: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300',
+      iconKind: 'audio',
+    };
+  }
+  if (ext === 'pdf' || mime === 'application/pdf') {
+    return {
+      badge: 'PDF',
+      boxClass: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+      badgeClass: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+      iconKind: 'doc',
+    };
+  }
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(ext) || mime.includes('spreadsheet') || mime.includes('excel') || mime === 'text/csv') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'XLSX',
+      boxClass: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300',
+      badgeClass: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300',
+      iconKind: 'excel',
+    };
+  }
+  if (['doc', 'docx', 'odt', 'rtf'].includes(ext) || mime.includes('wordprocessingml') || mime === 'application/msword') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'DOCX',
+      boxClass: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+      badgeClass: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+      iconKind: 'doc',
+    };
+  }
+  if (['ppt', 'pptx'].includes(ext) || mime.includes('presentation')) {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'PPTX',
+      boxClass: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300',
+      badgeClass: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300',
+      iconKind: 'ppt',
+    };
+  }
+  if (['json', 'xml', 'yaml', 'yml', 'md', 'svg'].includes(ext) || mime === 'image/svg+xml') {
+    return {
+      badge: ext ? ext.toUpperCase().slice(0, 5) : 'CODE',
+      boxClass: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+      badgeClass: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+      iconKind: 'code',
+    };
+  }
+  return {
+    badge: ext ? ext.toUpperCase().slice(0, 5) : 'DOC',
+    boxClass: 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300',
+    badgeClass: 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300',
+    iconKind: 'doc',
+  };
+}
+
+function renderAttachmentIcon(
+  iconKind: 'image' | 'video' | 'audio' | 'excel' | 'ppt' | 'code' | 'doc',
+  className = 'h-4 w-4',
+) {
+  switch (iconKind) {
+    case 'video':
+      return <Film className={className} />;
+    case 'audio':
+      return <Music className={className} />;
+    case 'excel':
+      return <FileSpreadsheet className={className} />;
+    case 'ppt':
+      return <Presentation className={className} />;
+    case 'code':
+      return <Code2 className={className} />;
+    default:
+      return <FileText className={className} />;
+  }
 }
 
 function markdownToSimpleHtml(md: string): string {
@@ -1353,7 +1686,11 @@ export default function TenshiChat() {
     },
   ]);
   const [input, setInput] = useState('');
-  const [attachedMedia, setAttachedMedia] = useState<TenshiAttachedMedia | null>(null);
+  const [attachedMediaList, setAttachedMediaList] = useState<TenshiAttachedMedia[]>([]);
+  const attachedMediaListRef = useRef<TenshiAttachedMedia[]>(attachedMediaList);
+  attachedMediaListRef.current = attachedMediaList;
+  const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
+  const [isDragOverComposer, setIsDragOverComposer] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -1374,7 +1711,38 @@ export default function TenshiChat() {
     });
   }, []);
   // Registro persistente en memoria para evitar que videos o imágenes en blobUrl expiren al sincronizar con el backend
-  const liveMediaBlobsRef = useRef<Map<string, { blobUrl?: string; dataUrl?: string; thumbnailUrl?: string; mimeType?: string; name: string }>>(new Map());
+  const liveMediaBlobsRef = useRef<
+    Map<
+      string,
+      { id?: string; blobUrl?: string; dataUrl?: string; thumbnailUrl?: string; mimeType?: string; name: string }
+    >
+  >(new Map());
+
+  const saveLiveMediaBlob = useCallback(
+    (
+      id: string,
+      entry: { blobUrl?: string; dataUrl?: string; thumbnailUrl?: string; mimeType?: string; name: string },
+    ) => {
+      const taggedEntry = { ...entry, id };
+      liveMediaBlobsRef.current.set(id, taggedEntry);
+      if (entry.name && !liveMediaBlobsRef.current.has(entry.name)) {
+        liveMediaBlobsRef.current.set(entry.name, taggedEntry);
+      }
+    },
+    [],
+  );
+
+  const getLiveMediaBlob = useCallback((att?: { id?: string; name?: string } | null) => {
+    if (!att) return undefined;
+    if (att.id) {
+      const byId = liveMediaBlobsRef.current.get(att.id);
+      if (byId) return byId;
+    }
+    if (att.name) {
+      return liveMediaBlobsRef.current.get(att.name);
+    }
+    return undefined;
+  }, []);
 
   // ─── Tenshi Voice Mode State & Audio Infrastructure ───────────────────────────
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -1594,148 +1962,290 @@ export default function TenshiChat() {
   const elbowInfo = useMemo(() => getElbowStatus(elbowAngle), [elbowAngle]);
   const kneeInfo = useMemo(() => getKneeStatus(kneeAngle), [kneeAngle]);
 
-  const handleFileAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset input value to allow selecting same file again
-    e.target.value = '';
-
-    const mime = file.type || '';
-    let mediaType: 'image' | 'video' | 'audio' | 'document' = 'document';
-    if (mime.startsWith('image/')) mediaType = 'image';
-    else if (mime.startsWith('video/')) mediaType = 'video';
-    else if (mime.startsWith('audio/')) mediaType = 'audio';
-
-    const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB para clips HD/4K de celulares
-    const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
-
-    // 1. Validación de tamaño de archivo
-    if (mediaType === 'video' && file.size > MAX_VIDEO_BYTES) {
-      alert(`El video pesa ${formatBytes(file.size)}, superando el límite máximo de 500 MB.\n\nPor favor graba o sube un clip de hasta 30 segundos.`);
-      return;
-    } else if (mediaType !== 'video' && file.size > MAX_FILE_BYTES) {
-      alert(`El archivo pesa ${formatBytes(file.size)}, superando el límite de 50 MB. Por favor sube un archivo más liviano.`);
-      return;
+  const revokeDraftBlob = useCallback((att: TenshiAttachedMedia) => {
+    if (att.id) {
+      liveMediaBlobsRef.current.delete(att.id);
     }
-
-    // 2. Procesamiento de videos con extracción de fotogramas clave y reproducción local sin desbordar memoria
-    if (mediaType === 'video') {
-      const blobUrl = URL.createObjectURL(file);
-      const tempVideo = document.createElement('video');
-      tempVideo.preload = 'auto';
-      tempVideo.muted = true;
-      tempVideo.playsInline = true;
-      tempVideo.src = blobUrl;
-
-      let frameExtracted = false;
-      const extractThumbnailAndAttach = (durationSec?: number) => {
-        if (frameExtracted) return;
-        const extractFrame = () => {
-          if (frameExtracted) return;
-          frameExtracted = true;
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.min(tempVideo.videoWidth || 640, 640);
-            const scale = canvas.width / (tempVideo.videoWidth || 640);
-            canvas.height = Math.round((tempVideo.videoHeight || 480) * scale);
-            const ctx = canvas.getContext('2d');
-            if (ctx && canvas.width > 0 && canvas.height > 0) {
-              ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-              const thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
-              liveMediaBlobsRef.current.set(file.name, {
-                blobUrl,
-                dataUrl: thumbUrl,
-                thumbnailUrl: thumbUrl,
-                mimeType: mime || 'video/mp4',
-                name: file.name,
-              });
-              setAttachedMedia({
-                name: file.name,
-                type: 'video',
-                mimeType: mime || 'video/mp4',
-                size: file.size,
-                dataUrl: thumbUrl,
-                thumbnailUrl: thumbUrl,
-                previewUrl: blobUrl,
-                duration: durationSec ? Math.round(durationSec) : undefined,
-              });
-              return;
-            }
-          } catch (e) {
-            console.warn('[Tenshi Video] No se pudo capturar canvas snapshot:', e);
-          }
-          liveMediaBlobsRef.current.set(file.name, {
-            blobUrl,
-            dataUrl: '',
-            mimeType: mime || 'video/mp4',
-            name: file.name,
-          });
-          setAttachedMedia({
-            name: file.name,
-            type: 'video',
-            mimeType: mime || 'video/mp4',
-            size: file.size,
-            dataUrl: '',
-            previewUrl: blobUrl,
-            duration: durationSec ? Math.round(durationSec) : undefined,
-          });
-        };
-
-        if (durationSec && durationSec > 1) {
-          tempVideo.currentTime = Math.min(1.5, durationSec / 2);
-          tempVideo.onseeked = () => extractFrame();
-          setTimeout(extractFrame, 600);
-        } else {
-          extractFrame();
-        }
-      };
-
-      tempVideo.onloadedmetadata = () => {
-        const duration = tempVideo.duration;
-        if (duration && duration > 45) {
-          URL.revokeObjectURL(blobUrl);
-          alert(`El video dura ${Math.round(duration)} segundos.\n\nPara análisis de SST y ergonomía, el límite recomendado es de hasta 30 segundos. Por favor graba o recorta un clip más corto.`);
-          return;
-        }
-        extractThumbnailAndAttach(duration);
-      };
-
-      tempVideo.onerror = () => {
-        extractThumbnailAndAttach();
-      };
-      return;
-    }
-
-    // 3. Para imágenes, audios y documentos
-    const blobUrl = URL.createObjectURL(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      liveMediaBlobsRef.current.set(file.name, {
-        blobUrl,
-        dataUrl: result,
-        thumbnailUrl: mediaType === 'image' ? result : undefined,
-        mimeType: mime || 'application/octet-stream',
-        name: file.name,
-      });
-      setAttachedMedia({
-        name: file.name,
-        type: mediaType,
-        mimeType: mime || 'application/octet-stream',
-        size: file.size,
-        dataUrl: result,
-        thumbnailUrl: mediaType === 'image' ? result : undefined,
-        previewUrl: blobUrl,
-      });
-
-      // Si es imagen y la sesión de voz en vivo está activa, enviarla al modelo de voz
-      if (mediaType === 'image' && isVoiceActive && sendEvidenceImageRef.current) {
-        sendEvidenceImageRef.current(result, `El usuario adjuntó la imagen: ${file.name}`);
+    if (att.name) {
+      const byName = liveMediaBlobsRef.current.get(att.name);
+      if (byName && (!att.previewUrl || byName.blobUrl === att.previewUrl)) {
+        liveMediaBlobsRef.current.delete(att.name);
       }
-    };
-    reader.readAsDataURL(file);
+    }
+    if (att.previewUrl && att.previewUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(att.previewUrl);
+      } catch (_) {}
+    }
+  }, []);
+
+  const removeAttachmentById = useCallback(
+    (attId: string) => {
+      setAttachedMediaList((prev) => {
+        const target = prev.find((item, idx) => (item.id || `${item.name}::${idx}`) === attId);
+        if (target) revokeDraftBlob(target);
+        return prev.filter((item, idx) => (item.id || `${item.name}::${idx}`) !== attId);
+      });
+    },
+    [revokeDraftBlob],
+  );
+
+  const clearAllAttachments = useCallback(() => {
+    setAttachedMediaList((prev) => {
+      prev.forEach((item) => revokeDraftBlob(item));
+      return [];
+    });
+    setAttachmentNotice(null);
+  }, [revokeDraftBlob]);
+
+  const processAttachmentFiles = useCallback(
+    async (rawFiles: FileList | File[]) => {
+      const inputList = Array.from(rawFiles || []);
+      if (inputList.length === 0) return;
+
+      const currentQueue = attachedMediaListRef.current || [];
+      const seenKeys = new Set<string>(currentQueue.map((item) => `${item.name}::${item.size}`));
+      const notices: string[] = [];
+      let duplicateCount = 0;
+      let limitExceeded = false;
+
+      const candidates: Array<{
+        file: File;
+        id: string;
+        fileName: string;
+        mediaType: 'image' | 'video' | 'audio' | 'document';
+        mimeType: string;
+      }> = [];
+
+      for (const rawFile of inputList) {
+        if (!rawFile) continue;
+        const { mediaType, mimeType } = detectAttachmentMeta(rawFile);
+        const extFromMime = mimeType.split('/')[1]?.split('+')[0] || 'bin';
+        const fileName =
+          rawFile.name && rawFile.name.trim()
+            ? rawFile.name.trim()
+            : `adjunto_${Date.now()}.${extFromMime}`;
+        const dedupKey = `${fileName}::${rawFile.size}`;
+
+        if (seenKeys.has(dedupKey)) {
+          duplicateCount += 1;
+          continue;
+        }
+
+        if (currentQueue.length + candidates.length >= MAX_ATTACHMENTS_PER_MSG) {
+          limitExceeded = true;
+          continue;
+        }
+
+        if (mediaType === 'video' && rawFile.size > MAX_VIDEO_BYTES) {
+          notices.push(
+            `"${fileName}" (${formatBytes(rawFile.size)}) supera el límite de 500 MB para video`,
+          );
+          continue;
+        }
+
+        if (mediaType !== 'video' && rawFile.size > MAX_FILE_BYTES) {
+          notices.push(`"${fileName}" (${formatBytes(rawFile.size)}) supera el límite de 50 MB`);
+          continue;
+        }
+
+        seenKeys.add(dedupKey);
+        candidates.push({
+          file: rawFile,
+          id: createAttachmentId(),
+          fileName,
+          mediaType,
+          mimeType,
+        });
+      }
+
+      if (duplicateCount > 0) {
+        notices.push(
+          duplicateCount === 1
+            ? 'Se omitió 1 archivo duplicado que ya estaba en cola'
+            : `Se omitieron ${duplicateCount} archivos duplicados ya en cola`,
+        );
+      }
+      if (limitExceeded) {
+        notices.push(`Límite de ${MAX_ATTACHMENTS_PER_MSG} archivos simultáneos por mensaje`);
+      }
+
+      setAttachmentNotice(notices.length > 0 ? notices.join(' • ') : null);
+      if (candidates.length === 0) return;
+
+      const processedResults = await Promise.all(
+        candidates.map(
+          async ({ file, id, fileName, mediaType, mimeType }): Promise<TenshiAttachedMedia | null> => {
+            const blobUrl = URL.createObjectURL(file);
+
+            if (mediaType === 'video') {
+              const preloadMode = file.size <= MAX_VIDEO_INLINE_BYTES ? 'auto' : 'metadata';
+              const [posterInfo, inlineVideoDataUrl] = await Promise.all([
+                extractVideoPosterAndDuration(blobUrl, preloadMode),
+                file.size <= MAX_VIDEO_INLINE_BYTES ? readFileAsDataUrl(file) : Promise.resolve(''),
+              ]);
+
+              const resolvedDataUrl =
+                file.size <= MAX_VIDEO_INLINE_BYTES
+                  ? inlineVideoDataUrl || posterInfo.thumbnailUrl || ''
+                  : posterInfo.thumbnailUrl || '';
+
+              saveLiveMediaBlob(id, {
+                blobUrl,
+                dataUrl: resolvedDataUrl,
+                thumbnailUrl: posterInfo.thumbnailUrl,
+                mimeType,
+                name: fileName,
+              });
+
+              return {
+                id,
+                name: fileName,
+                type: 'video',
+                mimeType,
+                size: file.size,
+                dataUrl: resolvedDataUrl,
+                thumbnailUrl: posterInfo.thumbnailUrl,
+                previewUrl: blobUrl,
+                duration: posterInfo.duration,
+              };
+            }
+
+            const dataUrl = await readFileAsDataUrl(file);
+            const thumb = mediaType === 'image' ? dataUrl || blobUrl : undefined;
+            saveLiveMediaBlob(id, {
+              blobUrl,
+              dataUrl,
+              thumbnailUrl: thumb,
+              mimeType,
+              name: fileName,
+            });
+
+            if (mediaType === 'image' && isVoiceActiveRef.current && sendEvidenceImageRef.current && dataUrl) {
+              sendEvidenceImageRef.current(dataUrl, `El usuario adjuntó la imagen: ${fileName}`);
+            }
+
+            return {
+              id,
+              name: fileName,
+              type: mediaType,
+              mimeType,
+              size: file.size,
+              dataUrl,
+              thumbnailUrl: thumb,
+              previewUrl: blobUrl,
+            };
+          },
+        ),
+      );
+
+      const validItems = processedResults.filter((item): item is TenshiAttachedMedia => Boolean(item));
+      if (validItems.length === 0) return;
+
+      setAttachedMediaList((prev) => {
+        const existingKeys = new Set(prev.map((a) => `${a.name}::${a.size}`));
+        const uniqueIncoming: TenshiAttachedMedia[] = [];
+        for (const item of validItems) {
+          const key = `${item.name}::${item.size}`;
+          if (!existingKeys.has(key) && prev.length + uniqueIncoming.length < MAX_ATTACHMENTS_PER_MSG) {
+            existingKeys.add(key);
+            uniqueIncoming.push(item);
+          } else {
+            revokeDraftBlob(item);
+          }
+        }
+        return [...prev, ...uniqueIncoming];
+      });
+    },
+    [saveLiveMediaBlob, revokeDraftBlob],
+  );
+
+  const handleFileAttachment = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      e.target.value = '';
+      if (files.length === 0) return;
+      void processAttachmentFiles(files);
+    },
+    [processAttachmentFiles],
+  );
+
+  const hasDraggedFiles = (e: React.DragEvent<HTMLElement>) => {
+    const types = e.dataTransfer?.types;
+    if (!types) return false;
+    return types.includes?.('Files') || Array.from(types).includes('Files');
   };
+
+  const handleComposerDragEnter = useCallback((e: React.DragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverComposer(true);
+  }, []);
+
+  const handleComposerDragOver = useCallback((e: React.DragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    setIsDragOverComposer(true);
+  }, []);
+
+  const handleComposerDragLeave = useCallback((e: React.DragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const nextTarget = e.relatedTarget as Node | null;
+    if (!nextTarget || !e.currentTarget.contains(nextTarget)) {
+      setIsDragOverComposer(false);
+    }
+  }, []);
+
+  const handleComposerDrop = useCallback(
+    (e: React.DragEvent<HTMLElement>) => {
+      if (!hasDraggedFiles(e) && (!e.dataTransfer?.files || e.dataTransfer.files.length === 0)) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOverComposer(false);
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        void processAttachmentFiles(files);
+      }
+    },
+    [processAttachmentFiles],
+  );
+
+  const handleComposerPaste = useCallback(
+    (e: React.ClipboardEvent<HTMLElement>) => {
+      const clipboardData = e.clipboardData;
+      if (!clipboardData) return;
+      const pastedFiles: File[] = [];
+      if (clipboardData.files && clipboardData.files.length > 0) {
+        for (let i = 0; i < clipboardData.files.length; i++) {
+          const f = clipboardData.files[i];
+          if (f) pastedFiles.push(f);
+        }
+      } else if (clipboardData.items && clipboardData.items.length > 0) {
+        for (let i = 0; i < clipboardData.items.length; i++) {
+          const item = clipboardData.items[i];
+          if (item && item.kind === 'file') {
+            const f = item.getAsFile();
+            if (f) pastedFiles.push(f);
+          }
+        }
+      }
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        void processAttachmentFiles(pastedFiles);
+      }
+    },
+    [processAttachmentFiles],
+  );
 
   // Monitoreo de chat y agentes para que Tenshi aprenda y responda al usuario
   const pendingAgentConsultationRef = useRef<{
@@ -5392,21 +5902,35 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     if (historyData) {
       if (historyData.length > 0) {
         setMessages((prev) => {
-          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media o image), widgets interactivos (widget) o certificados emitidos (evidenceFiles)
+          const getAttachmentSigNames = (m: any): string => {
+            if (Array.isArray(m?.attachments) && m.attachments.length > 0) {
+              return m.attachments
+                .map((a: any) => String(a?.name || '').trim())
+                .filter(Boolean)
+                .join(',');
+            }
+            return String(m?.media?.name || '').trim();
+          };
+
+          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media, attachments o image), widgets interactivos (widget) o certificados emitidos (evidenceFiles)
           const localExtras = prev.filter(
             (m) =>
               m.file ||
               m.htmlReport ||
               m.media ||
               m.image ||
+              (Array.isArray(m.attachments) && m.attachments.length > 0) ||
               m.widget ||
               (Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0),
           );
 
           // 1. Mapa de archivos locales por contenido o por título
           const localFileMap = new Map<string, any>();
-          // Mapa de medios locales por contenido o por ID para evitar que se pierdan al sincronizar
-          const localMediaMap = new Map<string, { media?: any; image?: string }>();
+          // Mapa de medios locales por contenido, firma de adjuntos o ID para evitar que se pierdan al sincronizar
+          const localMediaMap = new Map<
+            string,
+            { media?: TenshiAttachedMedia; attachments?: TenshiAttachedMedia[]; image?: string }
+          >();
           // Mapa de widgets locales (OpenBot AG-UI / HITL) para evitar que se pierdan al sincronizar
           const localWidgetMap = new Map<string, TenshiWidgetPayload>();
           // Mapa de certificados emitidos (evidenceFiles) para evitar que se pierdan al sincronizar
@@ -5417,9 +5941,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               if (m.content) localFileMap.set(m.content.trim(), m.file);
               if (m.file.title) localFileMap.set(m.file.title.trim(), m.file);
             }
-            if (m.media || m.image) {
-              if (m.content) localMediaMap.set(m.content.trim(), { media: m.media, image: m.image });
-              if (m._id) localMediaMap.set(String(m._id), { media: m.media, image: m.image });
+            const hasAttachments = Array.isArray(m.attachments) && m.attachments.length > 0;
+            if (m.media || m.image || hasAttachments) {
+              const entry = {
+                media: m.media,
+                attachments: hasAttachments ? m.attachments : undefined,
+                image: m.image,
+              };
+              const trimmedContent = (m.content || '').trim();
+              const attSig = getAttachmentSigNames(m);
+              if (trimmedContent) {
+                localMediaMap.set(trimmedContent, entry);
+                if (attSig) {
+                  localMediaMap.set(`${trimmedContent}::${attSig}`, entry);
+                }
+              }
+              if (m._id) localMediaMap.set(String(m._id), entry);
             }
             if (m.widget) {
               if (m.content) localWidgetMap.set(m.content.trim(), m.widget);
@@ -5432,14 +5969,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
           });
 
-          // 2. Enriquecer historyData si algún mensaje del historial carece de file/media pero existía localmente
+          // 2. Enriquecer historyData si algún mensaje del historial carece de file/media/attachments pero existía localmente
           const enrichedHistory = historyData.map((h: any, idx: number) => {
             const item = { ...h };
 
-            // Restaurar media e image preservando URLs locales y Blobs vivos
+            // Restaurar media, attachments e image preservando URLs locales y Blobs vivos
             const textKey = (item.content || '').trim();
-            const cached = localMediaMap.get(textKey) || (item._id ? localMediaMap.get(String(item._id)) : null);
-            const blobObj = item.media?.name ? liveMediaBlobsRef.current.get(item.media.name) : null;
+            const itemAttSig = getAttachmentSigNames(item);
+            const cached =
+              (item._id ? localMediaMap.get(String(item._id)) : undefined) ||
+              (textKey && itemAttSig ? localMediaMap.get(`${textKey}::${itemAttSig}`) : undefined) ||
+              (textKey ? localMediaMap.get(textKey) : undefined) ||
+              null;
+            const blobObj = getLiveMediaBlob(cached?.media || item.media);
 
             const hasMarkdownImageInContent =
               item.role === 'assistant' &&
@@ -5449,24 +5991,55 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
             if (hasMarkdownImageInContent) {
               item.media = undefined;
-            } else if (cached) {
-              if (cached.image && !item.image) item.image = cached.image;
-              if (cached.media) {
+            } else {
+              if (Array.isArray(item.attachments) && item.attachments.length > 0) {
+                item.attachments = item.attachments.map((att: TenshiAttachedMedia, attIdx: number) => {
+                  const cachedAtt =
+                    (att.id ? cached?.attachments?.find((c) => c.id && c.id === att.id) : undefined) ||
+                    (cached?.attachments?.[attIdx]?.name === att.name ? cached.attachments[attIdx] : undefined) ||
+                    cached?.attachments?.find((c) => c.name === att.name && c.size === att.size) ||
+                    cached?.attachments?.find((c) => c.name === att.name);
+                  const attBlob = getLiveMediaBlob(cachedAtt || att);
+                  return {
+                    ...att,
+                    id: att.id || cachedAtt?.id,
+                    previewUrl: cachedAtt?.previewUrl || attBlob?.blobUrl || att.previewUrl,
+                    dataUrl: cachedAtt?.dataUrl || attBlob?.dataUrl || att.dataUrl,
+                    thumbnailUrl: cachedAtt?.thumbnailUrl || attBlob?.thumbnailUrl || att.thumbnailUrl,
+                    duration: att.duration ?? cachedAtt?.duration,
+                  };
+                });
+              } else if (cached?.attachments && cached.attachments.length > 0) {
+                item.attachments = cached.attachments.map((cachedAtt) => {
+                  const attBlob = getLiveMediaBlob(cachedAtt);
+                  return {
+                    ...cachedAtt,
+                    previewUrl: cachedAtt.previewUrl || attBlob?.blobUrl,
+                    dataUrl: cachedAtt.dataUrl || attBlob?.dataUrl,
+                    thumbnailUrl: cachedAtt.thumbnailUrl || attBlob?.thumbnailUrl,
+                  };
+                });
+              }
+
+              if (cached) {
+                if (cached.image && !item.image) item.image = cached.image;
+                if (cached.media) {
+                  item.media = {
+                    ...item.media,
+                    ...cached.media,
+                    previewUrl: cached.media.previewUrl || blobObj?.blobUrl || item.media?.previewUrl,
+                    dataUrl: cached.media.dataUrl || blobObj?.dataUrl || item.media?.dataUrl,
+                    thumbnailUrl: cached.media.thumbnailUrl || blobObj?.thumbnailUrl || item.media?.thumbnailUrl,
+                  };
+                }
+              } else if (blobObj && item.media) {
                 item.media = {
                   ...item.media,
-                  ...cached.media,
-                  previewUrl: cached.media.previewUrl || blobObj?.blobUrl || item.media?.previewUrl,
-                  dataUrl: cached.media.dataUrl || blobObj?.dataUrl || item.media?.dataUrl,
-                  thumbnailUrl: cached.media.thumbnailUrl || blobObj?.thumbnailUrl || item.media?.thumbnailUrl,
+                  previewUrl: blobObj.blobUrl || item.media.previewUrl,
+                  dataUrl: blobObj.dataUrl || item.media.dataUrl,
+                  thumbnailUrl: blobObj.thumbnailUrl || item.media.thumbnailUrl,
                 };
               }
-            } else if (blobObj && item.media) {
-              item.media = {
-                ...item.media,
-                previewUrl: blobObj.blobUrl || item.media.previewUrl,
-                dataUrl: blobObj.dataUrl || item.media.dataUrl,
-                thumbnailUrl: blobObj.thumbnailUrl || item.media.thumbnailUrl,
-              };
             }
 
 
@@ -5521,8 +6094,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 if (evKey) historyEvidenceUrls.add(evKey);
               });
             }
-            const sig = `${(h.content || '').trim()}-${(h.file?.title || h.media?.name || h.widget?.widgetType || '').trim()}`;
+            const mediaSig = getAttachmentSigNames(h);
+            const sig = `${(h.content || '').trim()}-${(h.file?.title || mediaSig || h.widget?.widgetType || '').trim()}`;
             if (sig !== '-') historySignatures.add(sig);
+            const firstAttName =
+              Array.isArray(h.attachments) && h.attachments[0]?.name
+                ? String(h.attachments[0].name).trim()
+                : String(h.media?.name || '').trim();
+            if (firstAttName) {
+              historySignatures.add(`${(h.content || '').trim()}-${firstAttName}`);
+            }
           });
 
           const nowTs = Date.now();
@@ -5572,11 +6153,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             ) {
               return false;
             }
-            if (lf.content && historySignatures.has(lf.content.trim())) {
+            const lfMediaSig = getAttachmentSigNames(lf);
+            const lfFirstAttName =
+              Array.isArray(lf.attachments) && lf.attachments[0]?.name
+                ? String(lf.attachments[0].name).trim()
+                : String(lf.media?.name || '').trim();
+            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || lfMediaSig || lf.widget?.widgetType || '').trim()}`;
+            if (historySignatures.has(sig)) return false;
+            if (lfFirstAttName && historySignatures.has(`${(lf.content || '').trim()}-${lfFirstAttName}`)) {
               return false;
             }
-            const sig = `${(lf.content || '').trim()}-${(lf.file?.title || lf.media?.name || lf.widget?.widgetType || '').trim()}`;
-            return !historySignatures.has(sig);
+            if (!lfMediaSig && !lf.file?.title && !lf.widget?.widgetType && lf.content && historySignatures.has(lf.content.trim())) {
+              return false;
+            }
+            return true;
           });
 
           if (unpersistedExtras.length === 0 && activeLiveVoiceTail.length === 0) {
@@ -5590,7 +6180,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           const nowTs = Date.now();
           const localExtras = prev.filter(
             (m: any) =>
-              ((m.file || m.htmlReport || m.media || m.image) &&
+              ((m.file ||
+                m.htmlReport ||
+                m.media ||
+                m.image ||
+                (Array.isArray(m.attachments) && m.attachments.length > 0)) &&
                 m._localCreatedAt &&
                 nowTs - Number(m._localCreatedAt) <= 8000) ||
               (Array.isArray(m.evidenceFiles) &&
@@ -6143,11 +6737,63 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       // Solo el último mensaje (el actual) conserva su dataUrl para Gemini.
       const sanitizedMessages = cappedMessages.map((m, index) => {
         const isLast = index === cappedMessages.length - 1;
-        if (isLast) return m;
+        if (!isLast) {
+          return {
+            ...m,
+            image: undefined,
+            media: m.media
+              ? { ...m.media, dataUrl: undefined, previewUrl: undefined, thumbnailUrl: undefined }
+              : undefined,
+            attachments: Array.isArray(m.attachments)
+              ? m.attachments.map((att) => ({
+                  ...att,
+                  dataUrl: undefined,
+                  previewUrl: undefined,
+                  thumbnailUrl: undefined,
+                }))
+              : undefined,
+          };
+        }
+
+        if (Array.isArray(m.attachments) && m.attachments.length > 0) {
+          const cleanAttachments = m.attachments.map((att) => ({
+            ...att,
+            previewUrl:
+              att.previewUrl && !att.previewUrl.startsWith('blob:') ? att.previewUrl : undefined,
+            thumbnailUrl:
+              att.thumbnailUrl && att.thumbnailUrl !== att.dataUrl ? att.thumbnailUrl : undefined,
+          }));
+          const baseMedia = m.media || m.attachments[0];
+          return {
+            ...m,
+            image: undefined,
+            media: baseMedia
+              ? {
+                  ...baseMedia,
+                  dataUrl: undefined,
+                  previewUrl: undefined,
+                  thumbnailUrl: undefined,
+                }
+              : undefined,
+            attachments: cleanAttachments,
+          };
+        }
+
         return {
           ...m,
-          image: undefined,
-          media: m.media ? { ...m.media, dataUrl: undefined, previewUrl: undefined } : undefined,
+          media: m.media
+            ? {
+                ...m.media,
+                previewUrl:
+                  m.media.previewUrl && !m.media.previewUrl.startsWith('blob:')
+                    ? m.media.previewUrl
+                    : undefined,
+                thumbnailUrl:
+                  m.media.thumbnailUrl && m.media.thumbnailUrl !== m.media.dataUrl
+                    ? m.media.thumbnailUrl
+                    : undefined,
+              }
+            : undefined,
         };
       });
 
@@ -6598,7 +7244,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
   const handleSend = async (customText?: string) => {
     const textToSend = (typeof customText === 'string' ? customText : input).trim();
-    if ((!textToSend && !attachedMedia) || isTyping) return;
+    const pendingAttachments = [...attachedMediaListRef.current];
+    if ((!textToSend && pendingAttachments.length === 0) || isTyping) return;
 
     // Detectar si el usuario pide inspeccionar o revisar un tema específico para adaptar el protocolo Live
     if (textToSend) {
@@ -6619,26 +7266,492 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
     setGuiSteps([]); // Limpiar logs de automatización anteriores
 
-    const finalContent = textToSend || (
-      attachedMedia?.type === 'image'
-        ? `Analiza esta imagen adjunta: ${attachedMedia.name}`
-        : attachedMedia?.type === 'video'
-        ? `Analiza este video adjunto: ${attachedMedia.name}`
-        : `Revisa este archivo adjunto: ${attachedMedia?.name || 'documento'}`
+    let finalContent = textToSend;
+    if (!finalContent) {
+      if (pendingAttachments.length === 1) {
+        const single = pendingAttachments[0];
+        finalContent =
+          single.type === 'image'
+            ? `Analiza esta imagen adjunta: ${single.name}`
+            : single.type === 'video'
+            ? `Analiza este video adjunto: ${single.name}`
+            : single.type === 'audio'
+            ? `Escucha y analiza este audio adjunto: ${single.name}`
+            : `Revisa este archivo adjunto: ${single.name || 'documento'}`;
+      } else {
+        const previewNames = pendingAttachments
+          .slice(0, 4)
+          .map((a) => a.name)
+          .join(', ');
+        const extraSuffix =
+          pendingAttachments.length > 4 ? ` y ${pendingAttachments.length - 4} más` : '';
+        finalContent = `Analiza estos ${pendingAttachments.length} archivos adjuntos: ${previewNames}${extraSuffix}`;
+      }
+    }
+
+    const firstImage = pendingAttachments.find(
+      (att) => att.type === 'image' && (att.dataUrl || att.publicUrl || att.previewUrl),
     );
+    const firstImageSrc = firstImage?.dataUrl || firstImage?.publicUrl || firstImage?.previewUrl;
 
     const userMsg: TenshiChatMessage = {
       role: 'user',
       content: finalContent,
-      ...(attachedMedia?.type === 'image' && attachedMedia.dataUrl ? { image: attachedMedia.dataUrl } : {}),
-      ...(attachedMedia ? { media: attachedMedia } : {}),
+      _localCreatedAt: Date.now(),
+      ...(firstImageSrc ? { image: firstImageSrc } : {}),
+      ...(pendingAttachments.length > 0
+        ? {
+            media: pendingAttachments[0],
+            attachments: pendingAttachments,
+          }
+        : {}),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
-    setAttachedMedia(null);
+    setAttachedMediaList([]);
+    setAttachmentNotice(null);
 
     await runChatTurn([...messages, userMsg]);
+  };
+
+  const renderDragDropOverlay = () => {
+    if (!isDragOverComposer) return null;
+    return (
+      <div className="pointer-events-none absolute inset-2 z-[60] flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-500/10 p-4 text-center backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 shadow-sm">
+          <Upload className="h-6 w-6" />
+        </div>
+        <p className="text-xs sm:text-sm font-extrabold text-emerald-800 dark:text-emerald-200">
+          Suelta tus archivos aquí
+        </p>
+        <p className="text-[10px] sm:text-xs font-medium text-emerald-700/80 dark:text-emerald-300/80 max-w-[260px]">
+          Imágenes, videos, audios, PDF, Office o texto (hasta {MAX_ATTACHMENTS_PER_MSG} archivos)
+        </p>
+      </div>
+    );
+  };
+
+  const renderPendingAttachmentTray = (inputId: string, compact = false) => {
+    if (attachedMediaList.length === 0 && !attachmentNotice) return null;
+    const totalBytes = attachedMediaList.reduce((acc, item) => acc + (item.size || 0), 0);
+
+    return (
+      <div className="mb-2 flex w-full max-w-full min-w-0 flex-col gap-1.5">
+        {attachmentNotice && (
+          <div className="flex w-full max-w-full min-w-0 items-start justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+            <div className="flex min-w-0 flex-1 items-start gap-1.5">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span className="min-w-0 break-words">{attachmentNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAttachmentNotice(null)}
+              title="Cerrar aviso"
+              className="shrink-0 rounded-lg p-0.5 text-amber-700/70 transition-colors hover:bg-amber-500/20 hover:text-amber-900 dark:text-amber-300 dark:hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {attachedMediaList.length > 0 && (
+          <div className="w-full max-w-full min-w-0 rounded-xl border border-teal-500/30 bg-teal-50/85 p-2 shadow-2xs backdrop-blur-md dark:border-teal-500/30 dark:bg-teal-950/45 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5 border-b border-teal-500/15 pb-1.5 min-w-0">
+              <span className="min-w-0 truncate text-[11px] font-bold text-teal-800 dark:text-teal-200">
+                {attachedMediaList.length} archivo(s) adjunto(s) • {formatBytes(totalBytes)}
+                {attachedMediaList.length >= MAX_ATTACHMENTS_PER_MSG ? ' (máx. 10)' : ''}
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                <ExpandableButton
+                  variant="emerald"
+                  size="sm"
+                  icon={<Plus className="h-3.5 w-3.5" />}
+                  label="Agregar"
+                  title={
+                    attachedMediaList.length >= MAX_ATTACHMENTS_PER_MSG
+                      ? `Máximo ${MAX_ATTACHMENTS_PER_MSG} archivos alcanzado`
+                      : 'Agregar más archivos'
+                  }
+                  disabled={attachedMediaList.length >= MAX_ATTACHMENTS_PER_MSG || isTyping}
+                  onClick={() => document.getElementById(inputId)?.click()}
+                />
+                {attachedMediaList.length >= 2 && (
+                  <ExpandableButton
+                    variant="danger"
+                    size="sm"
+                    icon={<Trash2 className="h-3.5 w-3.5" />}
+                    label="Limpiar todo"
+                    title="Limpiar todos los archivos adjuntos"
+                    disabled={isTyping}
+                    onClick={clearAllAttachments}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                'flex flex-wrap gap-1.5 min-w-0 overflow-y-auto overflow-x-hidden',
+                compact ? 'max-h-32' : 'max-h-40',
+              )}
+            >
+              {attachedMediaList.map((att, idx) => {
+                const attKey = att.id || `${att.name}::${idx}`;
+                const visual = getAttachmentVisualMeta(att);
+                const imgThumb = att.previewUrl || att.thumbnailUrl || att.dataUrl;
+                const videoDur = att.duration ? formatAttachmentDuration(att.duration) : '';
+
+                return (
+                  <div
+                    key={attKey}
+                    className={cn(
+                      'flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-1.5 shadow-2xs dark:border-zinc-700/80 dark:bg-zinc-900/90 min-w-0 max-w-full',
+                      attachedMediaList.length === 1 ? 'w-full' : 'flex-1 basis-[145px]',
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      {att.type === 'image' && imgThumb ? (
+                        <img
+                          src={imgThumb}
+                          alt={att.name}
+                          className="h-9 w-9 shrink-0 rounded-lg border border-emerald-500/30 object-cover shadow-2xs"
+                        />
+                      ) : att.type === 'video' ? (
+                        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-purple-500/30 bg-zinc-900 text-purple-300 shadow-2xs">
+                          {att.thumbnailUrl ? (
+                            <>
+                              <img
+                                src={att.thumbnailUrl}
+                                alt={att.name}
+                                className="h-full w-full object-cover"
+                              />
+                              <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded bg-black/75 text-purple-300">
+                                <Film className="h-2.5 w-2.5" />
+                              </span>
+                            </>
+                          ) : (
+                            <Film className="h-4 w-4" />
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-2xs',
+                            visual.boxClass,
+                          )}
+                        >
+                          {renderAttachmentIcon(visual.iconKind, 'h-4 w-4')}
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
+                          {att.name}
+                        </p>
+                        <div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-zinc-400 min-w-0">
+                          <span
+                            className={cn(
+                              'inline-flex shrink-0 items-center rounded border px-1 py-0 text-[8px] font-extrabold uppercase',
+                              visual.badgeClass,
+                            )}
+                          >
+                            {visual.badge}
+                          </span>
+                          <span className="truncate">{formatBytes(att.size)}</span>
+                          {videoDur && <span className="shrink-0">• {videoDur}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeAttachmentById(attKey)}
+                      title={`Quitar ${att.name}`}
+                      className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-rose-500/10 hover:text-rose-500 dark:hover:bg-rose-500/20"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderMessageMediaAttachments = (msg: TenshiChatMessage) => {
+    const normalizedAttachments: TenshiAttachedMedia[] =
+      Array.isArray(msg.attachments) && msg.attachments.length > 0
+        ? msg.attachments
+        : msg.media
+        ? [msg.media]
+        : msg.image
+        ? [
+            {
+              name: 'Evidencia visual',
+              type: 'image',
+              mimeType: 'image/jpeg',
+              size: 0,
+              dataUrl: msg.image,
+            },
+          ]
+        : [];
+
+    if (normalizedAttachments.length === 0) return null;
+
+    const suppressAssistantImage =
+      msg.role === 'assistant' &&
+      Boolean(msg.content) &&
+      (/!\[[^\]]*\]\([^)]+\)/.test(msg.content) ||
+        /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(msg.content) ||
+        /\/api\/notebooklm\/download\//i.test(msg.content));
+
+    const suppressAssistantVideo =
+      msg.role === 'assistant' &&
+      Boolean(msg.content) &&
+      (/\.mp4(?:$|\?|\))/i.test(msg.content) ||
+        msg.content.includes('/images/flow_vid_') ||
+        msg.content.includes('/api/notebooklm/download/'));
+
+    const imageEntries = suppressAssistantImage
+      ? []
+      : normalizedAttachments
+          .map((att, idx) => {
+            if (att.type !== 'image') return null;
+            const blobEntry = getLiveMediaBlob(att);
+            const src =
+              att.publicUrl ||
+              att.dataUrl ||
+              att.previewUrl ||
+              blobEntry?.blobUrl ||
+              blobEntry?.dataUrl ||
+              (idx === 0 ? msg.image : undefined);
+            if (!src) return null;
+            return { att, src };
+          })
+          .filter((item): item is { att: TenshiAttachedMedia; src: string } => Boolean(item));
+
+    const videoEntries = suppressAssistantVideo
+      ? []
+      : normalizedAttachments.filter((att) => att.type === 'video');
+
+    const otherEntries = normalizedAttachments.filter(
+      (att) => att.type === 'document' || att.type === 'audio',
+    );
+
+    if (imageEntries.length === 0 && videoEntries.length === 0 && otherEntries.length === 0) {
+      return null;
+    }
+
+    const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
+    const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
+
+    return (
+      <div className="mt-2 flex w-full max-w-full min-w-0 flex-col gap-2">
+        {imageEntries.length === 1 &&
+          (() => {
+            const { att, src } = imageEntries[0];
+            const lightboxTitle =
+              (att.name && att.name !== 'Evidencia visual' ? att.name : undefined) ||
+              photoMatch?.[1] ||
+              evidenceMatch?.[1] ||
+              att.name ||
+              'Evidencia fotográfica SST';
+            return (
+              <div className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-black/10 shadow-sm dark:border-zinc-700">
+                <img
+                  src={src}
+                  alt={att.name || 'Evidencia visual'}
+                  className="max-h-60 w-full cursor-zoom-in rounded-t-xl object-cover transition-opacity hover:opacity-95 active:scale-[0.99]"
+                  onClick={() => setLightboxImage({ url: src, title: lightboxTitle })}
+                />
+                <div className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-100 bg-white/85 px-2.5 py-1 text-[10px] text-slate-600 dark:border-zinc-700/60 dark:bg-zinc-900/85 dark:text-zinc-300">
+                  <span className="min-w-0 truncate">{att.name || 'Imagen generada'}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {att.size > 0 && <span>{formatBytes(att.size)}</span>}
+                    {msg.role === 'assistant' && src && (
+                      <a
+                        href={src}
+                        download={att.name || 'imagen-wappy.jpg'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-500/20 dark:text-green-300"
+                      >
+                        ⬇ Descargar Imagen
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+        {imageEntries.length >= 2 && (
+          <div className="grid w-full max-w-sm min-w-0 grid-cols-2 gap-1.5">
+            {imageEntries.map(({ att, src }, imgIdx) => {
+              const lightboxTitle = att.name || `Evidencia visual ${imgIdx + 1}`;
+              return (
+                <div
+                  key={`msg_img_${att.id || att.name}_${imgIdx}`}
+                  className="relative min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-black/10 shadow-xs dark:border-zinc-700"
+                >
+                  <img
+                    src={src}
+                    alt={lightboxTitle}
+                    className="h-28 w-full cursor-zoom-in object-cover transition-opacity hover:opacity-95 active:scale-[0.99] sm:h-32"
+                    onClick={() => setLightboxImage({ url: src, title: lightboxTitle })}
+                  />
+                  <div className="flex min-w-0 items-center justify-between gap-1 border-t border-slate-100 bg-white/85 px-1.5 py-1 text-[9px] text-slate-600 dark:border-zinc-700/60 dark:bg-zinc-900/85 dark:text-zinc-300">
+                    <span className="min-w-0 flex-1 truncate">{att.name || `Imagen ${imgIdx + 1}`}</span>
+                    {att.size > 0 && <span className="shrink-0 opacity-80">{formatBytes(att.size)}</span>}
+                  </div>
+                  {msg.role === 'assistant' && src && (
+                    <a
+                      href={src}
+                      download={att.name || `imagen-${imgIdx + 1}.jpg`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded-lg border border-green-500/40 bg-black/70 p-1 text-green-300 backdrop-blur-xs hover:bg-black/90"
+                      title="Descargar imagen"
+                    >
+                      <Download className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {videoEntries.map((att, vidIdx) => {
+          const blobEntry = getLiveMediaBlob(att);
+          const blobSrc =
+            blobEntry?.blobUrl ||
+            att.previewUrl ||
+            att.publicUrl ||
+            (att.dataUrl && !att.dataUrl.startsWith('data:image/') ? att.dataUrl : undefined);
+          const posterSrc =
+            att.thumbnailUrl ||
+            blobEntry?.thumbnailUrl ||
+            (att.dataUrl?.startsWith('data:image/') ? att.dataUrl : undefined);
+          const videoDur = att.duration ? formatAttachmentDuration(att.duration) : '';
+
+          return (
+            <div
+              key={`msg_vid_${att.id || att.name}_${vidIdx}`}
+              className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-black/10 shadow-sm dark:border-zinc-700"
+            >
+              {blobSrc ? (
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={posterSrc}
+                  className="max-h-60 w-full rounded-t-xl bg-black"
+                >
+                  <source src={blobSrc} type={att.mimeType || 'video/mp4'} />
+                  {att.mimeType !== 'video/mp4' && <source src={blobSrc} />}
+                  Tu navegador no soporta la reproducción directa de este video.
+                </video>
+              ) : posterSrc ? (
+                <div className="relative flex aspect-video w-full items-center justify-center bg-zinc-900">
+                  <img src={posterSrc} alt={att.name} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <span className="rounded-lg bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
+                      📹 Video analizado
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 bg-zinc-900/90 px-3 py-3 text-xs text-zinc-200">
+                  <Film className="h-4 w-4 shrink-0 text-purple-400" />
+                  <span className="truncate">Video analizado</span>
+                </div>
+              )}
+              <div className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-100 bg-white/85 px-2.5 py-1 text-[10px] text-slate-600 dark:border-zinc-700/60 dark:bg-zinc-900/85 dark:text-zinc-300">
+                <span className="min-w-0 truncate">{att.name}</span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {videoDur && <span>{videoDur}</span>}
+                  {videoDur && att.size > 0 && <span>•</span>}
+                  {att.size > 0 && <span>{formatBytes(att.size)}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {otherEntries.map((att, docIdx) => {
+          const visual = getAttachmentVisualMeta(att);
+          const blobEntry = getLiveMediaBlob(att);
+          const downloadHref =
+            att.publicUrl ||
+            (att.dataUrl ? att.dataUrl : undefined) ||
+            blobEntry?.dataUrl ||
+            blobEntry?.blobUrl;
+          const audioSrc =
+            att.publicUrl ||
+            att.dataUrl ||
+            att.previewUrl ||
+            blobEntry?.blobUrl ||
+            blobEntry?.dataUrl;
+
+          return (
+            <div
+              key={`msg_doc_${att.id || att.name}_${docIdx}`}
+              className="flex w-full max-w-sm min-w-0 flex-col gap-2 rounded-xl border border-slate-200/80 bg-white/95 p-2.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-900/90"
+            >
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border',
+                      visual.boxClass,
+                    )}
+                  >
+                    {renderAttachmentIcon(visual.iconKind, 'h-4 w-4')}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                      {att.name}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-zinc-400">
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded border px-1.5 py-0 text-[9px] font-extrabold uppercase tracking-wide',
+                          visual.badgeClass,
+                        )}
+                      >
+                        {visual.badge}
+                      </span>
+                      {att.size > 0 && <span>{formatBytes(att.size)}</span>}
+                    </div>
+                  </div>
+                </div>
+                {downloadHref && (
+                  <a
+                    href={downloadHref}
+                    download={att.name}
+                    target={att.publicUrl ? '_blank' : undefined}
+                    rel={att.publicUrl ? 'noreferrer' : undefined}
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 p-1.5 text-green-700 transition-colors hover:bg-green-500/20 dark:text-green-300"
+                    title="Descargar archivo"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+              {att.type === 'audio' && audioSrc && (
+                <audio controls preload="metadata" src={audioSrc} className="h-9 w-full" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const openHtmlReport = (html: string) => {
@@ -7905,6 +9018,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             {(isDesktopPanoramic || isHeroChatOpen) && (
               <div
                 aria-hidden={!isHeroChatOpen}
+                onDragEnter={handleComposerDragEnter}
+                onDragOver={handleComposerDragOver}
+                onDragLeave={handleComposerDragLeave}
+                onDrop={handleComposerDrop}
+                onPaste={handleComposerPaste}
                 style={
                   isDesktopPanoramic
                     ? {
@@ -7932,6 +9050,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     : 'absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300'
                 )}
               >
+              {renderDragDropOverlay()}
               {/* Cabecera del Panel de Chat */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/80 dark:bg-zinc-900/80 shrink-0">
                 <div className="flex items-center gap-2">
@@ -8411,131 +9530,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         )}
                       >
                         {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
-                        {/* Miniatura / Render de Imagen adjunta (evitando duplicado si el Markdown del asistente ya la incluye) */}
-                        {(msg.image || (msg.media?.type === 'image' && (msg.media.publicUrl || msg.media.dataUrl))) &&
-                          !(
-                            msg.role === 'assistant' &&
-                            msg.content &&
-                            (/!\[[^\]]*\]\([^)]+\)/.test(msg.content) ||
-                              /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(msg.content) ||
-                              /\/api\/notebooklm\/download\//i.test(msg.content))
-                          ) && (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
-                            <img
-                              src={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
-                              alt={msg.media?.name || "Evidencia visual"}
-                              className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-opacity active:scale-[0.99]"
-                              onClick={() => {
-                                const url = msg.image || msg.media?.publicUrl || msg.media?.dataUrl;
-                                if (url) {
-                                  const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
-                                  const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
-                                  const title = msg.media?.name || photoMatch?.[1] || evidenceMatch?.[1] || 'Evidencia fotográfica SST';
-                                  setLightboxImage({ url, title });
-                                }
-                              }}
-                            />
-                            <div className="flex items-center justify-between gap-2 px-2 py-1 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                              <span className="truncate">{msg.media?.name || 'Imagen generada'}</span>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {msg.media?.size && msg.media.size > 0 ? <span>{formatBytes(msg.media.size)}</span> : null}
-                                {msg.role === 'assistant' && (msg.image || msg.media?.publicUrl || msg.media?.dataUrl) && (
-                                  <a
-                                    href={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
-                                    download={msg.media?.name || 'imagen-wappy.jpg'}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-500/20 dark:text-green-300"
-                                  >
-                                    ⬇ Descargar Imagen
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Render de Video adjunto (evitando duplicado si el Markdown del asistente ya lo incluye) */}
-                        {msg.media?.type === 'video' &&
-                          !(
-                            msg.role === 'assistant' &&
-                            msg.content &&
-                            (/\.mp4(?:$|\?|\))/i.test(msg.content) ||
-                              msg.content.includes('/images/flow_vid_') ||
-                              msg.content.includes('/api/notebooklm/download/'))
-                          ) && (
-                          (() => {
-                            const blobSrc = liveMediaBlobsRef.current.get(msg.media.name)?.blobUrl || msg.media.previewUrl || msg.media.dataUrl;
-                            const posterSrc = msg.media.thumbnailUrl || (msg.media.dataUrl?.startsWith('data:image') ? msg.media.dataUrl : undefined);
-                            return (
-                              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10">
-                                {blobSrc ? (
-                                  <video
-                                    controls
-                                    playsInline
-                                    preload="metadata"
-                                    poster={posterSrc}
-                                    className="max-h-60 w-full rounded-xl bg-black"
-                                  >
-                                    <source src={blobSrc} type={msg.media.mimeType || 'video/mp4'} />
-                                    <source src={blobSrc} type="video/quicktime" />
-                                    Tu navegador no soporta la reproducción directa de este video.
-                                  </video>
-                                ) : posterSrc ? (
-                                  <div className="relative aspect-video w-full bg-zinc-900 flex items-center justify-center">
-                                    <img src={posterSrc} alt={msg.media.name} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                      <span className="text-white text-xs font-semibold px-2 py-1 rounded bg-black/60">📹 Video analizado</span>
-                                    </div>
-                                  </div>
-                                ) : null}
-                                <div className="flex items-center justify-between px-2 py-0.5 text-[9px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                                  <span className="truncate">{msg.media.name}</span>
-                                  {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
-                                </div>
-                              </div>
-                            );
-                          })()
-                        )}
-
-                        {/* Render de Documento o Audio adjunto */}
-                        {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
-                          <div className="mt-2 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex flex-col gap-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <FileText className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
-                                <div className="min-w-0 flex-1">
-                                  <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 block">
-                                    {msg.media.name}
-                                  </span>
-                                  {msg.media.size > 0 && (
-                                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                      {formatBytes(msg.media.size)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {msg.media.dataUrl && (
-                                <a
-                                  href={msg.media.dataUrl}
-                                  download={msg.media.name}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 transition-colors"
-                                  title="Descargar archivo"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </a>
-                              )}
-                            </div>
-                            {msg.media.type === 'audio' && (msg.media.dataUrl || msg.media.previewUrl) && (
-                              <audio
-                                controls
-                                preload="metadata"
-                                src={msg.media.dataUrl || msg.media.previewUrl}
-                                className="w-full h-9"
-                              />
-                            )}
-                          </div>
-                        )}
+                        {renderMessageMediaAttachments(msg)}
                         {msg.evidenceFiles &&
                           msg.evidenceFiles.length > 0 &&
                           renderTenshiEvidenceFiles(msg.evidenceFiles)}
@@ -8605,62 +9600,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
               {/* Barra de Entrada Táctil & Voz */}
               <div className="px-3 pt-2 pb-2 border-t border-slate-200/60 dark:border-zinc-800/80 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl shrink-0">
-                {/* Preview Chip cuando hay un medio adjunto en móvil */}
-                {attachedMedia && (
-                  <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-teal-200/80 bg-teal-50/90 p-2 shadow-xs backdrop-blur-md dark:border-teal-900/60 dark:bg-teal-950/60">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {attachedMedia.type === 'image' ? (
-                        <img
-                          src={attachedMedia.dataUrl}
-                          alt={attachedMedia.name}
-                          className="h-9 w-9 shrink-0 rounded-lg object-cover border border-teal-300 dark:border-teal-700 shadow-2xs"
-                        />
-                      ) : attachedMedia.type === 'video' ? (
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
-                          <Film className="h-4 w-4" />
-                        </div>
-                      ) : (
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
-                          <FileText className="h-4 w-4" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
-                          {attachedMedia.name}
-                        </p>
-                        <div className="flex items-center gap-1.5 text-[9px] text-teal-700 dark:text-teal-300">
-                          <span className="font-semibold uppercase">{attachedMedia.type}</span>
-                          <span>•</span>
-                          <span>{formatBytes(attachedMedia.size)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAttachedMedia(null)}
-                      title="Quitar archivo"
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white/80 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                {/* Bandeja multi-archivo y avisos en Hero/Split */}
+                {renderPendingAttachmentTray('tenshi-hero-file-input', false)}
 
                 <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/90 px-2.5 py-1.5 shadow-sm">
                   <input
                     type="file"
                     id="tenshi-hero-file-input"
-                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
+                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
                     className="hidden"
                     onChange={handleFileAttachment}
                   />
                   <button
                     type="button"
                     onClick={() => document.getElementById('tenshi-hero-file-input')?.click()}
-                    title="Adjuntar archivo (Imágenes, Videos, PDF, Office, etc.)"
-                    className="p-1 rounded-lg text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                    className={cn(
+                      'relative shrink-0 p-1 rounded-lg transition-colors',
+                      attachedMediaList.length > 0
+                        ? 'text-teal-600 dark:text-teal-400 bg-teal-500/10'
+                        : 'text-slate-400 hover:text-teal-600 dark:hover:text-teal-400',
+                    )}
                   >
                     <Paperclip className="h-4 w-4" />
+                    {attachedMediaList.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
+                        {attachedMediaList.length}
+                      </span>
+                    )}
                   </button>
 
                   <button
@@ -8733,7 +9702,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   <button
                     type="button"
                     onClick={() => handleSend()}
-                    disabled={isTyping || (!input.trim() && !attachedMedia)}
+                    disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
                     title="Enviar"
                     className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-1.5 text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500 active:scale-95 disabled:opacity-40"
                   >
@@ -8767,6 +9736,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               />
               <div
                 style={isFullscreen ? { zIndex: 2147483644 } : getChatPositionStyle()}
+                onDragEnter={handleComposerDragEnter}
+                onDragOver={handleComposerDragOver}
+                onDragLeave={handleComposerDragLeave}
+                onDrop={handleComposerDrop}
+                onPaste={handleComposerPaste}
                 onClick={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
                 onScroll={(e) => {
@@ -8781,6 +9755,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     : ''
                 )}
               >
+          {renderDragDropOverlay()}
           {/* Cabecera Glassmorphic Minimalista Compacta */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 dark:border-zinc-800/80 dark:bg-zinc-800/60 select-none">
             <div className="flex items-center gap-2">
@@ -9398,133 +10373,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         ) : (
                           <>
                             {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
-                            {/* Miniatura / Render de Imagen adjunta (evitando duplicado si el Markdown del asistente ya la incluye) */}
-                            {(msg.image || (msg.media?.type === 'image' && (msg.media.publicUrl || msg.media.dataUrl))) &&
-                              !(
-                                msg.role === 'assistant' &&
-                                msg.content &&
-                                (/!\[[^\]]*\]\([^)]+\)/.test(msg.content) ||
-                                  /\/images\/(?:flow_|nlm_|sst_|antigravity_)/i.test(msg.content) ||
-                                  /\/api\/notebooklm\/download\//i.test(msg.content))
-                              ) && (
-                              <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5 shadow-sm max-w-sm">
-                                <img
-                                  src={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
-                                  alt={msg.media?.name || "Evidencia visual"}
-                                  className="max-h-60 w-full object-cover rounded-xl cursor-zoom-in hover:opacity-95 transition-all active:scale-[0.99]"
-                                  onClick={() => {
-                                    const url = msg.image || msg.media?.publicUrl || msg.media?.dataUrl;
-                                    if (url) {
-                                      const photoMatch = msg.content?.match(/\[FOTO[^\]]*\]:\s*([^\n]+)/i);
-                                      const evidenceMatch = msg.content?.match(/👁️\s*\*\*([^\*]+)\*\*/i);
-                                      const title = msg.media?.name || photoMatch?.[1] || evidenceMatch?.[1] || 'Evidencia fotográfica SST';
-                                      setLightboxImage({ url, title });
-                                    }
-                                  }}
-                                />
-                                <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                                  <span className="truncate">{msg.media?.name || 'Imagen generada'}</span>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    {msg.media?.size && msg.media.size > 0 ? <span>{formatBytes(msg.media.size)}</span> : null}
-                                    {msg.role === 'assistant' && (msg.image || msg.media?.publicUrl || msg.media?.dataUrl) && (
-                                      <a
-                                        href={msg.image || msg.media?.publicUrl || msg.media?.dataUrl}
-                                        download={msg.media?.name || 'imagen-wappy.jpg'}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-500/20 dark:text-green-300"
-                                      >
-                                        ⬇ Descargar Imagen
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Render de Video adjunto (evitando duplicado si el Markdown del asistente ya lo incluye) */}
-                            {msg.media?.type === 'video' &&
-                              !(
-                                msg.role === 'assistant' &&
-                                msg.content &&
-                                (/\.mp4(?:$|\?|\))/i.test(msg.content) ||
-                                  msg.content.includes('/images/flow_vid_') ||
-                                  msg.content.includes('/api/notebooklm/download/'))
-                              ) && (
-                              (() => {
-                                const blobSrc = liveMediaBlobsRef.current.get(msg.media.name)?.blobUrl || msg.media.previewUrl || msg.media.dataUrl;
-                                const posterSrc = msg.media.thumbnailUrl || (msg.media.dataUrl?.startsWith('data:image') ? msg.media.dataUrl : undefined);
-                                return (
-                                  <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/10 shadow-sm max-w-sm">
-                                    {blobSrc ? (
-                                      <video
-                                        controls
-                                        playsInline
-                                        preload="metadata"
-                                        poster={posterSrc}
-                                        className="max-h-60 w-full rounded-xl bg-black"
-                                      >
-                                        <source src={blobSrc} type={msg.media.mimeType || 'video/mp4'} />
-                                        <source src={blobSrc} type="video/quicktime" />
-                                        Tu navegador no soporta la reproducción directa de este video.
-                                      </video>
-                                    ) : posterSrc ? (
-                                      <div className="relative aspect-video w-full bg-zinc-900 flex items-center justify-center">
-                                        <img src={posterSrc} alt={msg.media.name} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                          <span className="text-white text-xs font-semibold px-2 py-1 rounded bg-black/60">📹 Video analizado</span>
-                                        </div>
-                                      </div>
-                                    ) : null}
-                                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-500 dark:text-zinc-400 bg-white/70 dark:bg-zinc-800/70 border-t border-slate-100 dark:border-zinc-700/60">
-                                      <span className="truncate">{msg.media.name}</span>
-                                      {msg.media.size > 0 && <span>{formatBytes(msg.media.size)}</span>}
-                                    </div>
-                                  </div>
-                                );
-                              })()
-                            )}
-
-                            {/* Render de Documento o Audio adjunto */}
-                            {msg.media && (msg.media.type === 'document' || msg.media.type === 'audio') && (
-                              <div className="mt-2.5 flex flex-col gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 shadow-sm dark:border-zinc-700/80 dark:bg-zinc-800/90 max-w-sm">
-                                <div className="flex items-center justify-between gap-2.5">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-300">
-                                      <FileText className="h-4 w-4" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
-                                        {msg.media.name}
-                                      </p>
-                                      {msg.media.size > 0 && (
-                                        <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                          {formatBytes(msg.media.size)}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {msg.media.dataUrl && (
-                                    <a
-                                      href={msg.media.dataUrl}
-                                      download={msg.media.name}
-                                      className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
-                                      title="Descargar archivo"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                    </a>
-                                  )}
-                                </div>
-                                {msg.media.type === 'audio' && (msg.media.dataUrl || msg.media.previewUrl) && (
-                                  <audio
-                                    controls
-                                    preload="metadata"
-                                    src={msg.media.dataUrl || msg.media.previewUrl}
-                                    className="w-full h-9"
-                                  />
-                                )}
-                              </div>
-                            )}
+                            {renderMessageMediaAttachments(msg)}
                             {msg.delegatedOrderId && msg.delegatedStatus === 'todo' && (
                               <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-50/60 px-3 py-1.5 dark:border-teal-500/20 dark:bg-teal-950/40">
                                 <span className="relative flex h-2 w-2">
@@ -9838,63 +10687,37 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </div>
                 )}
 
-                {/* Preview Chip cuando hay un archivo o medio adjunto en escritorio */}
-                {attachedMedia && (
-                  <div className="mb-2 flex items-center justify-between gap-2.5 rounded-xl border border-teal-200/80 bg-teal-50/90 p-2 shadow-xs backdrop-blur-md dark:border-teal-900/60 dark:bg-teal-950/60 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {attachedMedia.type === 'image' ? (
-                        <img
-                          src={attachedMedia.dataUrl}
-                          alt={attachedMedia.name}
-                          className="h-10 w-10 shrink-0 rounded-lg object-cover border border-teal-300 dark:border-teal-700 shadow-2xs"
-                        />
-                      ) : attachedMedia.type === 'video' ? (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
-                          <Film className="h-5 w-5" />
-                        </div>
-                      ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
-                          {attachedMedia.name}
-                        </p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-teal-700 dark:text-teal-300">
-                          <span className="font-semibold uppercase tracking-wider">{attachedMedia.type}</span>
-                          <span>•</span>
-                          <span>{formatBytes(attachedMedia.size)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAttachedMedia(null)}
-                      title="Eliminar archivo adjunto"
-                      className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white/80 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                {/* Bandeja multi-archivo y avisos en Widget Flotante */}
+                {renderPendingAttachmentTray('tenshi-file-input', true)}
 
                 {/* Input Box */}
                 <div className="group flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
                   <input
                     type="file"
                     id="tenshi-file-input"
-                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,application/*"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
+                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
                     className="hidden"
                     onChange={handleFileAttachment}
                   />
                   <button
                     type="button"
                     onClick={() => document.getElementById('tenshi-file-input')?.click()}
-                    title="Adjuntar archivo (Imágenes, Videos, PDF, Office)"
-                    className="shrink-0 p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                    className={cn(
+                      'relative shrink-0 p-1.5 rounded-xl transition-colors',
+                      attachedMediaList.length > 0
+                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                        : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-700',
+                    )}
                   >
                     <Paperclip className="h-4 w-4" />
+                    {attachedMediaList.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
+                        {attachedMediaList.length}
+                      </span>
+                    )}
                   </button>
 
                   <input
@@ -9909,7 +10732,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
                   <button
                     onClick={() => handleSend()}
-                    disabled={isTyping || (!input.trim() && !attachedMedia)}
+                    disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
                     title="Enviar mensaje"
                     className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-1.5 text-white shadow-sm transition-all hover:from-emerald-500 hover:to-teal-500 active:scale-95 disabled:opacity-40"
                   >

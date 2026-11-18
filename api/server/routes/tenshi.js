@@ -39,6 +39,25 @@ const {
     searchNormativeKnowledgeBase,
 } = require('./voice/tenshiOpenBotEngine');
 
+let cachedWorkflowNodesDocsMod = null;
+function safeGetWorkflowNodesOverviewPromptBlock() {
+    try {
+        if (!cachedWorkflowNodesDocsMod) {
+            try {
+                cachedWorkflowNodesDocsMod = require('~/server/services/workflowNodesDocumentationService');
+            } catch (_) {
+                cachedWorkflowNodesDocsMod = require('../services/workflowNodesDocumentationService');
+            }
+        }
+        if (typeof cachedWorkflowNodesDocsMod?.getWorkflowNodesOverviewPromptBlock === 'function') {
+            return String(cachedWorkflowNodesDocsMod.getWorkflowNodesOverviewPromptBlock() || '').trim();
+        }
+    } catch (_) {
+        // Servicio en carga en frío; nunca lanzar excepción
+    }
+    return '';
+}
+
 function sanitizeSlug(title) {
     if (!title || typeof title !== 'string') return '';
     return title
@@ -359,37 +378,690 @@ router.post('/user-avatar', requireJwtAuth, async (req, res) => {
     }
 });
 
-async function extractTextFromMedia(mediaObj) {
-    if (!mediaObj || !mediaObj.dataUrl) return '';
-    try {
-        const rawMatch = mediaObj.dataUrl.match(/^data:([a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
-        if (!rawMatch) return '';
-        const mimeType = (rawMatch[1] || mediaObj.mimeType || '').toLowerCase();
-        const base64Data = rawMatch[2];
-        const buffer = Buffer.from(base64Data, 'base64');
-        const filename = (mediaObj.name || '').toLowerCase();
+const TENSHI_DB_MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
+const MAX_GEMINI_INLINE_BYTES = 14 * 1024 * 1024;
+const TOTAL_GEMINI_TEXT_CHAR_BUDGET = 60000;
+const MIN_GEMINI_TEXT_CHARS_PER_DOC = 8000;
 
-        // 1. Text formats: plain, csv, markdown, json, xml, code, log, yaml
+const TENSHI_EXTENSION_TO_MIME = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.avif': 'image/avif',
+    '.svg': 'image/svg+xml',
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+    '.avi': 'video/x-msvideo',
+    '.mpeg': 'video/mpeg',
+    '.mpg': 'video/mpeg',
+    '.3gp': 'video/3gpp',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.ogg': 'audio/ogg',
+    '.oga': 'audio/ogg',
+    '.aac': 'audio/aac',
+    '.flac': 'audio/flac',
+    '.opus': 'audio/opus',
+    '.weba': 'audio/webm',
+    '.wma': 'audio/x-ms-wma',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsm': 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    '.xlsb': 'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+    '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.csv': 'text/csv',
+    '.tsv': 'text/tab-separated-values',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.markdown': 'text/markdown',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.rtf': 'application/rtf',
+    '.log': 'text/plain',
+    '.yaml': 'text/yaml',
+    '.yml': 'text/yaml',
+    '.sql': 'application/sql',
+    '.js': 'text/javascript',
+    '.mjs': 'text/javascript',
+    '.cjs': 'text/javascript',
+    '.ts': 'text/plain',
+    '.tsx': 'text/plain',
+    '.jsx': 'text/plain',
+    '.py': 'text/plain',
+    '.sh': 'text/plain',
+    '.css': 'text/css',
+    '.ini': 'text/plain',
+    '.conf': 'text/plain',
+};
+
+function getMediaFileExtension(name) {
+    if (!name || typeof name !== 'string') return '';
+    const clean = name.split('?')[0].split('#')[0].trim().toLowerCase();
+    const dotIdx = clean.lastIndexOf('.');
+    if (dotIdx === -1) return '';
+    return clean.slice(dotIdx);
+}
+
+function parseDataUrlParts(rawUrl) {
+    if (typeof rawUrl !== 'string') return null;
+    const trimmed = rawUrl.trim();
+    if (!trimmed.startsWith('data:')) return null;
+    const b64Match = trimmed.match(/^data:([^;,]+)(?:;[^;,]*)*;base64,([\s\S]+)$/i);
+    if (b64Match) {
+        return {
+            mimeType: b64Match[1].trim().toLowerCase(),
+            isBase64: true,
+            payload: b64Match[2].replace(/\s+/g, ''),
+        };
+    }
+    const plainMatch = trimmed.match(/^data:([^;,]+)(?:;[^;,]*)*,([\s\S]*)$/i);
+    if (plainMatch) {
+        return {
+            mimeType: plainMatch[1].trim().toLowerCase(),
+            isBase64: false,
+            payload: plainMatch[2],
+        };
+    }
+    return null;
+}
+
+function inferMimeAndTypeForMediaItem(rawItem, rawDataUrl) {
+    const rawName = String(rawItem?.name || rawItem?.fileName || rawItem?.originalname || '').trim();
+    const ext = getMediaFileExtension(rawName);
+    const extMime = TENSHI_EXTENSION_TO_MIME[ext] || '';
+    const declaredMime = String(rawItem?.mimeType || rawItem?.mimetype || '').trim().toLowerCase();
+    const parsedHeader = parseDataUrlParts(rawDataUrl);
+    const headerMime = parsedHeader?.mimeType || '';
+    const declaredType = String(rawItem?.type || '').trim().toLowerCase();
+
+    let resolvedMime = '';
+    if (declaredMime && declaredMime !== 'application/octet-stream') {
+        resolvedMime = declaredMime;
+    } else if (extMime) {
+        resolvedMime = extMime;
+    } else if (declaredType === 'video') {
+        resolvedMime = headerMime.startsWith('video/') ? headerMime : 'video/mp4';
+    } else if (declaredType === 'audio') {
+        resolvedMime = headerMime.startsWith('audio/') ? headerMime : 'audio/mpeg';
+    } else if (declaredType === 'pdf') {
+        resolvedMime = 'application/pdf';
+    } else if (headerMime && headerMime !== 'application/octet-stream') {
+        resolvedMime = headerMime;
+    } else if (declaredType === 'image') {
+        resolvedMime = 'image/jpeg';
+    } else if (declaredType === 'document') {
+        resolvedMime = typeof rawItem?.content === 'string' && rawItem.content.trim()
+            ? 'text/plain'
+            : 'application/octet-stream';
+    } else if (rawDataUrl) {
+        resolvedMime = 'image/jpeg';
+    } else {
+        resolvedMime = 'application/octet-stream';
+    }
+
+    // SVG siempre se maneja como documento de texto (Gemini rechaza inlineData image/svg+xml)
+    let resolvedType;
+    if (resolvedMime === 'image/svg+xml' || ext === '.svg') {
+        resolvedMime = 'image/svg+xml';
+        resolvedType = 'document';
+    } else if (resolvedMime.startsWith('image/')) {
+        resolvedType = 'image';
+    } else if (resolvedMime.startsWith('video/')) {
+        resolvedType = 'video';
+    } else if (resolvedMime.startsWith('audio/')) {
+        resolvedType = 'audio';
+    } else if (['image', 'video', 'audio', 'document'].includes(declaredType) && resolvedMime === 'application/octet-stream') {
+        resolvedType = declaredType;
+    } else {
+        resolvedType = 'document';
+    }
+
+    const fallbackName = resolvedMime === 'application/pdf'
+        ? 'documento_adjunto.pdf'
+        : resolvedType === 'video'
+            ? 'video_adjunto.mp4'
+            : resolvedType === 'audio'
+                ? 'audio_adjunto.mp3'
+                : resolvedType === 'document'
+                    ? 'archivo_adjunto'
+                    : 'imagen_adjunta.jpg';
+
+    return {
+        name: rawName || fallbackName,
+        mimeType: resolvedMime,
+        type: resolvedType,
+    };
+}
+
+function getDataSignature(str) {
+    if (typeof str !== 'string' || !str) return '';
+    return `${str.length}:${str.slice(0, 128)}:${str.slice(-64)}`;
+}
+
+function normalizeIncomingMediaList(msgObj, { requirePayload = true } = {}) {
+    if (!msgObj || typeof msgObj !== 'object') return [];
+
+    const rawCandidates = [];
+    if (Array.isArray(msgObj.attachments)) {
+        rawCandidates.push(...msgObj.attachments);
+    }
+    if (Array.isArray(msgObj.mediaList)) {
+        rawCandidates.push(...msgObj.mediaList);
+    }
+    if (Array.isArray(msgObj.files)) {
+        rawCandidates.push(...msgObj.files);
+    }
+    if (msgObj.media && typeof msgObj.media === 'object') {
+        rawCandidates.push(msgObj.media);
+    }
+    if (typeof msgObj.image === 'string' && msgObj.image.trim()) {
+        rawCandidates.push({
+            name: msgObj.media?.name || msgObj.media?.fileName || 'imagen_adjunta.jpg',
+            type: 'image',
+            dataUrl: msgObj.image.trim(),
+        });
+    }
+
+    const normalized = [];
+    const seenById = new Map();
+    const seenByDataSig = new Map();
+    const seenByNameSize = new Map();
+
+    const mergeIntoExisting = (existing, incoming) => {
+        if (!existing.id && incoming.id) existing.id = incoming.id;
+        if (!existing.dataUrl && incoming.dataUrl) existing.dataUrl = incoming.dataUrl;
+        if (!existing.base64 && incoming.base64) existing.base64 = incoming.base64;
+        if (!existing.buffer && incoming.buffer) existing.buffer = incoming.buffer;
+        if (!existing.publicUrl && incoming.publicUrl) existing.publicUrl = incoming.publicUrl;
+        if (!existing.thumbnailUrl && incoming.thumbnailUrl) existing.thumbnailUrl = incoming.thumbnailUrl;
+        if (existing.duration === undefined && incoming.duration !== undefined) existing.duration = incoming.duration;
+        if (!existing.content && incoming.content) existing.content = incoming.content;
+        if ((!existing.size || existing.size <= 0) && incoming.size > 0) existing.size = incoming.size;
+    };
+
+    for (const rawItem of rawCandidates) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+
+        let rawDataUrl = typeof rawItem.dataUrl === 'string' && rawItem.dataUrl.trim() ? rawItem.dataUrl.trim() : undefined;
+        const rawBase64 = typeof rawItem.base64 === 'string' && rawItem.base64.trim() ? rawItem.base64.trim() : undefined;
+        let rawBuffer;
+        if (Buffer.isBuffer(rawItem.buffer) && rawItem.buffer.length > 0) {
+            rawBuffer = rawItem.buffer;
+        } else if (rawItem.buffer instanceof Uint8Array && rawItem.buffer.byteLength > 0) {
+            rawBuffer = Buffer.from(rawItem.buffer);
+        } else if (rawItem.buffer && typeof rawItem.buffer === 'object' && rawItem.buffer.type === 'Buffer' && Array.isArray(rawItem.buffer.data)) {
+            rawBuffer = Buffer.from(rawItem.buffer.data);
+        }
+        const rawPublicUrl = typeof rawItem.publicUrl === 'string' && rawItem.publicUrl.trim() ? rawItem.publicUrl.trim() : undefined;
+        const rawThumbnailUrl = typeof rawItem.thumbnailUrl === 'string' && rawItem.thumbnailUrl.trim() ? rawItem.thumbnailUrl.trim() : undefined;
+        const rawContent = typeof rawItem.content === 'string' && rawItem.content.trim() ? rawItem.content : undefined;
+
+        const hasPayload = Boolean(rawDataUrl || rawBase64 || rawBuffer || rawPublicUrl || rawContent);
+        if (requirePayload && !hasPayload) {
+            continue;
+        }
+
+        const inferred = inferMimeAndTypeForMediaItem(rawItem, rawDataUrl || rawBase64);
+        if (!rawDataUrl && rawBase64) {
+            rawDataUrl = rawBase64.startsWith('data:')
+                ? rawBase64
+                : `data:${inferred.mimeType};base64,${rawBase64.replace(/\s+/g, '')}`;
+        }
+
+        const rawId = rawItem.id !== undefined && rawItem.id !== null ? String(rawItem.id).trim() : '';
+        const parsedSize = Number(rawItem.size);
+        const safeSize = Number.isFinite(parsedSize) && parsedSize >= 0 ? parsedSize : 0;
+        const parsedDuration = Number(rawItem.duration);
+        const safeDuration = rawItem.duration !== '' && rawItem.duration !== null && rawItem.duration !== undefined && Number.isFinite(parsedDuration) && parsedDuration >= 0
+            ? parsedDuration
+            : undefined;
+
+        const candidate = {
+            ...(rawId ? { id: rawId } : {}),
+            name: inferred.name,
+            type: inferred.type,
+            mimeType: inferred.mimeType,
+            size: safeSize,
+            ...(rawDataUrl ? { dataUrl: rawDataUrl } : {}),
+            ...(rawBase64 ? { base64: rawBase64 } : {}),
+            ...(rawBuffer ? { buffer: rawBuffer } : {}),
+            ...(rawPublicUrl ? { publicUrl: rawPublicUrl } : {}),
+            ...(rawThumbnailUrl ? { thumbnailUrl: rawThumbnailUrl } : {}),
+            ...(safeDuration !== undefined ? { duration: safeDuration } : {}),
+            ...(rawContent ? { content: rawContent } : {}),
+        };
+
+        const dataSig = getDataSignature(rawDataUrl || rawBase64 || '');
+        const nameKey = `${inferred.name.toLowerCase()}::${safeSize}`;
+
+        let existingMatch = null;
+        if (rawId && seenById.has(rawId)) {
+            existingMatch = seenById.get(rawId);
+        } else if (dataSig && seenByDataSig.has(dataSig)) {
+            const bySig = seenByDataSig.get(dataSig);
+            if (!bySig.dataUrl || !candidate.dataUrl || bySig.dataUrl === candidate.dataUrl) {
+                existingMatch = bySig;
+            }
+        } else if (seenByNameSize.has(nameKey)) {
+            const byNS = seenByNameSize.get(nameKey);
+            // Si uno de los dos es metadata liviana (sin dataUrl) o comparten mismo contenido, deduplicar
+            if (!byNS.dataUrl || !candidate.dataUrl || byNS.dataUrl === candidate.dataUrl) {
+                existingMatch = byNS;
+            }
+        }
+
+        if (existingMatch) {
+            mergeIntoExisting(existingMatch, candidate);
+            if (existingMatch.id && !seenById.has(existingMatch.id)) {
+                seenById.set(existingMatch.id, existingMatch);
+            }
+            const mergedSig = getDataSignature(existingMatch.dataUrl || existingMatch.base64 || '');
+            if (mergedSig && !seenByDataSig.has(mergedSig)) {
+                seenByDataSig.set(mergedSig, existingMatch);
+            }
+            continue;
+        }
+
+        normalized.push(candidate);
+        if (rawId) seenById.set(rawId, candidate);
+        if (dataSig) seenByDataSig.set(dataSig, candidate);
+        seenByNameSize.set(nameKey, candidate);
+    }
+
+    return normalized;
+}
+
+function normalizeIncomingMediaPayload(msgObj) {
+    const list = normalizeIncomingMediaList(msgObj);
+    return list.length > 0 ? list[0] : undefined;
+}
+
+function buildMediaFieldsForDb(rawList, legacyImage = undefined, maxTotalBytes = TENSHI_DB_MEDIA_BUDGET_BYTES) {
+    const list = Array.isArray(rawList) ? rawList : [];
+    let usedBytes = 0;
+    const attachmentsForDb = [];
+
+    for (const item of list) {
+        if (!item || typeof item !== 'object') continue;
+        const dbItem = {
+            ...(item.id ? { id: String(item.id) } : {}),
+            ...(item.name ? { name: String(item.name) } : {}),
+            ...(item.type ? { type: String(item.type) } : {}),
+            ...(item.mimeType ? { mimeType: String(item.mimeType) } : {}),
+            ...(Number.isFinite(Number(item.size)) && Number(item.size) >= 0 ? { size: Number(item.size) } : {}),
+            ...(item.publicUrl ? { publicUrl: String(item.publicUrl) } : {}),
+            ...(item.duration !== undefined && item.duration !== '' && Number.isFinite(Number(item.duration)) && Number(item.duration) >= 0
+                ? { duration: Number(item.duration) }
+                : {}),
+        };
+
+        if (typeof item.dataUrl === 'string' && item.dataUrl.length > 0) {
+            const dataUrlBytes = Buffer.byteLength(item.dataUrl, 'utf8');
+            if (usedBytes + dataUrlBytes <= maxTotalBytes) {
+                dbItem.dataUrl = item.dataUrl;
+                usedBytes += dataUrlBytes;
+            }
+        }
+
+        if (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl.length > 0) {
+            const thumbBytes = Buffer.byteLength(item.thumbnailUrl, 'utf8');
+            if (usedBytes + thumbBytes <= maxTotalBytes) {
+                dbItem.thumbnailUrl = item.thumbnailUrl;
+                usedBytes += thumbBytes;
+            }
+        }
+
+        if (typeof item.content === 'string' && item.content.length > 0) {
+            const contentBytes = Buffer.byteLength(item.content, 'utf8');
+            if (usedBytes + contentBytes <= maxTotalBytes) {
+                dbItem.content = item.content;
+                usedBytes += contentBytes;
+            }
+        }
+
+        attachmentsForDb.push(dbItem);
+    }
+
+    const mediaForDb = attachmentsForDb.length > 0 ? { ...attachmentsForDb[0] } : undefined;
+    const firstImageItem = attachmentsForDb.find((a) => a.type === 'image' && typeof a.dataUrl === 'string' && a.dataUrl.length > 0);
+    let imageForDb = firstImageItem ? firstImageItem.dataUrl : undefined;
+    if (!imageForDb && attachmentsForDb.length === 0 && typeof legacyImage === 'string' && legacyImage.trim()) {
+        const legacyBytes = Buffer.byteLength(legacyImage, 'utf8');
+        if (legacyBytes <= maxTotalBytes) {
+            imageForDb = legacyImage;
+        }
+    }
+
+    return {
+        attachmentsForDb,
+        mediaForDb,
+        imageForDb,
+        usedBytes,
+    };
+}
+
+function extractRtfText(buffer) {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) return '';
+    const raw = buffer.toString('latin1');
+    const skipDestinations = new Set([
+        'fonttbl', 'colortbl', 'stylesheet', 'info', 'pict', 'object', 'header', 'footer',
+        'headerl', 'headerr', 'headerf', 'footerl', 'footerr', 'footerf', 'footnote',
+        'xe', 'tc', 'rxe', 'bkmkstart', 'bkmkend', 'fldinst', 'xmlopen', 'latentstyles',
+        'datastore', 'themedata', 'colorschememapping', 'listtable', 'listoverridetable',
+        'revtbl', 'rsidtbl', 'pgdsctbl', 'mmathPr',
+    ]);
+    const cp1252Extra = {
+        0x80: '\u20AC', 0x82: '\u201A', 0x83: '\u0192', 0x84: '\u201E', 0x85: '\u2026',
+        0x86: '\u2020', 0x87: '\u2021', 0x88: '\u02C6', 0x89: '\u2030', 0x8A: '\u0160',
+        0x8B: '\u2039', 0x8C: '\u0152', 0x8E: '\u017D', 0x91: '\u2018', 0x92: '\u2019',
+        0x93: '\u201C', 0x94: '\u201D', 0x95: '\u2022', 0x96: '\u2013', 0x97: '\u2014',
+        0x98: '\u02DC', 0x99: '\u2122', 0x9A: '\u0161', 0x9B: '\u203A', 0x9C: '\u0153',
+        0x9E: '\u017E', 0x9F: '\u0178',
+    };
+
+    const stack = [];
+    let skipDepth = -1;
+    let ucCount = 1;
+    let skipChars = 0;
+    const out = [];
+    const len = raw.length;
+
+    for (let i = 0; i < len; i++) {
+        const ch = raw[i];
+        if (ch === '{') {
+            stack.push({ uc: ucCount });
+            // Revisar si inicia destino ignorado: {\*\... o {\fonttbl...
+            let j = i + 1;
+            while (j < len && (raw[j] === ' ' || raw[j] === '\r' || raw[j] === '\n')) j++;
+            if (skipDepth === -1 && raw[j] === '\\') {
+                if (raw[j + 1] === '*') {
+                    skipDepth = stack.length;
+                } else {
+                    let k = j + 1;
+                    while (k < len && /[a-zA-Z]/.test(raw[k])) k++;
+                    const word = raw.slice(j + 1, k);
+                    if (skipDestinations.has(word)) {
+                        skipDepth = stack.length;
+                    }
+                }
+            }
+            continue;
+        }
+        if (ch === '}') {
+            if (skipDepth === stack.length) {
+                skipDepth = -1;
+            }
+            const popped = stack.pop();
+            if (popped) ucCount = popped.uc;
+            continue;
+        }
+        if (skipDepth !== -1) continue;
+        if (ch === '\r' || ch === '\n') continue;
+
+        if (ch === '\\') {
+            i++;
+            if (i >= len) break;
+            const next = raw[i];
+            if (next === '\\' || next === '{' || next === '}') {
+                if (skipChars > 0) skipChars--;
+                else out.push(next);
+                continue;
+            }
+            if (next === '~') {
+                out.push(' ');
+                continue;
+            }
+            if (next === '-' || next === '_') {
+                out.push(next === '_' ? '-' : '');
+                continue;
+            }
+            if (next === "'") {
+                const hex = raw.slice(i + 1, i + 3);
+                if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+                    const byte = parseInt(hex, 16);
+                    i += 2;
+                    if (skipChars > 0) {
+                        skipChars--;
+                    } else {
+                        out.push(cp1252Extra[byte] || String.fromCharCode(byte));
+                    }
+                }
+                continue;
+            }
+            if (next === '\r' || next === '\n') {
+                out.push('\n');
+                continue;
+            }
+            let wordEnd = i;
+            while (wordEnd < len && /[a-zA-Z]/.test(raw[wordEnd])) wordEnd++;
+            const word = raw.slice(i, wordEnd);
+            let paramEnd = wordEnd;
+            if (paramEnd < len && (raw[paramEnd] === '-' || /\d/.test(raw[paramEnd]))) {
+                paramEnd++;
+                while (paramEnd < len && /\d/.test(raw[paramEnd])) paramEnd++;
+            }
+            const paramStr = raw.slice(wordEnd, paramEnd);
+            i = paramEnd;
+            if (i < len && raw[i] === ' ') {
+                // El espacio delimitador pertenece al control word
+            } else {
+                i--;
+            }
+
+            if (word === 'par' || word === 'line') {
+                out.push('\n');
+            } else if (word === 'tab') {
+                out.push('\t');
+            } else if (word === 'emdash') {
+                out.push('—');
+            } else if (word === 'endash') {
+                out.push('–');
+            } else if (word === 'lquote' || word === 'rquote') {
+                out.push("'");
+            } else if (word === 'ldblquote' || word === 'rdblquote') {
+                out.push('"');
+            } else if (word === 'bullet') {
+                out.push('•');
+            } else if (word === 'uc' && paramStr) {
+                ucCount = Math.max(0, parseInt(paramStr, 10) || 0);
+            } else if (word === 'u' && paramStr) {
+                let code = parseInt(paramStr, 10);
+                if (code < 0) code += 65536;
+                if (Number.isFinite(code) && code >= 0) {
+                    out.push(String.fromCharCode(code));
+                }
+                skipChars = ucCount;
+            }
+            continue;
+        }
+
+        if (skipChars > 0) {
+            skipChars--;
+            continue;
+        }
+        out.push(ch);
+    }
+
+    return out
+        .join('')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+async function extractPdfTextFromMediaBuffer(buffer) {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) return '';
+    const pdfLib = require('pdf-parse');
+    const PDFParseClass = pdfLib?.PDFParse || (pdfLib?.default && pdfLib.default.PDFParse);
+    if (typeof PDFParseClass === 'function') {
+        const parser = new PDFParseClass({ data: buffer });
+        try {
+            const pdfData = await parser.getText();
+            return (pdfData && pdfData.text) ? String(pdfData.text).trim() : '';
+        } finally {
+            if (typeof parser.destroy === 'function') {
+                try {
+                    await parser.destroy();
+                } catch (_) {}
+            }
+        }
+    }
+    if (typeof pdfLib === 'function') {
+        const pdfData = await pdfLib(buffer);
+        return (pdfData && pdfData.text) ? String(pdfData.text).trim() : '';
+    }
+    if (pdfLib?.default && typeof pdfLib.default === 'function') {
+        const pdfData = await pdfLib.default(buffer);
+        return (pdfData && pdfData.text) ? String(pdfData.text).trim() : '';
+    }
+    return '';
+}
+
+async function extractSpreadsheetTextFromMediaBuffer(buffer, filename = '', mimeType = '') {
+    const lowerName = String(filename || '').toLowerCase();
+    const lowerMime = String(mimeType || '').toLowerCase();
+    const isClassicOrOds =
+        lowerName.endsWith('.xls') ||
+        lowerName.endsWith('.ods') ||
+        lowerName.endsWith('.xlsb') ||
+        lowerMime === 'application/vnd.ms-excel' ||
+        lowerMime === 'application/vnd.oasis.opendocument.spreadsheet';
+
+    if (!isClassicOrOds) {
+        try {
+            const ExcelJS = require('exceljs');
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(buffer);
+            let excelText = '';
+            workbook.eachSheet((worksheet) => {
+                excelText += `\n--- Hoja: ${worksheet.name} ---\n`;
+                worksheet.eachRow((row, rowNumber) => {
+                    const rowVals = Array.isArray(row.values) ? row.values.slice(1).join(' | ') : '';
+                    if (rowVals.trim()) {
+                        excelText += `Fila ${rowNumber}: ${rowVals}\n`;
+                    }
+                });
+            });
+            if (excelText.trim()) {
+                return excelText;
+            }
+        } catch (err) {
+            console.warn('[Tenshi Media] ExcelJS extraction fallback to xlsx:', err.message);
+        }
+    }
+
+    try {
+        const XLSX = require('xlsx');
+        const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+        let xlsxText = '';
+        for (const sheetName of wb.SheetNames || []) {
+            const ws = wb.Sheets[sheetName];
+            if (!ws) continue;
+            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+            let sheetBody = '';
+            for (let rIdx = 0; rIdx < rows.length; rIdx++) {
+                const row = Array.isArray(rows[rIdx]) ? rows[rIdx] : [];
+                const cells = row.map((c) => (c === null || c === undefined ? '' : String(c).trim()));
+                if (cells.some(Boolean)) {
+                    sheetBody += `Fila ${rIdx + 1}: ${cells.join(' | ')}\n`;
+                }
+            }
+            if (sheetBody.trim()) {
+                xlsxText += `\n--- Hoja: ${sheetName} ---\n${sheetBody}`;
+            }
+        }
+        if (xlsxText.trim()) {
+            return xlsxText;
+        }
+    } catch (xlsxErr) {
+        console.warn('[Tenshi Media] SheetJS (xlsx) extraction error:', xlsxErr.message);
+    }
+    return '';
+}
+
+async function extractTextFromMedia(mediaObj) {
+    if (!mediaObj || typeof mediaObj !== 'object') return '';
+    try {
+        let mimeType = String(mediaObj.mimeType || mediaObj.mimetype || '').trim().toLowerCase();
+        const filename = String(mediaObj.name || mediaObj.fileName || '').trim().toLowerCase();
+        let buffer = null;
+
+        if (Buffer.isBuffer(mediaObj.buffer) && mediaObj.buffer.length > 0) {
+            buffer = mediaObj.buffer;
+        } else if (typeof mediaObj.dataUrl === 'string' && mediaObj.dataUrl.trim()) {
+            const parsed = parseDataUrlParts(mediaObj.dataUrl);
+            if (parsed) {
+                if (parsed.mimeType && parsed.mimeType !== 'application/octet-stream') {
+                    mimeType = mimeType && mimeType !== 'application/octet-stream' ? mimeType : parsed.mimeType;
+                }
+                if (parsed.isBase64) {
+                    buffer = Buffer.from(parsed.payload, 'base64');
+                } else {
+                    let decoded = parsed.payload;
+                    try {
+                        decoded = decodeURIComponent(parsed.payload);
+                    } catch (_) {}
+                    buffer = Buffer.from(decoded, 'utf-8');
+                }
+            }
+        } else if (typeof mediaObj.base64 === 'string' && mediaObj.base64.trim()) {
+            const cleanB64 = mediaObj.base64.trim().replace(/^data:[^,]+,/, '').replace(/\s+/g, '');
+            buffer = Buffer.from(cleanB64, 'base64');
+        }
+
+        if (!mimeType || mimeType === 'application/octet-stream') {
+            const extMime = TENSHI_EXTENSION_TO_MIME[getMediaFileExtension(filename)];
+            if (extMime) mimeType = extMime;
+        }
+
+        if (!buffer || buffer.length === 0) {
+            if (typeof mediaObj.content === 'string' && mediaObj.content.trim()) {
+                return mediaObj.content;
+            }
+            return '';
+        }
+
+        // 1. RTF documents (.rtf) — evaluar antes de text/* para no entregar código RTF crudo
+        if (filename.endsWith('.rtf') || mimeType === 'application/rtf' || mimeType === 'text/rtf') {
+            return extractRtfText(buffer);
+        }
+
+        // 2. Text, code, HTML & SVG formats (.txt, .csv, .md, .json, .xml, .log, .yaml, .yml, .sql, .html, .htm, .svg)
         if (
             mimeType.startsWith('text/') ||
+            mimeType === 'image/svg+xml' ||
             mimeType.includes('csv') ||
             mimeType === 'application/json' ||
+            mimeType === 'application/ld+json' ||
             mimeType === 'application/xml' ||
+            mimeType === 'application/xhtml+xml' ||
             mimeType === 'application/javascript' ||
-            filename.endsWith('.txt') ||
-            filename.endsWith('.csv') ||
-            filename.endsWith('.md') ||
-            filename.endsWith('.json') ||
-            filename.endsWith('.xml') ||
-            filename.endsWith('.log') ||
-            filename.endsWith('.yaml') ||
-            filename.endsWith('.yml') ||
-            filename.endsWith('.sql')
+            mimeType === 'application/x-yaml' ||
+            mimeType === 'application/sql' ||
+            /\.(txt|csv|tsv|md|markdown|json|xml|log|ya?ml|sql|html?|svg|ini|conf|js|mjs|cjs|ts|tsx|jsx|py|sh|css)$/i.test(filename)
         ) {
             return buffer.toString('utf-8');
         }
 
-        // 2. Word documents (.docx)
+        // 3. Word documents (.docx)
         if (filename.endsWith('.docx') || mimeType.includes('wordprocessingml.document')) {
             try {
                 const mammoth = require('mammoth');
@@ -402,38 +1074,22 @@ async function extractTextFromMedia(mediaObj) {
             }
         }
 
-        // 3. Excel spreadsheets (.xlsx, .xls)
-        if (filename.endsWith('.xlsx') || filename.endsWith('.xls') || mimeType.includes('spreadsheetml.sheet')) {
-            try {
-                const ExcelJS = require('exceljs');
-                const workbook = new ExcelJS.Workbook();
-                await workbook.xlsx.load(buffer);
-                let excelText = '';
-                workbook.eachSheet((worksheet) => {
-                    excelText += `\n--- Hoja: ${worksheet.name} ---\n`;
-                    worksheet.eachRow((row, rowNumber) => {
-                        const rowVals = Array.isArray(row.values) ? row.values.slice(1).join(' | ') : '';
-                        if (rowVals.trim()) {
-                            excelText += `Fila ${rowNumber}: ${rowVals}\n`;
-                        }
-                    });
-                });
-                if (excelText.trim()) {
-                    return excelText;
-                }
-            } catch (err) {
-                console.warn('[Tenshi Media] ExcelJS extraction error:', err.message);
-            }
+        // 4. Spreadsheets (.xlsx, .xls, .ods) — ExcelJS + SheetJS fallback
+        if (
+            /\.(xlsx|xls|xlsm|xlsb|ods)$/i.test(filename) ||
+            mimeType.includes('spreadsheetml') ||
+            mimeType === 'application/vnd.ms-excel' ||
+            mimeType === 'application/vnd.oasis.opendocument.spreadsheet'
+        ) {
+            const sheetText = await extractSpreadsheetTextFromMediaBuffer(buffer, filename, mimeType);
+            if (sheetText) return sheetText;
         }
 
-        // 4. PDF documents (.pdf) text fallback
+        // 5. PDF documents (.pdf) text fallback (pdf-parse v2 y v1)
         if (filename.endsWith('.pdf') || mimeType === 'application/pdf') {
             try {
-                const pdfParse = require('pdf-parse');
-                const pdfData = await pdfParse(buffer);
-                if (pdfData && pdfData.text) {
-                    return pdfData.text;
-                }
+                const pdfText = await extractPdfTextFromMediaBuffer(buffer);
+                if (pdfText) return pdfText;
             } catch (err) {
                 console.warn('[Tenshi Media] PDF parse text fallback error:', err.message);
             }
@@ -443,6 +1099,218 @@ async function extractTextFromMedia(mediaObj) {
     }
     return '';
 }
+
+function allocateCharBudgets(lengths, totalBudget = TOTAL_GEMINI_TEXT_CHAR_BUDGET, minFloor = MIN_GEMINI_TEXT_CHARS_PER_DOC) {
+    const n = lengths.length;
+    if (n === 0) return [];
+    const totalNeeded = lengths.reduce((acc, l) => acc + l, 0);
+    if (totalNeeded <= totalBudget) {
+        return [...lengths];
+    }
+    const effectiveFloor = n * minFloor <= totalBudget ? minFloor : Math.floor(totalBudget / n);
+    const alloc = lengths.map((len) => Math.min(len, effectiveFloor));
+    let remaining = totalBudget - alloc.reduce((acc, a) => acc + a, 0);
+
+    // Repartir el remanente de forma proporcional a la demanda insatisfecha (water-filling)
+    for (let pass = 0; pass < 3 && remaining > 0; pass++) {
+        const unmetTotal = lengths.reduce((acc, len, idx) => acc + Math.max(0, len - alloc[idx]), 0);
+        if (unmetTotal <= 0) break;
+        let distributedInPass = 0;
+        for (let idx = 0; idx < n && remaining > 0; idx++) {
+            const unmet = Math.max(0, lengths[idx] - alloc[idx]);
+            if (unmet <= 0) continue;
+            const share = Math.min(unmet, Math.floor((remaining * unmet) / unmetTotal));
+            if (share > 0) {
+                alloc[idx] += share;
+                distributedInPass += share;
+            }
+        }
+        remaining -= distributedInPass;
+        if (distributedInPass === 0) break;
+    }
+
+    // Asignar últimos caracteres por redondeo
+    for (let idx = 0; idx < n && remaining > 0; idx++) {
+        const unmet = Math.max(0, lengths[idx] - alloc[idx]);
+        if (unmet > 0) {
+            const extra = Math.min(unmet, remaining);
+            alloc[idx] += extra;
+            remaining -= extra;
+        }
+    }
+    return alloc;
+}
+
+function buildGeminiUserParts({
+    lastUserMsg = '',
+    attachments = [],
+    extractedTexts = [],
+    maxInlineBytes = MAX_GEMINI_INLINE_BYTES,
+    totalTextBudget = TOTAL_GEMINI_TEXT_CHAR_BUDGET,
+    minTextPerDoc = MIN_GEMINI_TEXT_CHARS_PER_DOC,
+}) {
+    const list = Array.isArray(attachments) ? attachments : [];
+    const userParts = [{ text: lastUserMsg || ' ' }];
+    if (list.length === 0) {
+        return { userParts, inlineBytesUsed: 0, includedInlineCount: 0, omittedInlineCount: 0 };
+    }
+
+    const prepared = list.map((att, idx) => {
+        const rawExtracted = typeof extractedTexts[idx] === 'string' && extractedTexts[idx].trim()
+            ? extractedTexts[idx].trim()
+            : typeof att?.content === 'string' && att.content.trim()
+                ? att.content.trim()
+                : '';
+
+        let inlineMime = '';
+        let inlineBase64 = '';
+        let decodedBytes = 0;
+        let isVideoKeyframe = false;
+
+        const parsedDataUrl = parseDataUrlParts(att?.dataUrl);
+        if (parsedDataUrl && parsedDataUrl.isBase64 && parsedDataUrl.payload) {
+            inlineBase64 = parsedDataUrl.payload;
+            inlineMime = parsedDataUrl.mimeType;
+        } else if (typeof att?.base64 === 'string' && att.base64.trim()) {
+            inlineBase64 = att.base64.trim().replace(/^data:[^,]+,/, '').replace(/\s+/g, '');
+            inlineMime = String(att.mimeType || '').toLowerCase();
+        } else if (Buffer.isBuffer(att?.buffer) && att.buffer.length > 0) {
+            inlineBase64 = att.buffer.toString('base64');
+            inlineMime = String(att.mimeType || '').toLowerCase();
+        } else if (typeof att?.dataUrl === 'string' && att.dataUrl.trim().length > 50 && !att.dataUrl.trim().startsWith('data:') && !att.dataUrl.trim().startsWith('http')) {
+            inlineBase64 = att.dataUrl.trim().replace(/\s+/g, '');
+            inlineMime = String(att.mimeType || 'image/jpeg').toLowerCase();
+        }
+
+        const attMimeLower = String(att?.mimeType || '').toLowerCase();
+        if ((att?.type === 'video' || attMimeLower.startsWith('video/')) && inlineMime.startsWith('image/') && inlineMime !== 'image/svg+xml') {
+            isVideoKeyframe = true;
+        } else if (!inlineMime || inlineMime === 'application/octet-stream') {
+            inlineMime = attMimeLower;
+        }
+
+        const isGeminiNativeBinary = Boolean(
+            inlineBase64 &&
+            inlineMime &&
+            inlineMime !== 'image/svg+xml' &&
+            (
+                inlineMime.startsWith('image/') ||
+                inlineMime.startsWith('video/') ||
+                inlineMime.startsWith('audio/') ||
+                inlineMime === 'application/pdf'
+            )
+        );
+
+        if (isGeminiNativeBinary) {
+            const pad = inlineBase64.endsWith('==') ? 2 : inlineBase64.endsWith('=') ? 1 : 0;
+            decodedBytes = Math.max(0, Math.floor((inlineBase64.length * 3) / 4) - pad);
+        }
+
+        const isPdfWithExtractedText = inlineMime === 'application/pdf' && rawExtracted.length >= 45;
+
+        return {
+            att,
+            idx,
+            extractedText: rawExtracted,
+            inlineMime,
+            inlineBase64,
+            decodedBytes,
+            isVideoKeyframe,
+            isGeminiNativeBinary,
+            isPdfWithExtractedText,
+            includeInline: false,
+            omittedByBudget: false,
+        };
+    });
+
+    // Presupuesto acumulado de inlineData en 2 niveles:
+    // Nivel 1: Archivos visuales/audio/video y PDFs escaneados sin OCR (<45 chars de texto)
+    // Nivel 2: PDFs que ya cuentan con texto extraído
+    let inlineBytesUsed = 0;
+    const tier1 = prepared.filter((p) => p.isGeminiNativeBinary && !p.isPdfWithExtractedText);
+    const tier2 = prepared.filter((p) => p.isGeminiNativeBinary && p.isPdfWithExtractedText);
+
+    for (const item of [...tier1, ...tier2]) {
+        if (item.decodedBytes > 0 && inlineBytesUsed + item.decodedBytes <= maxInlineBytes) {
+            item.includeInline = true;
+            inlineBytesUsed += item.decodedBytes;
+        } else {
+            item.omittedByBudget = true;
+        }
+    }
+
+    // Presupuesto proporcional de texto entre documentos con texto extraído
+    const textEntries = prepared.filter((p) => p.extractedText.length > 0);
+    const charBudgets = allocateCharBudgets(
+        textEntries.map((p) => p.extractedText.length),
+        totalTextBudget,
+        minTextPerDoc
+    );
+    const charLimitByIdx = new Map();
+    textEntries.forEach((p, pos) => {
+        charLimitByIdx.set(p.idx, charBudgets[pos]);
+    });
+
+    let includedInlineCount = 0;
+    let omittedInlineCount = 0;
+    const totalCount = prepared.length;
+
+    for (const item of prepared) {
+        const { att } = item;
+        const displayName = att?.name || `archivo_${item.idx + 1}`;
+        const displayMime = att?.mimeType || item.inlineMime || 'application/octet-stream';
+        const sizeStr = att?.size ? ` | ${Math.round(att.size / 1024)} KB` : '';
+        const videoNote = item.isVideoKeyframe
+            ? ' (Nota: se envía fotograma clave representativo image/jpeg de este video)'
+            : '';
+
+        userParts.push({
+            text: `\n📎 [Archivo adjunto ${item.idx + 1}/${totalCount}: "${displayName}" | ${displayMime}${sizeStr}]${videoNote}`,
+        });
+
+        if (item.includeInline) {
+            userParts.push({
+                inlineData: {
+                    mimeType: item.inlineMime,
+                    data: item.inlineBase64,
+                },
+            });
+            includedInlineCount++;
+        } else if (item.omittedByBudget) {
+            omittedInlineCount++;
+            const sizeMb = (item.decodedBytes / (1024 * 1024)).toFixed(2);
+            const noteText = item.extractedText
+                ? `[Nota: El binario "${displayName}" (${sizeMb} MB) se omitió del inlineData para respetar el presupuesto multimodal de Gemini; se entrega su texto extraído completo a continuación.]`
+                : `[Nota: El binario "${displayName}" (${sizeMb} MB) excedió el presupuesto acumulado de inlineData (${Math.round(maxInlineBytes / (1024 * 1024))} MB) y se omitió para evitar rechazo HTTP 400.]`;
+            userParts.push({ text: noteText });
+        }
+
+        if (item.extractedText) {
+            const limit = charLimitByIdx.get(item.idx) ?? totalTextBudget;
+            const truncated = item.extractedText.length > limit
+                ? item.extractedText.substring(0, limit) + '\n... [Contenido truncado por longitud]'
+                : item.extractedText;
+            userParts.push({
+                text: `\n📄 [CONTENIDO DEL ARCHIVO ADJUNTO "${displayName}"]:\n\`\`\`\n${truncated}\n\`\`\`\n`,
+            });
+        }
+    }
+
+    return {
+        userParts,
+        inlineBytesUsed,
+        includedInlineCount,
+        omittedInlineCount,
+    };
+}
+
+router.extractTextFromMedia = extractTextFromMedia;
+router.normalizeIncomingMediaList = normalizeIncomingMediaList;
+router.normalizeIncomingMediaPayload = normalizeIncomingMediaPayload;
+router.buildMediaFieldsForDb = buildMediaFieldsForDb;
+router.buildGeminiUserParts = buildGeminiUserParts;
+router.MAX_GEMINI_INLINE_BYTES = MAX_GEMINI_INLINE_BYTES;
+router.TENSHI_DB_MEDIA_BUDGET_BYTES = TENSHI_DB_MEDIA_BUDGET_BYTES;
 
 function cleanEvidenceText(val) {
     if (val === null || val === undefined) return '';
@@ -514,7 +1382,7 @@ function mergeSanitizedEvidenceFiles(existingList = [], incomingList = []) {
     return merged;
 }
 
-router.get('/history', requireJwtAuth, async (req, res) => {
+const getTenshiMessagesHistoryHandler = async (req, res) => {
     try {
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const userIds = [req.user.id, targetUserId].filter(Boolean);
@@ -530,6 +1398,7 @@ router.get('/history', requireJwtAuth, async (req, res) => {
             content: m.content,
             image: m.image,
             media: m.media,
+            attachments: Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments : undefined,
             htmlReport: m.htmlReport,
             file: m.file,
             qrCode: m.qrCode,
@@ -543,11 +1412,29 @@ router.get('/history', requireJwtAuth, async (req, res) => {
         console.error('Error fetching Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
-});
+};
+
+router.get('/history', requireJwtAuth, getTenshiMessagesHistoryHandler);
+router.get('/messages', requireJwtAuth, getTenshiMessagesHistoryHandler);
 
 router.post('/message', requireJwtAuth, async (req, res) => {
     try {
-        const { role = 'assistant', content, htmlReport, file, qrCode, widget, image, media, companyId, evidenceFiles, evidencias } = req.body;
+        const {
+            role = 'assistant',
+            content,
+            htmlReport,
+            file,
+            qrCode,
+            widget,
+            image,
+            media,
+            attachments,
+            mediaList,
+            files,
+            companyId,
+            evidenceFiles,
+            evidencias,
+        } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -557,13 +1444,19 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             [],
             Array.isArray(evidenceFiles) ? evidenceFiles : evidencias
         );
+        const normalizedMediaList = normalizeIncomingMediaList(
+            { attachments, mediaList, files, media, image },
+            { requirePayload: false }
+        );
+        const { attachmentsForDb, mediaForDb, imageForDb } = buildMediaFieldsForDb(normalizedMediaList, image);
         const newMsg = await TenshiMessage.create({
             user: req.user.id,
             companyId: activeComp?._id ? String(activeComp._id) : null,
             role,
             content: content.trim(),
-            image,
-            media,
+            image: imageForDb,
+            media: mediaForDb,
+            ...(attachmentsForDb.length > 0 ? { attachments: attachmentsForDb } : {}),
             htmlReport,
             file,
             qrCode,
@@ -1246,65 +2139,36 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
-        const normalizeIncomingMediaPayload = (msgObj) => {
-            if (!msgObj || typeof msgObj !== 'object') return undefined;
-            const rawMedia = msgObj.media && typeof msgObj.media === 'object' ? msgObj.media : null;
-            const rawDataUrl = rawMedia?.dataUrl || (typeof msgObj.image === 'string' && msgObj.image ? msgObj.image : undefined);
-            const rawBase64 = rawMedia?.base64 || undefined;
-            if (!rawDataUrl && !rawBase64 && !Buffer.isBuffer(rawMedia?.buffer)) {
-                return undefined;
-            }
-            let resolvedMime = rawMedia?.mimeType || rawMedia?.mimetype || '';
-            if (!resolvedMime && typeof rawDataUrl === 'string') {
-                const dm = rawDataUrl.match(/^data:([^;,]+);base64,/i);
-                if (dm) resolvedMime = dm[1].trim();
-            }
-            if (!resolvedMime) {
-                resolvedMime = rawMedia?.type === 'pdf' ? 'application/pdf' : 'image/jpeg';
-            }
-            const resolvedType = rawMedia?.type || (resolvedMime === 'application/pdf' ? 'pdf' : resolvedMime.startsWith('image/') ? 'image' : 'file');
-            const fallbackName = resolvedMime === 'application/pdf' ? 'documento_adjunto.pdf' : 'imagen_adjunta.jpg';
-            return {
-                name: rawMedia?.name || rawMedia?.fileName || fallbackName,
-                type: resolvedType,
-                mimeType: resolvedMime,
-                dataUrl: rawDataUrl,
-                ...(rawBase64 ? { base64: rawBase64 } : {}),
-                ...(Buffer.isBuffer(rawMedia?.buffer) ? { buffer: rawMedia.buffer } : {}),
-                size: Number(rawMedia?.size || 0),
-            };
-        };
-
         const lastUserMsgPayload = messages[messages.length - 1];
         const userQuery = lastUserMsgPayload?.content || '';
-        const userImage = lastUserMsgPayload?.image || (lastUserMsgPayload?.media?.type === 'image' ? lastUserMsgPayload.media.dataUrl : undefined);
-        const userMedia = normalizeIncomingMediaPayload(lastUserMsgPayload);
+        const userAttachments = normalizeIncomingMediaList(lastUserMsgPayload);
+        const reqBodyAttachments = userAttachments.length === 0 ? normalizeIncomingMediaList(req.body) : [];
 
-        // Resolver adjunto activo del turno actual o del turno inmediatamente anterior (ej. sube archivo y luego dice "verifícalo")
-        let resolvedAttachedMedia = userMedia || normalizeIncomingMediaPayload(req.body);
-        if (!resolvedAttachedMedia && Array.isArray(messages) && messages.length > 1) {
+        // Resolver adjunto(s) activo(s) del turno actual o del turno inmediatamente anterior (ej. sube archivo y luego dice "verifícalo")
+        let resolvedAttachedMediaList = userAttachments.length > 0 ? userAttachments : reqBodyAttachments;
+        if (resolvedAttachedMediaList.length === 0 && Array.isArray(messages) && messages.length > 1) {
             let userTurnsChecked = 0;
             for (let mIdx = messages.length - 2; mIdx >= 0 && userTurnsChecked < 2; mIdx--) {
                 const prevMsg = messages[mIdx];
                 if (!prevMsg || prevMsg.role !== 'user') continue;
                 userTurnsChecked++;
-                const candidatePrevMedia = normalizeIncomingMediaPayload(prevMsg);
-                if (candidatePrevMedia) {
-                    resolvedAttachedMedia = candidatePrevMedia;
+                const candidatePrevList = normalizeIncomingMediaList(prevMsg);
+                if (candidatePrevList.length > 0) {
+                    resolvedAttachedMediaList = candidatePrevList;
                     break;
                 }
             }
         }
 
-        const userMediaForDb = userMedia ? { ...userMedia } : undefined;
-        // Si el dataUrl excede 4MB, no almacenarlo en base de datos para no saturar MongoDB BSON (límite 16MB)
-        if (userMediaForDb && userMediaForDb.dataUrl && userMediaForDb.dataUrl.length > 4 * 1024 * 1024) {
-            userMediaForDb.dataUrl = undefined;
-        }
-        let userImageForDb = userImage;
-        if (userImageForDb && userImageForDb.length > 4 * 1024 * 1024) {
-            userImageForDb = undefined;
-        }
+        const dbMediaSourceList = normalizeIncomingMediaList(lastUserMsgPayload, { requirePayload: false });
+        const {
+            attachmentsForDb: userAttachmentsForDb,
+            mediaForDb: userMediaForDb,
+            imageForDb: userImageForDb,
+        } = buildMediaFieldsForDb(
+            dbMediaSourceList.length > 0 ? dbMediaSourceList : reqBodyAttachments,
+            lastUserMsgPayload?.image
+        );
 
         const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
         const isLockedSubUser = Boolean(req.user?.isSubUser && req.user?.assignedCompany);
@@ -1323,10 +2187,19 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         }
 
         // Si en el turno inmediatamente anterior el cliente omitió reenviar el dataUrl pero el mensaje sigue reciente en BD (<10 min), recuperarlo con aislamiento multi-empresa
-        if (!resolvedAttachedMedia && Array.isArray(messages) && messages.length > 1) {
+        if (resolvedAttachedMediaList.length === 0 && Array.isArray(messages) && messages.length > 1) {
             const recentPrevUserHadAttachment = messages
                 .slice(-4, -1)
-                .some((m) => m && m.role === 'user' && (m.media?.name || m.hasAttachment));
+                .some((m) => {
+                    if (!m || m.role !== 'user') return false;
+                    return Boolean(
+                        m.hasAttachment ||
+                        m.media?.name ||
+                        (Array.isArray(m.attachments) && m.attachments.length > 0) ||
+                        (Array.isArray(m.mediaList) && m.mediaList.length > 0) ||
+                        (Array.isArray(m.files) && m.files.length > 0)
+                    );
+                });
             if (recentPrevUserHadAttachment) {
                 try {
                     const recentDbMediaMsg = await TenshiMessage.findOne({
@@ -1335,34 +2208,44 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                         role: 'user',
                         createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
                         $or: [
+                            { 'attachments.0': { $exists: true } },
                             { 'media.dataUrl': { $exists: true, $nin: [null, ''] } },
                             { image: { $exists: true, $nin: [null, ''] } },
                         ],
                     })
                         .sort({ createdAt: -1 })
-                        .select('media image')
+                        .select('attachments media image')
                         .lean();
                     if (recentDbMediaMsg) {
-                        resolvedAttachedMedia = normalizeIncomingMediaPayload(recentDbMediaMsg) || undefined;
+                        resolvedAttachedMediaList = normalizeIncomingMediaList(recentDbMediaMsg);
                     }
                 } catch (_) {}
             }
         }
 
-        req.__tenshiAttachedMedia = resolvedAttachedMedia || null;
+        req.__tenshiAttachedMediaList = resolvedAttachedMediaList;
+        const resolvedAttachedMedia =
+            resolvedAttachedMediaList.length > 0
+                ? {
+                      ...resolvedAttachedMediaList[0],
+                      ...(resolvedAttachedMediaList.length > 1 ? { files: resolvedAttachedMediaList } : {}),
+                  }
+                : null;
+        req.__tenshiAttachedMedia = resolvedAttachedMedia;
 
         if (!req.body.conversationId) {
             req.body.conversationId = 'tenshi-' + targetUserId + (companyInfo?._id ? '-' + String(companyInfo._id) : '');
         }
 
-        if (userQuery && !userQuery.startsWith('[RESULTADO_GUI]')) {
+        if ((userQuery || userAttachmentsForDb.length > 0 || userImageForDb) && !String(userQuery).startsWith('[RESULTADO_GUI]')) {
             TenshiMessage.create({
                 user: req.user.id,
                 companyId: companyInfo?._id ? String(companyInfo._id) : null,
                 role: 'user',
-                content: userQuery,
+                content: userQuery || '📎 Archivo adjunto',
                 image: userImageForDb,
                 media: userMediaForDb,
+                ...(userAttachmentsForDb.length > 0 ? { attachments: userAttachmentsForDb } : {}),
             }).catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
@@ -1856,11 +2739,24 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
         }
 
         if (tenshiFlowsBlock) {
-            const attachedHint = req.__tenshiAttachedMedia
-                ? `\n- SOPORTE ADJUNTO EN LA SOLICITUD: El usuario tiene adjunto el archivo "${req.__tenshiAttachedMedia.name}" (${req.__tenshiAttachedMedia.mimeType}); cuando invoques \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, el binario adjunto se transfiere automáticamente al motor del Flujo Tenshi (ej. auditoría forense de incapacidades o soportes).`
+            const attachedListForHint = Array.isArray(req.__tenshiAttachedMediaList) && req.__tenshiAttachedMediaList.length > 0
+                ? req.__tenshiAttachedMediaList
+                : req.__tenshiAttachedMedia
+                    ? [req.__tenshiAttachedMedia]
+                    : [];
+            const attachedHint = attachedListForHint.length > 0
+                ? attachedListForHint.length === 1
+                    ? `\n- SOPORTE ADJUNTO EN LA SOLICITUD: El usuario tiene adjunto el archivo "${attachedListForHint[0].name}" (${attachedListForHint[0].mimeType}); cuando invoques \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, el binario adjunto se transfiere automáticamente al motor del Flujo Tenshi (ej. auditoría forense de incapacidades o soportes).`
+                    : `\n- SOPORTES ADJUNTOS EN LA SOLICITUD (${attachedListForHint.length} archivos): ${attachedListForHint.map((a, idx) => `${idx + 1}) "${a.name}" (${a.mimeType})`).join(', ')}; cuando invoques \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, los adjuntos se transfieren automáticamente al motor del Flujo Tenshi.`
                 : '';
             systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.${attachedHint}\n- ENTREGA DE CERTIFICADOS EN CHAT: Cuando el flujo emita certificados (\`evidencias\`/\`evidenceFiles\`), confírmale explícitamente al usuario que el certificado (o certificados) fue emitido, que ya lo recibió en este chat y que ya puede abrirlo o descargarlo (sin pegar rutas \`/api/...\` crudas); y si en una consulta ARL no aparece en otras ARLs, avísale que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) la solicite o indique para consultarla.`;
         }
+
+        const workflowNodesOverviewBlock = safeGetWorkflowNodesOverviewPromptBlock();
+        systemMessage +=
+            `\n\n${workflowNodesOverviewBlock ? `${workflowNodesOverviewBlock}\n` : ''}` +
+            `### 📘 ENCICLOPEDIA SMARTDOWN OFICIAL DE NODOS DE FLUJO (/tareas):\n` +
+            `- Cuando el usuario pregunte por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), cómo se conecta un nodo en el lienzo, desde dónde se usa, qué casillas extrae o pida ejemplos de uso o diseño de flujos, invoca \`gestor_automatizaciones\` con \`accion: "consultar_documentacion_nodos"\` y \`busqueda_nodo\` para consultar la Enciclopedia SmartDown oficial antes de responder, y recuérdale también que en \`/tareas\` cuenta con el botón **"Guía de Nodos"** justo al lado izquierdo de *"Flujos Preestablecidos"*.`;
 
         if (browserState) {
             systemMessage += `\n\n### 🌐 ESTADO VISUAL DE LA PÁGINA ACTUAL (DEL NAVEGADOR DEL USUARIO)
@@ -1974,6 +2870,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         .substring(0, 1500);
                     const reportTitle = m.file?.title || 'Informe Oficial SG-SST';
                     contentText += `\n[📄 INFORME GENERADO EN ESTE MENSAJE DEL CHAT DE TENSHI: "${reportTitle}" — Extracto: ${cleanReportText}]`;
+                }
+                const pastMediaItems = normalizeIncomingMediaList(m, { requirePayload: false });
+                if (pastMediaItems.length > 0) {
+                    const mediaSummary = pastMediaItems
+                        .map((item) => `"${item.name || 'archivo'}" (${item.mimeType || item.type || 'archivo'})`)
+                        .join(', ');
+                    contentText += `\n[📎 Archivos adjuntos en este turno: ${mediaSummary}]`;
                 }
 
                 history.push({
@@ -2456,11 +3359,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const gestorAutomatizacionesDeclaration = {
                 name: 'gestor_automatizaciones',
-                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS en la sección 'Tareas' (/tareas), y ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea. Pasa exactamente el comando de voz Tenshi o código mencionado (ej: 'Activa el flujo 001' o '001') en automatizacion_id/nombre.",
+                description: "Lista, actualiza/edita, activa, desactiva/pausa, ejecuta, detiene, elimina o crea TAREAS/FLUJOS en la sección 'Tareas' (/tareas), ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'), y consulta la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo). REGLA CRÍTICA: JAMÁS uses accion='crear' sin que el usuario te ordene explícitamente crear/programar una nueva tarea. Pasa exactamente el comando de voz Tenshi o código mencionado (ej: 'Activa el flujo 001' o '001') en automatizacion_id/nombre.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
-                        accion: { type: 'STRING', description: 'ejecutar_tenshi, crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
+                        accion: { type: 'STRING', description: 'ejecutar_tenshi, consultar_documentacion_nodos, crear, listar, actualizar, activar, desactivar, activar_todas, desactivar_todas, eliminar, eliminar_todas, ejecutar_ahora, detener, ver_logs' },
+                        busqueda_nodo: { type: 'STRING', description: 'Nombre, ID técnico, categoría, Hito o palabra clave del nodo o grupo de nodos a consultar en la Enciclopedia SmartDown (ej. "forense incapacidad", "condicion si no", "alturas", "rethus", "disparadores", "todos").' },
                         nombre: { type: 'STRING', description: 'Nombre del flujo o comando de voz Tenshi exacto dicho por el usuario (ej: "Activa el flujo 001").' },
                         nuevo_nombre: { type: 'STRING', description: 'Nuevo nombre si se desea renombrar la tarea.' },
                         agente_objetivo: { type: 'STRING', description: 'Agente que ejecutará la tarea periódica.' },
@@ -3617,7 +4521,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     toolsToAttach.push(decl);
                 }
             }
-            if (tenshiFlowsBlock && !toolsToAttach.some(d => d.name === 'gestor_automatizaciones')) {
+            if (
+                (tenshiFlowsBlock ||
+                    workflowNodesOverviewBlock ||
+                    /\b(nodo|nodos|flujo|flujos|automatizaci|tareas|lienzo|disparador|extractor|rethus|adres|incapacidad|gu[ií]a\s+de\s+nodos)\b/i.test(lastUserLower)) &&
+                !toolsToAttach.some(d => d.name === 'gestor_automatizaciones')
+            ) {
                 toolsToAttach.push(gestorAutomatizacionesDeclaration);
             }
             logger.info(`[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}): ${toolsToAttach.map(t => t.name).join(', ')}`);
@@ -3625,23 +4534,47 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
             let succeeded = false;
-            const mediaObj = lastMsgObj?.media;
-            const mediaDataUrl = lastMsgObj?.image || mediaObj?.dataUrl;
-            let extractedFileText = '';
-            if (mediaObj || mediaDataUrl) {
-                try {
-                    extractedFileText = await extractTextFromMedia(mediaObj || { dataUrl: mediaDataUrl });
-                } catch (errExt) {
-                    logger.warn('[Tenshi Backend] Error extracting text from media:', errExt.message);
-                }
+            const rawLastAttachments = normalizeIncomingMediaList(lastMsgObj);
+            const activeAttachments = rawLastAttachments.length > 0 ? rawLastAttachments : reqBodyAttachments;
+            let extractedTexts = [];
+            if (activeAttachments.length > 0) {
+                extractedTexts = await Promise.all(
+                    activeAttachments.map((att) =>
+                        extractTextFromMedia(att).catch((errExt) => {
+                            logger.warn(`[Tenshi Backend] Error extracting text from "${att?.name || 'media'}":`, errExt.message);
+                            return '';
+                        })
+                    )
+                );
             }
+            const {
+                userParts: baseUserParts,
+                inlineBytesUsed,
+                includedInlineCount,
+                omittedInlineCount,
+            } = buildGeminiUserParts({
+                lastUserMsg,
+                attachments: activeAttachments,
+                extractedTexts,
+            });
+            if (activeAttachments.length > 0) {
+                logger.info(
+                    `[Tenshi Backend] Prepared ${activeAttachments.length} attachment(s) -> inlineData=${includedInlineCount} (${Math.round(inlineBytesUsed / 1024)} KB), omittedByBudget=${omittedInlineCount}, total userParts=${baseUserParts.length}`
+                );
+            }
+
+            let pass503Index = 0;
+            let saw503InPass = false;
+            let sawNon503InPass = false;
+            let keyRotationOffset = 0;
 
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
                 for (let i = 0; i < apiKeys.length; i++) {
-                    const apiKey = apiKeys[i];
+                    const keyIdx = (i + keyRotationOffset) % apiKeys.length;
+                    const apiKey = apiKeys[keyIdx];
                     try {
-                        logger.debug(`[Tenshi] Trying Key ${i + 1}/${apiKeys.length} with model "${currentModel}"`);
+                        logger.debug(`[Tenshi] Trying Key ${keyIdx + 1}/${apiKeys.length} (pass #${pass503Index + 1}) with model "${currentModel}"`);
                         const genAI = new GoogleGenerativeAI(apiKey);
 
                         const geminiModel = genAI.getGenerativeModel({
@@ -3651,43 +4584,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             generationConfig: { temperature: 0.7, maxOutputTokens: 65536 }
                         });
 
-                        const userParts = [{ text: lastUserMsg }];
-
-                        if (mediaDataUrl && typeof mediaDataUrl === 'string') {
-                            const rawMatch = mediaDataUrl.match(/^data:([a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
-                            if (rawMatch) {
-                                const mimeType = rawMatch[1];
-                                const base64Data = rawMatch[2];
-                                if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/') || mimeType === 'application/pdf') {
-                                    userParts.push({
-                                        inlineData: {
-                                            mimeType,
-                                            data: base64Data
-                                        }
-                                    });
-                                    logger.info(`[Tenshi Backend] Injected inlineData (${mimeType}) from ${mediaObj?.name || 'media'} into Gemini user turn`);
-                                }
-                            } else if (mediaDataUrl.length > 50) {
-                                userParts.push({
-                                    inlineData: {
-                                        mimeType: 'image/jpeg',
-                                        data: mediaDataUrl.replace(/^data:[^;]+;base64,/, '')
-                                    }
-                                });
-                                logger.info(`[Tenshi Backend] Injected inlineData raw base64 media into Gemini user turn`);
-                            }
-                        }
-
-                        if (extractedFileText && extractedFileText.trim()) {
-                            const maxLen = 45000;
-                            const truncated = extractedFileText.length > maxLen
-                                ? extractedFileText.substring(0, maxLen) + '\n... [Contenido truncado por longitud]'
-                                : extractedFileText;
-                            userParts.push({
-                                text: `\n\n📄 [CONTENIDO DEL ARCHIVO ADJUNTO "${mediaObj?.name || 'documento'}"]:\n\`\`\`\n${truncated}\n\`\`\`\n`
-                            });
-                            logger.info(`[Tenshi Backend] Injected ${truncated.length} chars of extracted text from ${mediaObj?.name || 'media'} into Gemini prompt`);
-                        }
+                        const userParts = [...baseUserParts];
 
                         logger.info(`[Tenshi Backend] Sending request to Gemini (${currentModel}) with message: "${lastUserMsg}", parts count: ${userParts.length}`);
 
@@ -4618,23 +5515,164 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             continue; // Try next key on same model
                         }
 
-                        // Model fallback: 503 / 404 / overloaded / not found
-                        const is503 = status === 503 || msg.includes('503') || msg.includes('overloaded') || msg.includes('service unavailable');
+                        // Model fallback: 503 / 404 / overloaded / not found / high demand
+                        const is503 =
+                            status === 503 ||
+                            msg.includes('503') ||
+                            msg.includes('overloaded') ||
+                            msg.includes('service unavailable') ||
+                            msg.includes('high demand');
                         const is404 = status === 404 || msg.includes('404') || msg.includes('not found') || msg.includes('is not found for api version');
 
                         if (is503) {
-                            logger.warn(`[Tenshi] Modelo "${currentModel}" recibió 503 (${status || '503'} - ${geminiError.message}). Cambiando de inmediato a modelo fallback...`);
+                            saw503InPass = true;
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" (pasada #${pass503Index + 1}, clave #${keyIdx + 1}) recibió 503 (${status || '503'} - ${geminiError.message}). Esperando 900ms antes de saltar al siguiente modelo...`);
+                            await new Promise((r) => setTimeout(r, 900));
                             break;
                         }
+
+                        sawNon503InPass = true;
 
                         if (is404) {
                             logger.warn(`[Tenshi] Modelo "${currentModel}" no encontrado (${status || '404'} - ${geminiError.message}). Cambiando a modelo fallback...`);
                             break;
                         }
 
-                        logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${i + 1}: ${geminiError.message}. Probando siguiente modelo...`);
+                        logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${keyIdx + 1}: ${geminiError.message}. Probando siguiente modelo...`);
                         break;
                     }
+                }
+
+                if (
+                    !succeeded &&
+                    mi === modelFallbacks.length - 1 &&
+                    pass503Index === 0 &&
+                    saw503InPass &&
+                    !sawNon503InPass
+                ) {
+                    pass503Index = 1;
+                    saw503InPass = false;
+                    sawNon503InPass = false;
+                    keyRotationOffset = apiKeys.length > 1 ? 1 : 0;
+                    logger.warn(
+                        `[Tenshi] Los ${modelFallbacks.length} modelos devolvieron 503 en la 1ra pasada. Esperando 1400ms para 2da pasada de reintento con otra clave del pool (#${keyRotationOffset + 1}/${apiKeys.length})...`
+                    );
+                    await new Promise((r) => setTimeout(r, 1400));
+                    mi = -1;
+                }
+            }
+
+            if (!succeeded && lastError && capturedEvidenceFiles.length === 0) {
+                try {
+                    const tenshiFlowSvc = require('~/server/services/tenshiFlowService');
+                    const getActiveTenshiFlows =
+                        tenshiFlowSvc.getActiveTenshiFlows || tenshiFlowSvc.listActiveTenshiFlows;
+                    const {
+                        matchTenshiFlowByQuery,
+                        executeTenshiFlowInstant,
+                        resolveStrictExecutionContext,
+                    } = tenshiFlowSvc;
+                    const lastUserMessageText = String(lastMsgObj?.content || userQuery || '').trim();
+                    const attachedForRescue = req.__tenshiAttachedMedia || resolvedAttachedMedia || null;
+                    const attachedNamesForRescue = Array.isArray(req.__tenshiAttachedMediaList) && req.__tenshiAttachedMediaList.length > 0
+                        ? req.__tenshiAttachedMediaList.map((a) => a?.name || '').filter(Boolean).join(' ')
+                        : attachedForRescue?.name || '';
+
+                    if (
+                        typeof getActiveTenshiFlows === 'function' &&
+                        typeof executeTenshiFlowInstant === 'function' &&
+                        (lastUserMessageText || attachedForRescue)
+                    ) {
+                        const activeTenshiFlows = await getActiveTenshiFlows();
+                        if (Array.isArray(activeTenshiFlows) && activeTenshiFlows.length > 0) {
+                            let matchedFlow = null;
+                            if (lastUserMessageText && typeof matchTenshiFlowByQuery === 'function') {
+                                const matchRes = await matchTenshiFlowByQuery(lastUserMessageText, activeTenshiFlows);
+                                matchedFlow = matchRes?.flow || (matchRes?._id ? matchRes : null);
+                            }
+                            if (
+                                !matchedFlow &&
+                                attachedForRescue &&
+                                /\b(incapacidad|forense|audita|auditor[ií]a|verifica|verificar|revisa|revisar|autenticidad|falso|adulterad|certificado|soporte|m[eé]dic[oa]|eps)\b/i.test(
+                                    `${lastUserMessageText} ${attachedNamesForRescue}`
+                                )
+                            ) {
+                                matchedFlow =
+                                    activeTenshiFlows.find(
+                                        (f) =>
+                                            f?.key === 'tenshi_flow_auditoria_forense_incapacidad' ||
+                                            f?.presetKey === 'tenshi_flow_auditoria_forense_incapacidad' ||
+                                            f?.systemPresetKey === 'tenshi_flow_auditoria_forense_incapacidad' ||
+                                            /forense|incapacidad/i.test(String(f?.name || ''))
+                                    ) || null;
+                            }
+
+                            if (matchedFlow && matchedFlow._id) {
+                                logger.warn(
+                                    `[Tenshi 503 Rescue] Ráfaga 503 detectada (${lastError?.message}). Ejecutando rescate determinista directo con Flujo Tenshi "${matchedFlow.name}"...`
+                                );
+                                const strictCtx =
+                                    typeof resolveStrictExecutionContext === 'function'
+                                        ? await resolveStrictExecutionContext({ reqUser: req.user, reqObj: req })
+                                        : {
+                                              callerUserId: String(req.user?.id || req.user?._id || targetUserId),
+                                              tenantOwnerUserId: String(targetUserId),
+                                              companyId: companyInfo?._id ? String(companyInfo._id) : req.companyId,
+                                              companyName: companyInfo?.companyName || '',
+                                              companyDoc: companyInfo || null,
+                                          };
+
+                                if (strictCtx && strictCtx.companyId && !strictCtx.error) {
+                                    const rescueOut = await executeTenshiFlowInstant({
+                                        flow: matchedFlow,
+                                        context: strictCtx,
+                                        userId: String(targetUserId),
+                                        companyId: String(strictCtx.companyId),
+                                        automationId: matchedFlow._id,
+                                        userInstruction: lastUserMessageText || matchedFlow.name,
+                                        attachedMedia: attachedForRescue,
+                                        waitTimeoutMs: 60000,
+                                        triggerSource: 'tenshi_503_rescue',
+                                    });
+
+                                    const rescueEvidences = Array.isArray(rescueOut?.evidenceFiles)
+                                        ? rescueOut.evidenceFiles
+                                        : Array.isArray(rescueOut?.evidencias)
+                                          ? rescueOut.evidencias
+                                          : [];
+                                    if (rescueEvidences.length > 0) {
+                                        capturedEvidenceFiles = mergeSanitizedEvidenceFiles(
+                                            capturedEvidenceFiles,
+                                            rescueEvidences
+                                        );
+                                    }
+
+                                    const cleanRescueText = String(
+                                        rescueOut?.resultText || rescueOut?.summary || ''
+                                    )
+                                        .replace(/\[([^\]]+)\]\((?:https?:\/\/[^)\s]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^)\s]+\)/gi, '$1')
+                                        .replace(/(?:https?:\/\/[^\s)]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^\s)]+/gi, '')
+                                        .replace(/\n{3,}/g, '\n\n')
+                                        .trim();
+
+                                    if (cleanRescueText || capturedEvidenceFiles.length > 0) {
+                                        responseText =
+                                            cleanRescueText ||
+                                            (capturedEvidenceFiles.length === 1
+                                                ? '✅ El certificado oficial fue emitido y ya lo recibiste aquí mismo en tu chat de Tenshi; ya puedes abrirlo o descargarlo.'
+                                                : `✅ Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí mismo en tu chat de Tenshi; ya puedes abrirlos o descargarlos.`);
+                                        succeeded = true;
+                                        lastError = null;
+                                        logger.info(
+                                            `[Tenshi 503 Rescue] Rescate determinista completado para "${matchedFlow.name}" (evidencias=${capturedEvidenceFiles.length}).`
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (rescueErr) {
+                    logger.warn(`[Tenshi 503 Rescue] Falló rescate determinista de Flujo Tenshi: ${rescueErr?.message || rescueErr}`);
                 }
             }
 

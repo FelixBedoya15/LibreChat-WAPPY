@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+const tenshiMediaItemSchema = new mongoose.Schema(
+    {
+        id: { type: String },
+        name: { type: String },
+        type: { type: String },
+        mimeType: { type: String },
+        size: { type: Number },
+        dataUrl: { type: String },
+        publicUrl: { type: String },
+        thumbnailUrl: { type: String },
+        duration: { type: Number },
+        content: { type: String },
+    },
+    { _id: false }
+);
+
 const tenshiEvidenceFileSchema = new mongoose.Schema(
     {
         title: { type: String, default: '' },
@@ -48,12 +64,12 @@ const tenshiMessageSchema = mongoose.Schema(
             type: String,
         },
         media: {
-            name: { type: String },
-            type: { type: String },
-            mimeType: { type: String },
-            size: { type: Number },
-            dataUrl: { type: String },
-            content: { type: String },
+            type: tenshiMediaItemSchema,
+            default: undefined,
+        },
+        attachments: {
+            type: [tenshiMediaItemSchema],
+            default: undefined,
         },
         file: {
             title: { type: String },
