@@ -18,6 +18,8 @@ try {
 const RETHUS_PUBLIC_URL =
   'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx';
 
+const MINSALUD_REPS_SOCRATA_URL = 'https://www.datos.gov.co/resource/c36g-9fc2.json';
+
 // Modelos vigentes permitidos en WAPPY (.env GOOGLE_MODELS / AGENTS.md §5)
 const ALLOWED_FORENSIC_GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
@@ -1084,9 +1086,12 @@ function extractFieldsFromTextDeterministic(rawText = '') {
     /(?:(?:n[uú]mero\s+de\s+)?(?:documento|identificaci[oó]n|c[eé]dula)(?:\s+del\s+(?:paciente|afiliado|cotizante|trabajador|usuario))?|\b(?:CC|C\.C\.|CE|TI|PPT|PEP)\s*(?:No\.?|N[°º])?)\s*[:.#-]?\s*(\d{5,15})\b/i,
   );
 
-  const medicoNombre = pick(/(?:m[eé]dico(?:\s+tratante)?|profesional(?:\s+tratante|\s+de\s+la\s+salud)?|atendido\s+por|expedido\s+por)\s*[:.-]\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s.'-]{5,85}?)(?=\r|\n|\s+(?:registro|rm\b|t\.?p\.?|especialidad|cc\b|documento)|$)/i);
+  const medicoNombre = pick(/(?:m[eé]dico(?:\s+tratante)?|profesional(?:\s+tratante|\s+de\s+la\s+salud)?|atendido\s+por|expedido\s+por)\s*[:.-]\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s.'-]{5,85}?)(?=\r|\n|\s+(?:registro|rm\b|t\.?p\.?|especialidad|cc\b|c\.c\.|documento)|$)/i);
   const registroMedico = pick(/(?:registro\s+m[eé]dico|r\.?\s*m\.?|tarjeta\s+profesional)\s*(?:No\.?|N[°º])?\s*[:.-]?\s*([A-Za-z0-9-]{3,25})/i);
-  const medicoDocumento = pick(/(?:documento\s+(?:del\s+)?(?:m[eé]dico|profesional)|identificaci[oó]n\s+(?:del\s+)?(?:m[eé]dico|profesional))\s*[:.-]?\s*(\d{5,15})/i);
+  const medicoDocumento =
+    pick(/(?:(?:documento|identificaci[oó]n|c[eé]dula|c\.?c\.?)\s+(?:del\s+)?(?:m[eé]dico|profesional))\s*[:.#-]?\s*([\d.]{5,16})/i) ||
+    pick(/(?:m[eé]dico(?:\s+tratante)?|profesional(?:\s+tratante|\s+de\s+la\s+salud)?|atendido\s+por)[^\r\n]{3,90}?\b(?:CC|C\.C\.|CE)\s*(?:No\.?|N[°º])?\s*[:.#-]?\s*([\d.]{6,15})/i);
+  const cleanMedicoDocumento = medicoDocumento ? medicoDocumento.replace(/\D/g, '') : null;
   const medicoEspecialidad = pick(/(?:especialidad)\s*[:.-]\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]{4,60}?)(?=\r|\n|$)/i);
 
   const entidadEmisora = pick(/\b((?:EPS|IPS|CLINICA|CLÍNICA|HOSPITAL|NUEVA\s+EPS|SANITAS|SALUD\s+TOTAL|COMPENSAR|FAMISANAR|COOSALUD|MUTUAL\s+SER|SURA|SURAMERICANA)[A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s.&-]{0,65}?)(?=\r|\n|\s+NIT\b|$)/i);
@@ -1117,8 +1122,8 @@ function extractFieldsFromTextDeterministic(rawText = '') {
     diasLetras,
     modalidadPrestacion,
     medicoNombre,
-    medicoTipoDoc: medicoDocumento ? 'CC' : null,
-    medicoDocumento: medicoDocumento || registroMedico || null,
+    medicoTipoDoc: cleanMedicoDocumento ? 'CC' : null,
+    medicoDocumento: cleanMedicoDocumento || registroMedico || null,
     registroMedico,
     medicoEspecialidad,
   };
@@ -1474,6 +1479,369 @@ async function crossCheckCompanyWorker({ companyId = '', pacienteDocumento = '',
   }
 }
 
+const DOCTOR_NAME_STOPWORDS = new Set([
+  'DR', 'DRA', 'DOCTOR', 'DOCTORA', 'MEDICO', 'MEDICA', 'MD', 'ESP', 'ESPECIALISTA',
+  'ODONTOLOGO', 'ODONTOLOGA', 'PROFESIONAL', 'TRATANTE', 'DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y',
+]);
+
+function extractCleanDoctorCedula(extractedFields = {}) {
+  const patientDigits = String(extractedFields?.pacienteDocumento || '').replace(/\D/g, '');
+  const candidates = [extractedFields?.medicoDocumento, extractedFields?.registroMedico];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const str = String(raw)
+      .replace(/^(?:cc|c\.c\.|ce|ti|no\.?|n[°º]|rm|r\.m\.|tp|t\.p\.)[\s:.-]*/i, '')
+      .trim();
+    if (/[a-zA-Z]{2,}/.test(str)) continue;
+    const digits = str.replace(/\D/g, '');
+    if (/^\d{6,12}$/.test(digits) && (!patientDigits || digits !== patientDigits)) {
+      return digits;
+    }
+  }
+  return null;
+}
+
+function extractCleanIpsNitBase(extractedFields = {}, nitCheck = null) {
+  if (nitCheck?.nitBase && /^\d{6,12}$/.test(String(nitCheck.nitBase))) {
+    return String(nitCheck.nitBase);
+  }
+  const rawNit = String(extractedFields?.nitEmisor || '')
+    .replace(/^(?:nit|n\.i\.t\.?)[\s:.-]*/i, '')
+    .trim();
+  if (!rawNit) return null;
+  const basePart = rawNit.split(/[-–]/)[0] || '';
+  const digits = basePart.replace(/\D/g, '');
+  return /^\d{6,12}$/.test(digits) ? digits : null;
+}
+
+function normalizePersonNameTokens(rawName = '') {
+  return String(rawName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-ZÑ\s]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && !DOCTOR_NAME_STOPWORDS.has(t));
+}
+
+function compareDoctorCivilIdentityTokens(printedName = '', officialHolderName = '') {
+  const titularClean = String(officialHolderName || '').replace(/\s+/g, ' ').trim();
+  const medicoClean = String(printedName || '').replace(/\s+/g, ' ').trim();
+  const titularTokens = normalizePersonNameTokens(titularClean);
+  const printedTokens = normalizePersonNameTokens(medicoClean);
+
+  if (titularTokens.length === 0) {
+    return {
+      evaluated: false,
+      identidadMedicoConfirmada: null,
+      matchRatio: null,
+      matchedTokens: [],
+    };
+  }
+  if (printedTokens.length === 0) {
+    return {
+      evaluated: false,
+      identidadMedicoConfirmada: null,
+      matchRatio: null,
+      matchedTokens: [],
+    };
+  }
+
+  const matchedTokens = printedTokens.filter((pt) =>
+    titularTokens.some(
+      (tt) =>
+        tt === pt ||
+        (pt.length >= 4 && tt.startsWith(pt)) ||
+        (tt.length >= 4 && pt.startsWith(tt)),
+    ),
+  );
+  const matchRatio = Number((matchedTokens.length / printedTokens.length).toFixed(2));
+  const confirmed = matchRatio >= 0.5;
+
+  return {
+    evaluated: true,
+    identidadMedicoConfirmada: confirmed,
+    matchRatio,
+    matchedTokens,
+    printedTokens,
+    titularTokens,
+  };
+}
+
+async function queryMinSaludRepsSocrata(
+  numeroIdentificacion = '',
+  { timeoutMs = 5500, fetchImpl = global.fetch } = {},
+) {
+  const cleanId = String(numeroIdentificacion || '').replace(/\D/g, '').trim();
+  if (!/^\d{6,12}$/.test(cleanId) || typeof fetchImpl !== 'function') {
+    return { ok: false, checked: false, identificacion: cleanId || null, sedes: [] };
+  }
+
+  let timer = null;
+  try {
+    const url = `${MINSALUD_REPS_SOCRATA_URL}?numeroidentificacion=${encodeURIComponent(cleanId)}&$limit=5`;
+    const fetchPromise = fetchImpl(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'WappySGSST-ForensicVerifier/1.0',
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Timeout REPS Socrata (${timeoutMs}ms)`)), timeoutMs);
+      if (typeof timer.unref === 'function') timer.unref();
+    });
+
+    const rows = await Promise.race([fetchPromise, timeoutPromise]);
+    if (!Array.isArray(rows)) {
+      return { ok: false, checked: false, identificacion: cleanId, sedes: [] };
+    }
+
+    const sedes = rows.map((row) => ({
+      nombreprestador: row?.nombreprestador || row?.nombresede || null,
+      nombresede: row?.nombresede || null,
+      codigohabilitacionsede: row?.codigohabilitacionsede || row?.codigoprestador || null,
+      codigoprestador: row?.codigoprestador || null,
+      claseprestador: row?.claseprestador || null,
+      municipiosededesc: row?.municipiosededesc || row?.municipioprestadordesc || null,
+      departamentodededesc: row?.departamentodededesc || row?.departamentoprestadordesc || null,
+      tipoid: row?.tipoid || null,
+      numeroidentificacion: row?.numeroidentificacion || cleanId,
+      fechaCorteReps: row?.fecha_corte_reps || null,
+    }));
+
+    return {
+      ok: true,
+      checked: true,
+      identificacion: cleanId,
+      habilitadoEnReps: sedes.length > 0,
+      sedes,
+    };
+  } catch (err) {
+    logger.warn(`[ForensicDocumentService] Aviso consultando REPS MinSalud Socrata (${cleanId}): ${err.message}`);
+    return {
+      ok: false,
+      checked: false,
+      identificacion: cleanId,
+      habilitadoEnReps: null,
+      sedes: [],
+      error: err.message,
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function resolveContraloriaLookupFunction(overrideFn = null) {
+  if (typeof overrideFn === 'function') return overrideFn;
+  try {
+    const mod = require('~/server/services/osintWorkerService');
+    if (typeof mod?.consultarContraloriaFiscalPorCedula === 'function') {
+      return mod.consultarContraloriaFiscalPorCedula;
+    }
+  } catch (_) {}
+  try {
+    const localMod = require('./osintWorkerService');
+    if (typeof localMod?.consultarContraloriaFiscalPorCedula === 'function') {
+      return localMod.consultarContraloriaFiscalPorCedula;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * Capa 4 — Verificación Institucional Automática SIN CAPTCHA:
+ *   a) API Abierta Socrata de MinSalud REPS (https://www.datos.gov.co/resource/c36g-9fc2.json, timeout 5500ms)
+ *      para NIT de IPS/Clínica y Cédula del médico (Profesional Independiente).
+ *   b) Identidad Civil Oficial del Médico en Contraloría General (consultarContraloriaFiscalPorCedula, timeout 9000ms)
+ *      comparando tokens normalizados de `titular` vs `medicoNombre`.
+ */
+async function verifyOfficialRegistriesWithoutCaptcha({
+  extractedFields = {},
+  nitCheck = null,
+  repsFetchOverride = null,
+  contraloriaLookupOverride = null,
+} = {}) {
+  const ipsNit = extractCleanIpsNitBase(extractedFields, nitCheck);
+  const medicoCedula = extractCleanDoctorCedula(extractedFields);
+  const medicoNombre = String(extractedFields?.medicoNombre || '').trim() || null;
+  const medicoTipoDoc = String(extractedFields?.medicoTipoDoc || 'CC').trim().toUpperCase() || 'CC';
+  const fetchImpl = typeof repsFetchOverride === 'function' ? repsFetchOverride : global.fetch;
+  const contraloriaFn = resolveContraloriaLookupFunction(contraloriaLookupOverride);
+
+  const runContraloriaSafe = async () => {
+    if (!medicoCedula || typeof contraloriaFn !== 'function') {
+      return { ok: false, checked: false, titular: null };
+    }
+    let timer = null;
+    try {
+      const lookupPromise = Promise.resolve(
+        contraloriaFn({
+          tipoDoc: medicoTipoDoc,
+          cedula: medicoCedula,
+          includeEvidence: false,
+          includePdf: false,
+        }),
+      );
+      const timeoutPromise = new Promise((resolve) => {
+        timer = setTimeout(
+          () => resolve({ ok: false, checked: false, titular: null, error: 'Timeout Contraloría (9000ms)' }),
+          9000,
+        );
+        if (typeof timer.unref === 'function') timer.unref();
+      });
+      return await Promise.race([lookupPromise, timeoutPromise]);
+    } catch (err) {
+      return { ok: false, checked: false, titular: null, error: err.message };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  const [repsIpsRes, repsMedicoRes, contraloriaRaw] = await Promise.all([
+    ipsNit ? queryMinSaludRepsSocrata(ipsNit, { timeoutMs: 5500, fetchImpl }) : Promise.resolve(null),
+    medicoCedula && medicoCedula !== ipsNit
+      ? queryMinSaludRepsSocrata(medicoCedula, { timeoutMs: 5500, fetchImpl })
+      : Promise.resolve(null),
+    runContraloriaSafe(),
+  ]);
+
+  let registryRiskPoints = 0;
+  const registryFlags = [];
+  const summaryLines = [];
+
+  // Evaluación REPS IPS
+  let ipsHabilitadaEnReps = null;
+  let ipsRepsDetail = 'No se extrajo NIT numérico de IPS/prestador para consultar REPS MinSalud.';
+  if (ipsNit && repsIpsRes) {
+    if (repsIpsRes.ok && repsIpsRes.sedes.length > 0) {
+      ipsHabilitadaEnReps = true;
+      const top = repsIpsRes.sedes[0];
+      const ubicacion = [top.municipiosededesc, top.departamentodededesc].filter(Boolean).join(', ');
+      ipsRepsDetail =
+        `✅ HABILITADA EN REPS MINSALUD: "${top.nombreprestador || 'Prestador habilitado'}" ` +
+        `(NIT base: ${ipsNit} · Cód. Habilitación Sede: ${top.codigohabilitacionsede || 'N/A'} · ` +
+        `Clase: ${top.claseprestador || 'IPS'}${ubicacion ? ` · Ubicación: ${ubicacion}` : ''})`;
+      summaryLines.push(ipsRepsDetail);
+    } else if (repsIpsRes.ok && repsIpsRes.sedes.length === 0) {
+      ipsHabilitadaEnReps = false;
+      const entidadStr = String(extractedFields?.entidadEmisora || '');
+      const isAdministrativeEps = /\beps\b/i.test(entidadStr) && !/\b(?:ips|cl[ií]nica|hospital|consultorio)\b/i.test(entidadStr);
+      if (isAdministrativeEps) {
+        ipsRepsDetail =
+          `ℹ️ El NIT base ${ipsNit} ("${entidadStr}") no figura como sede IPS en REPS MinSalud (las EPS aseguradoras registran NIT administrativo EAPB distinto al de la IPS prestadora).`;
+      } else {
+        ipsRepsDetail =
+          `⚠️ Alerta REPS MinSalud: el NIT impreso (${ipsNit}${entidadStr ? ` · "${entidadStr}"` : ''}) NO figura inscrito como Prestador de Servicios de Salud habilitado en la API oficial REPS de MinSalud.`;
+        registryRiskPoints += 18;
+        registryFlags.push({
+          severity: 'MEDIUM',
+          code: 'IPS_NIT_NOT_IN_REPS',
+          detail: ipsRepsDetail,
+        });
+      }
+      summaryLines.push(ipsRepsDetail);
+    } else {
+      ipsRepsDetail = `ℹ️ Consulta REPS MinSalud temporalmente no disponible para NIT ${ipsNit}.`;
+      summaryLines.push(ipsRepsDetail);
+    }
+  }
+
+  // Evaluación REPS Médico Independiente
+  let medicoHabilitadoIndependienteReps = null;
+  let medicoRepsDetail = null;
+  if (medicoCedula && repsMedicoRes?.ok) {
+    if (repsMedicoRes.sedes.length > 0) {
+      medicoHabilitadoIndependienteReps = true;
+      const mTop = repsMedicoRes.sedes[0];
+      const mUbic = [mTop.municipiosededesc, mTop.departamentodededesc].filter(Boolean).join(', ');
+      medicoRepsDetail =
+        `✅ Profesional también inscrito en REPS MinSalud como "${mTop.claseprestador || 'Profesional Independiente'}": ` +
+        `${mTop.nombreprestador} (Cód. Habilitación: ${mTop.codigohabilitacionsede || 'N/A'}${mUbic ? ` · ${mUbic}` : ''}).`;
+      summaryLines.push(medicoRepsDetail);
+    } else {
+      medicoHabilitadoIndependienteReps = false;
+      medicoRepsDetail =
+        `ℹ️ La C.C. ${medicoCedula} no registra consultorio propio como Profesional Independiente en REPS (habitual cuando el médico atiende adscrito a una IPS/Clínica).`;
+    }
+  }
+
+  // Evaluación Identidad Civil en Contraloría General
+  let identidadMedicoConfirmada = null;
+  let contraloriaTitular = contraloriaRaw?.titular ? String(contraloriaRaw.titular).trim() : null;
+  let doctorIdentityDetail = medicoCedula
+    ? `ℹ️ No fue posible contrastar titularidad nominal en Contraloría para la C.C. ${medicoCedula} en este intento.`
+    : 'No se extrajo número de cédula del médico tratante (6-12 dígitos) en el certificado.';
+  let identityComparison = null;
+
+  if (medicoCedula && contraloriaTitular) {
+    identityComparison = compareDoctorCivilIdentityTokens(medicoNombre || '', contraloriaTitular);
+    if (identityComparison.evaluated) {
+      if (identityComparison.identidadMedicoConfirmada) {
+        identidadMedicoConfirmada = true;
+        doctorIdentityDetail = `✅ Identidad civil confirmada: la C.C. ${medicoCedula} corresponde legalmente a ${contraloriaTitular}`;
+        summaryLines.push(doctorIdentityDetail);
+      } else {
+        identidadMedicoConfirmada = false;
+        doctorIdentityDetail = `🚨 Discrepancia de identidad médica: la C.C. ${medicoCedula} pertenece legalmente a ${contraloriaTitular}, NO a ${medicoNombre}`;
+        registryRiskPoints += 45;
+        registryFlags.push({
+          severity: 'HIGH',
+          code: 'DOCTOR_CIVIL_IDENTITY_MISMATCH',
+          detail: doctorIdentityDetail,
+        });
+        summaryLines.push(doctorIdentityDetail);
+      }
+    } else {
+      doctorIdentityDetail = `ℹ️ Titular legal identificado en Contraloría para C.C. ${medicoCedula}: ${contraloriaTitular} (el soporte no traía nombre legible del médico para comparar tokens).`;
+      summaryLines.push(doctorIdentityDetail);
+    }
+  }
+
+  return {
+    checked: Boolean(ipsNit || medicoCedula),
+    zeroCaptchaUsed: true,
+    ipsNit,
+    medicoCedula,
+    medicoNombreImpreso: medicoNombre,
+    repsIps: {
+      checked: Boolean(repsIpsRes?.ok),
+      ipsNit,
+      habilitadaEnReps: ipsHabilitadaEnReps,
+      sedes: repsIpsRes?.sedes || [],
+      detail: ipsRepsDetail,
+      sourceUrl: MINSALUD_REPS_SOCRATA_URL,
+    },
+    repsMedicoIndependiente: {
+      checked: Boolean(repsMedicoRes?.ok),
+      medicoCedula,
+      habilitadoIndependiente: medicoHabilitadoIndependienteReps,
+      sedes: repsMedicoRes?.sedes || [],
+      detail: medicoRepsDetail,
+      sourceUrl: MINSALUD_REPS_SOCRATA_URL,
+    },
+    contraloriaDoctorIdentity: {
+      checked: Boolean(contraloriaRaw?.ok || contraloriaTitular),
+      medicoCedula,
+      titularRegistradoEstado: contraloriaTitular,
+      identidadMedicoConfirmada,
+      matchRatio: identityComparison?.matchRatio ?? null,
+      sinResponsabilidadFiscal: contraloriaRaw?.sinResponsabilidadFiscal ?? null,
+      reportadoFiscal: contraloriaRaw?.reportadoFiscal ?? null,
+      detail: doctorIdentityDetail,
+    },
+    identidadMedicoConfirmada,
+    registryRiskPoints,
+    registryFlags,
+    summaryLines,
+  };
+}
+
 /**
  * Motor Principal: Auditoría Forense Multicapa de Certificados de Incapacidad Médica (PDF / Imágenes).
  */
@@ -1483,6 +1851,8 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     companyId = '',
     userId = '',
     modelId = 'gemini-3.5-flash-lite',
+    repsFetchOverride = null,
+    contraloriaLookupOverride = null,
   } = opts || {};
 
   const { buffer, fileName, declaredMime } = resolveBinaryInput(opts);
@@ -1497,7 +1867,7 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
       url: RETHUS_PUBLIC_URL,
       requiresHumanCaptcha: true,
       captchaType: 'imgCaptcha',
-      note: 'El portal público oficial SISPRO ReTHUS exige validación humana del CAPTCHA visual (imgCaptcha) en el navegador del auditor.',
+      note: 'Cuando se adjunta un certificado, WAPPY verifica automáticamente sin CAPTCHA la habilitación REPS de la IPS (API Socrata MinSalud) y la identidad civil del médico (Contraloría General); la consulta puntual del título académico en SISPRO ReTHUS exige validación humana del CAPTCHA visual (imgCaptcha).',
     };
     return {
       ok: false,
@@ -1510,12 +1880,13 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
       arithmeticCheck: null,
       nitCheck: null,
       workerMatch: null,
+      officialRegistryVerification: null,
       rethusVerification: emptyRethus,
       redFlags: [
         'No se recibió imagen (JPG/PNG/WEBP) ni archivo PDF adjunto del certificado de incapacidad médica.',
       ],
       markdownReport:
-        '### ⚠️ Auditoría Forense de Incapacidad Médica\nNo se detectó ningún archivo PDF o imagen adjunta en la solicitud. Por favor adjunta el certificado de incapacidad médica en formato PDF, JPG, PNG o WEBP para ejecutar la verificación forense de 3 capas.',
+        '### ⚠️ Auditoría Forense de Incapacidad Médica\nNo se detectó ningún archivo PDF o imagen adjunta en la solicitud. Por favor adjunta el certificado de incapacidad médica en formato PDF, JPG, PNG o WEBP para ejecutar la verificación forense de 4 capas.',
     };
   }
 
@@ -1725,11 +2096,26 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     redFlags.push(nitCheck.detail);
   }
 
-  const workerMatch = await crossCheckCompanyWorker({
-    companyId,
-    pacienteDocumento: extractedFields.pacienteDocumento,
-    entidadEmisora: extractedFields.entidadEmisora,
-  });
+  const [workerMatch, officialRegistryVerification] = await Promise.all([
+    crossCheckCompanyWorker({
+      companyId,
+      pacienteDocumento: extractedFields.pacienteDocumento,
+      entidadEmisora: extractedFields.entidadEmisora,
+    }),
+    verifyOfficialRegistriesWithoutCaptcha({
+      extractedFields,
+      nitCheck,
+      repsFetchOverride,
+      contraloriaLookupOverride,
+    }),
+  ]);
+
+  if (officialRegistryVerification?.medicoCedula) {
+    extractedFields.medicoCedula = officialRegistryVerification.medicoCedula;
+  }
+  if (officialRegistryVerification?.ipsNit) {
+    extractedFields.ipsNit = officialRegistryVerification.ipsNit;
+  }
 
   if (workerMatch.checked) {
     if (workerMatch.foundInCompany === false) {
@@ -1744,17 +2130,36 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     }
   }
 
+  if (officialRegistryVerification) {
+    totalRiskPoints += Number(officialRegistryVerification.registryRiskPoints || 0);
+    for (const rf of officialRegistryVerification.registryFlags || []) {
+      if (rf?.detail) {
+        redFlags.push(rf.detail);
+      }
+    }
+  }
+
   const rethusVerification = {
     medicoNombre: extractedFields.medicoNombre || null,
     medicoTipoDoc: extractedFields.medicoTipoDoc || 'CC',
-    medicoDocumento: extractedFields.medicoDocumento || null,
+    medicoDocumento:
+      officialRegistryVerification?.medicoCedula || extractedFields.medicoDocumento || null,
+    medicoCedula: officialRegistryVerification?.medicoCedula || null,
+    titularCivilVerificado:
+      officialRegistryVerification?.contraloriaDoctorIdentity?.titularRegistradoEstado || null,
+    identidadMedicoConfirmada: officialRegistryVerification?.identidadMedicoConfirmada ?? null,
+    ipsHabilitadaEnReps: officialRegistryVerification?.repsIps?.habilitadaEnReps ?? null,
     registroMedico: extractedFields.registroMedico || null,
     medicoEspecialidad: extractedFields.medicoEspecialidad || null,
     url: RETHUS_PUBLIC_URL,
     requiresHumanCaptcha: true,
     captchaType: 'imgCaptcha',
-    statusLabel: '🔒 Verificación manual obligatoria en SISPRO ReTHUS (CAPTCHA humano)',
-    note: 'El portal público oficial de MinSalud SISPRO ReTHUS está protegido por CAPTCHA visual (imgCaptcha). Utilice los datos extraídos del profesional tratante en el enlace oficial para confirmar manualmente su inscripción vigente y autorización de ejercicio.',
+    statusLabel:
+      '✅ Identidad civil y REPS verificados automáticamente · 🔒 Título académico puntual en SISPRO ReTHUS exige CAPTCHA visual humano (imgCaptcha)',
+    note:
+      'La identidad civil real del profesional firmante (Contraloría General de la República) y la habilitación oficial REPS de la IPS/Prestador (API Abierta Socrata MinSalud) ya fueron verificadas automáticamente en APIs abiertas del Estado sin CAPTCHA. Únicamente la consulta específica del título académico e inscripción en SISPRO ReTHUS (' +
+      RETHUS_PUBLIC_URL +
+      ') exige validación humana directa del CAPTCHA visual (imgCaptcha).',
   };
 
   const riskScore = Math.min(100, Math.max(0, Math.round(totalRiskPoints)));
@@ -1806,11 +2211,11 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
 
   const redFlagsMd =
     redFlags.length > 0
-      ? redFlags.map((rf, i) => `${i + 1}. 🚨 ${rf}`).join('\n')
-      : '- ✅ No se detectaron banderas rojas binarias, gráficas ni aritméticas en el soporte analizado.';
+      ? redFlags.map((rf, i) => `${i + 1}. ${String(rf).startsWith('🚨') || String(rf).startsWith('⚠️') ? rf : `🚨 ${rf}`}`).join('\n')
+      : '- ✅ No se detectaron banderas rojas binarias, gráficas, aritméticas ni institucionales en el soporte analizado.';
 
   const markdownReport = [
-    `### 🔬 Dictamen Técnico de Auditoría Forense — Incapacidad Médica`,
+    `### 🔬 Dictamen Técnico de Auditoría Forense — Incapacidad Médica (4 Capas)`,
     `- **Veredicto Forense:** **${verdictLabel}**`,
     `- **Puntaje de Riesgo de Alteración:** **${riskScore}/100** (Nivel **${riskLevel}**)`,
     `- **Archivo Analizado:** \`${fileName}\` · MIME real: \`${detectedMime}\`${normalizedDeclared ? ` (declarado: \`${normalizedDeclared}\`)` : ''} · Tamaño: \`${sizeBytes} bytes\``,
@@ -1826,7 +2231,7 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     `| **Diagnóstico CIE-10 y Origen** | ${fmtVal(extractedFields.cie10Codigo)}${extractedFields.cie10Descripcion ? ` — ${extractedFields.cie10Descripcion}` : ''} · Origen: ${fmtVal(extractedFields.origen)} · Prórroga: ${fmtVal(extractedFields.prorroga)} |`,
     `| **Vigencia Incapacidad** | Expedición: ${fmtVal(arithmeticCheck.fechaExpedicionIso)} · Inicio: ${fmtVal(arithmeticCheck.fechaInicioIso)} · Fin: ${fmtVal(arithmeticCheck.fechaFinIso)} |`,
     `| **Días Otorgados (Cifras / Letras)** | ${fmtVal(extractedFields.diasNumero)} (${fmtVal(extractedFields.diasLetras)}) · Modalidad: ${fmtVal(extractedFields.modalidadPrestacion)} |`,
-    `| **Profesional Tratante** | ${fmtVal(extractedFields.medicoNombre)} · Doc: ${fmtVal(extractedFields.medicoDocumento)} · RM: ${fmtVal(extractedFields.registroMedico)} · Esp: ${fmtVal(extractedFields.medicoEspecialidad)} |`,
+    `| **Profesional Tratante** | ${fmtVal(extractedFields.medicoNombre)} · Doc: ${fmtVal(officialRegistryVerification?.medicoCedula || extractedFields.medicoDocumento)} · RM: ${fmtVal(extractedFields.registroMedico)} · Esp: ${fmtVal(extractedFields.medicoEspecialidad)} |`,
     '',
     `#### 🧮 Validaciones Matemáticas, DIAN y Cruce SG-SST (Capa 3)`,
     `- **Aritmética Inclusiva de Fechas:** ${dateStatusStr}`,
@@ -1835,13 +2240,20 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     `- **Plausibilidad Clínica (Capa 2):** ${aiForensics.clinicalPlausibility?.observations || 'Sin observaciones'}`,
     `- **Cruce Censo Empresa Activa (Hito 2):** ${workerMatch.detail}`,
     '',
+    `#### 🏛️ Verificación Institucional Automática sin CAPTCHA (Capa 4 — REPS MinSalud + Identidad Civil)`,
+    `- **Habilitación IPS / Prestador en REPS MinSalud (API Socrata):** ${officialRegistryVerification?.repsIps?.detail || 'No evaluado'}`,
+    ...(officialRegistryVerification?.repsMedicoIndependiente?.detail
+      ? [`- **Consulta Profesional Independiente en REPS MinSalud:** ${officialRegistryVerification.repsMedicoIndependiente.detail}`]
+      : []),
+    `- **Cruce Oficial de Identidad Civil del Médico (Contraloría General):** ${officialRegistryVerification?.contraloriaDoctorIdentity?.detail || 'No evaluado'}`,
+    '',
     `#### 🚩 Hallazgos y Banderas Rojas (${redFlags.length})`,
     redFlagsMd,
     '',
-    `#### 🩺 Verificación Transparente del Médico Tratante en SISPRO ReTHUS`,
-    `- **Profesional a verificar:** ${fmtVal(rethusVerification.medicoNombre)} · Identificación: ${fmtVal(rethusVerification.medicoDocumento)} · Registro Médico: ${fmtVal(rethusVerification.registroMedico)}`,
+    `#### 🩺 Consulta Puntual del Título Académico en SISPRO ReTHUS`,
+    `- **Profesional auditado:** ${fmtVal(rethusVerification.medicoNombre)} · Cédula: ${fmtVal(rethusVerification.medicoDocumento)} · Titular civil Estado: ${fmtVal(rethusVerification.titularCivilVerificado)} · Registro Médico: ${fmtVal(rethusVerification.registroMedico)}`,
     `- **Portal Público Oficial MinSalud ReTHUS:** ${RETHUS_PUBLIC_URL}`,
-    `- **Nota de Transparencia:** El portal oficial SISPRO ReTHUS exige resolver manualmente un CAPTCHA visual humano (\`imgCaptcha\`) en el navegador del auditor para confirmar la inscripción activa del talento humano en salud.`,
+    `- **Precisión Técnica de Seguridad:** ${rethusVerification.note}`,
   ].join('\n');
 
   return {
@@ -1852,12 +2264,15 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
     verdictLabel,
     fileMeta,
     extractedFields,
+    medicoCedula: officialRegistryVerification?.medicoCedula || null,
+    ipsNit: officialRegistryVerification?.ipsNit || null,
     visualAnomalies: aiForensics.visualAnomalies || [],
     clinicalPlausibility: aiForensics.clinicalPlausibility || null,
     missingDecree1427,
     arithmeticCheck,
     nitCheck,
     workerMatch,
+    officialRegistryVerification,
     rethusVerification,
     redFlags,
     markdownReport,
@@ -1866,6 +2281,9 @@ async function analyzeDisabilityCertificateForensics(opts = {}) {
 
 module.exports = {
   analyzeDisabilityCertificateForensics,
+  verifyOfficialRegistriesWithoutCaptcha,
+  compareDoctorCivilIdentityTokens,
+  queryMinSaludRepsSocrata,
   verifyColombianNitCheckDigit,
   parseSpanishDaysWords,
   parseFlexibleDate,
@@ -1873,4 +2291,5 @@ module.exports = {
   inspectPdfBinaryForensics,
   inspectImageBinaryForensics,
   RETHUS_PUBLIC_URL,
+  MINSALUD_REPS_SOCRATA_URL,
 };

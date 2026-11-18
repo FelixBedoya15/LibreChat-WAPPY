@@ -1,6 +1,8 @@
 # Guía Oficial de Referencia de Nodos — Constructor de Automatizaciones WAPPY IA (`/tareas`)
 
-Esta guía documenta los **8 Equipos de Nodos** del lienzo causal estilo `n8n` (`AI Agent` + `Tools`) de **WAPPY IA** (`workflowNodesCatalog.ts` + `WappyWorkflowCanvas.tsx` + `systemWorkflowPresetsCatalog.js`), sus claves técnicas en el lienzo, cuándo usar cada uno y cómo encadenarlos de izquierda a derecha sin gastar tokens innecesarios.
+> **📚 Enciclopedia Completa SmartDown (177 Nodos):** Consulta el catálogo exhaustivo nodo por nodo en [`docs/WAPPY_WORKFLOW_NODES_ENCYCLOPEDIA.md`](./WAPPY_WORKFLOW_NODES_ENCYCLOPEDIA.md), servido dinámicamente para **Tenshi Voz/Chat**, el **Constructor `/tareas`** y el modal interactivo mediante `api/server/services/workflowNodesDocumentationService.js` y `GET /api/sgsst/automatizaciones/nodes-docs`.
+
+Esta guía ejecutiva resume los **8 Equipos de Nodos** del lienzo causal estilo `n8n` (`AI Agent` + `Tools`) de **WAPPY IA** (`workflowNodesCatalog.ts` + `WappyWorkflowCanvas.tsx` + `systemWorkflowPresetsCatalog.js` + `tenshiFlowService.js`), sus claves técnicas en el lienzo, cuándo usar cada uno y cómo encadenarlos de izquierda a derecha sin gastar tokens innecesarios.
 
 ---
 
@@ -128,8 +130,38 @@ Ejecutan la entrega final de resultados a la derecha del flujo:
 ## Equipo 8: Control Lógico DAG (`Condición Si/No`, `Merge`, `Loop`, `Aprobación Humana`)
 
 - **`Condición Si/No` (`if_router`):**
+  - `ifPlacement: 'pre_source'`: Se evalúa inmediatamente después del disparador (`has_explicit_cedula`, `has_explicit_cedula_or_placa`, `has_attached_document`) para omitir lecturas innecesarias de **Somos SST** cuando el usuario ya suministró la cédula/placa de un visitante externo o para pedir el archivo adjunto en **`0` tokens** si falta.
   - `ifPlacement: 'pre_agent'`: Se evalúa **antes** de `✨ Extractor IA Docs` y del `Agente IA` (`critical_findings` o `new_external_items`), garantizando **`0` tokens LLM** cuando la empresa está 100 % al día o no hay documentos nuevos.
   - `ifPlacement: 'post_agent'`: Se evalúa **después** del `Agente IA` mediante el veredicto estructurado `[VEREDICTO_IF: SI]` / `[VEREDICTO_IF: NO]` (ej. triaje de severidad en reportes QR de campo).
 - **`Unir Ramas` (`logicType: 'merge'`):** Obligatorio siempre que existan `>= 2` fuentes paralelas de lectura en Etapa 2 (ej. `Permisos de Alturas + Equipos de Alturas`, `COPASST + Convivencia`, `0312 + Estadísticas ATEL + ACPM`).
 - **`Iterar Lotes` (`logicType: 'loop'`):** Procesa colecciones extensas por lotes controlados.
 - **`Aprobación Humana` (`logicType: 'human_approval'`):** Pausa el despacho final en estado `awaiting_approval` hasta recibir el visto bueno formal del Responsable SST o la Alta Dirección.
+
+---
+
+## Conectores OSINT Oficiales Colombia (`scraper_agy_*`) y Auditoría Forense (`forensic_doc_verifier`)
+
+> **Regla Inquebrantable de Seguridad:** Ningún conector OSINT ni verificador forense de WAPPY IA resuelve, computa, espera ni evade CAPTCHAs, `reCAPTCHA`, preguntas de seguridad o desafíos anti-bot (`#whcModal`). Cuando un portal estatal activa un control humano, el motor se detiene de inmediato y entrega con transparencia el estado + el enlace oficial directo.
+
+| ID (`nodeId`) | Estado | Qué verifica en tiempo real (`0` CAPTCHA) | Evidencia / Salvaguardas |
+| :--- | :---: | :--- | :--- |
+| `scraper_agy_arl_directo` | ✅ Operativo | **ARL SURA** y **ARL Positiva** directo por cédula; con fecha de nacimiento consulta **ARL Seguros Bolívar** y **ARL AXA Colpatria** (públicos sin clave empresarial; si AXA activa `reCAPTCHA` se detiene sin tocarlo) y cubre **ARL Colmena Seguros** (público con fecha de nacimiento + `reCAPTCHA` humano). | Descarga certificado oficial `%PDF` y `.PNG` en `evidenceFiles`. Cuando la aseguradora protege su portal con `reCAPTCHA`, entrega automáticamente el enlace oficial clicable + datos listos para ingresar (`Tipo de documento`, `Número de documento`, `Fecha de nacimiento`) + aviso de políticas de privacidad y opción de solicitar autorización directa a la ARL. |
+| `scraper_agy_alto_riesgo` | ✅ Operativo | **Ministerio del Trabajo** (Registro de Centros de Entrenamiento Res. 4272 Alturas y Res. 0491 Espacios Confinados) y **SENA Sofia Plus**. | Descarga constancia oficial `%PDF` y `.PNG`. |
+| `scraper_agy_vial_pesv` | ✅ Operativo | **SIMIT Nacional (`fcm.org.co/simit`)** para conductores, visitantes o contratistas externos por cédula o placa (`waitUntil: 'commit'`, `timeout: 22000ms`). Si SIMIT activa `#whcModal.show` / `codigo === 6`, corta al instante sin esperar y entrega enlaces oficiales de **SIMIT** y **RUNT (`runt.gov.co`)**. | Reporte PESV Res. 20223040040595 + soporte `%PDF`/`.PNG` cuando el portal responde sin bloqueo. |
+| `scraper_agy_antecedentes` | ✅ Operativo | **Tablero de los 5 Entes Oficiales:** 1) **Rama Judicial API v2** (separando Juzgados Penales/Fiscalía/Ejecución de Penas vs Ordinarios), 2) **Contraloría SIBOR** (`%PDF` oficial + nombre real del titular) + **SECOP Multas Socrata** (`4n4q-k399.json`), y estado transparente + enlaces directos para 3) **Policía + RNMC** (`reCAPTCHA`), 4) **Procuraduría SIRI** (pregunta de seguridad) y 5) **Fiscalía SPOA**. | Certificado oficial `%PDF` de Contraloría General + cruce contractual SECOP. |
+| `forensic_doc_verifier` | ✅ Operativo | **Auditoría Forense de Incapacidades en 4 Capas (Decreto 1427 de 2022):** 1) Binaria SHA-256/`%%EOF`/EXIF (`Canva`, `iLovePDF`, `Photoshop`), 2) Visión IA de alteración tipográfica/sellos y plausibilidad CIE-10, 3) Cuadre matemático de fechas/letras, Módulo 11 DIAN y Censo Hito 2, y 4) **Verificación Institucional Automática SIN CAPTCHA** en **MinSalud REPS Socrata** (`c36g-9fc2.json` — habilitación IPS/profesional) + **Identidad Civil del Médico en Contraloría** (alerta `HIGH` si la cédula impresa pertenece a otra persona) + pase automático a `scraper_agy_antecedentes`. | Informe Forense de 4 Capas + enlace oficial a `SISPRO ReTHUS` (`imgCaptcha` humano) + `%PDF` Contraloría del médico. |
+| `scraper_agy_salud_rethus` | 🚧 En Construcción | Marcado `defaultConstruction: true` (`skipped` en `< 10ms`) porque **ADRES BDUA** exige `RadCaptcha` y **SISPRO ReTHUS** exige `imgCaptcha` visual humano. | Para incapacidades médicas usa `forensic_doc_verifier` (Capa 4 REPS + Contraloría sin CAPTCHA). |
+| `scraper_agy_pensiones_directo` | 🚧 En Construcción | Marcado `defaultConstruction: true` (`skipped` en `< 10ms`) porque **Colpensiones** y fondos privados AFP exigen doble factor/OTP personal del afiliado. | Evita bloqueos en flujos desatendidos. |
+
+---
+
+## Catálogo de los 6 Flujos Globales Oficiales de Tenshi (`tenshiFlowService.js` — `2026-11-18-v6`)
+
+| # | `presetKey` | Nombre Oficial | Herramientas en `Herramienta +` (`inputs`) |
+| :---: | :--- | :--- | :--- |
+| 1 | `tenshi_flow_verificacion_arl_cedula` | 🛡️ Verificación Instantánea de Certificado ARL por Cédula | `scraper_agy_arl_directo` |
+| 2 | `tenshi_flow_verificacion_alturas_cedula` | 🪖 Verificación Instantánea de Certificado de Alturas por Cédula | `scraper_agy_alto_riesgo` |
+| 3 | `tenshi_flow_verificacion_simit_vial` | 🚗 Verificación Instantánea Vial SIMIT / PESV por Cédula o Placa *(visitantes/contratistas sin leer Somos SST)* | `scraper_agy_vial_pesv` |
+| 4 | `tenshi_flow_verificacion_antecedentes` | ⚖️ Verificación Instantánea de Antecedentes y Procesos *(5 Entes + SECOP)* | `scraper_agy_antecedentes` |
+| 5 | `tenshi_flow_investigacion_integral_360` | 🔎 Investigación Integral 360° de Trabajador o Contratista *(ARL + Alturas + SIMIT + Antecedentes)* | `scraper_agy_arl_directo`, `scraper_agy_alto_riesgo`, `scraper_agy_vial_pesv`, `scraper_agy_antecedentes` |
+| 6 | `tenshi_flow_auditoria_forense_incapacidad` | 🔬 Auditoría Forense y Legal de Incapacidad Médica *(Decreto 1427 · 4 Capas + REPS + Identidad Médica)* | `forensic_doc_verifier`, `scraper_agy_antecedentes` |

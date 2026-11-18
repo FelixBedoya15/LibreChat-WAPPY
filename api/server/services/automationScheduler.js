@@ -5755,6 +5755,21 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               durationMs: 0,
               outputPreview: '⏭️ Omitido (0 tokens IA): esperando imagen (.jpg/.png) o .pdf adjunto.',
             });
+            const missingDocWfInputs = Array.isArray(automation.workflowNodes?.inputs)
+              ? automation.workflowNodes.inputs
+              : [];
+            if (missingDocWfInputs.includes('scraper_agy_antecedentes')) {
+              liveTracker.upsertStep({
+                nodeKey: 'tool_inputs_scraper_agy_antecedentes',
+                nodeId: 'scraper_agy_antecedentes',
+                title: 'Antecedentes Judiciales y Fiscales · Google Antigravity',
+                category: 'input',
+                status: 'skipped',
+                durationMs: 0,
+                outputPreview:
+                  '⏭️ Omitido (0 consultas externas): esperando soporte adjunto para auditar al profesional firmante.',
+              });
+            }
             liveTracker.upsertStep({
               nodeKey: 'agent_root',
               nodeId: automation.agentId || 'ai_agent_root',
@@ -5768,6 +5783,9 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             liveTracker.markSkippedKeys([
               'tool_hitos_hito2_perfil_socio',
               'tool_inputs_forensic_doc_verifier',
+              ...(missingDocWfInputs.includes('scraper_agy_antecedentes')
+                ? ['tool_inputs_scraper_agy_antecedentes']
+                : []),
               'agent_root',
             ]);
             liveTracker.setActiveStage(null, 'Esperando imagen o PDF del certificado de incapacidad');
@@ -6218,10 +6236,203 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       console.error('[AutomationScheduler] Error construyendo extracción quirúrgica en vivo:', liveErr?.message || liveErr);
     }
 
-    // Si el flujo incluye nodos de Scraping Web con Google Antigravity (ej. custom_scraper_agy_alto_riesgo),
-    // ejecutar la verificación real por el túnel Push SSE de Antigravity (MinTrabajo Alturas + Rama Judicial + SENA)
-    let liveAntigravityScraperBlock = '';
+    // 4.78. Ejecución de Herramienta Verificador Forense de Documentos (`forensic_doc_verifier` en `Herramienta +`)
+    // Se ejecuta ANTES de los scrapers Antigravity para transferir automáticamente `medicoCedula` y `medicoNombre`
+    // hacia `scraper_agy_antecedentes` cuando ambos nodos están conectados en el mismo flujo.
     const runCapturedEvidences = [];
+    let liveForensicVerifierBlock = '';
+    let forensicFullResult = null;
+    let forensicExtractedDoctor = null;
+    const wfInputsForForensic = Array.isArray(automation.workflowNodes?.inputs)
+      ? automation.workflowNodes.inputs
+      : [];
+    const wfExtractorsForForensic = Array.isArray(automation.workflowNodes?.extractors)
+      ? automation.workflowNodes.extractors
+      : [];
+    const hasForensicDocVerifierNode =
+      wfInputsForForensic.includes('forensic_doc_verifier') ||
+      wfExtractorsForForensic.includes('forensic_doc_verifier');
+    let forensicVerifierTraceMeta = null;
+    if (hasForensicDocVerifierNode) {
+      const forensicNodeKey = wfInputsForForensic.includes('forensic_doc_verifier')
+        ? 'tool_inputs_forensic_doc_verifier'
+        : 'extractor_forensic_doc_verifier';
+      const attachedMediaForForensic =
+        eventPayload?.attachedMedia || runOpts?.attachedMedia || null;
+      const primaryMediaMeta = unwrapPrimaryAttachedMedia(attachedMediaForForensic);
+      const hasAttachedMediaData = Boolean(primaryMediaMeta);
+      if (hasAttachedMediaData) {
+        const fStartMs = Date.now();
+        liveTracker.setActiveStage(
+          forensicNodeKey,
+          'Ejecutando auditoría forense de 4 capas (EXIF/PDF, Visión IA, Decreto 1427/2022 y REPS/Contraloría)...',
+        );
+        liveTracker.upsertStep({
+          nodeKey: forensicNodeKey,
+          nodeId: 'forensic_doc_verifier',
+          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+          status: 'running',
+          outputPreview:
+            'Inspeccionando bytes EXIF/PDF, anomalías visuales, Decreto 1427/2022 y registros abiertos REPS/Contraloría...',
+        });
+        await liveTracker.flush();
+        try {
+          const forensicService =
+            typeof runOpts.forensicAnalyzerOverride === 'function'
+              ? { analyzeDisabilityCertificateForensics: runOpts.forensicAnalyzerOverride }
+              : require('./forensicDocumentService');
+          const effectiveForensicUserId = String(
+            callerUserId || effectiveTenantUserId || automation.user || reqUser?.id || '',
+          );
+          const wfModelForForensic = effectiveAiModel || 'gemini-3.5-flash-lite';
+          const forensicRes = await withTimeout(
+            forensicService.analyzeDisabilityCertificateForensics({
+              attachedMedia: attachedMediaForForensic,
+              userInstruction: tenshiUserInstruction || scraperTriggerInput || '',
+              companyId: targetCompanyIdStr,
+              userId: effectiveForensicUserId,
+              modelId: wfModelForForensic,
+            }),
+            55000,
+            'analyzeDisabilityCertificateForensics',
+          );
+          forensicFullResult = forensicRes;
+          const fDurationMs = Math.max(20, Date.now() - fStartMs);
+          if (Array.isArray(forensicRes?.evidenceFiles) && forensicRes.evidenceFiles.length > 0) {
+            runCapturedEvidences.push(...forensicRes.evidenceFiles);
+          }
+
+          const rawDocCedulaCandidate = String(
+            forensicRes?.medicoCedula ||
+              forensicRes?.officialRegistryVerification?.medicoCedula ||
+              forensicRes?.extractedFields?.medicoCedula ||
+              forensicRes?.extractedFields?.medicoDocumento ||
+              '',
+          )
+            .replace(/^(?:cc|c\.c\.|ce|ti|no\.?|n[°º]|rm|r\.m\.)[\s:.-]*/i, '')
+            .trim();
+          const patientDocDigits = String(forensicRes?.extractedFields?.pacienteDocumento || '').replace(/\D/g, '');
+          const cleanDocCedulaDigits =
+            !/[a-zA-Z]{2,}/.test(rawDocCedulaCandidate)
+              ? rawDocCedulaCandidate.replace(/\D/g, '')
+              : '';
+          const validDoctorCedula =
+            /^\d{6,12}$/.test(cleanDocCedulaDigits) &&
+            (!patientDocDigits || cleanDocCedulaDigits !== patientDocDigits)
+              ? cleanDocCedulaDigits
+              : '';
+          const resolvedDoctorName = String(
+            forensicRes?.officialRegistryVerification?.contraloriaDoctorIdentity?.titularRegistradoEstado ||
+              forensicRes?.extractedFields?.medicoNombre ||
+              '',
+          ).trim();
+          const resolvedDoctorTipoDoc = String(
+            forensicRes?.extractedFields?.medicoTipoDoc || 'CC',
+          ).trim().toUpperCase();
+
+          if (validDoctorCedula || resolvedDoctorName.length >= 5) {
+            forensicExtractedDoctor = {
+              medicoCedula: validDoctorCedula,
+              medicoNombre: resolvedDoctorName,
+              medicoNombreImpreso: String(forensicRes?.extractedFields?.medicoNombre || '').trim(),
+              medicoTipoDoc: resolvedDoctorTipoDoc || 'CC',
+            };
+          }
+
+          const mdForensicReport = String(
+            forensicRes?.markdownReport || forensicRes?.report || forensicRes?.summary || '',
+          ).trim();
+          if (mdForensicReport) {
+            liveForensicVerifierBlock =
+              `\n🔬 [DICTAMEN EJECUTADO POR HERRAMIENTA VERIFICADOR FORENSE DE DOCUMENTOS (4 CAPAS — DECRETO 1427 DE 2022 + REPS MINSALUD + CONTRALORÍA)]:\n${mdForensicReport}\n` +
+              `🚨 REGLA DE SEGURIDAD Y VERACIDAD FORENSE: Sintetiza fielmente los hallazgos de las 4 capas anteriores (EXIF/PDF binario, inspección visual, consistencia normativa Decreto 1427/2022 y cruce institucional sin CAPTCHA en REPS MinSalud + Contraloría General). Incluye siempre el enlace directo oficial de SISPRO ReTHUS provisto en el reporte explicando que el título académico puntual requiere validación humana del CAPTCHA visual (imgCaptcha), y JAMÁS afirmes haber evadido o resuelto CAPTCHAs gubernamentales.\n\n`;
+          }
+          forensicVerifierTraceMeta = {
+            forensicDocVerifierExecuted: true,
+            forensicRiskLevel:
+              forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'analyzed',
+            forensicRiskScore:
+              forensicRes?.riskScore !== undefined ? forensicRes.riskScore : null,
+            forensicMedicoCedula: validDoctorCedula || null,
+            forensicMedicoNombre: resolvedDoctorName || null,
+            forensicIdentidadMedicoConfirmada:
+              forensicRes?.officialRegistryVerification?.identidadMedicoConfirmada ?? null,
+            forensicIpsHabilitadaEnReps:
+              forensicRes?.officialRegistryVerification?.repsIps?.habilitadaEnReps ?? null,
+            forensicDurationMs: fDurationMs,
+          };
+          liveTracker.upsertStep({
+            nodeKey: forensicNodeKey,
+            nodeId: 'forensic_doc_verifier',
+            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+            status: 'done',
+            durationMs: fDurationMs,
+            inputCount: 1,
+            outputCount: 1,
+            outputPreview:
+              forensicRes?.verdictLabel ||
+              forensicRes?.summary ||
+              (mdForensicReport ? mdForensicReport.slice(0, 480) : 'Auditoría forense de 4 capas completada.'),
+            outputItems: [
+              {
+                Herramienta: 'Verificador Forense de Documentos (4 Capas)',
+                Archivo:
+                  forensicRes?.fileMeta?.fileName ||
+                  primaryMediaMeta?.fileName ||
+                  primaryMediaMeta?.filename ||
+                  primaryMediaMeta?.name ||
+                  'Soporte adjunto',
+                MimeType:
+                  forensicRes?.fileMeta?.detectedMime ||
+                  primaryMediaMeta?.mimeType ||
+                  primaryMediaMeta?.mimetype ||
+                  'documento',
+                NivelRiesgo:
+                  forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'Evaluado',
+                PuntajeRiesgo:
+                  forensicRes?.riskScore !== undefined ? `${forensicRes.riskScore}/100` : 'Verificado',
+                MedicoCedulaExtraida: validDoctorCedula || 'No registra',
+                DuracionMs: fDurationMs,
+              },
+            ],
+          });
+          await liveTracker.flush();
+        } catch (fErr) {
+          console.warn(
+            '[AutomationScheduler] Aviso ejecutando forensic_doc_verifier:',
+            fErr?.message || fErr,
+          );
+          liveTracker.upsertStep({
+            nodeKey: forensicNodeKey,
+            nodeId: 'forensic_doc_verifier',
+            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+            status: 'error',
+            durationMs: Math.max(10, Date.now() - fStartMs),
+            error: fErr?.message || 'Error en análisis forense',
+            outputPreview: `Aviso en Verificador Forense: ${fErr?.message || 'Servicio no disponible'}`,
+          });
+          liveForensicVerifierBlock =
+            `\n⚠️ [AVISO TÉCNICO DEL VERIFICADOR FORENSE DE DOCUMENTOS]: No fue posible completar la inspección técnica del archivo adjunto (${fErr?.message || 'error interno'}). Informa con transparencia al usuario y sugiere adjuntar el archivo PDF original o una imagen nítida.\n\n`;
+        }
+      } else {
+        liveTracker.upsertStep({
+          nodeKey: forensicNodeKey,
+          nodeId: 'forensic_doc_verifier',
+          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+          status: 'skipped',
+          durationMs: 0,
+          outputPreview: '⏭️ Omitido: no se adjuntó imagen ni PDF en la solicitud.',
+        });
+      }
+    }
+
+    // 4.8. Si el flujo incluye nodos de Scraping Web con Google Antigravity (ej. scraper_agy_arl_directo, scraper_agy_antecedentes),
+    // ejecutar la verificación real por el túnel Push SSE de Antigravity / fuentes abiertas
+    let liveAntigravityScraperBlock = '';
     let runScraperBreachCount = 0;
     let runScraperDedupSkippedCount = 0;
     const runScraperCandidateKeys = [];
@@ -6314,10 +6525,20 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             ? evaluateSelectiveMultiPortalFilter(scraperTriggerInput || tenshiUserInstruction || '')
             : { restricted: false, wantsAll: true, selectedSet: null };
 
+        const userExplicitCedulasForScraper = extractExplicitCedulasFromText(
+          String(scraperTriggerInput || tenshiUserInstruction || ''),
+          { companyNit: automationCompany?.nit || '' },
+        );
+
         const activeScraperCandidates = [];
         const omittedPortalTitles = [];
         for (const sc of scraperCandidates) {
           const portalConcept = resolveScraperPortalConceptKey(`${sc.nodeKey} ${sc.nodeId}`);
+          const isAntecedentesCand =
+            portalConcept === 'antecedentes' ||
+            String(sc.nodeId || '').includes('antecedentes') ||
+            String(sc.nodeKey || '').includes('antecedentes');
+
           if (
             selectivePortalDecision.restricted &&
             portalConcept &&
@@ -6338,9 +6559,36 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               outputPreview: 'Omitido (no solicitado por el usuario en este turno)',
             });
             liveTracker.markSkippedKeys([skippedKey]);
-          } else {
-            activeScraperCandidates.push(sc);
+            continue;
           }
+
+          // Handoff automático Forense -> Antecedentes del Médico Tratante cuando el usuario no dictó otra cédula explícita
+          if (hasForensicDocVerifierNode && isAntecedentesCand && userExplicitCedulasForScraper.length === 0) {
+            if (forensicExtractedDoctor && (forensicExtractedDoctor.medicoCedula || forensicExtractedDoctor.medicoNombre)) {
+              activeScraperCandidates.push({
+                ...sc,
+                forensicDoctorOverride: forensicExtractedDoctor,
+              });
+            } else {
+              const skippedDocKey = sc.nodeKey || `tool_inputs_${sc.nodeId}`;
+              liveTracker.upsertStep({
+                nodeKey: skippedDocKey,
+                nodeId: sc.nodeId,
+                title: sc.customNodeObj?.title || formatHumanWorkflowNodeTitle(sc.nodeId),
+                category: String(skippedDocKey).startsWith('tool_inputs_') ? 'input' : 'extractor',
+                status: 'skipped',
+                durationMs: 0,
+                inputCount: 0,
+                outputCount: 0,
+                outputPreview:
+                  '⏭️ Omitido: el soporte adjunto no registra cédula ni nombre legible del médico firmante para consultar antecedentes.',
+              });
+              liveTracker.markSkippedKeys([skippedDocKey]);
+            }
+            continue;
+          }
+
+          activeScraperCandidates.push(sc);
         }
 
         for (const sc of activeScraperCandidates) {
@@ -6351,14 +6599,17 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             title: sc.customNodeObj?.title || formatHumanWorkflowNodeTitle(sc.nodeId),
             category: String(runningKey).startsWith('tool_inputs_') ? 'input' : 'extractor',
             status: 'running',
-            outputPreview:
-              'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
+            outputPreview: sc.forensicDoctorOverride
+              ? `Verificando antecedentes e identidad oficial del médico firmante (${[sc.forensicDoctorOverride.medicoCedula, sc.forensicDoctorOverride.medicoNombre].filter(Boolean).join(' · ')})...`
+              : 'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
           });
         }
         if (activeScraperCandidates.length > 0) {
           liveTracker.setActiveStage(
             activeScraperCandidates[0].nodeKey || `tool_inputs_${activeScraperCandidates[0].nodeId}`,
-            'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
+            activeScraperCandidates[0].forensicDoctorOverride
+              ? 'Consultando Contraloría General y Rama Judicial para el médico firmante...'
+              : 'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
           );
         }
         await liveTracker.flush();
@@ -6369,7 +6620,48 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               ...(sc.customNodeObj?.config || {}),
               ...(allNodeCfg[sc.nodeId] || {}),
               ...(allNodeCfg[sc.nodeKey] || {}),
+              ...(allNodeCfg.tool_input_scraper_agy_antecedentes && sc.nodeId === 'scraper_agy_antecedentes'
+                ? allNodeCfg.tool_input_scraper_agy_antecedentes
+                : {}),
             };
+            const docOverride = sc.forensicDoctorOverride || null;
+            const effectiveMockTriggerForScraper = docOverride
+              ? [
+                  docOverride.medicoCedula ? `${docOverride.medicoTipoDoc || 'CC'} ${docOverride.medicoCedula}` : '',
+                  docOverride.medicoNombre || '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+              : scraperTriggerInput;
+            const effectiveNodeCfgForScraper = docOverride
+              ? {
+                  ...mergedNodeCfg,
+                  ...(docOverride.medicoCedula ? { cedula: docOverride.medicoCedula } : {}),
+                  allowDirectNameWithoutWorkerMatch: true,
+                }
+              : mergedNodeCfg;
+            const effectiveUpstreamItemsForScraper = docOverride
+              ? [
+                  {
+                    id: 'forensic_signing_doctor_1',
+                    nombre:
+                      docOverride.medicoNombre ||
+                      `Profesional Firmante (${docOverride.medicoCedula})`,
+                    documento: docOverride.medicoCedula || '',
+                    cedula: docOverride.medicoCedula || '',
+                    tipoDoc: docOverride.medicoTipoDoc || 'CC',
+                    cargo: 'Médico / Profesional Firmante (Incapacidad)',
+                  },
+                ]
+              : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
+                ? preSourceRouterState.matchedWorkers
+                : [];
+            const effectiveUpstreamTitleForScraper = docOverride
+              ? 'Verificador Forense de Documentos (Profesional Firmante)'
+              : isPreSourceIf && !preSourceRouterState.hasExplicitCedula
+                ? 'Perfil Sociodemográfico (Hito 2)'
+                : '';
+
             const scrapeRes = await executeRealAntigravityScraperVerification({
               userIdStr: String(automation.user),
               targetCompanyIdStr,
@@ -6379,31 +6671,28 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               nodeId: sc.nodeId,
               nodeTitle: sc.customNodeObj?.title || mergedNodeCfg.customTitle || '',
               customNodeObj: sc.customNodeObj || {},
-              nodeCfg: mergedNodeCfg,
+              nodeCfg: effectiveNodeCfgForScraper,
               allNodeConfigs: allNodeCfg,
-              mockTriggerInput: scraperTriggerInput,
-              promptText: automation.prompt || '',
-              upstreamInputItems:
-                isPreSourceIf && !preSourceRouterState.hasExplicitCedula
-                  ? preSourceRouterState.matchedWorkers
-                  : [],
-              upstreamSourceTitle:
-                isPreSourceIf && !preSourceRouterState.hasExplicitCedula
-                  ? 'Perfil Sociodemográfico (Hito 2)'
-                  : '',
+              mockTriggerInput: effectiveMockTriggerForScraper,
+              promptText: docOverride ? '' : automation.prompt || '',
+              upstreamInputItems: effectiveUpstreamItemsForScraper,
+              upstreamSourceTitle: effectiveUpstreamTitleForScraper,
               isTenshiFlowRun: isGlobalTenshiFlow,
               flowScope: isGlobalTenshiFlow ? 'tenshi' : 'automation',
               hasConversationalAntigravityNode: hasExplicitConversationalAntigravityNode,
               triggerSource,
-              hasWorkerSourceStage2,
-              skipWorkerDbHydration: isPreSourceIf,
-              preSourceBranch: isPreSourceIf
-                ? preSourceRouterState.hasExplicitCedula
-                  ? 'yes'
-                  : 'no'
-                : '',
-              requireNameMatchIfNoCedula:
-                isPreSourceIf && !preSourceRouterState.hasExplicitCedula,
+              hasWorkerSourceStage2: docOverride ? false : hasWorkerSourceStage2,
+              skipWorkerDbHydration: docOverride ? true : isPreSourceIf,
+              preSourceBranch: docOverride
+                ? 'yes'
+                : isPreSourceIf
+                  ? preSourceRouterState.hasExplicitCedula
+                    ? 'yes'
+                    : 'no'
+                  : '',
+              requireNameMatchIfNoCedula: docOverride
+                ? false
+                : isPreSourceIf && !preSourceRouterState.hasExplicitCedula,
             });
             return { sc, mergedNodeCfg, scrapeRes };
           }),
@@ -6422,6 +6711,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
             nodeKey: sc.nodeKey,
             nodeId: sc.nodeId,
             portalLabel: scrapeRes?.portalLabel || formatHumanWorkflowNodeTitle(sc.nodeId),
+            outputPreview: scrapeRes?.outputPreview || '',
             outputItems: Array.isArray(scrapeRes?.outputItems) ? scrapeRes.outputItems : [],
           });
 
@@ -6523,8 +6813,11 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           liveTracker.upsertStep(scraperStepObj);
 
           if (scrapeRes?.outputPreview) {
+            const roleNote = sc.forensicDoctorOverride
+              ? ' — PROFESIONAL DE LA SALUD FIRMANTE DE LA INCAPACIDAD'
+              : '';
             previewBlocks.push(
-              `[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel})]:\n${scrapeRes.outputPreview}`,
+              `[VERIFICACIÓN EN VIVO EJECUTADA VÍA GOOGLE ANTIGRAVITY SCRAPER (${scrapeRes.portalLabel}${roleNote})]:\n${scrapeRes.outputPreview}`,
             );
           }
         }
@@ -6549,152 +6842,10 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       console.warn('[AutomationScheduler] Aviso en verificación real Antigravity Scraper:', scErr?.message || scErr);
     }
 
-    // 4.85. Ejecución de Herramienta Verificador Forense de Documentos (`forensic_doc_verifier` en `Herramienta +`)
-    let liveForensicVerifierBlock = '';
-    const wfInputsForForensic = Array.isArray(automation.workflowNodes?.inputs)
-      ? automation.workflowNodes.inputs
-      : [];
-    const wfExtractorsForForensic = Array.isArray(automation.workflowNodes?.extractors)
-      ? automation.workflowNodes.extractors
-      : [];
-    const hasForensicDocVerifierNode =
-      wfInputsForForensic.includes('forensic_doc_verifier') ||
-      wfExtractorsForForensic.includes('forensic_doc_verifier');
-    let forensicVerifierTraceMeta = null;
-    if (hasForensicDocVerifierNode) {
-      const forensicNodeKey = wfInputsForForensic.includes('forensic_doc_verifier')
-        ? 'tool_inputs_forensic_doc_verifier'
-        : 'extractor_forensic_doc_verifier';
-      const attachedMediaForForensic =
-        eventPayload?.attachedMedia || runOpts?.attachedMedia || null;
-      const primaryMediaMeta = unwrapPrimaryAttachedMedia(attachedMediaForForensic);
-      const hasAttachedMediaData = Boolean(primaryMediaMeta);
-      if (hasAttachedMediaData) {
-        const fStartMs = Date.now();
-        liveTracker.setActiveStage(
-          forensicNodeKey,
-          'Ejecutando auditoría forense (metadatos EXIF/PDF, Visión IA y Decreto 1427/2022)...',
-        );
-        liveTracker.upsertStep({
-          nodeKey: forensicNodeKey,
-          nodeId: 'forensic_doc_verifier',
-          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
-          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
-          status: 'running',
-          outputPreview:
-            'Inspeccionando bytes EXIF/PDF, anomalías visuales y requisitos del Decreto 1427 de 2022...',
-        });
-        await liveTracker.flush();
-        try {
-          const forensicService =
-            typeof runOpts.forensicAnalyzerOverride === 'function'
-              ? { analyzeDisabilityCertificateForensics: runOpts.forensicAnalyzerOverride }
-              : require('./forensicDocumentService');
-          const effectiveForensicUserId = String(
-            callerUserId || effectiveTenantUserId || automation.user || reqUser?.id || '',
-          );
-          const wfModelForForensic = effectiveAiModel || 'gemini-3.5-flash-lite';
-          const forensicRes = await withTimeout(
-            forensicService.analyzeDisabilityCertificateForensics({
-              attachedMedia: attachedMediaForForensic,
-              userInstruction: tenshiUserInstruction || scraperTriggerInput || '',
-              companyId: targetCompanyIdStr,
-              userId: effectiveForensicUserId,
-              modelId: wfModelForForensic,
-            }),
-            55000,
-            'analyzeDisabilityCertificateForensics',
-          );
-          const fDurationMs = Math.max(20, Date.now() - fStartMs);
-          if (Array.isArray(forensicRes?.evidenceFiles) && forensicRes.evidenceFiles.length > 0) {
-            runCapturedEvidences.push(...forensicRes.evidenceFiles);
-          }
-          const mdForensicReport = String(
-            forensicRes?.markdownReport || forensicRes?.report || forensicRes?.summary || '',
-          ).trim();
-          if (mdForensicReport) {
-            liveForensicVerifierBlock =
-              `\n🔬 [DICTAMEN EJECUTADO POR HERRAMIENTA VERIFICADOR FORENSE DE DOCUMENTOS (DECRETO 1427 DE 2022)]:\n${mdForensicReport}\n` +
-              `🚨 REGLA DE SEGURIDAD Y VERACIDAD FORENSE: Sintetiza fielmente los hallazgos de las 3 capas anteriores (EXIF/PDF binario, inspección visual y consistencia normativa Decreto 1427/2022). Incluye siempre el enlace directo oficial de SISPRO ReTHUS provisto en el reporte para que un responsable humano valide personalmente el CAPTCHA del médico tratante, y JAMÁS afirmes haber evadido o resuelto CAPTCHAs gubernamentales.\n\n`;
-          }
-          forensicVerifierTraceMeta = {
-            forensicDocVerifierExecuted: true,
-            forensicRiskLevel:
-              forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'analyzed',
-            forensicRiskScore:
-              forensicRes?.riskScore !== undefined ? forensicRes.riskScore : null,
-            forensicDurationMs: fDurationMs,
-          };
-          liveTracker.upsertStep({
-            nodeKey: forensicNodeKey,
-            nodeId: 'forensic_doc_verifier',
-            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
-            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
-            status: 'done',
-            durationMs: fDurationMs,
-            inputCount: 1,
-            outputCount: 1,
-            outputPreview:
-              forensicRes?.verdictLabel ||
-              forensicRes?.summary ||
-              (mdForensicReport ? mdForensicReport.slice(0, 480) : 'Auditoría forense de 3 capas completada.'),
-            outputItems: [
-              {
-                Herramienta: 'Verificador Forense de Documentos',
-                Archivo:
-                  forensicRes?.fileMeta?.fileName ||
-                  primaryMediaMeta?.fileName ||
-                  primaryMediaMeta?.filename ||
-                  primaryMediaMeta?.name ||
-                  'Soporte adjunto',
-                MimeType:
-                  forensicRes?.fileMeta?.detectedMime ||
-                  primaryMediaMeta?.mimeType ||
-                  primaryMediaMeta?.mimetype ||
-                  'documento',
-                NivelRiesgo:
-                  forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'Evaluado',
-                PuntajeRiesgo:
-                  forensicRes?.riskScore !== undefined ? `${forensicRes.riskScore}/100` : 'Verificado',
-                DuracionMs: fDurationMs,
-              },
-            ],
-          });
-          await liveTracker.flush();
-        } catch (fErr) {
-          console.warn(
-            '[AutomationScheduler] Aviso ejecutando forensic_doc_verifier:',
-            fErr?.message || fErr,
-          );
-          liveTracker.upsertStep({
-            nodeKey: forensicNodeKey,
-            nodeId: 'forensic_doc_verifier',
-            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
-            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
-            status: 'error',
-            durationMs: Math.max(10, Date.now() - fStartMs),
-            error: fErr?.message || 'Error en análisis forense',
-            outputPreview: `Aviso en Verificador Forense: ${fErr?.message || 'Servicio no disponible'}`,
-          });
-          liveForensicVerifierBlock =
-            `\n⚠️ [AVISO TÉCNICO DEL VERIFICADOR FORENSE DE DOCUMENTOS]: No fue posible completar la inspección técnica del archivo adjunto (${fErr?.message || 'error interno'}). Informa con transparencia al usuario y sugiere adjuntar el archivo PDF original o una imagen nítida.\n\n`;
-        }
-      } else {
-        liveTracker.upsertStep({
-          nodeKey: forensicNodeKey,
-          nodeId: 'forensic_doc_verifier',
-          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
-          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
-          status: 'skipped',
-          durationMs: 0,
-          outputPreview: '⏭️ Omitido: no se adjuntó imagen ni PDF en la solicitud.',
-        });
-      }
-    }
-
     // Guardia determinista para Flujos Tenshi orientados a cédula cuando no llegó ni cédula ni trabajador nombrado
     if (
       isGlobalTenshiFlow &&
+      !forensicVerifierTraceMeta?.forensicDocVerifierExecuted &&
       scraperMissingInputTargetCount > 0 &&
       scraperMissingInputTargetCount === scraperLiveSteps.length &&
       runCapturedEvidences.length === 0 &&
@@ -7595,21 +7746,133 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
 
     const agentPhaseStartedAtMs = Date.now();
 
+    const hasPrecollectedTenshiToolData = Boolean(
+      (isGlobalTenshiFlow || Boolean(runOpts?.isTenshiFlowRun)) &&
+        (scraperStage2Results.length > 0 ||
+          Boolean(forensicFullResult?.hasDocument) ||
+          Boolean(liveForensicVerifierBlock) ||
+          Boolean(liveAntigravityScraperBlock)),
+    );
+    const isGeminiHighDemandOrServiceError = (errOrStr) => {
+      const msg = String(
+        errOrStr?.message || errOrStr?.status || errOrStr?.code || errOrStr || '',
+      ).toLowerCase();
+      if (!msg) return false;
+      return /\b503\b|high\s+demand|service\s+unavailable|overloaded|resource_exhausted|experiencing\s+high\s+demand|temporarily\s+unavailable|google\s*generative\s*ai.*503/i.test(
+        msg,
+      );
+    };
+    const buildDeterministicTenshiFallbackReport = () => {
+      const sanitizeTableCell = (val = '') =>
+        String(val ?? '')
+          .replace(/\/api\/sgsst\/automatizaciones\/evidencias\/[^\s)|]+/gi, '📎 En bandeja')
+          .replace(/\|/g, ' · ')
+          .replace(/[\r\n]+/g, ' ')
+          .trim();
+
+      const parts = [];
+      if (forensicFullResult?.markdownReport) {
+        parts.push(String(forensicFullResult.markdownReport).trim());
+      }
+
+      if (scraperStage2Results.length > 0) {
+        const tableRows = [];
+        for (const sBlock of scraperStage2Results) {
+          const pLabel = sanitizeTableCell(sBlock.portalLabel || 'Portal Oficial');
+          const items = Array.isArray(sBlock.outputItems) ? sBlock.outputItems : [];
+          for (const it of items) {
+            const holder = sanitizeTableCell(
+              it?.['Nombre Completo'] ||
+                it?.colaborador ||
+                it?.nombre ||
+                it?.['Cédula / Documento'] ||
+                it?.documento ||
+                'Consultado',
+            );
+            const docNum = sanitizeTableCell(
+              it?.['Cédula / Documento'] || it?.documento || it?.cedula || it?.placa || '',
+            );
+            const holderWithDoc =
+              docNum && !holder.includes(docNum) ? `${holder} (${docNum})` : holder;
+            const estado = sanitizeTableCell(
+              it?.estadoPortal || it?.Estado || it?.estado || '✅ Verificado',
+            );
+            const detalle = sanitizeTableCell(
+              it?.detalleOficial || it?.Detalle || it?.detalle || it?.extracto || 'Verificado en fuente oficial',
+            );
+            const cert =
+              it?.pdfUrl || it?.imageUrl || /descargado|bandeja|s[ií]/i.test(String(it?.certificado || ''))
+                ? '📎 En bandeja'
+                : 'Sin certificado';
+            tableRows.push(
+              `| **${pLabel}** | ${holderWithDoc} | ${estado} | ${detalle} | ${cert} |`,
+            );
+          }
+        }
+
+        if (!forensicFullResult?.markdownReport) {
+          parts.push(`### ✅ Informe Ejecutivo Oficial — ${automation.name || 'Verificación Tenshi'}`);
+        } else if (tableRows.length > 0) {
+          parts.push(`#### ⚖️ Verificación Institucional de Antecedentes del Profesional Firmante`);
+        }
+
+        if (tableRows.length > 0) {
+          parts.push(
+            [
+              '| Portal Oficial Consultado | Titular / Identificación | Estado Verificado | Detalle Técnico Oficial | Certificado Adjunto |',
+              '| :--- | :--- | :--- | :--- | :---: |',
+              ...tableRows,
+            ].join('\n'),
+          );
+        } else if (!forensicFullResult?.markdownReport && liveAntigravityScraperBlock) {
+          parts.push(
+            String(liveAntigravityScraperBlock)
+              .replace(/🚨 REGLA INQUEBRANTABLE:[\s\S]*$/i, '')
+              .trim(),
+          );
+        }
+      }
+
+      if (runCapturedEvidences.length > 0) {
+        parts.push(
+          `> 📎 **Certificados Oficiales Emitidos (${runCapturedEvidences.length}):** El certificado (o los certificados) oficial(es) ya fue(ron) emitido(s), lo(s) recibiste aquí mismo en este chat de Tenshi y ya puedes abrirlo(s) o descargarlo(s) directamente desde la bandeja de certificados adjunta.`,
+        );
+      }
+
+      return (
+        parts.filter(Boolean).join('\n\n').trim() ||
+        '### ✅ Verificación Oficial Completada\nLos resultados y soportes oficiales ya se encuentran disponibles en la bandeja adjunta.'
+      );
+    };
+
     // 5-8. Construct endpointOption & execute agent call (supports programmatic agentExecutorOverride for deterministic logical test suites)
     let response = null;
+    let rescuedFromGeminiHighDemand = false;
     if (typeof runOpts.agentExecutorOverride === 'function') {
       console.log(`[AutomationScheduler] STEP 3: Executing programmatic agentExecutorOverride for "${automation.name}"...`);
-      response = await runOpts.agentExecutorOverride({
-        effectivePrompt,
-        agent,
-        req,
-        automation,
-        structuredSourceRes,
-        preRes,
-        dedupLedger,
-      });
-      if (response?.conversationId) {
-        generatedConvoId = response.conversationId;
+      try {
+        response = await runOpts.agentExecutorOverride({
+          effectivePrompt,
+          agent,
+          req,
+          automation,
+          structuredSourceRes,
+          preRes,
+          dedupLedger,
+        });
+        if (response?.conversationId) {
+          generatedConvoId = response.conversationId;
+        }
+      } catch (overrideErr) {
+        if (hasPrecollectedTenshiToolData && isGeminiHighDemandOrServiceError(overrideErr)) {
+          console.warn(
+            `[AutomationScheduler] Rescate determinista Tenshi activado en override ante saturación 503/High Demand: ${overrideErr.message}`,
+          );
+          rescuedFromGeminiHighDemand = true;
+          response = { text: buildDeterministicTenshiFallbackReport() };
+        } else {
+          throw overrideErr;
+        }
       }
     } else {
       const endpointOption = {
@@ -7621,45 +7884,58 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
 
       req.body.endpointOption = endpointOption;
 
-      // 6. Initialize agent client
-      const { client, userMCPAuthMap } = await initializeClient({
-        req,
-        res: mockRes,
-        endpointOption,
-        signal: prelimAbortController.signal
-      });
-
-      // 7. Message options
-      const messageOptions = {
-        user: automation.user.toString(),
-        getReqData: (data) => {
-          if (data?.conversationId) {
-            generatedConvoId = data.conversationId;
-          }
-        },
-        conversationId: null,
-        parentMessageId: '00000000-0000-0000-0000-000000000000', // NO_PARENT
-        abortController: prelimAbortController,
-        userMCPAuthMap
-      };
-
-      // 8. Execute agent call with safety limit of 8 minutes
-      console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}" (companyId: ${targetCompanyIdStr || 'none'})...`);
       let raceTimeoutId = null;
-      response = await Promise.race([
-        client.sendMessage(effectivePrompt, messageOptions),
-        new Promise((_, reject) => {
-          raceTimeoutId = setTimeout(() => {
-            prelimAbortController.abort();
-            reject(new Error('Tiempo límite de ejecución superado (8 minutos).'));
-          }, 480000);
-        }),
-      ]);
-      if (raceTimeoutId) {
-        clearTimeout(raceTimeoutId);
+      try {
+        // 6. Initialize agent client
+        const { client, userMCPAuthMap } = await initializeClient({
+          req,
+          res: mockRes,
+          endpointOption,
+          signal: prelimAbortController.signal
+        });
+
+        // 7. Message options
+        const messageOptions = {
+          user: automation.user.toString(),
+          getReqData: (data) => {
+            if (data?.conversationId) {
+              generatedConvoId = data.conversationId;
+            }
+          },
+          conversationId: null,
+          parentMessageId: '00000000-0000-0000-0000-000000000000', // NO_PARENT
+          abortController: prelimAbortController,
+          userMCPAuthMap
+        };
+
+        // 8. Execute agent call with safety limit of 8 minutes
+        console.log(`[AutomationScheduler] STEP 3: Executing prompt for "${automation.name}" via agent "${agent?.name || 'Default'}" (companyId: ${targetCompanyIdStr || 'none'})...`);
+        response = await Promise.race([
+          client.sendMessage(effectivePrompt, messageOptions),
+          new Promise((_, reject) => {
+            raceTimeoutId = setTimeout(() => {
+              prelimAbortController.abort();
+              reject(new Error('Tiempo límite de ejecución superado (8 minutos).'));
+            }, 480000);
+          }),
+        ]);
+      } catch (llmCallErr) {
+        if (hasPrecollectedTenshiToolData && isGeminiHighDemandOrServiceError(llmCallErr)) {
+          console.warn(
+            `[AutomationScheduler] ⚡ Rescate determinista Tenshi activado para "${automation.name}" ante error 503/High Demand de Gemini (${llmCallErr?.message || llmCallErr}). Entregando hallazgos reales verificados y ${runCapturedEvidences.length} evidencia(s) PDF/PNG.`,
+          );
+          rescuedFromGeminiHighDemand = true;
+          response = { text: buildDeterministicTenshiFallbackReport() };
+        } else {
+          throw llmCallErr;
+        }
+      } finally {
+        if (raceTimeoutId) {
+          clearTimeout(raceTimeoutId);
+        }
       }
 
-      console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}`);
+      console.log(`[AutomationScheduler] STEP 4: Agent sendMessage finished for "${automation.name}". GeneratedConvo: ${generatedConvoId}${rescuedFromGeminiHighDemand ? ' (rescued via deterministic report)' : ''}`);
 
       if (response?.databasePromise) {
         try {
@@ -7686,8 +7962,18 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         .join('\n\n')
         .trim();
     }
+    if (
+      hasPrecollectedTenshiToolData &&
+      (!resultText || (resultText.length < 350 && isGeminiHighDemandOrServiceError(resultText)))
+    ) {
+      rescuedFromGeminiHighDemand = true;
+      resultText = buildDeterministicTenshiFallbackReport();
+    }
     if (!resultText) {
       resultText = '(Ejecución completada por el agente. Documento generado disponible en el chat)';
+    }
+    if (rescuedFromGeminiHighDemand) {
+      preExtractionTraceMeta.rescuedFromGeminiHighDemand = true;
     }
 
     // Recolectar automáticamente archivos generados por Google Flow (/images/flow_...), NotebookLM (/images/nlm_..., /uploads/nlm_artifacts/...) o Web Scraping
@@ -10377,6 +10663,43 @@ async function executeRealAntigravityScraperVerification({
   const effectiveSourceInstruction = triggerExplicitText || promptExplicitText;
   const extractedDocType = extractDocTypeFromInstruction(effectiveSourceInstruction);
   const extractedBirthDate = extractOptionalBirthDateFromInstruction(effectiveSourceInstruction);
+  const extractExplicitArlFromInstruction = (primaryText = '', fallbackText = '') => {
+    const arlPatterns = [
+      { label: 'ARL Colmena Seguros', regex: /\bcolmena\b/i },
+      { label: 'ARL AXA Colpatria', regex: /\b(?:axa(?:\s+colpatria)?|colpatria)\b/i },
+      { label: 'ARL Seguros Bolívar', regex: /\b(?:seguros\s+bol[ií]var|bol[ií]var)\b/i },
+      { label: 'ARL SURA', regex: /\bsura\b/i },
+      { label: 'ARL Positiva', regex: /\bpositiva\b/i },
+      { label: 'ARL La Equidad', regex: /\b(?:la\s+)?equidad\b/i },
+    ];
+    const primaryStr = String(primaryText || '').trim();
+    if (primaryStr) {
+      const explicitArlPhrase = primaryStr.match(
+        /\barl\s+(?:seguros\s+|la\s+)?(colmena|axa(?:\s+colpatria)?|colpatria|bol[ií]var|sura|positiva|equidad)\b/i,
+      );
+      if (explicitArlPhrase && explicitArlPhrase[1]) {
+        const matchedDirect = arlPatterns.find((p) => p.regex.test(explicitArlPhrase[1]));
+        if (matchedDirect) return matchedDirect.label;
+      }
+      const primaryMatches = arlPatterns.filter((p) => p.regex.test(primaryStr));
+      if (primaryMatches.length >= 1) {
+        return primaryMatches[0].label;
+      }
+    }
+    const fallbackStr = String(fallbackText || '').trim();
+    if (fallbackStr) {
+      // En promptText solo tomamos la ARL si aparece una única aseguradora explícita (evita falsos positivos en prompts plantilla que enumeran varias ARL)
+      const fallbackMatches = arlPatterns.filter((p) => p.regex.test(fallbackStr));
+      if (fallbackMatches.length === 1) {
+        return fallbackMatches[0].label;
+      }
+    }
+    return '';
+  };
+  const explicitRequestedArl = extractExplicitArlFromInstruction(
+    [mockTriggerInput, nodeCfg?.arl, customNodeObj?.config?.arl].filter(Boolean).join(' '),
+    promptText,
+  );
   const allowDirectNameWithoutMatch = Boolean(
     nodeCfg?.allowDirectNameWithoutWorkerMatch ||
       allNodeConfigs?.if_router?.allowDirectNameWithoutWorkerMatch ||
@@ -10905,6 +11228,7 @@ async function executeRealAntigravityScraperVerification({
   let cloudRelayCount = 0;
   let directFallbackCount = 0;
   let missingBirthDateArlCount = 0;
+  const arlRecaptchaGuidanceEntries = [];
   let verifiedWithCoursesCount = 0;
   let verifiedNoCoursesCount = 0;
 
@@ -11022,6 +11346,10 @@ async function executeRealAntigravityScraperVerification({
                   : 25000;
             const docTypeForTarget = target.tipoDoc || extractedDocType || 'CC';
             const birthDateForTarget = target.fechaNacimiento || extractedBirthDate || '';
+            const arlForTarget =
+              specificPortalAction === 'arl'
+                ? target.arl || explicitRequestedArl || ''
+                : target.arl || '';
             let portalRes = null;
             if (typeof global.dispatchOsintViaAntigravityDaemon === 'function') {
               portalRes = await global
@@ -11032,7 +11360,7 @@ async function executeRealAntigravityScraperVerification({
                   cedula: target.cleanCedula,
                   nombre: target.nombre,
                   placa: target.placa || '',
-                  arl: target.arl || '',
+                  arl: arlForTarget,
                   eps: target.eps || '',
                   afp: target.afp || '',
                   fechaNacimiento: birthDateForTarget,
@@ -11049,7 +11377,7 @@ async function executeRealAntigravityScraperVerification({
                 cedula: target.cleanCedula,
                 nombre: target.nombre,
                 placa: target.placa || '',
-                arl: target.arl || '',
+                arl: arlForTarget,
                 eps: target.eps || '',
                 afp: target.afp || '',
                 fechaNacimiento: birthDateForTarget,
@@ -11185,6 +11513,99 @@ async function executeRealAntigravityScraperVerification({
 
         const effectivePortalName = resolvePortalRecoveredDisplayName(target, pRes, null);
         target.nombre = effectivePortalName;
+        if (specificPortalAction === 'arl' && !hasPositiveRecord) {
+          const rawRecaptchaPortals =
+            Array.isArray(pRes.portalesArlConRecaptcha) && pRes.portalesArlConRecaptcha.length > 0
+              ? pRes.portalesArlConRecaptcha
+              : Array.isArray(pRes.detalles)
+                ? pRes.detalles.filter((d) => d?.requiereCaptchaHumano)
+                : [];
+          const effectiveTargetArl = target.arl || explicitRequestedArl || '';
+          const portalsList = [];
+          const seenPortalUrls = new Set();
+
+          for (const rp of rawRecaptchaPortals) {
+            const entidad = String(rp?.entidad || rp?.nombre || '').trim();
+            const rawUrl = String(rp?.url || rp?.enlace || '').trim();
+            if (!entidad && !rawUrl) continue;
+            const resolvedUrl =
+              rawUrl ||
+              (/colmena/i.test(entidad)
+                ? 'https://www.colmenaseguros.com/certificados-de-afiliacion'
+                : /axa|colpatria/i.test(entidad)
+                  ? 'https://www.axacolpatria.co/arl/certificacion-afiliacion-arl'
+                  : '');
+            const dedupKey = (resolvedUrl || entidad).toLowerCase();
+            if (seenPortalUrls.has(dedupKey)) continue;
+            seenPortalUrls.add(dedupKey);
+            portalsList.push({
+              entidad: entidad || 'Portal Oficial ARL',
+              url: resolvedUrl,
+              estado: String(rp?.estado || rp?.motivo || '').trim(),
+              requiereFechaNacimiento: rp?.requiereFechaNacimiento !== false,
+            });
+          }
+
+          if (portalsList.length === 0) {
+            const combinedResText = `${effectiveTargetArl} ${pRes.estadoReal || ''} ${pRes.resumen || ''}`;
+            if (/colmena/i.test(combinedResText)) {
+              portalsList.push({
+                entidad: 'ARL Colmena Seguros',
+                url: 'https://www.colmenaseguros.com/certificados-de-afiliacion',
+                estado: 'Portal oficial protegido con reCAPTCHA humano',
+                requiereFechaNacimiento: true,
+              });
+            }
+            if (
+              /axa|colpatria/i.test(combinedResText) &&
+              /recaptcha|captcha|no soy un robot/i.test(combinedResText)
+            ) {
+              portalsList.push({
+                entidad: 'ARL AXA Colpatria',
+                url: 'https://www.axacolpatria.co/arl/certificacion-afiliacion-arl',
+                estado: 'Portal oficial protegido con reCAPTCHA humano',
+                requiereFechaNacimiento: true,
+              });
+            }
+          }
+
+          if (portalsList.length > 0) {
+            const priorityArlHint = explicitRequestedArl || target.arl || '';
+            if (priorityArlHint) {
+              const scoreArlPortal = (portal) => {
+                const hay = `${portal?.entidad || ''} ${portal?.url || ''}`.toLowerCase();
+                if (/colmena/i.test(priorityArlHint) && hay.includes('colmena')) return 0;
+                if (
+                  /axa|colpatria/i.test(priorityArlHint) &&
+                  (hay.includes('axa') || hay.includes('colpatria'))
+                ) {
+                  return 0;
+                }
+                if (/bol[ií]var/i.test(priorityArlHint) && /bol[ií]var/.test(hay)) return 0;
+                if (/sura/i.test(priorityArlHint) && hay.includes('sura')) return 0;
+                if (/positiva/i.test(priorityArlHint) && hay.includes('positiva')) return 0;
+                if (/equidad/i.test(priorityArlHint) && hay.includes('equidad')) return 0;
+                return 1;
+              };
+              portalsList.sort((a, b) => scoreArlPortal(a) - scoreArlPortal(b));
+            }
+
+            const formattedBirthDateForPortal = /^\d{4}-\d{2}-\d{2}$/.test(effectiveBirthDate)
+              ? `${effectiveBirthDate.slice(8, 10)}/${effectiveBirthDate.slice(5, 7)}/${effectiveBirthDate.slice(0, 4)}`
+              : effectiveBirthDate;
+
+            arlRecaptchaGuidanceEntries.push({
+              nombre: effectivePortalName,
+              tipoDoc: target.tipoDoc || extractedDocType || 'CC',
+              documento: target.cleanCedula || target.rawDoc || '',
+              fechaNacimiento:
+                formattedBirthDateForPortal || 'Pendiente (ingresar DD/MM/AAAA del trabajador)',
+              arlDeclarada: effectiveTargetArl,
+              explicitRequestedArl: explicitRequestedArl || '',
+              portales: portalsList,
+            });
+          }
+        }
         const evMeta = persistAndAttachRowEvidence({
           primaryRes: pRes,
           secondaryRes: null,
@@ -11198,7 +11619,11 @@ async function executeRealAntigravityScraperVerification({
           nombre: effectivePortalName,
           documento: displayPortalDoc,
           cargo: target.cargo,
-          arl: target.arl || pRes.entidadDetectada || '',
+          arl:
+            target.arl ||
+            pRes.entidadDetectada ||
+            (specificPortalAction === 'arl' ? explicitRequestedArl : '') ||
+            '',
           eps: target.eps || '',
           afp: target.afp || '',
           fechaNacimiento: target.fechaNacimiento || '',
@@ -11553,6 +11978,58 @@ async function executeRealAntigravityScraperVerification({
       `> 💡 **Aviso ARL con fecha de nacimiento:** No se detectó afiliación activa en SURA/Positiva y no se suministró fecha de nacimiento. Si la consulta corresponde a una ARL que exige fecha de nacimiento en su portal (como **ARL Seguros Bolívar**), solicita la fecha de nacimiento al usuario para completar esa verificación.`,
     );
   }
+  if (arlRecaptchaGuidanceEntries.length > 0) {
+    const formatArlPortalMarkdownLink = (portal = {}) => {
+      const entidad = String(portal?.entidad || '').trim();
+      const rawUrl = String(portal?.url || '').trim();
+      if (/colmena/i.test(entidad) || /colmenaseguros\.com/i.test(rawUrl)) {
+        const href = rawUrl || 'https://www.colmenaseguros.com/certificados-de-afiliacion';
+        return `[ARL Colmena Seguros — Descargar Certificado Oficial](${href})`;
+      }
+      if (/axa|colpatria/i.test(entidad) || /axacolpatria\.co/i.test(rawUrl)) {
+        const href = rawUrl || 'https://www.axacolpatria.co/arl/certificacion-afiliacion-arl';
+        return `[ARL AXA Colpatria — Certificación Oficial ARL](${href})`;
+      }
+      if (rawUrl) {
+        return `[${entidad || 'Portal Oficial ARL'} — Certificación Oficial ARL](${rawUrl})`;
+      }
+      return `**${entidad || 'Portal Oficial ARL'}**`;
+    };
+
+    tableLines.push(
+      '',
+      '### 🔐 Acceso Directo a Portal ARL con Protección reCAPTCHA',
+      '',
+      '> 🔒 **Aviso de Privacidad y Seguridad:** Por políticas de privacidad y seguridad del portal (protección `reCAPTCHA`), Tenshi no puede acceder automáticamente a este sistema. Puedes ingresar directamente en el enlace oficial con los datos del trabajador listos a continuación o solicitar autorización/integración directa con la ARL.',
+    );
+
+    for (const entry of arlRecaptchaGuidanceEntries) {
+      const arlBadge = entry.arlDeclarada ? ` · ARL: **${entry.arlDeclarada}**` : '';
+      tableLines.push(
+        '',
+        `- **Trabajador / Consulta:** **${entry.nombre}**${arlBadge}`,
+        `  - **Tipo de documento:** \`${entry.tipoDoc}\``,
+        `  - **Número de documento:** \`${entry.documento}\``,
+        `  - **Fecha de nacimiento:** \`${entry.fechaNacimiento}\``,
+      );
+      entry.portales.forEach((portal, pIdx) => {
+        const portalHaystack = `${portal?.entidad || ''} ${portal?.url || ''}`;
+        const isExplicitHighlight =
+          pIdx === 0 &&
+          Boolean(entry.explicitRequestedArl) &&
+          ((/colmena/i.test(entry.explicitRequestedArl) && /colmena/i.test(portalHaystack)) ||
+            (/axa|colpatria/i.test(entry.explicitRequestedArl) &&
+              /axa|colpatria/i.test(portalHaystack)) ||
+            (/bol[ií]var/i.test(entry.explicitRequestedArl) &&
+              /bol[ií]var/i.test(portalHaystack)) ||
+            (/equidad/i.test(entry.explicitRequestedArl) && /equidad/i.test(portalHaystack)));
+        const portalLinkMd = formatArlPortalMarkdownLink(portal);
+        const highlightSuffix = isExplicitHighlight ? ' ⭐ *(ARL solicitada)*' : '';
+        const reasonNote = portal.estado ? ` — ${portal.estado}` : '';
+        tableLines.push(`  - 🔗 ${portalLinkMd}${highlightSuffix}${reasonNote}`);
+      });
+    }
+  }
 
   if (chatDispatchRes?.completedSync && chatDispatchRes?.content) {
     tableLines.push('', '### 💬 Respuesta Directa del Hilo en Google Antigravity IDE:', String(chatDispatchRes.content).slice(0, 1800));
@@ -11610,6 +12087,8 @@ async function executeRealAntigravityScraperVerification({
     cloudRelayCount,
     directFallbackCount,
     missingBirthDateArlCount,
+    arlRecaptchaGuidanceCount: arlRecaptchaGuidanceEntries.length,
+    arlRecaptchaGuidanceEntries,
     inputSummary: `${engineUsedLabel} · ${validTargets.length} cédula(s) verificada(s)${evidences.length > 0 ? ` · ${evidences.length} certificado(s)` : ''}`,
     outputPreview,
     inputItems: resolvedInputItems,
@@ -12769,32 +13248,34 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       const forensicLayers = [
         'Capa 1 — Forense Binario EXIF / Estructura PDF: Inspección de cabeceras %PDF/%%EOF, revisiones incrementales, software productor/editor y timestamps CreateDate vs ModifyDate',
         'Capa 2 — Inspección Visual Multimodal (Gemini Vision): Análisis de coherencia tipográfica, alineación de renglones, parches de compresión y sellos institucionales EPS/IPS',
-        'Capa 3 — Cumplimiento Decreto 1427 de 2022 + ReTHUS Humano: Validación matemática de fechas/días otorgados, código CIE-10, dígito DIAN (módulo 11) del NIT emisor, cruce con empresa activa y enlace directo oficial a SISPRO ReTHUS para confirmación humana del CAPTCHA del médico tratante',
+        'Capa 3 — Cumplimiento Decreto 1427 de 2022 + Censo Hito 2: Validación matemática de fechas/días otorgados, cifras vs letras, código CIE-10, dígito DIAN (módulo 11) del NIT emisor y cruce con empresa activa',
+        'Capa 4 — Verificación Institucional sin CAPTCHA (REPS MinSalud + Contraloría General) + Enlace SISPRO ReTHUS: Consulta abierta en API Socrata REPS para NIT IPS y cédula del médico, cruce de identidad civil real en Contraloría General y enlace directo a SISPRO ReTHUS (donde el título académico puntual exige CAPTCHA visual humano imgCaptcha)',
       ];
       previewLines.unshift(
-        `🔬 **AUDITORÍA FORENSE DE CERTIFICADO DE INCAPACIDAD (3 CAPAS VERIFICADAS — SANDBOX):**\n  • ${forensicLayers.join('\n  • ')}`,
+        `🔬 **AUDITORÍA FORENSE DE CERTIFICADO DE INCAPACIDAD (4 CAPAS VERIFICADAS — SANDBOX):**\n  • ${forensicLayers.join('\n  • ')}`,
       );
       stepOutputItems = [
         {
           index: 1,
-          id: `${nodeKey}_forensic_3layers_preview`,
+          id: `${nodeKey}_forensic_4layers_preview`,
           nodo: resolvedTitle,
           nodeId: 'forensic_doc_verifier',
           categoria: category,
           empresa: companyName,
-          estado: 'auditoria_forense_3_capas_simulada_sandbox',
+          estado: 'auditoria_forense_4_capas_simulada_sandbox',
           capa1_ForenseBinarioExifPdf: forensicLayers[0],
           capa2_InspeccionVisualMultimodal: forensicLayers[1],
-          capa3_Decreto1427YRethusHumano: forensicLayers[2],
+          capa3_Decreto1427YCensoHito2: forensicLayers[2],
+          capa4_RepsMinsaludYContraloriaSinCaptcha: forensicLayers[3],
           enlaceOficialRethusManual:
             'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
         },
       ];
       finalRecordsCount = 1;
-      inputSummaryText = `🔬 Verificador Forense de Documentos (3 Capas: EXIF/PDF + Visión IA + Decreto 1427/2022) simulado en Sandbox`;
+      inputSummaryText = `🔬 Verificador Forense de Documentos (4 Capas: EXIF/PDF + Visión IA + Decreto 1427/2022 + REPS/Contraloría sin CAPTCHA) simulado en Sandbox`;
       addStepLog(
         'success',
-        'Simulación de las 3 capas forenses (EXIF/PDF binario, Gemini Vision y Decreto 1427/2022 + enlace ReTHUS humano) completada exitosamente',
+        'Simulación de las 4 capas forenses (EXIF/PDF binario, Gemini Vision, Decreto 1427/2022 y cruce institucional sin CAPTCHA en REPS MinSalud + Contraloría General + enlace ReTHUS humano) completada exitosamente',
       );
     } else {
       addStepLog(

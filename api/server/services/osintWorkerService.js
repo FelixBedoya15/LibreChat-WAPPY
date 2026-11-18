@@ -1389,24 +1389,24 @@ function obtenerCatalogoPortales360({ tipoDoc = 'CC', cedula = '', placa = '', n
       id: 'arl_colmena',
       categoria: 'seguridadSocialArl',
       entidad: 'ARL Colmena Seguros',
-      titulo: 'Consulta de Afiliación y Escarapela ARL Colmena',
+      titulo: 'Consulta Pública de Certificados de Afiliación ARL Colmena',
       descripcion:
-        'Impresión de certificado individual de cobertura en riesgos laborales y carné ARL Colmena.',
-      url: 'https://afiliacionarl.colmenaseguros.com/',
+        'Portal público ciudadano sin clave empresarial para certificado individual de afiliación ARL Colmena (pide fecha de nacimiento y casilla reCAPTCHA humana).',
+      url: 'https://www.colmenaseguros.com/certificados-de-afiliacion',
       requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'} + Fecha de Nacimiento`,
-      tieneCaptcha: false,
-      tipoMotor: 'B',
+      tieneCaptcha: true,
+      tipoMotor: 'C',
     },
     {
       id: 'arl_axa_colpatria',
       categoria: 'seguridadSocialArl',
       entidad: 'ARL AXA Colpatria',
-      titulo: 'Certificados de Afiliación ARL AXA Colpatria',
+      titulo: 'Certificación Pública de Afiliación ARL AXA Colpatria',
       descripcion:
-        'Generación en línea de certificado individual de afiliación a riesgos laborales en AXA Colpatria.',
-      url: 'https://arl.axacolpatria.co/',
-      requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'}`,
-      tieneCaptcha: false,
+        'Portal público ciudadano sin clave empresarial para generación de certificado individual ARL AXA Colpatria con Estado (Activos/Todos), documento y fecha de nacimiento.',
+      url: 'https://www.axacolpatria.co/arl/certificacion-afiliacion-arl',
+      requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'} + Fecha de Nacimiento`,
+      tieneCaptcha: true,
       tipoMotor: 'B',
     },
     {
@@ -1415,9 +1415,9 @@ function obtenerCatalogoPortales360({ tipoDoc = 'CC', cedula = '', placa = '', n
       entidad: 'ARL Seguros Bolívar',
       titulo: 'Certificado de Cobertura ARL Seguros Bolívar',
       descripcion:
-        'Consulta y descarga de constancia de afiliación activa en ARL Seguros Bolívar.',
+        'Portal público sin clave empresarial ni CAPTCHA para constancia de afiliación activa en ARL Seguros Bolívar con fecha de nacimiento.',
       url: 'https://www.segurosbolivar.com/arl',
-      requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'}`,
+      requiere: `${cleanTipoDoc} ${cleanCedula || '[Cédula]'} + Fecha de Nacimiento`,
       tieneCaptcha: false,
       tipoMotor: 'B',
     },
@@ -2598,8 +2598,99 @@ async function consultarContraloriaFiscalPorCedula({
   });
 }
 
+const POLICIA_ANTECEDENTES_OFFICIAL_URL = 'https://antecedentes.policia.gov.co:7005/WebJudicial/';
+const POLICIA_RNMC_OFFICIAL_URL = 'https://srvcnpc.policia.gov.co/PSC/frm_cnp_consulta.aspx';
+const PROCURADURIA_SIRI_OFFICIAL_URL =
+  'https://www.procuraduria.gov.co/Pages/Consulta-de-Antecedentes.aspx';
+const SIMIT_PUBLIC_OFFICIAL_URL = 'https://www.fcm.org.co/simit/#/home-public';
+const RUNT_PUBLIC_OFFICIAL_URL = 'https://www.runt.gov.co';
+const SECOP_MULTAS_SOCRATA_URL = 'https://www.datos.gov.co/resource/4n4q-k399.json';
+
 /**
- * Wrapper unificado de Rama Judicial + Contraloría General (Antecedentes Judiciales y Fiscales Reales).
+ * Clasifica de forma determinista los procesos devueltos por Rama Judicial API v2
+ * separando Juzgados Penales / Fiscalía Judicializados vs. Ordinarios (Laboral, Civil, Administrativo, Familia).
+ */
+function classifyRamaJudicialProcesos(procesos = []) {
+  const list = Array.isArray(procesos) ? procesos : [];
+  const procesosPenales = [];
+  const procesosOrdinarios = [];
+
+  for (const proc of list) {
+    const rawDespacho = String(proc?.despacho || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase();
+    const isFamilia = /\bFAMILIA\b/.test(rawDespacho);
+    const isPenal =
+      /\b(?:PENAL|GARANTIAS|CONOCIMIENTO|EJECUCION\s+DE\s+PENAS|ESPECIALIZADO)\b/.test(rawDespacho) ||
+      (/\bPROMISCUO\b/.test(rawDespacho) && !isFamilia);
+    if (isPenal) {
+      procesosPenales.push({ ...proc, jurisdiccionClasificada: 'PENAL_JUDICIALIZADO' });
+    } else {
+      procesosOrdinarios.push({ ...proc, jurisdiccionClasificada: 'ORDINARIA_CIVIL_LABORAL_ADMIN_FAMILIA' });
+    }
+  }
+
+  return {
+    procesosPenales,
+    procesosOrdinarios,
+    totalPenales: procesosPenales.length,
+    totalOrdinarios: procesosOrdinarios.length,
+  };
+}
+
+/**
+ * Consulta abierta sin CAPTCHA en Datos Abiertos Colombia (Socrata SECOP Multas y Sanciones: 4n4q-k399).
+ * Timeout estricto de 5000ms y fallback silencioso si no aplica o el servicio externo no responde.
+ */
+async function consultarSecopMultasPorDocumento(cedula = '') {
+  const cleanDigits = String(cedula || '').replace(/\D/g, '').trim();
+  if (!/^\d{5,15}$/.test(cleanDigits)) {
+    return { ok: false, consultado: false, totalSanciones: 0, sanciones: [] };
+  }
+
+  try {
+    const url = `${SECOP_MULTAS_SOCRATA_URL}?documento_contratista=${encodeURIComponent(cleanDigits)}&$limit=5`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': DEFAULT_HEADERS['User-Agent'],
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      return { ok: false, consultado: false, totalSanciones: 0, sanciones: [] };
+    }
+    const rows = await res.json();
+    if (!Array.isArray(rows)) {
+      return { ok: false, consultado: false, totalSanciones: 0, sanciones: [] };
+    }
+    const sanciones = rows.map((r) => ({
+      entidad: r?.nombre_entidad || 'Entidad Estatal',
+      resolucion: r?.numero_de_resolucion || '',
+      contrato: r?.numero_de_contrato || '',
+      valorSancion: Number(r?.valor_sancion || 0),
+      fechaFirmeza: r?.fecha_de_firmeza ? String(r.fecha_de_firmeza).split('T')[0] : '',
+      contratista: r?.nombre_contratista || '',
+    }));
+    return {
+      ok: true,
+      consultado: true,
+      totalSanciones: sanciones.length,
+      sanciones,
+    };
+  } catch (_) {
+    return { ok: false, consultado: false, totalSanciones: 0, sanciones: [] };
+  }
+}
+
+/**
+ * Wrapper unificado Multi-Ente de Antecedentes en Colombia (sin violar ni computar CAPTCHAs):
+ * 1) Rama Judicial API v2 Oficial (Juzgados Penales/Fiscalía Judicializados vs. Laboral/Civil/Admin/Familia)
+ * 2) Contraloría General de la República — SIBOR Responsabilidad Fiscal (%PDF oficial) + SECOP Multas Estatales (Datos Abiertos)
+ * 3) Policía Nacional + RNMC (enlace directo transparente — exige reCAPTCHA humano)
+ * 4) Procuraduría General SIRI (enlace directo transparente — exige pregunta de seguridad humana)
+ * 5) Fiscalía General SPOA (nota técnica: causas judicializadas cubiertas en Juzgados Penales; indagación reservada SPOA exige validación humana/CAPTCHA)
  */
 async function consultarRamaJudicial(params = '') {
   const isObj = params && typeof params === 'object';
@@ -2613,9 +2704,11 @@ async function consultarRamaJudicial(params = '') {
   const cleanCedula = isObj
     ? String(params.cedula || params.documento || params.identificacion || '').trim()
     : '';
+  const cleanCedulaDigits = cleanCedula.replace(/[^\d]/g, '');
+  const hasValidNumericCedula = /^\d{5,15}$/.test(cleanCedulaDigits);
 
   try {
-    let [rj, contraloria] = await Promise.all([
+    let [rj, contraloria, secopMultas] = await Promise.all([
       cleanNombre && cleanNombre.length >= 4
         ? consultarRamaJudicialPorNombre(cleanNombre)
         : Promise.resolve({
@@ -2625,13 +2718,16 @@ async function consultarRamaJudicial(params = '') {
             totalProcesos: 0,
             procesos: [],
           }),
-      /^\d{5,15}$/.test(cleanCedula.replace(/[^\d]/g, ''))
+      hasValidNumericCedula
         ? consultarContraloriaFiscalPorCedula({
             tipoDoc: cleanTipoDoc,
-            cedula: cleanCedula,
+            cedula: cleanCedulaDigits,
             includePdf: includeEvidence !== false,
           })
         : Promise.resolve(null),
+      hasValidNumericCedula
+        ? consultarSecopMultasPorDocumento(cleanCedulaDigits)
+        : Promise.resolve({ ok: false, consultado: false, totalSanciones: 0, sanciones: [] }),
     ]);
 
     let effectiveNombre = cleanNombre;
@@ -2673,49 +2769,137 @@ async function consultarRamaJudicial(params = '') {
       }
     }
 
+    const classifiedRj = classifyRamaJudicialProcesos(rj.procesos || []);
     const totalProcesos = Number(rj.totalProcesos || 0);
+    const totalPenales = classifiedRj.totalPenales;
+    const totalOrdinarios = classifiedRj.totalOrdinarios;
     const reportadoFiscal = Boolean(contraloria?.reportadoFiscal);
+    const totalSancionesSecop = Number(secopMultas?.totalSanciones || 0);
+
     let estadoReal = '⚠️ CONSULTA PARCIAL DE ANTECEDENTES';
     if (reportadoFiscal) {
       estadoReal = '⚠️ REPORTADO EN CONTRALORÍA FISCAL';
+    } else if (totalPenales > 0) {
+      estadoReal = `⚠️ ${totalPenales} PROCESO(S) PENAL(ES) JUDICIALIZADO(S) (${totalProcesos} TOTAL EN RAMA JUDICIAL)`;
     } else if (totalProcesos > 0) {
-      estadoReal = `⚠️ ${totalProcesos} PROCESO(S) EN RAMA JUDICIAL`;
+      estadoReal = `⚠️ ${totalProcesos} PROCESO(S) EN RAMA JUDICIAL (0 PENALES · ${totalOrdinarios} ORDINARIOS)`;
+    } else if (totalSancionesSecop > 0) {
+      estadoReal = `⚠️ ${totalSancionesSecop} MULTA(S) / SANCIÓN(ES) CONTRACTUAL(ES) EN SECOP`;
     } else if (rj.ok && contraloria?.ok) {
-      estadoReal = '✅ SIN ANTECEDENTES JUDICIALES NI FISCALES';
+      estadoReal = '✅ SIN ANTECEDENTES EN FUENTES ABIERTAS (RAMA JUDICIAL + CONTRALORÍA)';
     } else if (contraloria?.ok) {
       estadoReal = '✅ SIN ANTECEDENTES FISCALES (CONTRALORÍA)';
     } else if (rj.ok) {
-      estadoReal = '✅ SIN PROCESOS JUDICIALES ACTIVOS';
+      estadoReal = '✅ SIN PROCESOS JUDICIALES ACTIVOS (0 PENALES · 0 ORDINARIOS)';
     }
 
-    const partesResumen = [];
-    if (rj.ok) {
-      partesResumen.push(
-        totalProcesos > 0
-          ? `Rama Judicial: ${totalProcesos} proceso(s) (${rj.procesos
-              .slice(0, 2)
-              .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
-              .join('; ')})`
-          : `Rama Judicial: 0 procesos activos para "${effectiveNombre || rj.nombreConsultado || ''}"`,
-      );
-    } else if (rj.aviso) {
-      partesResumen.push(rj.aviso);
-    }
-    if (contraloria?.ok) {
-      partesResumen.push(
-        reportadoFiscal
-          ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}${contraloria.titular ? ` · ${contraloria.titular}` : ''}): REPORTADO como responsable fiscal`
-          : `Contraloría General (${cleanTipoDoc} ${cleanCedula}${contraloria.titular ? ` · ${contraloria.titular}` : ''}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
-      );
-    } else if (cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
-      partesResumen.push(
-        `Contraloría General omitida (documento "${cleanCedula}" es código de prueba/no numérico)`,
-      );
-    }
+    const rjDetalleHumano = rj.ok
+      ? totalProcesos > 0
+        ? `${totalProcesos} proceso(s) total(es): ${totalPenales} en Juzgados Penales/Ejecución de Penas y ${totalOrdinarios} en despachos Laborales/Civiles/Administrativos/Familia (${(rj.procesos || [])
+            .slice(0, 2)
+            .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
+            .join('; ')})`
+        : `0 procesos judiciales activos (0 Penales / Fiscalía judicializados y 0 Laborales/Civiles/Administrativos/Familia) para "${effectiveNombre || rj.nombreConsultado || ''}"`
+      : rj.aviso || 'Requiere nombre completo (>= 4 caracteres) para consultar API v2 de Rama Judicial.';
 
-    const resumen =
-      partesResumen.join(' · ') ||
-      `Consulta de antecedentes ejecutada para ${effectiveNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
+    const contraloriaDetalleHumano = contraloria?.ok
+      ? reportadoFiscal
+        ? `REPORTADO como responsable fiscal en Boletín SIBOR (${cleanTipoDoc} ${cleanCedulaDigits}${contraloria.titular ? ` · ${contraloria.titular}` : ''})`
+        : `NO reportado como responsable fiscal (${cleanTipoDoc} ${cleanCedulaDigits}${contraloria.titular ? ` · ${contraloria.titular}` : ''}${pdfBase64 ? ' · Certificado %PDF oficial descargado' : ''})`
+      : cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)
+        ? `Omitida (documento "${cleanCedula}" es código de prueba/no numérico)`
+        : hasValidNumericCedula
+          ? contraloria?.error || 'Portal Contraloría en validación adicional temporal.'
+          : 'Requiere número de cédula numérico para descargar el Certificado Fiscal %PDF.';
+
+    const secopDetalleHumano = secopMultas?.ok
+      ? totalSancionesSecop > 0
+        ? `${totalSancionesSecop} multa(s)/sanción(es) contractual(es) registrada(s) en SECOP (${secopMultas.sanciones
+            .slice(0, 2)
+            .map((s) => `${s.entidad} Res. ${s.resolucion || 'S/N'}`)
+            .join('; ')})`
+        : '0 multas o sanciones contractuales estatales en SECOP Datos Abiertos'
+      : null;
+
+    // Tablero Completo de los 5 Entes Oficiales en Colombia (+ SECOP Datos Abiertos)
+    const detalles = [
+      {
+        orden: 1,
+        ente: 'Rama Judicial / Juzgados Penales y Ordinarios (API v2 Oficial)',
+        verificadoAutomaticoSinCaptcha: Boolean(rj.ok),
+        requiereCaptchaHumano: false,
+        estado: rj.ok
+          ? totalPenales > 0
+            ? `⚠️ ${totalPenales} Penal(es) / ${totalOrdinarios} Ordinario(s)`
+            : totalProcesos > 0
+              ? `ℹ️ 0 Penales · ${totalOrdinarios} Ordinario(s)`
+              : '✅ 0 Procesos (Penales y Ordinarios)'
+          : 'ℹ️ Pendiente de nombre completo',
+        detalle: rjDetalleHumano,
+        urlOficial: 'https://consultaprocesos.ramajudicial.gov.co/Procesos/Index',
+      },
+      {
+        orden: 2,
+        ente: 'Contraloría General de la República — Responsabilidad Fiscal SIBOR (+ SECOP)',
+        verificadoAutomaticoSinCaptcha: Boolean(contraloria?.ok),
+        requiereCaptchaHumano: false,
+        estado: contraloria?.ok
+          ? reportadoFiscal
+            ? '🚨 REPORTADO FISCAL'
+            : '✅ SIN RESPONSABILIDAD FISCAL'
+          : 'ℹ️ Requiere cédula numérica',
+        detalle: secopDetalleHumano
+          ? `${contraloriaDetalleHumano} · SECOP: ${secopDetalleHumano}`
+          : contraloriaDetalleHumano,
+        certificadoPdfDescargado: Boolean(pdfBase64),
+        urlOficial: 'https://cfiscal.contraloria.gov.co/Certificados/CertificadoPersonaNatural.aspx',
+      },
+      {
+        orden: 3,
+        ente: 'Policía Nacional (Antecedentes Judiciales) & RNMC Medidas Correctivas',
+        verificadoAutomaticoSinCaptcha: false,
+        requiereCaptchaHumano: true,
+        tipoControlSeguridad: 'reCAPTCHA ("No soy un robot")',
+        estado: '🔒 Validación humana directa (reCAPTCHA)',
+        detalle: `Consulta directa oficial en ${POLICIA_ANTECEDENTES_OFFICIAL_URL} y RNMC ${POLICIA_RNMC_OFFICIAL_URL} (exige completar reCAPTCHA humano "No soy un robot").`,
+        urlOficial: POLICIA_ANTECEDENTES_OFFICIAL_URL,
+        urlRnmc: POLICIA_RNMC_OFFICIAL_URL,
+      },
+      {
+        orden: 4,
+        ente: 'Procuraduría General de la Nación — Antecedentes Disciplinarios (SIRI)',
+        verificadoAutomaticoSinCaptcha: false,
+        requiereCaptchaHumano: true,
+        tipoControlSeguridad: 'Pregunta aleatoria de seguridad humana',
+        estado: '🔒 Validación humana directa (Pregunta de seguridad)',
+        detalle: `Consulta directa oficial en ${PROCURADURIA_SIRI_OFFICIAL_URL} (exige responder pregunta aleatoria de seguridad humana en el portal SIRI).`,
+        urlOficial: PROCURADURIA_SIRI_OFFICIAL_URL,
+      },
+      {
+        orden: 5,
+        ente: 'Fiscalía General de la Nación — SPOA Denuncias',
+        verificadoAutomaticoSinCaptcha: false,
+        requiereCaptchaHumano: true,
+        tipoControlSeguridad: 'Reserva legal de indagación + CAPTCHA humano',
+        estado:
+          rj.ok && totalPenales === 0
+            ? '✅ 0 Causas Penales Judicializadas (SPOA reservado requiere CAPTCHA)'
+            : '🔒 Causas judicializadas medidas en Rama Judicial; SPOA exige CAPTCHA',
+        detalle:
+          'Los procesos penales ya judicializados quedan verificados automáticamente arriba en Juzgados Penales, de Control de Garantías, Conocimiento y Ejecución de Penas de la Rama Judicial; las indagaciones preliminares reservadas en SPOA exigen validación humana/CAPTCHA.',
+        urlOficial: 'https://www.fiscalia.gov.co/colombia/servicios-de-informacion-al-ciudadano/consultas/',
+      },
+    ];
+
+    const partesResumen = [
+      `1) ✅ Rama Judicial (API v2 sin CAPTCHA): ${rjDetalleHumano}`,
+      `2) ✅ Contraloría General Fiscal (sin CAPTCHA): ${contraloriaDetalleHumano}${secopDetalleHumano ? ` [SECOP Abierto: ${secopDetalleHumano}]` : ''}`,
+      `3) 🔒 Policía Nacional (${POLICIA_ANTECEDENTES_OFFICIAL_URL}) y RNMC (${POLICIA_RNMC_OFFICIAL_URL}): requiere reCAPTCHA humano ("No soy un robot")`,
+      `4) 🔒 Procuraduría Disciplinarios SIRI (${PROCURADURIA_SIRI_OFFICIAL_URL}): requiere pregunta aleatoria de seguridad humana`,
+      `5) 🔒 Fiscalía SPOA: procesos penales judicializados cubiertos arriba en Juzgados Penales (${totalPenales}); indagaciones reservadas SPOA requieren validación humana/CAPTCHA`,
+    ];
+
+    const resumen = partesResumen.join(' | ');
 
     return {
       ...rj,
@@ -2725,6 +2909,11 @@ async function consultarRamaJudicial(params = '') {
       nombreConsultado: rj.nombreConsultado || effectiveNombre || '',
       documento: cleanCedula || undefined,
       tipoDoc: cleanTipoDoc,
+      procesosPenales: classifiedRj.procesosPenales,
+      procesosOrdinarios: classifiedRj.procesosOrdinarios,
+      totalProcesosPenales: totalPenales,
+      totalProcesosOrdinarios: totalOrdinarios,
+      secopMultas,
       contraloria: contraloria
         ? {
             ok: contraloria.ok,
@@ -2733,8 +2922,14 @@ async function consultarRamaJudicial(params = '') {
             reportadoFiscal: contraloria.reportadoFiscal,
           }
         : null,
-      afiliadoActivo: totalProcesos === 0 && !reportadoFiscal && Boolean(rj.ok || contraloria?.ok),
-      tieneHallazgo: totalProcesos > 0 || reportadoFiscal,
+      tableroCincoEntes: detalles,
+      detalles,
+      afiliadoActivo:
+        totalProcesos === 0 &&
+        !reportadoFiscal &&
+        totalSancionesSecop === 0 &&
+        Boolean(rj.ok || contraloria?.ok),
+      tieneHallazgo: totalProcesos > 0 || reportadoFiscal || totalSancionesSecop > 0,
       tieneCertificado: Boolean(pdfBase64),
       estadoReal,
       pdfBase64,
@@ -2742,7 +2937,7 @@ async function consultarRamaJudicial(params = '') {
       imageBase64,
       imageFileName,
       fuente:
-        'Google Antigravity Local (IP Colombia · Rama Judicial API v2 + Contraloría General)',
+        'Fuentes Estatales Abiertas sin CAPTCHA (Rama Judicial API v2 + Contraloría General + SECOP Datos Abiertos)',
       status: rj.ok || contraloria?.ok ? 'ok' : 'warning',
       resumen,
     };
@@ -2757,7 +2952,12 @@ async function consultarRamaJudicial(params = '') {
       tipoDoc: cleanTipoDoc,
       totalProcesos: 0,
       procesos: [],
+      procesosPenales: [],
+      procesosOrdinarios: [],
+      totalProcesosPenales: 0,
+      totalProcesosOrdinarios: 0,
       contraloria: null,
+      detalles: [],
       afiliadoActivo: false,
       tieneHallazgo: false,
       tieneCertificado: false,
@@ -2766,7 +2966,7 @@ async function consultarRamaJudicial(params = '') {
       pdfFileName: null,
       imageBase64: null,
       imageFileName: null,
-      fuente: 'Google Antigravity Local (IP Colombia · Rama Judicial + Contraloría General)',
+      fuente: 'Fuentes Estatales Abiertas (Rama Judicial + Contraloría General)',
       status: 'warning',
       resumen: `Aviso ejecutando consulta de antecedentes: ${err.message}`,
     };
@@ -3286,6 +3486,7 @@ async function consultarArlRealPorCedula({
       imageFileName: null,
       resumen: 'No se suministró número de documento para consultar afiliación ARL.',
       detalles: [],
+      portalesArlConRecaptcha: [],
     };
   }
 
@@ -3308,6 +3509,7 @@ async function consultarArlRealPorCedula({
       imageFileName: null,
       resumen: `El documento "${rawCedulaStr}" es un código de simulación o no numérico; los portales ARL SURA, Positiva y Bolívar exigen número de cédula real (5 a 12 dígitos).`,
       detalles: [],
+      portalesArlConRecaptcha: [],
     };
   }
 
@@ -3628,41 +3830,129 @@ async function consultarArlRealPorCedula({
     }
   }
 
-  // 2) ARL Seguros Bolívar y avisos explícitos cuando no salió afiliación activa en SURA ni Positiva
+  // 2) ARL Seguros Bolívar, ARL AXA Colpatria y avisos precisos cuando no salió afiliación activa en SURA ni Positiva
+  const COLMENA_ARL_URL = 'https://www.colmenaseguros.com/certificados-de-afiliacion';
+  const AXA_ARL_URL = 'https://www.axacolpatria.co/arl/certificacion-afiliacion-arl';
   const fechaNacDmy = toBirthDateDmySlash(cleanFechaNac);
+  const motivoPrivacidadRecaptcha =
+    'Por políticas de privacidad y seguridad del portal (protección reCAPTCHA), no es posible acceder automáticamente a este sistema; puedes ingresar directamente en el enlace oficial con los datos indicados o solicitar autorización directa a la ARL.';
+  const datosParaIngresarArl = {
+    tipoDocumento: cleanTipoDoc,
+    numeroDocumento: cleanCedula,
+    fechaNacimiento: fechaNacDmy || 'Pendiente (ingresar DD/MM/AAAA del trabajador)',
+  };
+  const axaMencionadaEnArl = /axa|colpatria/i.test(cleanArl);
+  let axaGatedByCaptcha = false;
+  let axaConsultedWithoutCaptcha = false;
+
   const notaFaltaFechaNac =
-    'Sin afiliación activa en ARL SURA ni ARL Positiva · Si la consulta corresponde a una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar), solicita la fecha de nacimiento al usuario (Colmena y AXA Colpatria requieren clave empresarial del empleador)';
+    `Sin afiliación activa en ARL SURA ni ARL Positiva · Si la consulta corresponde a ARL Seguros Bolívar o ARL AXA Colpatria (portales públicos sin clave empresarial que exigen fecha de nacimiento), solicita la fecha de nacimiento al usuario · En caso de ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha}`;
   const notaVpsSinNavegador =
-    'Sin afiliación activa en ARL SURA ni ARL Positiva · Para consultar ARL Seguros Bolívar sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud (Colmena y AXA Colpatria requieren clave empresarial del empleador)';
+    `Sin afiliación activa en ARL SURA ni ARL Positiva · Para consultar ARL Seguros Bolívar y ARL AXA Colpatria (portales públicos con fecha de nacimiento, sin clave empresarial) sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud · En caso de ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha}`;
 
   if (!afiliadoActivo) {
     if (!fechaNacDmy) {
-      consultasTexto.push('ARL Seguros Bolívar: Requiere fecha de nacimiento para consultar');
-      detalles.push({
-        entidad: 'ARL Seguros Bolívar',
-        url: 'https://www.segurosbolivar.com/arl',
-        consultadoPorCedula: false,
-        afiliadoActivo: false,
-        requiereFechaNacimiento: true,
-        estado: 'Falta Fecha de Nacimiento',
-        nota: notaFaltaFechaNac,
-      });
+      consultasTexto.push(
+        'ARL Seguros Bolívar y ARL AXA Colpatria: Portales públicos sin clave empresarial que requieren fecha de nacimiento para consultar',
+      );
+      detalles.push(
+        {
+          entidad: 'ARL Seguros Bolívar',
+          url: 'https://www.segurosbolivar.com/arl',
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          estado: 'Falta Fecha de Nacimiento (portal público sin clave empresarial)',
+          nota: notaFaltaFechaNac,
+        },
+        {
+          entidad: 'ARL AXA Colpatria',
+          url: AXA_ARL_URL,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          ...(axaMencionadaEnArl
+            ? {
+                requiereCaptchaHumano: true,
+                datosParaIngresar: { ...datosParaIngresarArl },
+                motivoPrivacidad: motivoPrivacidadRecaptcha,
+                estado:
+                  'Portal público sin clave empresarial (exige fecha de nacimiento y puede activar protección reCAPTCHA; requiere ingreso directo del usuario o autorización directa a la ARL)',
+              }
+            : {
+                estado: 'Falta Fecha de Nacimiento (portal público sin clave empresarial)',
+              }),
+        },
+        {
+          entidad: 'ARL Colmena Seguros',
+          url: COLMENA_ARL_URL,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          requiereCaptchaHumano: true,
+          datosParaIngresar: { ...datosParaIngresarArl },
+          motivoPrivacidad: motivoPrivacidadRecaptcha,
+          estado:
+            'Portal público protegido por reCAPTCHA · Requiere ingreso directo del usuario con sus datos o solicitar autorización directa a la ARL',
+        },
+      );
     } else if (isVpsSafeFallback) {
       // PROHIBIDO abrir Chromium/Puppeteer en el respaldo directo del VPS para proteger RAM/CPU al 100%
       consultasTexto.push(
-        'ARL Seguros Bolívar: Omitido en respaldo ligero VPS (requiere Google Antigravity Local o Cloud conectado)',
+        'ARL Seguros Bolívar y ARL AXA Colpatria: Omitidos en respaldo ligero VPS (requieren Google Antigravity Local o Cloud conectado)',
       );
-      detalles.push({
-        entidad: 'ARL Seguros Bolívar',
-        url: 'https://www.segurosbolivar.com/arl',
-        consultadoPorCedula: false,
-        afiliadoActivo: false,
-        requiereAntigravityConectado: true,
-        vpsSafeDirectFallback: true,
-        estado:
-          'Para consultar ARL Seguros Bolívar sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud',
-        nota: notaVpsSinNavegador,
-      });
+      detalles.push(
+        {
+          entidad: 'ARL Seguros Bolívar',
+          url: 'https://www.segurosbolivar.com/arl',
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereAntigravityConectado: true,
+          vpsSafeDirectFallback: true,
+          estado:
+            'Para consultar ARL Seguros Bolívar (público con fecha de nacimiento, sin clave empresarial) sin sobrecargar el VPS con navegador pesado se requiere tener conectado Google Antigravity Local o Cloud',
+          nota: notaVpsSinNavegador,
+        },
+        {
+          entidad: 'ARL AXA Colpatria',
+          url: AXA_ARL_URL,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          requiereAntigravityConectado: true,
+          vpsSafeDirectFallback: true,
+          ...(axaMencionadaEnArl
+            ? {
+                requiereCaptchaHumano: true,
+                datosParaIngresar: { ...datosParaIngresarArl },
+                motivoPrivacidad: motivoPrivacidadRecaptcha,
+                estado:
+                  'Portal público protegido por reCAPTCHA · Requiere ingreso directo del usuario con sus datos o solicitar autorización directa a la ARL',
+              }
+            : {
+                estado:
+                  'Portal público con fecha de nacimiento (sin clave empresarial) · Requiere Google Antigravity Local o consulta directa en navegador',
+              }),
+        },
+        {
+          entidad: 'ARL Colmena Seguros',
+          url: COLMENA_ARL_URL,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          requiereCaptchaHumano: true,
+          datosParaIngresar: { ...datosParaIngresarArl },
+          motivoPrivacidad: motivoPrivacidadRecaptcha,
+          estado:
+            'Portal público protegido por reCAPTCHA · Requiere ingreso directo del usuario con sus datos o solicitar autorización directa a la ARL',
+        },
+      );
     } else {
       try {
         const t0 = Date.now();
@@ -3893,29 +4183,275 @@ async function consultarArlRealPorCedula({
           error: bolErr.message,
         });
       }
+
+      // 2b) ARL AXA Colpatria (https://www.axacolpatria.co/arl/certificacion-afiliacion-arl):
+      // Portal público ciudadano sin clave empresarial (Estado: Activos/Todos + Documento + Fecha de nacimiento).
+      // REGLA ESTRICTA DE SEGURIDAD (<guidelines>): Si la página presenta cualquier CAPTCHA / reCAPTCHA,
+      // se detiene de inmediato SIN tocar ni enviar el formulario.
+      if (!afiliadoActivo) {
+        try {
+          const tAxa0 = Date.now();
+          const fechaNacDash = String(fechaNacDmy || '').replace(/\//g, '-');
+          const axaResult = await runWithPuppeteerPage(async (page) => {
+            let axaPdfBuf = null;
+            let axaJsonPayload = null;
+
+            page.on('response', async (res) => {
+              const u = res.url();
+              const ct = String(res.headers()?.['content-type'] || '').toLowerCase();
+              if (u.includes('axacolpatria.co') && res.request().method() !== 'OPTIONS') {
+                if (ct.includes('application/pdf')) {
+                  try {
+                    axaPdfBuf = Buffer.from(await res.buffer());
+                  } catch (_) {}
+                } else if (
+                  ct.includes('application/json') &&
+                  /certificado|certificate|afiliacion|affiliation/i.test(u)
+                ) {
+                  try {
+                    axaJsonPayload = await res.json();
+                  } catch (_) {}
+                }
+              }
+            });
+
+            await page.goto(
+              'https://proveedores.axacolpatria.co/web/proveedor/certificado-individual-arl',
+              {
+                waitUntil: 'domcontentloaded',
+                timeout: 10000,
+              },
+            );
+
+            // Guardia estricta anti-CAPTCHA: jamás tocar, computar ni disparar formularios con CAPTCHA/reCAPTCHA
+            const hasCaptcha = await page.evaluate(() =>
+              Boolean(
+                document.querySelector(
+                  '.g-recaptcha, [data-sitekey], iframe[src*="recaptcha"], iframe[src*="hcaptcha"], [class*="turnstile"], [id*="captcha" i], [class*="captcha" i]',
+                ),
+              ),
+            );
+            if (hasCaptcha) {
+              return { gatedByCaptcha: true };
+            }
+
+            const docTypeCodeMap = {
+              CC: '1',
+              CE: '2',
+              PA: '6',
+              TI: '8',
+              PPT: '11',
+            };
+            const axaDocTypeCode = docTypeCodeMap[cleanTipoDoc] || '1';
+
+            await page.evaluate(
+              ({ docTypeVal, docNumVal, birthVal }) => {
+                const activeRadio = document.querySelector('input.certCheck[value="1"]');
+                if (activeRadio) activeRadio.click();
+                const sel = document.querySelector('select[id$="_documentType"]');
+                if (sel) {
+                  sel.value = docTypeVal;
+                  sel.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const docInput = document.querySelector('input[id$="_documentNumber"]');
+                if (docInput) {
+                  docInput.value = docNumVal;
+                  docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const birthInput = document.querySelector('input[id$="_birthdate"]');
+                if (birthInput) {
+                  birthInput.value = birthVal;
+                  birthInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  birthInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                const genBtn = document.querySelector('button[id$="_generateCertificate"]');
+                if (genBtn) genBtn.click();
+              },
+              {
+                docTypeVal: axaDocTypeCode,
+                docNumVal: cleanCedula,
+                birthVal: fechaNacDash,
+              },
+            );
+
+            for (let i = 0; i < 16 && !axaPdfBuf && !axaJsonPayload; i++) {
+              await sleepMs(350);
+            }
+
+            const downloadHref = await page
+              .evaluate(() => document.querySelector('#downloadLink')?.getAttribute('href') || '')
+              .catch(() => '');
+            const bodyAlertText = await page
+              .evaluate(() =>
+                String(document.body?.innerText || '')
+                  .replace(/\s+/g, ' ')
+                  .slice(0, 1200),
+              )
+              .catch(() => '');
+
+            return {
+              gatedByCaptcha: false,
+              axaPdfBuf,
+              axaJsonPayload,
+              downloadHref,
+              bodyAlertText,
+            };
+          }, 13000);
+
+          const axaLatencyMs = Date.now() - tAxa0;
+          if (axaResult?.gatedByCaptcha) {
+            axaGatedByCaptcha = true;
+            consultasTexto.push(
+              `ARL AXA Colpatria (${AXA_ARL_URL}): Detenido sin tocar por control Google reCAPTCHA activo · ${motivoPrivacidadRecaptcha}`,
+            );
+            detalles.push({
+              entidad: 'ARL AXA Colpatria',
+              url: AXA_ARL_URL,
+              consultadoPorCedula: false,
+              afiliadoActivo: false,
+              requiereClaveEmpresarial: false,
+              requiereFechaNacimiento: true,
+              requiereCaptchaHumano: true,
+              datosParaIngresar: { ...datosParaIngresarArl },
+              motivoPrivacidad: motivoPrivacidadRecaptcha,
+              latencyMs: axaLatencyMs,
+              estado:
+                'Portal público protegido por Google reCAPTCHA · Requiere ingreso directo del usuario con sus datos o solicitar autorización directa a la ARL',
+            });
+          } else if (
+            axaResult?.axaPdfBuf &&
+            axaResult.axaPdfBuf.subarray(0, 5).toString('ascii').startsWith('%PDF')
+          ) {
+            axaConsultedWithoutCaptcha = true;
+            afiliadoActivo = true;
+            entidadDetectada = 'ARL AXA Colpatria';
+            consultasTexto.push('ARL AXA Colpatria: Afiliado activo (certificado oficial generado)');
+            detalles.push({
+              entidad: 'ARL AXA Colpatria',
+              url: AXA_ARL_URL,
+              consultadoPorCedula: true,
+              afiliadoActivo: true,
+              requiereClaveEmpresarial: false,
+              estado: 'AFILIADO ACTIVO',
+              latencyMs: axaLatencyMs,
+            });
+            if (includeEvidence !== false) {
+              pdfBase64 = axaResult.axaPdfBuf.toString('base64');
+              pdfFileName = `Certificado_ARL_AXA_Colpatria_${cleanCedula}.pdf`;
+              imageBase64 = await convertPdfBase64ToPngBase64(pdfBase64);
+              imageFileName = imageBase64
+                ? `Certificado_ARL_AXA_Colpatria_${cleanCedula}.png`
+                : null;
+            }
+          } else {
+            axaConsultedWithoutCaptcha = true;
+            consultasTexto.push('ARL AXA Colpatria: Sin afiliación activa reportada');
+            detalles.push({
+              entidad: 'ARL AXA Colpatria',
+              url: AXA_ARL_URL,
+              consultadoPorCedula: true,
+              afiliadoActivo: false,
+              requiereClaveEmpresarial: false,
+              estado: 'No afiliado',
+              latencyMs: axaLatencyMs,
+            });
+          }
+        } catch (axaErr) {
+          logger.warn(`[OSINT ARL AXA Colpatria] Aviso consultando ${cleanCedula}: ${axaErr.message}`);
+          detalles.push({
+            entidad: 'ARL AXA Colpatria',
+            url: AXA_ARL_URL,
+            consultadoPorCedula: false,
+            afiliadoActivo: false,
+            requiereClaveEmpresarial: false,
+            requiereFechaNacimiento: true,
+            ...(axaMencionadaEnArl
+              ? {
+                  requiereCaptchaHumano: true,
+                  datosParaIngresar: { ...datosParaIngresarArl },
+                  motivoPrivacidad: motivoPrivacidadRecaptcha,
+                }
+              : {}),
+            error: axaErr.message,
+          });
+        }
+      }
+
+      // 2c) ARL Colmena Seguros (https://www.colmenaseguros.com/certificados-de-afiliacion):
+      // Portal público ciudadano con fecha de nacimiento sin clave empresarial, pero exige casilla reCAPTCHA ("No soy un robot") humana.
+      if (!afiliadoActivo) {
+        detalles.push({
+          entidad: 'ARL Colmena Seguros',
+          url: COLMENA_ARL_URL,
+          consultadoPorCedula: false,
+          afiliadoActivo: false,
+          requiereClaveEmpresarial: false,
+          requiereFechaNacimiento: true,
+          requiereCaptchaHumano: true,
+          datosParaIngresar: { ...datosParaIngresarArl },
+          motivoPrivacidad: motivoPrivacidadRecaptcha,
+          estado:
+            'Portal público protegido por reCAPTCHA · Requiere ingreso directo del usuario con sus datos o solicitar autorización directa a la ARL',
+        });
+      }
     }
   }
 
-  // 3) Registro transparente cuando la nómina indica Colmena / AXA Colpatria / La Equidad / Aurora (portales empresariales privados)
-  if (!afiliadoActivo && /colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
-    const privateArlName = /colmena/i.test(cleanArl)
-      ? 'ARL Colmena Seguros'
-      : /axa|colpatria/i.test(cleanArl)
-        ? 'ARL AXA Colpatria'
-        : cleanArl;
-    const privateArlUrl = /colmena/i.test(cleanArl)
-      ? 'https://www.colmenaseguros.com'
-      : /axa|colpatria/i.test(cleanArl)
-        ? 'https://www.axacolpatria.co'
-        : 'https://www.mintrabajo.gov.co';
+  // 3) Registro adicional únicamente si en ficha figura La Equidad o Aurora
+  if (!afiliadoActivo && /equidad|aurora/i.test(cleanArl)) {
     detalles.push({
-      entidad: privateArlName,
-      url: privateArlUrl,
+      entidad: cleanArl,
+      url: 'https://www.mintrabajo.gov.co',
       consultadoPorCedula: false,
       afiliadoActivo: false,
-      requiereClaveEmpresarial: true,
-      estado: 'Portal empresarial privado (requiere NIT + clave/OTP del empleador)',
+      requiereValidacionManual: true,
+      estado: 'Requiere consulta directa en portal de la aseguradora',
     });
+  }
+
+  // 4) Construir listado estructurado de portales ARL protegidos por reCAPTCHA cuando no hay afiliación activa automática
+  const portalesArlConRecaptcha = [];
+  if (!afiliadoActivo) {
+    const seenRecaptchaUrls = new Set();
+    for (const det of detalles) {
+      if (det && det.requiereCaptchaHumano === true) {
+        const detUrl = String(det.url || '').trim();
+        const dedupKey = detUrl || String(det.entidad || '').trim().toLowerCase();
+        if (dedupKey && !seenRecaptchaUrls.has(dedupKey)) {
+          seenRecaptchaUrls.add(dedupKey);
+          portalesArlConRecaptcha.push({
+            entidad: det.entidad,
+            url: det.url,
+            datosParaIngresar: det.datosParaIngresar
+              ? { ...det.datosParaIngresar }
+              : { ...datosParaIngresarArl },
+            motivoPrivacidad: det.motivoPrivacidad || motivoPrivacidadRecaptcha,
+          });
+        }
+      }
+    }
+    if (!seenRecaptchaUrls.has(COLMENA_ARL_URL)) {
+      seenRecaptchaUrls.add(COLMENA_ARL_URL);
+      portalesArlConRecaptcha.push({
+        entidad: 'ARL Colmena Seguros',
+        url: COLMENA_ARL_URL,
+        datosParaIngresar: { ...datosParaIngresarArl },
+        motivoPrivacidad: motivoPrivacidadRecaptcha,
+      });
+    }
+    if (
+      (axaGatedByCaptcha || (axaMencionadaEnArl && !axaConsultedWithoutCaptcha)) &&
+      !seenRecaptchaUrls.has(AXA_ARL_URL)
+    ) {
+      seenRecaptchaUrls.add(AXA_ARL_URL);
+      portalesArlConRecaptcha.push({
+        entidad: 'ARL AXA Colpatria',
+        url: AXA_ARL_URL,
+        datosParaIngresar: { ...datosParaIngresarArl },
+        motivoPrivacidad: motivoPrivacidadRecaptcha,
+      });
+    }
   }
 
   let estadoReal = '';
@@ -3941,23 +4477,35 @@ async function consultarArlRealPorCedula({
 
     if (historialRetirado) {
       estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (HISTORIAL RETIRADO BOLÍVAR)';
-      resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+      resumen = `Sin afiliación activa en ARL SURA, Positiva ni Bolívar · Historial retirado en ARL Bolívar: ${bolivarRetiroEmpresa}${bolivarRetiroFechaFin ? ` (fin: ${bolivarRetiroFechaFin})` : ''}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''} · Para ARL Colmena Seguros (${COLMENA_ARL_URL})${axaGatedByCaptcha ? ` y ARL AXA Colpatria (${AXA_ARL_URL})` : ''}: ${motivoPrivacidadRecaptcha}`;
     } else if (!fechaNacDmy) {
       estadoReal = cleanArl
         ? `❌ SIN AFILIACIÓN ACTIVA EN SURA/POSITIVA (Nómina: ${cleanArl} · Falta F. Nacimiento)`
-        : '❌ SIN AFILIACIÓN ACTIVA EN SURA/POSITIVA (FALTA F. NACIMIENTO PARA BOLÍVAR)';
-      resumen = `${notaFaltaFechaNac}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+        : '❌ SIN AFILIACIÓN ACTIVA EN SURA/POSITIVA (FALTA F. NACIMIENTO PARA BOLÍVAR / AXA / COLMENA)';
+      resumen = axaMencionadaEnArl
+        ? `${notaFaltaFechaNac} · Para ARL AXA Colpatria (${AXA_ARL_URL}): ${motivoPrivacidadRecaptcha}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`
+        : `${notaFaltaFechaNac}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
     } else if (isVpsSafeFallback) {
       estadoReal = cleanArl
-        ? `❌ SIN AFILIACIÓN EN SURA/POSITIVA (Nómina: ${cleanArl} · Bolívar requiere Antigravity)`
-        : '❌ SIN AFILIACIÓN EN SURA/POSITIVA (BOLÍVAR REQUIERE ANTIGRAVITY LOCAL/CLOUD)';
-      resumen = `${notaVpsSinNavegador}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
-    } else if (/colmena|axa|colpatria|equidad|aurora/i.test(cleanArl)) {
-      estadoReal = `❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS (Nómina: ${cleanArl})`;
-      resumen = `${consultasTexto.join(' · ')} · En Somos SST figura "${cleanArl}" (Colmena/AXA exigen clave empresarial privada del empleador)`;
+        ? `❌ SIN AFILIACIÓN EN SURA/POSITIVA (Nómina: ${cleanArl} · Bolívar/AXA requieren Antigravity)`
+        : '❌ SIN AFILIACIÓN EN SURA/POSITIVA (BOLÍVAR Y AXA REQUIEREN ANTIGRAVITY LOCAL/CLOUD)';
+      resumen = axaMencionadaEnArl
+        ? `${notaVpsSinNavegador} · Para ARL AXA Colpatria (${AXA_ARL_URL}): ${motivoPrivacidadRecaptcha}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`
+        : `${notaVpsSinNavegador}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+    } else if (/colmena/i.test(cleanArl)) {
+      estadoReal = `⚠️ REQUIERE INGRESO DIRECTO POR RECAPTCHA EN ARL COLMENA (Nómina: ${cleanArl})`;
+      resumen = `${consultasTexto.join(' · ')} · ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha} Datos para ingresar: ${cleanTipoDoc} ${cleanCedula}, Fecha de nacimiento: ${datosParaIngresarArl.fechaNacimiento}.`;
+    } else if (axaGatedByCaptcha || axaMencionadaEnArl) {
+      estadoReal = axaGatedByCaptcha
+        ? `⚠️ REQUIERE INGRESO DIRECTO POR RECAPTCHA EN ARL AXA COLPATRIA${cleanArl ? ` (Nómina: ${cleanArl})` : ''}`
+        : `⚠️ VALIDACIÓN EN PORTAL PÚBLICO ARL AXA COLPATRIA (Nómina: ${cleanArl})`;
+      resumen =
+        axaGatedByCaptcha || !axaConsultedWithoutCaptcha
+          ? `${consultasTexto.join(' · ')} · ARL AXA Colpatria (${AXA_ARL_URL}): ${motivoPrivacidadRecaptcha} Datos para ingresar: ${cleanTipoDoc} ${cleanCedula}, Fecha de nacimiento: ${datosParaIngresarArl.fechaNacimiento}. · En caso de ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha}`
+          : `${consultasTexto.join(' · ')} · ARL AXA Colpatria (${AXA_ARL_URL}) fue consultado sin afiliación activa reportada · Para ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha}`;
     } else {
-      estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN PORTALES PÚBLICOS';
-      resumen = `${consultasTexto.join(' · ')}${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
+      estadoReal = '❌ SIN AFILIACIÓN ACTIVA EN SURA, POSITIVA NI BOLÍVAR';
+      resumen = `${consultasTexto.join(' · ')} · En caso de ARL Colmena Seguros (${COLMENA_ARL_URL}): ${motivoPrivacidadRecaptcha} Datos para ingresar: ${cleanTipoDoc} ${cleanCedula}, Fecha de nacimiento: ${datosParaIngresarArl.fechaNacimiento}.${cleanArl ? ` · En ficha figura "${cleanArl}"` : ''}`;
     }
   }
 
@@ -3987,6 +4535,7 @@ async function consultarArlRealPorCedula({
     imageFileName,
     resumen,
     detalles,
+    portalesArlConRecaptcha,
   };
 }
 
@@ -4052,8 +4601,57 @@ async function consultarSimitPesvRealPorCedula({
     };
   }
 
+  const simitStartedAt = Date.now();
+  const SIMIT_HARD_BUDGET_MS = 28000;
+  const SIMIT_POST_QUERY_WAIT_MS = 6500;
+  const buildSimitManualGateFallback = (reasonNote = '') => {
+    const targetLabel = cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`;
+    return {
+      fuente: 'SIMIT FCM + RUNT Consulta Ciudadana',
+      status: 'ok',
+      action: 'vial_pesv',
+      requiereValidacionManual: true,
+      antiBotGateDetected: true,
+      simitUrl: SIMIT_PUBLIC_OFFICIAL_URL,
+      runtUrl: RUNT_PUBLIC_OFFICIAL_URL,
+      tipoDoc: cleanTipoDoc,
+      documento: cleanCedula,
+      placa: cleanPlaca,
+      nombre: cleanNombre,
+      afiliadoActivo: false,
+      tieneHallazgo: false,
+      tieneCertificado: false,
+      estadoReal: '🔒 COMPUERTA ANTI-BOT SIMIT ACTIVA (ENLACES OFICIALES SIMIT + RUNT)',
+      pdfBase64: null,
+      pdfFileName: null,
+      imageBase64: null,
+      imageFileName: null,
+      resumen:
+        `El portal nacional SIMIT activó su compuerta anti-bot temporal o demoró la carga para ${targetLabel}${reasonNote ? ` (${reasonNote})` : ''}; por seguridad y cumplimiento normativo no se computan, aguardan ni omiten desafíos anti-bot ni CAPTCHAs. ` +
+        `Enlace directo Estado de Cuenta SIMIT: ${SIMIT_PUBLIC_OFFICIAL_URL} · ` +
+        `Enlace oficial Licencia de Conducción y Vehículo en RUNT: ${RUNT_PUBLIC_OFFICIAL_URL} (RUNT exige CAPTCHA visual humano por documento).`,
+      detalles: [
+        {
+          entidad: 'SIMIT — Federación Colombiana de Municipios',
+          estado: '🔒 Compuerta anti-bot temporal activa',
+          urlOficial: SIMIT_PUBLIC_OFFICIAL_URL,
+          nota: 'Validación directa en el portal público nacional SIMIT por cédula o placa.',
+        },
+        {
+          entidad: 'RUNT — Consulta Ciudadana de Licencia de Conducción y SOAT/RTM',
+          estado: '🔒 Requiere CAPTCHA visual humano',
+          urlOficial: RUNT_PUBLIC_OFFICIAL_URL,
+          nota: 'RUNT exige ingresar manualmente el CAPTCHA visual humano junto con el documento o placa.',
+        },
+      ],
+    };
+  };
+
   try {
     const executeSingleSimitQuery = async (slot, forceFreshPage = false) => {
+      if (Date.now() - simitStartedAt >= SIMIT_HARD_BUDGET_MS - 500) {
+        return { simitJson: null, pdfBuf: null, antiBotGate: true };
+      }
       if (forceFreshPage || slot.uses >= 10) {
         await resetSimitSlot(slot);
       }
@@ -4089,49 +4687,34 @@ async function consultarSimitPesvRealPorCedula({
           }
         });
 
-        await freshPage.goto('https://www.fcm.org.co/simit/#/home-public', {
-          waitUntil: 'domcontentloaded',
-          timeout: 14000,
+        await freshPage.goto(SIMIT_PUBLIC_OFFICIAL_URL, {
+          waitUntil: 'commit',
+          timeout: 22000,
         });
-        await freshPage.waitForSelector('#txtBusqueda', { timeout: 10000 });
+        await freshPage.waitForSelector('#txtBusqueda', { timeout: 18000 });
 
-        // Esperar a que la prueba criptográfica inicial de SIMIT (#whcModal -> sessionStorage.whcQuestions) finalice antes de consultar
-        let sawWhcOpen = false;
-        for (let w = 0; w < 50; w++) {
-          const st = await freshPage.evaluate(() => {
-            let hasWhc = false;
-            try {
-              hasWhc = Boolean(
-                window.sessionStorage && window.sessionStorage.getItem('whcQuestions'),
-              );
-            } catch (_) {}
-            const whcOpen = Boolean(document.querySelector('#whcModal.show'));
-            return { hasWhc, whcOpen };
-          });
-          if (st.whcOpen) sawWhcOpen = true;
-          if (!st.whcOpen && (st.hasWhc || sawWhcOpen)) break;
-          if (!st.whcOpen && !sawWhcOpen && w >= 32) break;
-          await sleepMs(380);
+        // Prohibido esperar, computar o evadir desafíos proof-of-work/CAPTCHA: si el modal anti-bot de SIMIT está abierto, detener de inmediato
+        const gateActiveOnLoad = await freshPage
+          .evaluate(() => Boolean(document.querySelector('#whcModal.show, .modal.show[id*="whc"], [id*="whc"].show')))
+          .catch(() => false);
+        if (gateActiveOnLoad) {
+          slot.context = ctx;
+          slot.page = freshPage;
+          slot.uses = 0;
+          return { simitJson: null, pdfBuf: null, antiBotGate: true };
         }
 
         await freshPage.evaluate(() => {
           document
-            .querySelectorAll('#modalInformation .close, .modal.show button.close')
-            .forEach((btn) => {
-              const modal = btn.closest('.modal');
-              if (!modal || modal.id !== 'whcModal') {
-                btn.click();
-              }
-            });
+            .querySelectorAll('#modalInformation .close')
+            .forEach((btn) => btn.click());
         });
-        await sleepMs(300);
         slot.context = ctx;
         slot.page = freshPage;
         slot.uses = 0;
       }
 
       const page = slot.page;
-      const isWarmReuse = slot.uses > 0;
       let simitJson = null;
       let sawCodigo6 = false;
       slot.sink = (payload) => {
@@ -4142,35 +4725,25 @@ async function consultarSimitPesvRealPorCedula({
         }
       };
 
-      // Si #whcModal se abrió de forma diferida, aguardar a que cierre antes de interactuar
-      for (let w = 0; w < 18; w++) {
-        const whcBusy = await page.evaluate(() => Boolean(document.querySelector('#whcModal.show')));
-        if (!whcBusy) break;
-        await sleepMs(350);
+      // Corte inmediato sin espera si la compuerta anti-bot está activa en la página
+      const gateBusyBeforeInput = await page
+        .evaluate(() => Boolean(document.querySelector('#whcModal.show, .modal.show[id*="whc"], [id*="whc"].show')))
+        .catch(() => false);
+      if (gateBusyBeforeInput) {
+        slot.sink = null;
+        return { simitJson: null, pdfBuf: null, antiBotGate: true };
       }
 
-      // Cerrar cualquier modal/backdrop informativo residual antes de escribir con teclado real (isTrusted: true)
       await page.evaluate(() => {
         document
-          .querySelectorAll('#modalInformation .close, .modal.show button.close')
-          .forEach((btn) => {
-            const modal = btn.closest('.modal');
-            if (!modal || modal.id !== 'whcModal') {
-              btn.click();
-            }
-          });
-        document.querySelectorAll('.modal-backdrop').forEach((bd) => {
-          if (!document.querySelector('#whcModal.show')) {
-            bd.remove();
-          }
-        });
+          .querySelectorAll('#modalInformation .close')
+          .forEach((btn) => btn.click());
         const inp = document.querySelector('#txtBusqueda');
         if (inp) {
           inp.value = '';
           inp.dispatchEvent(new Event('input', { bubbles: true }));
         }
       });
-      await sleepMs(120);
 
       await page.focus('#txtBusqueda');
       await page.evaluate(() => {
@@ -4178,8 +4751,7 @@ async function consultarSimitPesvRealPorCedula({
         if (inp && typeof inp.select === 'function') inp.select();
       });
       await page.keyboard.press('Backspace');
-      await page.keyboard.type(queryKey, { delay: 18 });
-      await sleepMs(80);
+      await page.keyboard.type(queryKey, { delay: 12 });
 
       const triggeredClick = await page.evaluate(() => {
         const btn =
@@ -4194,50 +4766,44 @@ async function consultarSimitPesvRealPorCedula({
         await page.keyboard.press('Enter');
       }
 
-      const maxPolls = isWarmReuse ? 48 : 52;
-      let idleAfterCodigo6 = 0;
-      for (let i = 0; i < maxPolls && !simitJson; i++) {
-        await sleepMs(320);
-        if (sawCodigo6 && !simitJson) {
-          const whcOpenNow = await page
-            .evaluate(() => Boolean(document.querySelector('#whcModal.show')))
-            .catch(() => false);
-          if (whcOpenNow) {
-            idleAfterCodigo6 = 0;
-          } else {
-            idleAfterCodigo6 += 1;
-            if (idleAfterCodigo6 === 4) {
-              // Si whcModal ya cerró y no reenvió automáticamente la consulta, disparar botón una vez más
-              await page
-                .evaluate(() => {
-                  const btn =
-                    document.querySelector('#consultar') ||
-                    document.querySelector('#btnNumDocPlaca');
-                  if (btn) btn.click();
-                })
-                .catch(() => {});
-            }
-            if (idleAfterCodigo6 >= 14) break;
-          }
+      // Aguardar respuesta JSON directa tras enviar la consulta (<= 6.5s); si aparece codigo === 6 o #whcModal.show, detener de inmediato
+      const querySentAt = Date.now();
+      while (
+        !simitJson &&
+        !sawCodigo6 &&
+        Date.now() - querySentAt < SIMIT_POST_QUERY_WAIT_MS &&
+        Date.now() - simitStartedAt < SIMIT_HARD_BUDGET_MS - 300
+      ) {
+        await sleepMs(180);
+        if (sawCodigo6 || simitJson) break;
+        const gateTriggeredNow = await page
+          .evaluate(() => Boolean(document.querySelector('#whcModal.show, .modal.show[id*="whc"], [id*="whc"].show')))
+          .catch(() => false);
+        if (gateTriggeredNow) {
+          sawCodigo6 = true;
+          break;
         }
       }
       slot.sink = null;
 
-      if (!simitJson) {
-        return { simitJson: null, pdfBuf: null };
+      if (sawCodigo6 || !simitJson) {
+        return { simitJson: null, pdfBuf: null, antiBotGate: true };
       }
 
       slot.uses += 1;
 
       let pdfBuf = null;
-      if (includeEvidence !== false || forceEvidence === true) {
-        await sleepMs(750);
+      if (
+        (includeEvidence !== false || forceEvidence === true) &&
+        Date.now() - simitStartedAt < SIMIT_HARD_BUDGET_MS - 600
+      ) {
+        await sleepMs(300);
         try {
           pdfBuf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true }));
         } catch (_) {}
       }
 
-      return { simitJson, pdfBuf };
+      return { simitJson, pdfBuf, antiBotGate: false };
     };
 
     const simitOut = await runWithSimitPool(async () => {
@@ -4245,20 +4811,14 @@ async function consultarSimitPesvRealPorCedula({
       sharedPuppeteerActiveCount += 1;
       let hardTimer = null;
       try {
-        const runAttempt = async () => {
-          const hadWarmPage = Boolean(slot.page && !slot.page.isClosed());
-          let out = await executeSingleSimitQuery(slot, false);
-          if (!out?.simitJson && hadWarmPage) {
-            out = await executeSingleSimitQuery(slot, true);
-          }
-          return out;
-        };
-        const timeoutPromise = new Promise((_, reject) => {
+        const timeoutPromise = new Promise((resolve) => {
+          const leftMs = Math.max(500, SIMIT_HARD_BUDGET_MS - (Date.now() - simitStartedAt));
           hardTimer = setTimeout(() => {
-            reject(new Error('Timeout de navegador SIMIT (40000ms)'));
-          }, 40000);
+            resolve({ simitJson: null, pdfBuf: null, antiBotGate: true, timedOutFast: true });
+          }, leftMs);
+          if (typeof hardTimer.unref === 'function') hardTimer.unref();
         });
-        return await Promise.race([runAttempt(), timeoutPromise]);
+        return await Promise.race([executeSingleSimitQuery(slot, false), timeoutPromise]);
       } finally {
         if (hardTimer) clearTimeout(hardTimer);
         slot.sink = null;
@@ -4269,25 +4829,7 @@ async function consultarSimitPesvRealPorCedula({
     });
 
     if (!simitOut?.simitJson) {
-      return {
-        fuente: 'Google Antigravity Local (IP Colombia · SIMIT FCM)',
-        status: 'warning',
-        action: 'vial_pesv',
-        tipoDoc: cleanTipoDoc,
-        documento: cleanCedula,
-        placa: cleanPlaca,
-        nombre: cleanNombre,
-        afiliadoActivo: false,
-        tieneHallazgo: false,
-        tieneCertificado: false,
-        estadoReal: '⚠️ SIMIT EN VALIDACIÓN DE SEGURIDAD (REINTENTAR)',
-        pdfBase64: null,
-        pdfFileName: null,
-        imageBase64: null,
-        imageFileName: null,
-        resumen: `El microservicio de estado de cuenta SIMIT tardó en responder la validación de seguridad para ${cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`}.`,
-        detalles: [],
-      };
+      return buildSimitManualGateFallback();
     }
 
     const { simitJson, pdfBuf } = simitOut;
@@ -4338,6 +4880,8 @@ async function consultarSimitPesvRealPorCedula({
         fuente: 'Google Antigravity Local (IP Colombia · SIMIT Federación Colombiana de Municipios)',
         status: 'ok',
         action: 'vial_pesv',
+        simitUrl: SIMIT_PUBLIC_OFFICIAL_URL,
+        runtUrl: RUNT_PUBLIC_OFFICIAL_URL,
         tipoDoc: cleanTipoDoc,
         documento: cleanCedula,
         placa: cleanPlaca,
@@ -4354,7 +4898,7 @@ async function consultarSimitPesvRealPorCedula({
         pdfFileName,
         imageBase64,
         imageFileName,
-        resumen: `Registra ${multas.length} multa(s) y ${comparendos.length} comparendo(s) en SIMIT por total $${valorFormateado} COP [${detalleInfracciones}]`,
+        resumen: `Registra ${multas.length} multa(s) y ${comparendos.length} comparendo(s) en SIMIT por total $${valorFormateado} COP [${detalleInfracciones}] · Consulta oficial Licencia de Conducción en RUNT: ${RUNT_PUBLIC_OFFICIAL_URL} (requiere CAPTCHA humano por documento).`,
         detalles: todosItems.slice(0, 10).map((it) => ({
           entidad: 'SIMIT FCM',
           numero: it?.numeroComparendo || it?.numeroResolucion || '',
@@ -4372,6 +4916,8 @@ async function consultarSimitPesvRealPorCedula({
       fuente: 'Google Antigravity Local (IP Colombia · SIMIT Federación Colombiana de Municipios)',
       status: 'ok',
       action: 'vial_pesv',
+      simitUrl: SIMIT_PUBLIC_OFFICIAL_URL,
+      runtUrl: RUNT_PUBLIC_OFFICIAL_URL,
       tipoDoc: cleanTipoDoc,
       documento: cleanCedula,
       placa: cleanPlaca,
@@ -4388,30 +4934,12 @@ async function consultarSimitPesvRealPorCedula({
       pdfFileName,
       imageBase64,
       imageFileName,
-      resumen: `0 comparendos, 0 multas y ${acuerdosPago.length} acuerdo(s) pendientes en SIMIT Federación Colombiana de Municipios para ${cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`}`,
+      resumen: `0 comparendos, 0 multas y ${acuerdosPago.length} acuerdo(s) pendientes en SIMIT Federación Colombiana de Municipios para ${cleanPlaca ? `Placa ${cleanPlaca}` : `${cleanTipoDoc} ${cleanCedula}`} · Consulta oficial Licencia de Conducción en RUNT: ${RUNT_PUBLIC_OFFICIAL_URL} (requiere CAPTCHA humano por documento).`,
       detalles: [],
     };
   } catch (err) {
-    logger.warn(`[OSINT SIMIT] Aviso consultando ${queryKey}: ${err.message}`);
-    return {
-      fuente: 'Google Antigravity Local (IP Colombia · SIMIT FCM)',
-      status: 'warning',
-      action: 'vial_pesv',
-      tipoDoc: cleanTipoDoc,
-      documento: cleanCedula,
-      placa: cleanPlaca,
-      nombre: cleanNombre,
-      afiliadoActivo: false,
-      tieneHallazgo: false,
-      tieneCertificado: false,
-      estadoReal: '⚠️ ERROR CONSULTANDO SIMIT',
-      pdfBase64: null,
-      pdfFileName: null,
-      imageBase64: null,
-      imageFileName: null,
-      resumen: `Aviso al consultar SIMIT para ${queryKey}: ${err.message}`,
-      detalles: [],
-    };
+    logger.warn(`[OSINT SIMIT] Corte rápido (${Date.now() - simitStartedAt}ms) consultando ${queryKey}: ${err.message}`);
+    return buildSimitManualGateFallback('respuesta diferida del portal SIMIT');
   }
 }
 
@@ -4854,11 +5382,14 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
     ) {
       if (isVpsSafeFallback) {
         return {
-          fuente: 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Sin Navegador)',
-          status: 'warning',
+          fuente: 'Consulta Directa Ligera HTTP (Respaldo Seguro VPS · Enlaces Oficiales SIMIT + RUNT)',
+          status: 'ok',
           action: 'vial_pesv',
           vpsSafeDirectFallback: true,
+          requiereValidacionManual: true,
           requiereAntigravityConectado: true,
+          simitUrl: SIMIT_PUBLIC_OFFICIAL_URL,
+          runtUrl: RUNT_PUBLIC_OFFICIAL_URL,
           tipoDoc: String(tipoDoc || 'CC').toUpperCase(),
           documento: resolvedCedula,
           placa: String(placa || '').toUpperCase(),
@@ -4866,14 +5397,27 @@ async function consultarPortalEspecíficoAntigravity(rawOpts = {}) {
           afiliadoActivo: false,
           tieneHallazgo: false,
           tieneCertificado: false,
-          estadoReal: 'ℹ️ SIMIT REQUIERE ANTIGRAVITY LOCAL O CLOUD (PROTECCIÓN VPS SIN NAVEGADOR)',
+          estadoReal: '🔒 COMPUERTA ANTI-BOT SIMIT / VALIDACIÓN DIRECTA SIMIT + RUNT',
           pdfBase64: null,
           pdfFileName: null,
           imageBase64: null,
           imageFileName: null,
           resumen:
-            'El portal SIMIT exige validación en navegador y requiere tener conectado Google Antigravity Local o Cloud para proteger la memoria y CPU del VPS.',
-          detalles: [],
+            `El portal nacional SIMIT mantiene activa su compuerta anti-bot en navegador (se protege la memoria del servidor sin aguardar desafíos). ` +
+            `Enlace directo oficial SIMIT: ${SIMIT_PUBLIC_OFFICIAL_URL} · ` +
+            `Enlace oficial Consulta Ciudadana de Licencia de Conducción en RUNT: ${RUNT_PUBLIC_OFFICIAL_URL} (RUNT exige CAPTCHA humano por documento).`,
+          detalles: [
+            {
+              entidad: 'SIMIT — Federación Colombiana de Municipios',
+              estado: '🔒 Compuerta anti-bot en navegador',
+              urlOficial: SIMIT_PUBLIC_OFFICIAL_URL,
+            },
+            {
+              entidad: 'RUNT — Consulta Ciudadana de Licencia de Conducción',
+              estado: '🔒 Requiere CAPTCHA visual humano',
+              urlOficial: RUNT_PUBLIC_OFFICIAL_URL,
+            },
+          ],
         };
       }
       return await consultarSimitPesvRealPorCedula({
@@ -5880,6 +6424,8 @@ module.exports = {
   consultarAlturasMinTrabajo,
   descargarPdfConstanciaMinTrabajo,
   consultarRamaJudicialPorNombre,
+  classifyRamaJudicialProcesos,
+  consultarSecopMultasPorDocumento,
   consultarContraloriaFiscalPorCedula,
   consultarRamaJudicial,
   consultarArlRealPorCedula,

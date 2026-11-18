@@ -5,15 +5,39 @@ const Automation = require('~/models/Automation');
 const AutomationLog = require('~/models/AutomationLog');
 const CompanyInfo = require('~/models/CompanyInfo');
 
+let cachedWorkflowNodesDocsService = null;
+function resolveWorkflowNodesDocsService() {
+  if (cachedWorkflowNodesDocsService) {
+    return cachedWorkflowNodesDocsService;
+  }
+  try {
+    const mod = require('~/server/services/workflowNodesDocumentationService');
+    if (mod && typeof mod.queryWorkflowNodesDocs === 'function') {
+      cachedWorkflowNodesDocsService = mod;
+      return cachedWorkflowNodesDocsService;
+    }
+  } catch (_) {
+    try {
+      const modRel = require('../../../../server/services/workflowNodesDocumentationService');
+      if (modRel && typeof modRel.queryWorkflowNodesDocs === 'function') {
+        cachedWorkflowNodesDocsService = modRel;
+        return cachedWorkflowNodesDocsService;
+      }
+    } catch (_relErr) {}
+  }
+  return null;
+}
+
 class GestorAutomatizaciones extends Tool {
   constructor(fields = {}) {
     super();
     this.name = 'gestor_automatizaciones';
     this.description =
-      'Permite al agente ejecutar Flujos Tenshi internos al instante (accion="ejecutar_tenshi") y crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar TAREAS programadas (antes llamadas "Automatizaciones IA") en WAPPY (/tareas; historial en /tareas?tab=historial). Usa "ejecutar_tenshi" cuando la solicitud del usuario coincida con un flujo interno asignado; usa las demás acciones cuando pida gestionar o programar sus tareas periódicas.';
+      'Permite al agente ejecutar Flujos Tenshi internos al instante (accion="ejecutar_tenshi"), consultar la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion="consultar_documentacion_nodos"), y crear, listar, consultar, actualizar, activar/pausar, ejecutar de inmediato o eliminar TAREAS programadas (antes llamadas "Automatizaciones IA") en WAPPY (/tareas; historial en /tareas?tab=historial). Usa "ejecutar_tenshi" cuando la solicitud del usuario coincida con un flujo interno asignado; usa "consultar_documentacion_nodos" cuando pregunten por cualquier nodo de /tareas, puertos, casillas, estado Operativo vs En Construcción o diseño de flujos; usa las demás acciones cuando pida gestionar o programar sus tareas periódicas.';
     this.req = fields.req;
     this.schema = z.object({
-      accion: z.string().describe('Acción a realizar: "ejecutar_tenshi", "crear", "listar", "actualizar", "activar", "desactivar", "pausar", "activar_todas", "desactivar_todas", "eliminar", "eliminar_todas", "ejecutar_ahora", "detener" o "ver_logs".'),
+      accion: z.string().describe('Acción a realizar: "ejecutar_tenshi", "consultar_documentacion_nodos", "crear", "listar", "actualizar", "activar", "desactivar", "pausar", "activar_todas", "desactivar_todas", "eliminar", "eliminar_todas", "ejecutar_ahora", "detener" o "ver_logs".'),
+      busqueda_nodo: z.string().optional().describe('Nombre, ID técnico, categoría, Hito o palabra clave del nodo o grupo de nodos a consultar en la Enciclopedia SmartDown (ej. "forense incapacidad", "condicion si no", "alturas", "rethus", "disparadores", "todos").'),
       nombre: z.string().optional().describe('Nombre de la tarea/automatización o flujo Tenshi (para crearla o buscarla por su título/alias si no tienes el ID).'),
       nuevo_nombre: z.string().optional().describe('Nuevo nombre si deseas renombrar una tarea/automatización existente.'),
       agente_objetivo: z.string().optional().describe('Nombre o ID del agente que ejecutará la tarea (ej. "Consultor SG-SST", "Médico Laboral", "Auditor SG-SST" o "yo" para el agente actual). Si no se especifica, se asigna al agente actual o al Consultor SG-SST.'),
@@ -58,6 +82,25 @@ class GestorAutomatizaciones extends Tool {
 
     if (['ejecutar_tenshi', 'tenshi', 'flujo_tenshi', 'run_tenshi'].includes(act)) {
       accion = 'ejecutar_tenshi';
+    } else if (
+      [
+        'consultar_documentacion_nodos',
+        'documentacion_nodos',
+        'manual_nodos',
+        'guia_nodos',
+        'guia_de_nodos',
+        'manual_de_nodos',
+        'nodos',
+        'explicar_nodo',
+        'explicar_nodos',
+        'catalogo_nodos',
+        'catalogo_de_nodos',
+        'enciclopedia_nodos',
+        'consultar_nodos',
+        'consultar_nodo',
+      ].includes(act)
+    ) {
+      accion = 'consultar_documentacion_nodos';
     } else if (['crear', 'create', 'programar', 'nueva', 'agregar', 'anadir'].includes(act)) {
       accion = 'crear';
     } else if (['listar', 'list', 'consultar', 'ver', 'mostrar'].includes(act)) {
@@ -322,6 +365,31 @@ class GestorAutomatizaciones extends Tool {
 
   async _call(input) {
     try {
+      const earlyNormalized = this._normalizeActionAndStatus(input?.accion, input?.nuevo_estado);
+      if (earlyNormalized.accion === 'consultar_documentacion_nodos') {
+        const docsSvc = resolveWorkflowNodesDocsService();
+        if (!docsSvc || typeof docsSvc.queryWorkflowNodesDocs !== 'function') {
+          return JSON.stringify({
+            status: 'error',
+            accion: 'consultar_documentacion_nodos',
+            error: 'La Enciclopedia SmartDown de Nodos de Flujo no está disponible temporalmente.',
+          });
+        }
+        const query = String(
+          input?.busqueda_nodo || input?.nombre || input?.instruccion_usuario || ''
+        ).trim();
+        const result =
+          (await Promise.resolve(docsSvc.queryWorkflowNodesDocs({ query, limit: 10 }))) || {};
+        return JSON.stringify({
+          status: 'success',
+          accion: 'consultar_documentacion_nodos',
+          totalNodes: result.totalNodes ?? 0,
+          matchedCount: result.matchedCount ?? 0,
+          guia_smartdown: result.markdown || '',
+          categorias: result.categoriesSummary || [],
+        });
+      }
+
       const {
         runAutomation,
         calculateNextRun,
@@ -893,7 +961,7 @@ class GestorAutomatizaciones extends Tool {
       }
 
       return JSON.stringify({
-        error: `Acción no reconocida "${rawAccion}". Las acciones válidas son: ejecutar_tenshi, crear, listar, actualizar, activar, desactivar, eliminar, ejecutar_ahora, detener, ver_logs.`
+        error: `Acción no reconocida "${rawAccion}". Las acciones válidas son: ejecutar_tenshi, consultar_documentacion_nodos, crear, listar, actualizar, activar, desactivar, eliminar, ejecutar_ahora, detener, ver_logs.`
       });
 
     } catch (error) {

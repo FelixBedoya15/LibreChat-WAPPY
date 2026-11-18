@@ -50,6 +50,25 @@ function resolveGetLatestSystemActivity() {
     return null;
 }
 
+let cachedWorkflowNodesDocsMod = null;
+function safeGetWorkflowNodesOverviewPromptBlock() {
+    try {
+        if (!cachedWorkflowNodesDocsMod) {
+            try {
+                cachedWorkflowNodesDocsMod = require('~/server/services/workflowNodesDocumentationService');
+            } catch (_e1) {
+                cachedWorkflowNodesDocsMod = require('../../services/workflowNodesDocumentationService');
+            }
+        }
+        if (typeof cachedWorkflowNodesDocsMod?.getWorkflowNodesOverviewPromptBlock === 'function') {
+            return String(cachedWorkflowNodesDocsMod.getWorkflowNodesOverviewPromptBlock() || '').trim();
+        }
+    } catch (_err) {
+        // Servicio en carga paralela o en frío; jamás lanzar excepción
+    }
+    return '';
+}
+
 const LIVE_KEY_COOLDOWN_MS = 15 * 60 * 1000;
 const liveQuotaCooldowns = new Map();
 
@@ -1753,11 +1772,12 @@ class VoiceSession {
                         },
                         {
                             name: "gestor_automatizaciones",
-                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas', y ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'). Sin coincidencia exacta NO elijas otro flujo.",
+                            description: "Gestiona Tareas/Flujos en /tareas por comando de voz Tenshi ('001'), ID, título o 'todas', ejecuta Flujos Tenshi internos instantáneos (accion='ejecutar_tenshi'), y consulta la Enciclopedia SmartDown oficial de Nodos de Flujo de /tareas (accion='consultar_documentacion_nodos' con busqueda_nodo). Sin coincidencia exacta NO elijas otro flujo.",
                             parameters: {
                                 type: "object",
                                 properties: {
-                                    accion: { type: "string", description: "'ejecutar_tenshi','crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
+                                    accion: { type: "string", description: "'ejecutar_tenshi','consultar_documentacion_nodos','crear','listar','actualizar','activar','desactivar','activar_todas','desactivar_todas','eliminar','eliminar_todas','ejecutar_ahora','detener','ver_logs'" },
+                                    busqueda_nodo: { type: "string", description: "Nombre, ID técnico, categoría, Hito o palabra clave del nodo o grupo de nodos a consultar en la Enciclopedia SmartDown (ej. 'forense incapacidad', 'condicion si no', 'alturas', 'rethus', 'disparadores', 'todos')" },
                                     nombre: { type: "string", description: "Título o código de activación" },
                                     nuevo_nombre: { type: "string" },
                                     agente_objetivo: { type: "string" },
@@ -2841,7 +2861,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
    - \`wappy_generar_qr\`, \`wappy_consultar_analitica_psicosocial\`, \`wappy_consultar_analitica_actos_condiciones\`, \`wappy_gestionar_agenda\`, \`google_calendar\`, \`google_gmail\` (\`batch_trash_emails\`/\`trash_email\`), \`google_sheets/docs/slides\`, \`onedrive\`, \`editor_rit\`, \`somos_sst\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`.
 6. **DRIVE IMPORT HITO 1 / SOCIODEMOGRÁFICO**: Si piden importar desde Drive el perfil sociodemográfico/salud -> \`wappy_importar_sociodemografico_drive\`. Si piden importar matrices/documentos del Hito 1 (gtc45, pesv, compatibilidad, vulnerabilidad, diagnostico, responsable) -> \`wappy_importar_hito1_drive\` (matriz legal en construcción).
 7. **NORMATIVIDAD VIGENTE**: Ante leyes/decretos/resoluciones/sentencias en Colombia, usa SIEMPRE \`web_search\` para verificar vigencia actual (ej: Res. 4272/2021 derogó 1409/2012; Res. 0312/2019 derogó 1111/2017).
-8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para Flujos Tenshi internos instantáneos listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Para tareas de empresa (/tareas), usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
+8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para Flujos Tenshi internos instantáneos listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Si preguntan por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), conexiones, puertos, casillas, estado \`Operativo\` vs \`En Construcción\` o ejemplos/diseño de flujos, invoca \`accion: 'consultar_documentacion_nodos'\` con \`busqueda_nodo\` y recuérdale el botón "Guía de Nodos" al lado izquierdo de "Flujos Preestablecidos" en \`/tareas\`. Para tareas de empresa (/tareas), usa el comando de voz o código exacto (ej: '001') en \`automatizacion_id\`/\`nombre\` SIN adivinar otro flujo; NO uses accion:'crear' si no pidieron crear; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
 9. **ACADEMIA VS TIENDA VS BLOG & MULTIMEDIA**: Academia (/academia?tab=cursos) = cursos interactivos; si piden "ábreme el curso X" invoca \`wappy_abrir_curso\` de inmediato. Tienda (/marketplace) = productos con precio COP. Blog = \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`. Tienes NotebookLM (\`notebooklm_*\`), MedlinePlus (\`wappy_consultar_rehabilitacion_medlineplus\`) y Google Flow (\`google_flow_*\`).
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
@@ -3504,6 +3524,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         companyAndMemoryPrompt += `\n\n${tenshiFlowsBlock}\nREGLA EN VOZ TENSHI: Cuando el usuario pida algo cubierto por cualquiera de estos Flujos Tenshi internos, ejecuta de inmediato \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responderle al instante con voz natural usando el campo "resultado".`;
                     }
 
+                    const workflowNodesOverviewBlock = safeGetWorkflowNodesOverviewPromptBlock();
+                    companyAndMemoryPrompt +=
+                        `\n\n${workflowNodesOverviewBlock ? `${workflowNodesOverviewBlock}\n` : ''}` +
+                        `REGLA DE ENCICLOPEDIA DE NODOS (/tareas) EN VOZ TENSHI: Cuando el usuario pregunte por cualquier nodo de /tareas, por qué está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), cómo se conecta en el lienzo, desde dónde se usa, qué casillas extrae, su estado (Operativo vs En Construcción) o ejemplos de diseño de flujos, invoca \`gestor_automatizaciones\` con \`accion: "consultar_documentacion_nodos"\` y \`busqueda_nodo\`, y recuérdale el botón "Guía de Nodos" al lado izquierdo de "Flujos Preestablecidos" en /tareas.`;
+
                     this.liveConfig.systemInstruction = (this.liveConfig.systemInstruction || '') + companyAndMemoryPrompt;
                     this.initialBriefingSummary = {
                         companyName: companyInfo?.companyName || 'tu empresa',
@@ -3869,7 +3894,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         operar_interfaz_visual: '✨ Tenshi operando tu pantalla...',
                         gestor_automatizaciones: fc.args?.accion === 'ejecutar_tenshi'
                             ? '⚡ Ejecutando flujo instantáneo...'
-                            : '⚙️ Gestionando automatizaciones...',
+                            : fc.args?.accion === 'consultar_documentacion_nodos' ||
+                              ['documentacion_nodos', 'manual_nodos', 'guia_nodos', 'nodos', 'explicar_nodo', 'catalogo_nodos'].includes(String(fc.args?.accion || '').toLowerCase())
+                                ? '📘 Consultando enciclopedia de nodos...'
+                                : '⚙️ Gestionando automatizaciones...',
                     };
                     const immediateLabel = immediateToolLabels[fc.name] || `⚡ Ejecutando ${fc.name.replace(/^wappy_/, '').replace(/_/g, ' ')}...`;
                     this.sendToClient({
@@ -5442,7 +5470,10 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 status: 'loading',
                                 message: fc.args?.accion === 'ejecutar_tenshi'
                                     ? '⚡ Ejecutando flujo instantáneo...'
-                                    : 'Gestionando automatizaciones...'
+                                    : fc.args?.accion === 'consultar_documentacion_nodos' ||
+                                      ['documentacion_nodos', 'manual_nodos', 'guia_nodos', 'nodos', 'explicar_nodo', 'catalogo_nodos'].includes(String(fc.args?.accion || '').toLowerCase())
+                                        ? '📘 Consultando enciclopedia de nodos...'
+                                        : 'Gestionando automatizaciones...'
                             }
                         });
                         try {

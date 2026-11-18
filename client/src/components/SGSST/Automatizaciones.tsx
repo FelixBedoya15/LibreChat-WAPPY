@@ -44,6 +44,7 @@ import {
   Activity,
   Mic,
   FlaskConical,
+  BookOpen,
 } from 'lucide-react';
 import { useListAgentsQuery } from '~/data-provider';
 import { useAuthContext } from '~/hooks';
@@ -76,6 +77,9 @@ import {
   WorkflowEvidenceTray,
   WorkflowEvidenceLightboxModal,
 } from './WappyWorkflowSandboxPanel';
+import WappyNodesDocumentationModal, {
+  getTotalDocumentedNodesCount,
+} from './WappyNodesDocumentationModal';
 
 interface ScheduleConfig {
   hour: number;
@@ -289,6 +293,8 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   } | null>(null);
   const [previewLogEvidence, setPreviewLogEvidence] = useState<ScraperCapturedEvidence | null>(null);
   const [previewLogEvidenceMode, setPreviewLogEvidenceMode] = useState<'image' | 'pdf'>('image');
+  const [showNodesDocsModal, setShowNodesDocsModal] = useState<boolean>(false);
+  const totalCatalogNodesCount = useMemo(() => getTotalDocumentedNodesCount(), []);
   const [disabledSgsstApps, setDisabledSgsstApps] = useState<string[]>([]);
   const disabledSgsstAppsRef = useRef<string[]>([]);
   const showToastRef = useRef(showToast);
@@ -1603,6 +1609,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         )}
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+          <ExpandableButton
+            onClick={() => setShowNodesDocsModal(true)}
+            variant="amber"
+            isActive={showNodesDocsModal}
+            icon={<BookOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-current" />}
+            label={`Guía de Nodos (${totalCatalogNodesCount})`}
+          />
+
           <ExpandableButton
             onClick={() => setActiveTab(activeTab === 'presets' ? 'list' : 'presets')}
             variant="teal"
@@ -3504,6 +3518,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
         </div>,
           document.body,
         )}
+
+      {/* Enciclopedia Interactiva SmartDown de Nodos del Lienzo WAPPY */}
+      <WappyNodesDocumentationModal
+        isOpen={showNodesDocsModal}
+        onClose={() => setShowNodesDocsModal(false)}
+        disabledApps={disabledSgsstApps}
+      />
 
       {/* Visor Modal Lightbox HD / PDF para Certificados de Bitácora Real */}
       <WorkflowEvidenceLightboxModal

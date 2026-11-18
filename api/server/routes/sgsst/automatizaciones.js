@@ -27,6 +27,11 @@ const {
 } = require('~/server/services/automationScheduler');
 const { inspectNodeLiveData } = require('~/server/services/workflowNodeInspectorService');
 const {
+  getAllWorkflowNodesDocs,
+  getFullNodesEncyclopediaMarkdown,
+  queryWorkflowNodesDocs,
+} = require('~/server/services/workflowNodesDocumentationService');
+const {
   resolveStrictExecutionContext,
   listActiveTenshiFlows,
   matchTenshiFlowByQuery,
@@ -902,6 +907,73 @@ async function getEffectiveAutomationLimit(userId, userRole) {
   }
   return { limit: 0, plan };
 }
+
+/**
+ * GET /api/sgsst/automatizaciones/nodes-docs
+ * Devuelve la Enciclopedia Técnica SmartDown de los 177+ nodos del Constructor de Flujos WAPPY IA
+ * (con soporte de filtrado por ?q=, ?category=, ?nodeId=, ?limit=, ?format=markdown y descarga raw).
+ */
+router.get('/nodes-docs', async (req, res) => {
+  try {
+    const q = String(req.query.q ?? req.query.query ?? req.query.search ?? '').trim();
+    const rawCategory = String(req.query.category ?? req.query.family ?? req.query.familyId ?? '').trim();
+    const category = rawCategory.toLowerCase() === 'all' ? '' : rawCategory;
+    const nodeId = String(req.query.nodeId ?? req.query.id ?? '').trim();
+    const format = String(req.query.format || '').trim().toLowerCase();
+    const isRaw =
+      req.query.raw === '1' ||
+      req.query.raw === 'true' ||
+      req.query.download === '1' ||
+      req.query.download === 'true';
+
+    const parsedLimit =
+      req.query.limit !== undefined && req.query.limit !== ''
+        ? Number(req.query.limit)
+        : q || nodeId
+          ? 60
+          : 250;
+
+    const result = queryWorkflowNodesDocs({
+      query: q,
+      category,
+      nodeId,
+      limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 250,
+    });
+
+    const isUnfilteredFullRequest = !q && !category && !nodeId;
+    const effectiveMarkdown =
+      (format === 'markdown' || format === 'md' || isRaw) && isUnfilteredFullRequest
+        ? getFullNodesEncyclopediaMarkdown()
+        : result.markdown;
+
+    if (isRaw) {
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      if (req.query.download === '1' || req.query.download === 'true') {
+        res.setHeader(
+          'Content-Disposition',
+          'attachment; filename="WAPPY_WORKFLOW_NODES_ENCYCLOPEDIA.md"',
+        );
+      }
+      return res.status(200).send(effectiveMarkdown);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      totalNodes: result.totalNodes || getAllWorkflowNodesDocs().length,
+      matchedCount: result.matchedCount,
+      categoriesSummary: result.categoriesSummary,
+      markdown: effectiveMarkdown,
+      items: result.items,
+    });
+  } catch (err) {
+    console.error('[API Automatizaciones] Error en GET /nodes-docs:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'No fue posible consultar la enciclopedia técnica de nodos.',
+      details: err?.message,
+    });
+  }
+});
 
 /**
  * GET /api/sgsst/automatizaciones/node-live-inspector

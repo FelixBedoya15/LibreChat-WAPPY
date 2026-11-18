@@ -5,7 +5,7 @@ const CompanyInfo = require('~/models/CompanyInfo');
 
 const INVALID_MARKER_COMPANY_IDS = new Set(['TENSHI_GLOBAL', 'SYSTEM_PRESET']);
 
-const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v4';
+const DEFAULT_TENSHI_FLOW_SEED_VERSION = '2026-11-18-v6';
 
 const LEGACY_REPLACED_TENSHI_SEED_KEYS = ['tenshi_flow_verificacion_alturas_arl_cedula'];
 
@@ -148,7 +148,7 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
           scriptEngine: 'antigravity_native_browser',
           vpsSafeDirectFallback: true,
           customInstruction:
-            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
+            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Seguros Bolívar y AXA Colpatria, y entregando enlace oficial con datos listos y aviso de políticas de privacidad o autorización ARL cuando la aseguradora protege su portal con reCAPTCHA (como ARL Colmena Seguros o AXA Colpatria).',
         },
         scraper_agy_arl_directo: {
           antigravityMode: 'auto',
@@ -156,7 +156,7 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
           scriptEngine: 'antigravity_native_browser',
           vpsSafeDirectFallback: true,
           customInstruction:
-            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Colmena, AXA Colpatria o Seguros Bolívar.',
+            'Herramienta oficial del Agente IA Tenshi para consultar afiliación y descargar certificados ARL mediante el navegador nativo de Google Antigravity en cascada de tres niveles: primero instancia Local, segundo instancia Cloud y tercero respaldo HTTP liviano directo en servidor sin abrir navegador pesado en el VPS, extrayendo soportes PDF o captura PNG en ARL SURA, Positiva, Seguros Bolívar y AXA Colpatria, y entregando enlace oficial con datos listos y aviso de políticas de privacidad o autorización ARL cuando la aseguradora protege su portal con reCAPTCHA (como ARL Colmena Seguros o AXA Colpatria).',
         },
         out_wappy_notification: {
           customInstruction:
@@ -178,7 +178,8 @@ const FIRST_GLOBAL_TENSHI_FLOW = {
     '- Ya tienes en el contexto los resultados reales ejecutados por tu herramienta Web Scraping ARL mediante el navegador nativo de Google Antigravity; NO re-delegues una segunda orden conversacional ni inventes estados, fechas o administradoras.\n' +
     '- Si SÍ se emitieron y descargaron certificados oficiales (.PDF o captura .PNG), confirma explícitamente al usuario con claridad: "El certificado (o los certificados) oficial(es) de ARL ya fue(ron) emitido(s), lo(s) recibiste aquí mismo en este chat de Tenshi y ya lo(s) puedes abrir o descargar directamente desde la bandeja de certificados adjunta".\n' +
     '- En las tablas resumen usa exclusivamente estados limpios (por ejemplo: ✅ AFILIADO ACTIVO, ❌ SIN REGISTRO, 📎 En bandeja) sin insertar URLs ni enlaces crudos dentro de las celdas.\n' +
-    '- Si la persona NO aparece activa en ARL SURA ni Positiva y la consulta no incluyó fecha de nacimiento, debes avisar explícitamente que algunas administradoras como ARL Seguros Bolívar exigen fecha de nacimiento para consultar en su portal; pide que nos comparta la fecha de nacimiento (junto con su cédula si prefiere no tocar nómina) para ampliar esa verificación, e informa con transparencia si los portales con clave privada empresarial (como Colmena o AXA Colpatria) requieren acceso autenticado del portal empresa.\n' +
+    '- Si la persona NO aparece activa en ARL SURA ni Positiva y la consulta no incluyó fecha de nacimiento, debes avisar explícitamente que administradoras públicas como ARL Seguros Bolívar y ARL AXA Colpatria NO piden clave empresarial sino fecha de nacimiento para consultar en línea, y pedir que nos comparta la fecha de nacimiento (junto con su cédula si prefiere no tocar nómina) para ampliar la verificación.\n' +
+    '- Cuando la consulta ARL corresponda a una administradora protegida con reCAPTCHA (como ARL Colmena Seguros o ARL AXA Colpatria cuando active reCAPTCHA) o no figure activa en ARL SURA, Positiva ni Seguros Bolívar, DEBES enviar SIEMPRE el enlace oficial clicable en Markdown fuera de las tablas junto con los datos listos para ingresar (Tipo de documento, Número de documento y Fecha de nacimiento, o indicar si falta suministrarla en formato DD/MM/AAAA), explicando explícitamente al usuario que por políticas de privacidad no es posible acceder automáticamente a ese sistema y que puede ingresar directamente con esos datos en el enlace oficial o solicitar autorización directa a la ARL.\n' +
     '- Menciona brevemente el canal con el que se ejecutó la consulta (Google Antigravity Local, Google Antigravity Cloud o respaldo HTTP liviano directo en servidor) cuando esté disponible en el reporte técnico.\n' +
     '- PROHIBIDO suponer o inventar vigencia, fecha de afiliación o nombre de empresa si no aparece literalmente en los hallazgos reales.',
 };
@@ -498,12 +499,12 @@ const THIRD_GLOBAL_TENSHI_FLOW = {
     'Tu misión en este turno es sintetizar ÚNICAMENTE los hallazgos reales obtenidos por tu herramienta conectada de Verificación Vial en SIMIT (Federación Colombiana de Municipios) por cédula o por placa vehicular:\n' +
     '- Detalla con claridad si el conductor o vehículo se encuentra en ✅ PAZ Y SALVO ($0 COP) o si registra ⚠️ MULTAS / COMPARENDOS / ACUERDOS DE PAGO pendientes (indicando cantidad, organismo de tránsito, código de infracción, placa asociada y valor total a pagar en pesos colombianos cuando aparezcan en el reporte).\n' +
     '- Si SÍ se emitió el soporte oficial de estado de cuenta (.PDF o captura .PNG), confirma explícitamente al usuario: "El soporte oficial de estado de cuenta SIMIT ya fue emitido, lo recibiste aquí mismo en este chat de Tenshi y ya puedes abrirlo o descargarlo desde la bandeja de certificados adjunta".\n' +
-    '- Si el reporte técnico indica protección segura de servidor sin navegador (porque SIMIT exige validación en navegador mediante Google Antigravity Local o Cloud), infórmalo con total claridad indicando que basta mantener conectado Google Antigravity Local o Cloud para descargar el PDF oficial sin sobrecargar el servidor.\n' +
-    '- En las tablas resumen usa estados limpios sin incluir URLs crudas y JAMÁS inventes comparendos, resoluciones, placas ni valores en pesos.',
+    '- Si el reporte técnico indica que el portal nacional SIMIT activó temporalmente su compuerta anti-bot de seguridad o protección sin navegador, infórmalo con total transparencia y entrega siempre el enlace directo oficial de SIMIT junto con el enlace oficial de Consulta Ciudadana de Licencia de Conducción y Vehículo en RUNT (aclarando que RUNT exige validación humana del control visual por documento).\n' +
+    '- En las tablas resumen usa estados limpios sin incluir URLs crudas dentro de las celdas y JAMÁS inventes comparendos, resoluciones, placas ni valores en pesos.',
 };
 
 const FOURTH_GLOBAL_TENSHI_FLOW_DESCRIPTION =
-  'Verifica en tiempo real antecedentes fiscales en la Contraloría General de la República (por número de cédula) y procesos judiciales en la API oficial v2 de la Rama Judicial de Colombia (por nombre del titular). Si el usuario entrega cédula, consulta directo sin leer Perfil Sociodemográfico (Hito 2); si entrega solo un nombre, busca primero en Perfil Sociodemográfico (Hito 2) de la empresa activa y, aun cuando sea un candidato externo no registrado en nómina, consulta sus procesos en Rama Judicial entregando el soporte PDF o PNG en el chat de Tenshi.';
+  'Verifica en tiempo real el panorama integral de antecedentes en Colombia combinando fuentes estatales abiertas sin controles visuales (procesos penales judicializados y ordinarios en la API oficial v2 de la Rama Judicial, responsabilidad fiscal en la Contraloría General de la República con descarga del certificado PDF oficial y multas contractuales en Datos Abiertos SECOP) junto con el tablero transparente de enlaces directos para Policía Nacional, Medidas Correctivas RNMC, Procuraduría Disciplinarios SIRI y Fiscalía SPOA. Si el usuario entrega cédula, consulta directo sin leer Perfil Sociodemográfico (Hito 2); si entrega solo un nombre, busca primero en Perfil Sociodemográfico (Hito 2) o consulta Rama Judicial directamente para candidatos externos.';
 
 const FOURTH_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER = [
   'trigger_tenshi_ia',
@@ -659,11 +660,14 @@ const FOURTH_GLOBAL_TENSHI_FLOW = {
   },
   prompt:
     'Actúa como Tenshi, copiloto experto en cumplimiento legal laboral y SG-SST de WAPPY IA bajo el Decreto 1072 de 2015 y la normativa colombiana de debida diligencia.\n\n' +
-    'Tu misión en este turno es sintetizar ÚNICAMENTE los hallazgos reales obtenidos por tu herramienta conectada de Antecedentes Judiciales y Fiscales (Contraloría General de la República y Consulta Nacional Unificada de Procesos v2 de la Rama Judicial):\n' +
-    '- Distingue con precisión entre: (a) Responsabilidad Fiscal en Contraloría General de la República (consultada cuando se dispone de número de cédula) y (b) Procesos Judiciales registrados en Rama Judicial por nombre del titular (indicando número de radicado y despacho únicamente si aparecen en los resultados reales).\n' +
-    '- Si la consulta se realizó únicamente con el nombre de un candidato externo sin número de cédula, aclara amablemente que se verificó Rama Judicial por nombre y que, si nos comparte el número de cédula, podemos descargar además el certificado oficial PDF de la Contraloría General.\n' +
-    '- Si SÍ se emitió y adjuntó el certificado o constancia oficial (.PDF o captura .PNG), confirma explícitamente al usuario: "El certificado (o constancia oficial) de antecedentes ya fue emitido, lo recibiste aquí mismo en este chat de Tenshi y ya puedes abrirlo o descargarlo desde la bandeja de certificados adjunta".\n' +
-    '- Usa estados limpios en tablas (✅ SIN ANTECEDENTES FISCALES NI PROCESOS, ⚠️ PROCESOS REGISTRADOS, 📎 En bandeja) sin URLs crudas y PROHIBIDO inventar radicados o estados judiciales.',
+    'Tu misión en este turno es presentar el Tablero Completo de los 5 Entes Oficiales de Antecedentes en Colombia basado ÚNICAMENTE en los hallazgos reales obtenidos por tu herramienta conectada de Antecedentes Judiciales y Fiscales:\n' +
+    '1) ✅ **Rama Judicial / Juzgados Penales y Ordinarios (API v2 Oficial — Verificado en vivo):** Desglosa cuántos procesos corresponden a Juzgados Penales o Ejecución de Penas frente a despachos Laborales, Civiles, Administrativos o Familia (citando radicados únicamente si aparecen en los resultados reales).\n' +
+    '2) ✅ **Contraloría General de la República — Responsabilidad Fiscal (+ Datos Abiertos SECOP):** Reporta el estado fiscal verificado por cédula, las multas o sanciones contractuales estatales en SECOP si aplican y confirma la descarga del certificado PDF oficial.\n' +
+    '3) 🔒 **Policía Nacional y Medidas Correctivas RNMC:** Incluye el enlace oficial directo indicando con transparencia que exige completar control visual humano ("No soy un robot").\n' +
+    '4) 🔒 **Procuraduría General — Antecedentes Disciplinarios SIRI:** Incluye el enlace oficial directo indicando con transparencia que exige responder una pregunta aleatoria de seguridad humana.\n' +
+    '5) 🔒 **Fiscalía General — SPOA Denuncias:** Explica claramente que las causas penales ya judicializadas quedan cubiertas arriba en Juzgados Penales de la Rama Judicial, mientras que las indagaciones reservadas SPOA requieren validación humana directa.\n' +
+    '- Si SÍ se emitió y adjuntó el certificado oficial (.PDF o captura .PNG), confirma explícitamente al usuario: "El certificado (o constancia oficial) de antecedentes ya fue emitido, lo recibiste aquí mismo en este chat de Tenshi y ya puedes abrirlo o descargarlo desde la bandeja de certificados adjunta".\n' +
+    '- En las celdas de tablas usa estados limpios sin URLs crudas internas de sistema y PROHIBIDO inventar radicados, sanciones o estados judiciales.',
 };
 
 const FIFTH_GLOBAL_TENSHI_FLOW_DESCRIPTION =
@@ -887,11 +891,12 @@ const FIFTH_GLOBAL_TENSHI_FLOW = {
     '1) Presenta una Tabla Ejecutiva Consolidada con columnas: `Portal Oficial Consultado | Estado Verificado | Detalle Técnico | Certificado Adjunto` incluyendo ÚNICAMENTE los portales efectivamente consultados en este turno.\n' +
     '2) Si el usuario pidió un subconjunto específico (por ejemplo, solo ARL y Alturas), NO inventes filas ni resultados para los portales no solicitados.\n' +
     '3) Si se emitieron y descargaron certificados oficiales (.PDF y/o capturas .PNG), confirma explícitamente con claridad: "Todos los certificados oficiales emitidos en esta consulta combinada ya fueron entregados juntos aquí mismo en este chat de Tenshi y ya puedes abrirlos o descargarlos desde la bandeja de certificados adjunta".\n' +
-    '4) Cierra con recomendaciones operativas breves de ingreso o control en campo según las brechas reales detectadas (sin incluir URLs crudas dentro de las celdas de la tabla y sin suponer ningún dato ausente).',
+    '4) Si la verificación ARL incluida corresponde a una administradora protegida con reCAPTCHA (como ARL Colmena Seguros o ARL AXA Colpatria cuando active reCAPTCHA) o no registra afiliación activa en ARL SURA, Positiva ni Seguros Bolívar, envía SIEMPRE fuera de las tablas el enlace oficial clicable en Markdown junto con los datos listos para ingresar (Tipo de documento, Número de documento y Fecha de nacimiento, o indica si falta suministrarla en formato DD/MM/AAAA), explicando explícitamente que por políticas de privacidad no es posible acceder automáticamente a ese sistema y que el usuario puede ingresar con esos datos o solicitar autorización directa a la ARL.\n' +
+    '5) Cierra con recomendaciones operativas breves de ingreso o control en campo según las brechas reales detectadas (sin incluir URLs crudas dentro de las celdas de la tabla y sin suponer ningún dato ausente).',
 };
 
 const SIXTH_GLOBAL_TENSHI_FLOW_DESCRIPTION =
-  'Realiza una auditoría forense de tres capas sobre imágenes o archivos PDF de certificados de incapacidad médica adjuntados en el chat de Tenshi: inspecciona metadatos binarios EXIF y estructura interna PDF en busca de edición digital, analiza anomalías visuales multimodales, valida coherencia matemática de fechas y días, código diagnóstico CIE-10 y dígito de verificación del NIT bajo el Decreto 1427 de 2022 cruzando con Perfil Sociodemográfico (Hito 2) de la empresa activa, y entrega el enlace oficial del Registro del Talento Humano en Salud para verificación humana directa del médico tratante.';
+  'Realiza una auditoría forense de cuatro capas sobre imágenes o archivos PDF de certificados de incapacidad médica adjuntados en el chat de Tenshi: inspecciona metadatos binarios EXIF y estructura interna PDF en busca de edición digital, analiza anomalías visuales multimodales, valida coherencia matemática de fechas y días, código diagnóstico CIE-10 y dígito de verificación del NIT bajo el Decreto 1427 de 2022 cruzando con Perfil Sociodemográfico (Hito 2) de la empresa activa, verifica automáticamente en APIs abiertas del Estado la habilitación de la IPS en REPS MinSalud así como la identidad civil real y antecedentes en Contraloría General y Rama Judicial sobre la cédula del médico firmante (adjuntando el certificado PDF oficial de Contraloría), y entrega el enlace oficial de SISPRO para validación humana del título académico.';
 
 const SIXTH_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER = [
   'trigger_tenshi_ia',
@@ -901,6 +906,7 @@ const SIXTH_GLOBAL_TENSHI_FLOW_EXECUTION_ORDER = [
   'model_llm',
   'memory_ctx',
   'tool_inputs_forensic_doc_verifier',
+  'tool_inputs_scraper_agy_antecedentes',
   'action_notify_wappy',
 ];
 
@@ -937,7 +943,7 @@ const SIXTH_GLOBAL_TENSHI_FLOW = {
     memoryNode: 'wappy_memory_company',
     memories: ['wappy_memory_company'],
     includeIfNode: true,
-    inputs: ['forensic_doc_verifier'],
+    inputs: ['forensic_doc_verifier', 'scraper_agy_antecedentes'],
     hitos: ['hito2_perfil_socio'],
     outputs: ['wappy_notification'],
     actions: ['notify_wappy'],
@@ -979,7 +985,7 @@ const SIXTH_GLOBAL_TENSHI_FLOW = {
           ifConditionType: 'has_attached_document',
           ifConditionLabel: '¿El usuario adjuntó la imagen o PDF de la incapacidad?',
           conditionTrueLabel:
-            'Pasar el archivo adjunto al Agente IA Tenshi y su Verificador Forense de Documentos',
+            'Pasar el archivo adjunto al Agente IA Tenshi, su Verificador Forense de Documentos y el cruce institucional del médico firmante',
           conditionFalseLabel:
             'Solicitar amablemente en cero consumo de IA que adjunte la foto o PDF del certificado de incapacidad en el chat de Tenshi',
         },
@@ -988,7 +994,7 @@ const SIXTH_GLOBAL_TENSHI_FLOW = {
           ifConditionType: 'has_attached_document',
           ifConditionLabel: '¿El usuario adjuntó la imagen o PDF de la incapacidad?',
           conditionTrueLabel:
-            'Pasar el archivo adjunto al Agente IA Tenshi y su Verificador Forense de Documentos',
+            'Pasar el archivo adjunto al Agente IA Tenshi, su Verificador Forense de Documentos y el cruce institucional del médico firmante',
           conditionFalseLabel:
             'Solicitar amablemente en cero consumo de IA que adjunte la foto o PDF del certificado de incapacidad en el chat de Tenshi',
         },
@@ -1017,37 +1023,69 @@ const SIXTH_GLOBAL_TENSHI_FLOW = {
           checkExifAndPdfBinary: true,
           checkVisualTampering: true,
           checkDecree1427Compliance: true,
+          checkOfficialRegistriesNoCaptcha: true,
           includeManualRethusLink: true,
           customInstruction:
-            'Ejecuta la auditoría forense de tres capas sobre el soporte adjunto: inspección binaria de metadatos EXIF y estructura PDF, detección multimodal de alteraciones tipográficas o recortes, verificación matemática de fechas, días, CIE-10 y dígito DIAN del NIT conforme al Decreto 1427 de 2022 con cruce en la empresa activa, e inclusión del enlace oficial público de SISPRO para confirmación humana de seguridad del médico tratante.',
+            'Ejecuta la auditoría forense de cuatro capas sobre el soporte adjunto: inspección binaria de metadatos EXIF y estructura PDF, detección multimodal de alteraciones tipográficas o recortes, verificación matemática de fechas, días, CIE-10 y dígito DIAN del NIT conforme al Decreto 1427 de 2022 con cruce en la empresa activa, y verificación institucional automática en REPS MinSalud e identidad civil en Contraloría General del profesional firmante, entregando el enlace oficial público de SISPRO para validación humana del título académico.',
         },
         forensic_doc_verifier: {
           forensicMode: 'disability_certificate_decree_1427',
           checkExifAndPdfBinary: true,
           checkVisualTampering: true,
           checkDecree1427Compliance: true,
+          checkOfficialRegistriesNoCaptcha: true,
           includeManualRethusLink: true,
           customInstruction:
-            'Ejecuta la auditoría forense de tres capas sobre el soporte adjunto: inspección binaria de metadatos EXIF y estructura PDF, detección multimodal de alteraciones tipográficas o recortes, verificación matemática de fechas, días, CIE-10 y dígito DIAN del NIT conforme al Decreto 1427 de 2022 con cruce en la empresa activa, e inclusión del enlace oficial público de SISPRO para confirmación humana de seguridad del médico tratante.',
+            'Ejecuta la auditoría forense de cuatro capas sobre el soporte adjunto: inspección binaria de metadatos EXIF y estructura PDF, detección multimodal de alteraciones tipográficas o recortes, verificación matemática de fechas, días, CIE-10 y dígito DIAN del NIT conforme al Decreto 1427 de 2022 con cruce en la empresa activa, y verificación institucional automática en REPS MinSalud e identidad civil en Contraloría General del profesional firmante, entregando el enlace oficial público de SISPRO para validación humana del título académico.',
+        },
+        tool_inputs_scraper_agy_antecedentes: {
+          antigravityMode: 'auto',
+          engine: 'antigravity_native_browser',
+          scriptEngine: 'antigravity_native_browser',
+          vpsSafeDirectFallback: true,
+          allowDirectNameWithoutWorkerMatch: true,
+          skipIfNoDoctorTarget: true,
+          customInstruction:
+            'Audita automáticamente la cédula y el nombre del profesional de la salud firmante extraídos del certificado de incapacidad en Contraloría General de la República y Rama Judicial, adjuntando el certificado oficial PDF de Contraloría como evidencia sin bloquear el flujo si el usuario aún no adjuntó el documento o si la cédula del médico no es legible.',
+        },
+        tool_input_scraper_agy_antecedentes: {
+          antigravityMode: 'auto',
+          engine: 'antigravity_native_browser',
+          scriptEngine: 'antigravity_native_browser',
+          vpsSafeDirectFallback: true,
+          allowDirectNameWithoutWorkerMatch: true,
+          skipIfNoDoctorTarget: true,
+          customInstruction:
+            'Audita automáticamente la cédula y el nombre del profesional de la salud firmante extraídos del certificado de incapacidad en Contraloría General de la República y Rama Judicial, adjuntando el certificado oficial PDF de Contraloría como evidencia sin bloquear el flujo si el usuario aún no adjuntó el documento o si la cédula del médico no es legible.',
+        },
+        scraper_agy_antecedentes: {
+          antigravityMode: 'auto',
+          engine: 'antigravity_native_browser',
+          scriptEngine: 'antigravity_native_browser',
+          vpsSafeDirectFallback: true,
+          allowDirectNameWithoutWorkerMatch: true,
+          skipIfNoDoctorTarget: true,
+          customInstruction:
+            'Audita automáticamente la cédula y el nombre del profesional de la salud firmante extraídos del certificado de incapacidad en Contraloría General de la República y Rama Judicial, adjuntando el certificado oficial PDF de Contraloría como evidencia sin bloquear el flujo si el usuario aún no adjuntó el documento o si la cédula del médico no es legible.',
         },
         out_wappy_notification: {
           customInstruction:
-            'Registra trazabilidad silenciosa de la auditoría documental en la empresa activa y entrega el dictamen forense estructurado en el chat de Tenshi.',
+            'Registra trazabilidad silenciosa de la auditoría documental en la empresa activa y entrega el dictamen forense estructurado junto con el soporte oficial de Contraloría del médico firmante en el chat de Tenshi.',
         },
         wappy_notification: {
           customInstruction:
-            'Registra trazabilidad silenciosa de la auditoría documental en la empresa activa y entrega el dictamen forense estructurado en el chat de Tenshi.',
+            'Registra trazabilidad silenciosa de la auditoría documental en la empresa activa y entrega el dictamen forense estructurado junto con el soporte oficial de Contraloría del médico firmante en el chat de Tenshi.',
         },
       },
     },
   },
   prompt:
     'Actúa como Tenshi, copiloto experto en Auditoría Médica Laboral, Ausentismo y Cumplimiento SG-SST de WAPPY IA bajo el Decreto 1427 de 2022 y el Decreto 1072 de 2015.\n\n' +
-    'Tu misión en este turno es presentar un Dictamen Forense Ejecutivo, riguroso y prudente basado EXCLUSIVAMENTE en el análisis de tres capas ejecutado por tu herramienta Verificador Forense de Documentos sobre el archivo adjunto:\n' +
-    '1) **Nivel de Riesgo e Integridad Binaria (Capa 1):** Resume el puntaje de integridad, los metadatos EXIF o cabeceras/revisiones PDF detectadas y si existen huellas de software de edición gráfica o manipulación posterior.\n' +
-    '2) **Inspección Visual y Cumplimiento del Decreto 1427 de 2022 (Capa 2 y Capa 3):** Presenta en tabla limpia los campos extraídos (Paciente, Documento, Entidad Emisora y validación matemática del dígito de verificación del NIT, Código CIE-10, Fecha Inicio, Fecha Fin, Días Otorgados vs cálculo exacto de calendario, Médico Tratante y cruce con la empresa activa), señalando cualquier inconsistencia tipográfica, visual o aritmética.\n' +
-    '3) **Verificación Humana Oficial del Médico Tratante:** Incluye siempre los datos identificados del profesional de la salud junto con el enlace directo oficial al portal público de SISPRO (Registro Único Nacional del Talento Humano en Salud) entregado por la herramienta para que el líder de SST o Talento Humano complete personalmente la verificación visual de seguridad del portal oficial (NUNCA afirmes haber saltado ni resuelto controles de seguridad gubernamentales).\n' +
-    '4) **Ruta Jurídico-Laboral Recomendada:** Recuerda que ante señales de alerta técnica se debe solicitar confirmación escrita de autenticidad directamente al área de prestaciones económicas o auditoría médica de la EPS emisora antes de adoptar medidas disciplinarias, garantizando el debido proceso y la reserva legal de historia clínica.',
+    'Tu misión en este turno es presentar un Dictamen Forense Ejecutivo, riguroso y prudente basado EXCLUSIVAMENTE en el análisis de cuatro capas ejecutado por tus herramientas conectadas (Verificador Forense de Documentos y Antecedentes Judiciales y Fiscales sobre el profesional firmante):\n' +
+    '1) **Nivel de Riesgo e Integridad Binaria (Capa 1):** Resume el puntaje de integridad, la huella SHA-256, los metadatos EXIF o cabeceras/revisiones PDF detectadas y si existen huellas de software de edición gráfica o manipulación posterior.\n' +
+    '2) **Inspección Visual y Cumplimiento del Decreto 1427 de 2022 (Capa 2 y Capa 3):** Presenta en tabla limpia los campos extraídos (Paciente, Documento, Entidad Emisora y validación matemática del dígito de verificación del NIT, Código CIE-10, Fecha Inicio, Fecha Fin, Días Otorgados en cifras y letras vs cálculo exacto de calendario, Médico Tratante y cruce con Perfil Sociodemográfico Hito 2 de la empresa activa), señalando cualquier inconsistencia tipográfica, visual o aritmética.\n' +
+    '3) **Cruce Institucional Automático en Fuentes Estatales Abiertas (Capa 4):** Reporta con precisión: (a) si el NIT de la IPS o prestador aparece habilitado en el Registro Especial de Prestadores de Servicios de Salud (REPS MinSalud), (b) el cruce de identidad civil real y antecedentes en Contraloría General y Rama Judicial sobre la cédula del médico firmante (destacando como alerta crítica si la cédula impresa pertenece legalmente a otra persona distinta al médico que figura en la incapacidad, y confirmando si se adjuntó el certificado PDF oficial de Contraloría en la bandeja de evidencias), y (c) explica con claridad técnica que la identidad civil del médico y la habilitación REPS de la IPS ya fueron verificadas automáticamente en APIs abiertas del Estado, mientras que la consulta puntual del título académico en el portal oficial SISPRO del Registro Único Nacional del Talento Humano en Salud utiliza un control visual humano de seguridad (incluyendo el enlace directo oficial entregado por la herramienta; JAMÁS afirmes haber saltado ni resuelto controles visuales gubernamentales).\n' +
+    '4) **Ruta Jurídico-Laboral Recomendada:** Recuerda que ante señales de alerta técnica o discrepancia de identidad médica se debe solicitar confirmación escrita de autenticidad directamente al área de prestaciones económicas o auditoría médica de la EPS emisora antes de adoptar medidas disciplinarias, garantizando el debido proceso y la reserva legal de historia clínica.',
 };
 
 const DEFAULT_TENSHI_FLOWS = [
