@@ -110,6 +110,7 @@ export interface CanvasCustomUserNode {
     | 'python_bs4'
     | 'node_cheerio'
     | 'chrome_mcp'
+    | 'antigravity_native_browser'
     | 'python_bs4_playwright'
     | 'node_cheerio_puppeteer'
     | 'chrome_devtools_mcp'
@@ -176,12 +177,19 @@ export interface CanvasNodeConfig {
     | 'python_bs4'
     | 'node_cheerio'
     | 'chrome_mcp'
+    | 'antigravity_native_browser'
     | 'python_bs4_playwright'
     | 'node_cheerio_puppeteer'
     | 'chrome_devtools_mcp'
     | 'custom_script';
   scriptCode?: string;
   onlyOnContentChange?: boolean;
+  /** Parámetros de Auditoría Forense Documental (`forensic_doc_verifier`) y Enrutamiento Multi-Portal */
+  forensicCheckMetadata?: boolean;
+  forensicCheckVisualTampering?: boolean;
+  forensicCheckDecreto1427?: boolean;
+  selectiveMultiPortalRouting?: boolean;
+  allowDirectNameWithoutWorkerMatch?: boolean;
   skillContent?: string;
   ruleText?: string;
   /** Parámetros propios de Disparadores (Equipo 1) */
@@ -247,6 +255,8 @@ export interface CanvasNodeConfig {
   ifPlacement?: 'pre_source' | 'pre_agent' | 'post_agent';
   ifConditionMode?:
     | 'has_explicit_cedula'
+    | 'has_explicit_cedula_or_placa'
+    | 'has_attached_document'
     | 'critical_findings'
     | 'new_external_items'
     | 'numeric_threshold'
@@ -258,6 +268,8 @@ export interface CanvasNodeConfig {
   ifConditionLabel?: string;
   ifConditionType?:
     | 'has_explicit_cedula'
+    | 'has_explicit_cedula_or_placa'
+    | 'has_attached_document'
     | 'critical_findings'
     | 'new_external_items'
     | 'numeric_threshold'
@@ -797,6 +809,21 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     badgeColor: 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-800',
   },
   {
+    id: 'forensic_doc_verifier',
+    label:
+      '🔬 Auditoría Forense de Incapacidades y Documentos (EXIF/PDF + Visión IA + Dec. 1427)',
+    shortLabel: 'Forense Incapacidad',
+    badge: 'EXIF/PDF + Dec. 1427',
+    iconName: 'ScanSearch',
+    description:
+      'Analiza si una imagen o PDF de incapacidad o soporte médico fue alterado digitalmente: inspecciona metadatos binarios EXIF/XMP/PDF (ediciones en Canva, Photoshop, iLovePDF, múltiples %%EOF), anomalías visuales de tipografía/sellos con Visión IA, cuadre matemático de fechas/días, CIE-10 y NIT DIAN (Decreto 1427 de 2022), entregando enlace oficial de ReTHUS SISPRO para validación humana del médico tratante.',
+    category: 'extractor',
+    toolHint:
+      'Auditoría forense documental y visual de certificados de incapacidad médica (forensic_doc_verifier: metadatos binarios EXIF/PDF, detección de alteraciones visuales IA y validación Decreto 1427/2022)',
+    badgeColor:
+      'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
+  {
     id: 'extract_web_search',
     label: 'Búsqueda en la Web en Tiempo Real (MinTrabajo / SUIN / ARL)',
     shortLabel: 'Búsqueda Web',
@@ -808,6 +835,8 @@ export const EXTRACTOR_NODES: WorkflowNodeDef[] = [
     badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
 ];
+
+export const STAGE2_EXTRACTOR_NODES: WorkflowNodeDef[] = EXTRACTOR_NODES;
 
 /**
  * Catálogo base de Skills (SKILL.md), Sub-Agentes Especialistas, Reglas de Cumplimiento y Web Scraping
@@ -1749,11 +1778,11 @@ export const INPUT_CONNECTOR_NODES: WorkflowNodeDef[] = [
 ];
 
 /**
- * Conectores especializados de Web Scraping por Cédula/Placa que pueden conectarse
- * directamente en el puerto «Herramienta +» del Agente IA (estilo n8n AI Agent Tool).
+ * Conectores especializados de Web Scraping por Cédula/Placa y Auditoría Forense Documental
+ * que pueden conectarse directamente en el puerto «Herramienta +» del Agente IA (estilo n8n AI Agent Tool).
  */
-export const WEB_SCRAPER_AGENT_TOOL_NODES: WorkflowNodeDef[] = EXTRACTOR_NODES.filter((n) =>
-  n.id.startsWith('scraper_agy_'),
+export const WEB_SCRAPER_AGENT_TOOL_NODES: WorkflowNodeDef[] = EXTRACTOR_NODES.filter(
+  (n) => n.id.startsWith('scraper_agy_') || n.id === 'forensic_doc_verifier',
 ).map((n) => ({
   ...n,
   category: 'mcp_tools',
@@ -8634,6 +8663,35 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
     quickCombos: [],
     reportTags: [],
   },
+  forensic_doc_verifier: {
+    moduleTitle:
+      '🔬 Auditoría Forense de Incapacidades y Documentos (EXIF/PDF + Visión IA + Dec. 1427)',
+    moduleBadge: 'EXIF/PDF + Dec. 1427',
+    fieldsLabel: 'Capas y Campos Forenses Evaluados por Certificado Médico / Incapacidad',
+    fields: [
+      'Metadatos Binarios EXIF / XMP / PDF (/Producer, /Creator, /ModDate y múltiples %%EOF)',
+      'Detección de Software de Edición Digital (Canva, Photoshop, iLovePDF, Sejda)',
+      'Análisis Visual Multimodal de Tipografía, Interlineado, Halos y Sellos Superpuestos',
+      'Cuadre Matemático de Fecha Inicio, Fecha Fin y Días Otorgados',
+      'Validación Normativa Decreto 1427 de 2022 (Art. 2.2.3.3.1), CIE-10 y NIT DIAN',
+      'Datos del Médico Tratante y Enlace Oficial ReTHUS SISPRO para Validación Humana',
+      'Índice de Riesgo Forense y Veredicto Técnico de Autenticidad Documental',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Auditoría Integral 3 Capas (EXIF/PDF + Visión IA + Decreto 1427)',
+        description: 'Activa inspección binaria, visual y legal completa con enlace ReTHUS',
+        fields: [
+          'Metadatos Binarios EXIF / XMP / PDF (/Producer, /Creator, /ModDate y múltiples %%EOF)',
+          'Análisis Visual Multimodal de Tipografía, Interlineado, Halos y Sellos Superpuestos',
+          'Cuadre Matemático de Fecha Inicio, Fecha Fin y Días Otorgados',
+          'Validación Normativa Decreto 1427 de 2022 (Art. 2.2.3.3.1), CIE-10 y NIT DIAN',
+          'Datos del Médico Tratante y Enlace Oficial ReTHUS SISPRO para Validación Humana',
+        ],
+      },
+    ],
+    reportTags: ['sgsst-condiciones-salud', 'sgsst-estadisticas-atel'],
+  },
   extract_sst_workers: {
     moduleTitle: '📥 Extractor · Extraer Trabajadores y Expedientes (Somos SST)',
     moduleBadge: 'Extractor · Expedientes SST',
@@ -12219,6 +12277,25 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig, nodeId?: string):
     badges.push(`✨ ${schemaCols} · ${ocrModel}`);
   }
 
+  if (
+    nodeId === 'forensic_doc_verifier' ||
+    cfg.forensicCheckMetadata !== undefined ||
+    cfg.forensicCheckVisualTampering !== undefined ||
+    cfg.forensicCheckDecreto1427 !== undefined
+  ) {
+    const activeLayers: string[] = [];
+    if (cfg.forensicCheckMetadata !== false) activeLayers.push('EXIF/PDF');
+    if (cfg.forensicCheckVisualTampering !== false) activeLayers.push('Visión IA');
+    if (cfg.forensicCheckDecreto1427 !== false) activeLayers.push('Dec. 1427');
+    badges.push(`🔬 ${activeLayers.join(' + ') || 'Forense'}`);
+  }
+
+  if (cfg.ifConditionType === 'has_explicit_cedula_or_placa') {
+    badges.push('Cédula o Placa en mensaje');
+  } else if (cfg.ifConditionType === 'has_attached_document') {
+    badges.push('Archivo / Imagen adjunta');
+  }
+
   if (cfg.recordFilterMode === 'expiry_only') {
     badges.push('⏳ Solo Vencimientos <= 30d');
   } else if (cfg.recordFilterMode === 'critical_only') {
@@ -12396,6 +12473,23 @@ export function buildPromptFromWorkflowNodes(
 
     if (!cfg) {
       return parts.length > 0 ? ` ➔ { ${parts.join(' | ')} }` : '';
+    }
+
+    if (
+      keys.some((k) => k.includes('forensic_doc_verifier')) ||
+      cfg.forensicCheckMetadata !== undefined ||
+      cfg.forensicCheckVisualTampering !== undefined ||
+      cfg.forensicCheckDecreto1427 !== undefined
+    ) {
+      const activeLayers: string[] = [];
+      if (cfg.forensicCheckMetadata !== false) activeLayers.push('Metadatos EXIF/XMP/PDF y %%EOF');
+      if (cfg.forensicCheckVisualTampering !== false)
+        activeLayers.push('Visión IA de Alteración Tipográfica/Sellos');
+      if (cfg.forensicCheckDecreto1427 !== false)
+        activeLayers.push('Decreto 1427/2022 + CIE-10 + NIT DIAN');
+      parts.push(
+        `🔬 AUDITORÍA FORENSE DOCUMENTAL (${activeLayers.join(' + ')}) + enlace oficial ReTHUS SISPRO para validación humana`,
+      );
     }
 
     if (cfg.recordFilterMode === 'expiry_only') {

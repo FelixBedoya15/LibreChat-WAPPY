@@ -2345,6 +2345,12 @@ async function extractTextFromPdfBuffer(pdfBuf) {
       }
     } catch (_) {}
   }
+  try {
+    const pureText = extractPdfTextPureNode(pdfBuf);
+    if (pureText && pureText.trim()) {
+      return pureText.replace(/\s+/g, ' ').trim();
+    }
+  } catch (_) {}
   const tjLiterals = [];
   const inflatedChunks = [];
   let idx = 0;
@@ -2383,6 +2389,76 @@ async function extractTextFromPdfBuffer(pdfBuf) {
   return `${tjLiterals.join(' ')} ${inflatedChunks.join(' ')}`.replace(/\s+/g, ' ').trim();
 }
 
+const CONTRALORIA_BOILERPLATE_STOPWORDS_RE =
+  /\b(?:CONTRALORIA|DELEGADA|RESPONSABILIDAD|FISCAL|INTERVENCION|JUDICIAL|COBRO|COACTIVO|CERTIFICA|SISTEMA|INFORMACION|BOLETIN|RESPONSABLES|SIBOR|RELACIONADO|CONTINUACION|ENCUENTRA|REPORTADO|REPORTADA|TIPO|DOCUMENTO|CEDULA|CIUDADANIA|EXTRANJERIA|IDENTIFICACION|TARJETA|PASAPORTE|PERMISO|PROTECCION|TEMPORAL|CODIGO|VERIFICACION|CERTIFICACION|VALIDA|TERRITORIO|NACIONAL|CONFORMIDAD|DECRETO|RESOLUCION|FIRMA|MECANICA|GENERO|WEB|PAGINA|CONSULTA|NUMERO|ENTIDAD|AFECTADA|CUANTIA|FALLO|RESARCIMIENTO)\b/i;
+
+function sanitizeContraloriaHolderCandidate(rawCandidate = '') {
+  let clean = String(rawCandidate || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[,.:;\-\s]+|[,.:;\-\s]+$/g, '')
+    .trim();
+  if (!clean) return null;
+
+  clean = clean
+    .replace(
+      /^(?:QUE\s+)?(?:EL\s*\(\s*LA\s*\)\s*SENOR\s*\(\s*A\s*\)|EL\s+SENOR|LA\s+SENORA|SENOR\s*\(\s*A\s*\)|CORRESPONDIENTE\s+A(?:\s+EL\s+SENOR|\s+LA\s+SENORA)?|PERTENECIENTE\s+A|A\s+NOMBRE\s+DE|NOMBRES?\s+Y\s+APELLIDOS?|APELLIDOS?\s+Y\s+NOMBRES?|NOMBRE\s+COMPLETO|NOMBRE(?:\s+DEL\s+(?:CIUDADANO|TITULAR))?|RAZON\s+SOCIAL\s*\/?\s*NOMBRE|TITULAR)\s*[:.\-]?\s*/i,
+      '',
+    )
+    .replace(/^[,.:;\-\s]+|[,.:;\-\s]+$/g, '')
+    .trim();
+
+  if (clean.length < 5 || clean.length > 85) return null;
+  if (/\d/.test(clean)) return null;
+  if (CONTRALORIA_BOILERPLATE_STOPWORDS_RE.test(clean)) return null;
+
+  const alphaWords = clean.split(/\s+/).filter((w) => /^[A-ZÑ.'-]{2,}$/.test(w));
+  if (alphaWords.length < 2 || alphaWords.length > 7) return null;
+
+  return alphaWords.join(' ');
+}
+
+/**
+ * Extrae el nombre completo del titular desde el texto normalizado (sin tildes, en mayúsculas)
+ * del certificado PDF oficial de la Contraloría General de la República.
+ */
+function extractContraloriaHolderFromText(normPdfText = '', cleanCedula = '') {
+  const flat = String(normPdfText || '').replace(/\s+/g, ' ').trim();
+  if (!flat) return null;
+
+  const escapedCedula = String(cleanCedula || '')
+    .replace(/[^\d]/g, '')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const candidatePatterns = [
+    /(?:NOMBRES?\s+Y\s+APELLIDOS?|APELLIDOS?\s+Y\s+NOMBRES?|NOMBRE\s+COMPLETO|RAZON\s+SOCIAL\s*(?:\/|\s+O\s+)?\s*NOMBRE|NOMBRE\s+DEL\s+(?:CIUDADANO|TITULAR|CONSULTADO)|TITULAR|CORRESPONDIENTE\s+A(?:\s+EL\s+SENOR|\s+LA\s+SENORA|\s+SENOR\s*\(\s*A\s*\))?|PERTENECIENTE\s+A)\s*[:.\-]?\s*([A-ZÑ][A-ZÑ\s.'-]{4,85}?)(?=\s*(?:,|\bTIPO\s+(?:DE\s+)?DOCUMENTO\b|\bNO\.?\s*(?:DE\s+)?IDENTIFICACION\b|\bNUMERO\s+DE\s+(?:DOCUMENTO|IDENTIFICACION)\b|\bIDENTIFICAD[OA]\b|\bCON\s+CEDULA\b|\bCEDULA\s+DE\b|\b(?:CC|CE|TI|NIT|PEP|PPT)\b|\bCODIGO\s+DE\s+VERIFICACION\b|\bNO\s+SE\s+ENCUENTRA\b|\bSE\s+ENCUENTRA\s+REPORTAD|\bESTA\s+CERTIFICACION\b|\bESTADO\b|\d{5,}|$))/i,
+    /(?:NOMBRE)\s*[:.\-]\s*([A-ZÑ][A-ZÑ\s.'-]{4,85}?)(?=\s*(?:,|\bTIPO\s+(?:DE\s+)?DOCUMENTO\b|\bNO\.?\s*(?:DE\s+)?IDENTIFICACION\b|\bNUMERO\s+DE\s+(?:DOCUMENTO|IDENTIFICACION)\b|\bIDENTIFICAD[OA]\b|\b(?:CC|CE|TI|NIT|PEP|PPT)\b|\bCODIGO\s+DE\s+VERIFICACION\b|\bNO\s+SE\s+ENCUENTRA\b|\bSE\s+ENCUENTRA\b|\bESTA\s+CERTIFICACION\b|\d{5,}|$))/i,
+  ];
+
+  if (escapedCedula) {
+    candidatePatterns.push(
+      new RegExp(
+        `(?:NO\\.?\\s*(?:DE\\s+)?IDENTIFICACION|NUMERO\\s+DE\\s+(?:IDENTIFICACION|DOCUMENTO)|CEDULA\\s+DE\\s+(?:CIUDADANIA|EXTRANJERIA)|TARJETA\\s+DE\\s+IDENTIDAD|\\b(?:CC|CE|TI|PEP|PPT)\\b)\\s*[:.#\\-]?\\s*${escapedCedula}\\s*[,:\\-]?\\s*(?:CORRESPONDIENTE\\s+A\\s*:?\\s*|PERTENECIENTE\\s+A\\s*:?\\s*|NOMBRE(?:S?\\s+Y\\s+APELLIDOS?)?\\s*:?\\s*)?([A-ZÑ][A-ZÑ\\s.'-]{4,85}?)(?=\\s+(?:CODIGO\\s+DE\\s+VERIFICACION|NO\\s+SE\\s+ENCUENTRA|SE\\s+ENCUENTRA|REPORTAD[OA]|ESTA\\s+CERTIFICACION|DE\\s+CONFORMIDAD|GENERO\\b|FECHA\\b|ENTIDAD\\b|CUANTIA\\b)|$)`,
+        'i',
+      ),
+      new RegExp(
+        `([A-ZÑ][A-ZÑ\\s.'-]{4,85}?)\\s*,?\\s*(?:IDENTIFICAD[OA](?:\\s*\\(\\s*A\\s*\\))?\\s+CON\\s+)?(?:TIPO\\s+(?:DE\\s+)?DOCUMENTO\\s*[:.\\-]?\\s*)?(?:CEDULA\\s+DE\\s+(?:CIUDADANIA|EXTRANJERIA)|TARJETA\\s+DE\\s+IDENTIDAD|\\b(?:CC|C\\.C\\.|CE|TI|PEP|PPT)\\b)\\s*(?:NO\\.?\\s*(?:DE\\s+)?IDENTIFICACION\\s*[:.#\\-]?\\s*|NO\\.?\\s*[:.#\\-]?\\s*|[:.#\\-]?\\s*)${escapedCedula}\\b`,
+        'i',
+      ),
+    );
+  }
+
+  for (const re of candidatePatterns) {
+    const m = flat.match(re);
+    if (m && m[1]) {
+      const validName = sanitizeContraloriaHolderCandidate(m[1]);
+      if (validName) return validName;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Consulta real de Certificado Oficial de Antecedentes Fiscales en la Contraloría General de la República (PDF real).
  */
@@ -2397,6 +2473,7 @@ async function consultarContraloriaFiscalPorCedula({
     return {
       ok: false,
       consultado: false,
+      titular: null,
       sinResponsabilidadFiscal: false,
       reportadoFiscal: false,
       pdfBase64: null,
@@ -2425,6 +2502,7 @@ async function consultarContraloriaFiscalPorCedula({
         return {
           ok: false,
           consultado: false,
+          titular: null,
           error: 'No se obtuvo __VIEWSTATE en Contraloría.',
           pdfBase64: null,
           pdfFileName: null,
@@ -2459,6 +2537,7 @@ async function consultarContraloriaFiscalPorCedula({
         return {
           ok: false,
           consultado: true,
+          titular: null,
           error: 'Contraloría no retornó PDF directo (posible validación adicional).',
           pdfBase64: null,
           pdfFileName: null,
@@ -2472,6 +2551,7 @@ async function consultarContraloriaFiscalPorCedula({
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toUpperCase();
+      const titular = extractContraloriaHolderFromText(normPdfText, cleanCedula);
       const sinResponsabilidadFiscal =
         normPdfText.includes('NO SE ENCUENTRA REPORTADO COMO RESPONSABLE FISCAL') ||
         normPdfText.includes('NO SE ENCUENTRA REPORTADA COMO RESPONSABLE FISCAL') ||
@@ -2494,6 +2574,7 @@ async function consultarContraloriaFiscalPorCedula({
       return {
         ok: true,
         consultado: true,
+        titular: titular || null,
         sinResponsabilidadFiscal,
         reportadoFiscal,
         pdfBase64,
@@ -2506,6 +2587,7 @@ async function consultarContraloriaFiscalPorCedula({
       return {
         ok: false,
         consultado: false,
+        titular: null,
         error: err.message,
         pdfBase64: null,
         pdfFileName: null,
@@ -2533,7 +2615,7 @@ async function consultarRamaJudicial(params = '') {
     : '';
 
   try {
-    const [rj, contraloria] = await Promise.all([
+    let [rj, contraloria] = await Promise.all([
       cleanNombre && cleanNombre.length >= 4
         ? consultarRamaJudicialPorNombre(cleanNombre)
         : Promise.resolve({
@@ -2552,6 +2634,16 @@ async function consultarRamaJudicial(params = '') {
         : Promise.resolve(null),
     ]);
 
+    let effectiveNombre = cleanNombre;
+    if (
+      (!effectiveNombre || effectiveNombre.length < 4) &&
+      contraloria?.titular &&
+      String(contraloria.titular).trim().length >= 5
+    ) {
+      effectiveNombre = String(contraloria.titular).trim();
+      rj = await consultarRamaJudicialPorNombre(effectiveNombre);
+    }
+
     let pdfBase64 = contraloria?.pdfBase64 || null;
     let pdfFileName = contraloria?.pdfFileName || null;
     let imageBase64 = contraloria?.imageBase64 || null;
@@ -2560,7 +2652,10 @@ async function consultarRamaJudicial(params = '') {
     if (!pdfBase64 && rj.ok && includeEvidence !== false && !vpsSafeDirectFallback) {
       try {
         const todayISO = new Date().toISOString().split('T')[0];
-        const subjectTag = sanitizeFileStem(cleanCedula || cleanNombre || 'Ciudadano', 'Ciudadano').slice(0, 40);
+        const subjectTag = sanitizeFileStem(
+          cleanCedula || effectiveNombre || 'Ciudadano',
+          'Ciudadano',
+        ).slice(0, 40);
         const htmlContent = buildRamaJudicialEvidenceHtml(rj, {
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,
@@ -2601,7 +2696,7 @@ async function consultarRamaJudicial(params = '') {
               .slice(0, 2)
               .map((p) => `${p.llaveProceso || p.idProceso} - ${p.despacho}`)
               .join('; ')})`
-          : `Rama Judicial: 0 procesos activos para "${cleanNombre}"`,
+          : `Rama Judicial: 0 procesos activos para "${effectiveNombre || rj.nombreConsultado || ''}"`,
       );
     } else if (rj.aviso) {
       partesResumen.push(rj.aviso);
@@ -2609,8 +2704,8 @@ async function consultarRamaJudicial(params = '') {
     if (contraloria?.ok) {
       partesResumen.push(
         reportadoFiscal
-          ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}): REPORTADO como responsable fiscal`
-          : `Contraloría General (${cleanTipoDoc} ${cleanCedula}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
+          ? `Contraloría General (${cleanTipoDoc} ${cleanCedula}${contraloria.titular ? ` · ${contraloria.titular}` : ''}): REPORTADO como responsable fiscal`
+          : `Contraloría General (${cleanTipoDoc} ${cleanCedula}${contraloria.titular ? ` · ${contraloria.titular}` : ''}): NO reportado como responsable fiscal (certificado PDF oficial descargado)`,
       );
     } else if (cleanCedula && isSimulatedOrInvalidCedula(cleanCedula, cleanTipoDoc)) {
       partesResumen.push(
@@ -2620,17 +2715,20 @@ async function consultarRamaJudicial(params = '') {
 
     const resumen =
       partesResumen.join(' · ') ||
-      `Consulta de antecedentes ejecutada para ${cleanNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
+      `Consulta de antecedentes ejecutada para ${effectiveNombre || `${cleanTipoDoc} ${cleanCedula}`}`;
 
     return {
       ...rj,
       ok: Boolean(rj.ok || contraloria?.ok),
       action: 'antecedentes',
+      titular: contraloria?.titular || effectiveNombre || null,
+      nombreConsultado: rj.nombreConsultado || effectiveNombre || '',
       documento: cleanCedula || undefined,
       tipoDoc: cleanTipoDoc,
       contraloria: contraloria
         ? {
             ok: contraloria.ok,
+            titular: contraloria.titular || null,
             sinResponsabilidadFiscal: contraloria.sinResponsabilidadFiscal,
             reportadoFiscal: contraloria.reportadoFiscal,
           }
@@ -2992,7 +3090,7 @@ function extractPdfTextPureNode(pdfBuf) {
   const extractFromBlock = (contentStr) => {
     let currentLine = '';
     const tokenRe =
-      /\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*(?:Tj|'|")|<([0-9a-fA-F\s]+)>\s*Tj|\[([\s\S]*?)\]\s*TJ|\b(Td|TD|T\*|ET)\b/g;
+      /\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*(?:Tj|'|")|<([0-9a-fA-F\s]+)>\s*Tj|\[([\s\S]*?)\]\s*TJ|(\b(?:Td|TD|ET)\b|\bT\*(?=\s|$|\(|<|\[|\/))/g;
     let m;
     while ((m = tokenRe.exec(contentStr)) !== null) {
       if (m[1] !== undefined) {
@@ -5774,6 +5872,7 @@ async function ejecutarWebScrapeConEvidencia({
 
 module.exports = {
   extractPdfTextPureNode,
+  extractContraloriaHolderFromText,
   extractArlHolderAndEmployerFromPdf,
   convertPdfBase64ToPngBase64,
   captureWebOrHtmlEvidence,

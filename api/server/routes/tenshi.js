@@ -1246,16 +1246,55 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         let requestedGuiAction = null;
         let requestedGuiActions = null;
 
+        const normalizeIncomingMediaPayload = (msgObj) => {
+            if (!msgObj || typeof msgObj !== 'object') return undefined;
+            const rawMedia = msgObj.media && typeof msgObj.media === 'object' ? msgObj.media : null;
+            const rawDataUrl = rawMedia?.dataUrl || (typeof msgObj.image === 'string' && msgObj.image ? msgObj.image : undefined);
+            const rawBase64 = rawMedia?.base64 || undefined;
+            if (!rawDataUrl && !rawBase64 && !Buffer.isBuffer(rawMedia?.buffer)) {
+                return undefined;
+            }
+            let resolvedMime = rawMedia?.mimeType || rawMedia?.mimetype || '';
+            if (!resolvedMime && typeof rawDataUrl === 'string') {
+                const dm = rawDataUrl.match(/^data:([^;,]+);base64,/i);
+                if (dm) resolvedMime = dm[1].trim();
+            }
+            if (!resolvedMime) {
+                resolvedMime = rawMedia?.type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+            }
+            const resolvedType = rawMedia?.type || (resolvedMime === 'application/pdf' ? 'pdf' : resolvedMime.startsWith('image/') ? 'image' : 'file');
+            const fallbackName = resolvedMime === 'application/pdf' ? 'documento_adjunto.pdf' : 'imagen_adjunta.jpg';
+            return {
+                name: rawMedia?.name || rawMedia?.fileName || fallbackName,
+                type: resolvedType,
+                mimeType: resolvedMime,
+                dataUrl: rawDataUrl,
+                ...(rawBase64 ? { base64: rawBase64 } : {}),
+                ...(Buffer.isBuffer(rawMedia?.buffer) ? { buffer: rawMedia.buffer } : {}),
+                size: Number(rawMedia?.size || 0),
+            };
+        };
+
         const lastUserMsgPayload = messages[messages.length - 1];
         const userQuery = lastUserMsgPayload?.content || '';
         const userImage = lastUserMsgPayload?.image || (lastUserMsgPayload?.media?.type === 'image' ? lastUserMsgPayload.media.dataUrl : undefined);
-        const userMedia = lastUserMsgPayload?.media || (lastUserMsgPayload?.image ? {
-            name: 'imagen_adjunta.jpg',
-            type: 'image',
-            mimeType: 'image/jpeg',
-            dataUrl: lastUserMsgPayload.image,
-            size: 0,
-        } : undefined);
+        const userMedia = normalizeIncomingMediaPayload(lastUserMsgPayload);
+
+        // Resolver adjunto activo del turno actual o del turno inmediatamente anterior (ej. sube archivo y luego dice "verifícalo")
+        let resolvedAttachedMedia = userMedia || normalizeIncomingMediaPayload(req.body);
+        if (!resolvedAttachedMedia && Array.isArray(messages) && messages.length > 1) {
+            let userTurnsChecked = 0;
+            for (let mIdx = messages.length - 2; mIdx >= 0 && userTurnsChecked < 2; mIdx--) {
+                const prevMsg = messages[mIdx];
+                if (!prevMsg || prevMsg.role !== 'user') continue;
+                userTurnsChecked++;
+                const candidatePrevMedia = normalizeIncomingMediaPayload(prevMsg);
+                if (candidatePrevMedia) {
+                    resolvedAttachedMedia = candidatePrevMedia;
+                    break;
+                }
+            }
+        }
 
         const userMediaForDb = userMedia ? { ...userMedia } : undefined;
         // Si el dataUrl excede 4MB, no almacenarlo en base de datos para no saturar MongoDB BSON (límite 16MB)
@@ -1282,6 +1321,35 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         if (companyInfo?._id) {
             req.companyId = String(companyInfo._id);
         }
+
+        // Si en el turno inmediatamente anterior el cliente omitió reenviar el dataUrl pero el mensaje sigue reciente en BD (<10 min), recuperarlo con aislamiento multi-empresa
+        if (!resolvedAttachedMedia && Array.isArray(messages) && messages.length > 1) {
+            const recentPrevUserHadAttachment = messages
+                .slice(-4, -1)
+                .some((m) => m && m.role === 'user' && (m.media?.name || m.hasAttachment));
+            if (recentPrevUserHadAttachment) {
+                try {
+                    const recentDbMediaMsg = await TenshiMessage.findOne({
+                        user: req.user.id,
+                        companyId: companyInfo?._id ? String(companyInfo._id) : null,
+                        role: 'user',
+                        createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
+                        $or: [
+                            { 'media.dataUrl': { $exists: true, $nin: [null, ''] } },
+                            { image: { $exists: true, $nin: [null, ''] } },
+                        ],
+                    })
+                        .sort({ createdAt: -1 })
+                        .select('media image')
+                        .lean();
+                    if (recentDbMediaMsg) {
+                        resolvedAttachedMedia = normalizeIncomingMediaPayload(recentDbMediaMsg) || undefined;
+                    }
+                } catch (_) {}
+            }
+        }
+
+        req.__tenshiAttachedMedia = resolvedAttachedMedia || null;
 
         if (!req.body.conversationId) {
             req.body.conversationId = 'tenshi-' + targetUserId + (companyInfo?._id ? '-' + String(companyInfo._id) : '');
@@ -1788,7 +1856,10 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
         }
 
         if (tenshiFlowsBlock) {
-            systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.\n- ENTREGA DE CERTIFICADOS EN CHAT: Cuando el flujo emita certificados (\`evidencias\`/\`evidenceFiles\`), confírmale explícitamente al usuario que el certificado (o certificados) fue emitido, que ya lo recibió en este chat y que ya puede abrirlo o descargarlo (sin pegar rutas \`/api/...\` crudas); y si en una consulta ARL no aparece en otras ARLs, avísale que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) la solicite o indique para consultarla.`;
+            const attachedHint = req.__tenshiAttachedMedia
+                ? `\n- SOPORTE ADJUNTO EN LA SOLICITUD: El usuario tiene adjunto el archivo "${req.__tenshiAttachedMedia.name}" (${req.__tenshiAttachedMedia.mimeType}); cuando invoques \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, el binario adjunto se transfiere automáticamente al motor del Flujo Tenshi (ej. auditoría forense de incapacidades o soportes).`
+                : '';
+            systemMessage += `\n\n${tenshiFlowsBlock}\nREGLA DE EJECUCIÓN INSTANTÁNEA EN CHAT TENSHI: Cuando el usuario haga una pregunta, petición o comando que coincida con cualquiera de los Flujos Tenshi internos listados arriba, invoca INMEDIATAMENTE \`gestor_automatizaciones\` con \`accion: "ejecutar_tenshi"\`, enviando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` (la petición literal del usuario) y \`esperar_resultado: true\` para responderle al instante con el resultado.${attachedHint}\n- ENTREGA DE CERTIFICADOS EN CHAT: Cuando el flujo emita certificados (\`evidencias\`/\`evidenceFiles\`), confírmale explícitamente al usuario que el certificado (o certificados) fue emitido, que ya lo recibió en este chat y que ya puede abrirlo o descargarlo (sin pegar rutas \`/api/...\` crudas); y si en una consulta ARL no aparece en otras ARLs, avísale que si la consulta es en una ARL que exige fecha de nacimiento (como ARL Seguros Bolívar) la solicite o indique para consultarla.`;
         }
 
         if (browserState) {

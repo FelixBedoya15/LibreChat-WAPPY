@@ -176,11 +176,18 @@ class GestorAutomatizaciones extends Tool {
     return ctx?.companyId || null;
   }
 
-  async _executeMatchedTenshiFlow({ flow, strictCtx, userInstruction = '', esperar_resultado = true }) {
+  async _executeMatchedTenshiFlow({
+    flow,
+    strictCtx,
+    userInstruction = '',
+    esperar_resultado = true,
+    attachedMedia = null,
+  }) {
     const { executeTenshiFlowInstant } = require('~/server/services/tenshiFlowService');
     const isVoice = Boolean(this.req?.isVoiceSession);
     const waitTimeoutMs = esperar_resultado === false ? 0 : (isVoice ? 35000 : 60000);
     const triggerSource = isVoice ? 'tenshi_voice' : 'tenshi_flow_instant';
+    const resolvedAttachedMedia = attachedMedia || this.req?.__tenshiAttachedMedia || null;
 
     try {
       const execRes = await executeTenshiFlowInstant({
@@ -189,6 +196,7 @@ class GestorAutomatizaciones extends Tool {
         userInstruction: String(userInstruction || '').trim(),
         waitTimeoutMs,
         triggerSource,
+        attachedMedia: resolvedAttachedMedia,
       });
 
       if (execRes?.completedInTurn === false || execRes?.status === 'running_background') {
@@ -386,11 +394,13 @@ class GestorAutomatizaciones extends Tool {
             error: `No se encontró ningún Flujo Tenshi activo que coincida con "${query}".`
           });
         }
+        const attachedMedia = this.req?.__tenshiAttachedMedia || null;
         return await this._executeMatchedTenshiFlow({
           flow: matchRes.flow,
           strictCtx,
           userInstruction: instruccion_usuario || nombre || automatizacion_id || '',
           esperar_resultado: esperar_resultado !== false,
+          attachedMedia,
         });
       }
 

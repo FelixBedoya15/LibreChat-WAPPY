@@ -648,10 +648,26 @@ function extractAutomationTriggerConfigs(automation) {
   if (tenshiCfg?.voiceCommand && String(tenshiCfg.voiceCommand).trim()) {
     voiceCmdSet.add(String(tenshiCfg.voiceCommand).trim());
   }
+  if (Array.isArray(tenshiCfg?.voiceCommands)) {
+    for (const vcItem of tenshiCfg.voiceCommands) {
+      if (vcItem && String(vcItem).trim()) {
+        voiceCmdSet.add(String(vcItem).trim());
+      }
+    }
+  }
   for (const [k, v] of Object.entries(nodeConfigs)) {
     if (!v || typeof v !== 'object') continue;
-    if (k.startsWith('trigger') && v.voiceCommand && String(v.voiceCommand).trim()) {
-      voiceCmdSet.add(String(v.voiceCommand).trim());
+    if (k.startsWith('trigger')) {
+      if (v.voiceCommand && String(v.voiceCommand).trim()) {
+        voiceCmdSet.add(String(v.voiceCommand).trim());
+      }
+      if (Array.isArray(v.voiceCommands)) {
+        for (const vcItem of v.voiceCommands) {
+          if (vcItem && String(vcItem).trim()) {
+            voiceCmdSet.add(String(vcItem).trim());
+          }
+        }
+      }
     }
   }
 
@@ -687,8 +703,20 @@ function resolveAutomationByVoiceOrQuery(automations = [], rawQuery = '', { requ
   const allTokens = Array.from(new Set([...qNorm.split(' '), ...qCore.split(' ')]))
     .map((t) => t.trim())
     .filter((t) => t && !TRIGGER_QUERY_STOP_WORDS.has(t));
-  // Parámetros de entidad numéricos (cédulas, NITs de 5-12 dígitos) son argumentos de entrada en tiempo real, NO códigos de flujo ("001", "1401").
-  const isRuntimeParamNumToken = (tok) => /^\d{5,12}$/.test(String(tok || '').trim());
+  // Ignorar fragmentos numéricos de placas vehiculares (ej. "ABC-123" -> "123") y cédulas (5-12 dígitos) como códigos de flujo
+  const plateDigitSubtokens = new Set(
+    Array.from(String(rawQuery || '').matchAll(/\b[A-Za-z]{3}[\s-](\d{2}[0-9A-Za-z])\b/g), (m) =>
+      String(m[1] || '').toLowerCase(),
+    ),
+  );
+  const isRuntimeParamNumToken = (tok) => {
+    const cleanTok = String(tok || '').trim().toLowerCase();
+    return (
+      /^\d{5,12}$/.test(cleanTok) ||
+      /^[a-z]{3}\d{2}[0-9a-z]$/.test(cleanTok) ||
+      plateDigitSubtokens.has(cleanTok)
+    );
+  };
   const codeOrDigitTokens = allTokens.filter((t) => /\d/.test(t) && !isRuntimeParamNumToken(t));
   const meaningfulTokens = allTokens.filter((t) => /\d/.test(t) || t.length >= 3);
   const nonParamMeaningfulTokens = meaningfulTokens.filter((t) => !isRuntimeParamNumToken(t));
@@ -893,6 +921,11 @@ const HUMAN_WORKFLOW_NODE_TITLES = {
   acpm_task: 'Tarea en Centro de Control ACPM',
   canvas_doc: 'Documento en Editor en Vivo WAPPY',
   somos_sst_update: 'Actualización en Somos SST',
+  scraper_agy_arl_directo: 'Web Scraping ARL · Google Antigravity',
+  scraper_agy_alto_riesgo: 'Certificados Alturas y Confinados MinTrabajo · Google Antigravity',
+  scraper_agy_vial_pesv: 'Estado de Cuenta y Comparendos SIMIT · Google Antigravity',
+  scraper_agy_antecedentes: 'Antecedentes Judiciales y Fiscales · Google Antigravity',
+  forensic_doc_verifier: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
 };
 
 function formatHumanWorkflowNodeTitle(rawKeyOrId = '') {
@@ -4829,6 +4862,53 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       }
     : {};
 
+  const unwrapPrimaryAttachedMedia = (rawMedia) => {
+    if (!rawMedia) return null;
+    if (Array.isArray(rawMedia)) {
+      return (
+        rawMedia.find(
+          (m) => m && typeof m === 'object' && (m.buffer || m.dataUrl || m.base64 || m.data),
+        ) || null
+      );
+    }
+    if (typeof rawMedia === 'object') {
+      if (Array.isArray(rawMedia.files) && rawMedia.files.length > 0) {
+        return unwrapPrimaryAttachedMedia(rawMedia.files);
+      }
+      if (rawMedia.buffer || rawMedia.dataUrl || rawMedia.base64 || rawMedia.data) {
+        return rawMedia;
+      }
+    }
+    return null;
+  };
+
+  // Sanitizar eventPayload para metadatos en BD (sin incrustar binarios base64/buffer pesados)
+  const sanitizedEventMetadata = (() => {
+    if (!eventPayload || typeof eventPayload !== 'object') return eventPayload;
+    if (!eventPayload.attachedMedia) {
+      return eventPayload;
+    }
+    const am = unwrapPrimaryAttachedMedia(eventPayload.attachedMedia) || {};
+    return {
+      ...eventPayload,
+      attachedMedia: {
+        hasAttachedMedia: Boolean(am.dataUrl || am.base64 || am.buffer || am.data),
+        fileName: am.fileName || am.filename || am.name || 'soporte_adjunto',
+        mimeType: am.mimeType || am.mimetype || am.type || 'application/octet-stream',
+        byteLength:
+          am.byteLength ||
+          am.size ||
+          (Buffer.isBuffer(am.buffer)
+            ? am.buffer.length
+            : typeof am.base64 === 'string'
+              ? Math.floor(am.base64.length * 0.75)
+              : typeof am.dataUrl === 'string'
+                ? Math.floor(am.dataUrl.length * 0.75)
+                : 0),
+      },
+    };
+  })();
+
   // Create or hydrate pre-allocated log entry
   let log = null;
   if (runOpts.existingLogId && mongoose.Types.ObjectId.isValid(String(runOpts.existingLogId))) {
@@ -4844,7 +4924,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           activeStepNodeKey: 'trigger_root',
           ...tenshiLogMeta,
           ...(gmailMessageId ? { gmailMessageId } : {}),
-          ...(eventPayload ? { eventMetadata: eventPayload } : {}),
+          ...(sanitizedEventMetadata ? { eventMetadata: sanitizedEventMetadata } : {}),
         },
       },
       { new: true },
@@ -4873,7 +4953,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       currentStageLabel: 'Iniciando disparador del flujo...',
       activeStepNodeKey: 'trigger_root',
       ...(gmailMessageId ? { gmailMessageId } : {}),
-      ...(eventPayload ? { eventMetadata: eventPayload } : {}),
+      ...(sanitizedEventMetadata ? { eventMetadata: sanitizedEventMetadata } : {}),
     });
   }
 
@@ -5555,11 +5635,25 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     const isPreSourceIf =
       Boolean(automation.workflowNodes?.includeIfNode) &&
       String(preSourceIfCfg.ifPlacement || '').trim() === 'pre_source';
+    const preSourceCondType = String(
+      preSourceIfCfg.ifConditionType || 'has_explicit_cedula',
+    ).trim();
+    const allowDirectNameWithoutWorkerMatch = Boolean(
+      preSourceIfCfg.allowDirectNameWithoutWorkerMatch ||
+        allNodeCfg.hito2_perfil_socio?.allowDirectNameWithoutWorkerMatch ||
+        allNodeCfg.tool_hitos_hito2_perfil_socio?.allowDirectNameWithoutWorkerMatch ||
+        allNodeCfg.scraper_agy_antecedentes?.allowDirectNameWithoutWorkerMatch ||
+        allNodeCfg.tool_inputs_scraper_agy_antecedentes?.allowDirectNameWithoutWorkerMatch,
+    );
     const preSourceRouterState = {
       enabled: isPreSourceIf,
       evaluated: false,
+      conditionType: preSourceCondType,
+      conditionPassed: false,
       hasExplicitCedula: false,
+      hasAttachedDocument: false,
       explicitCedulas: [],
+      explicitPlacas: [],
       extractedDocType: 'CC',
       extractedBirthDate: '',
       matchedWorkers: [],
@@ -5570,221 +5664,97 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
     try {
       if (isPreSourceIf) {
         const preSourceInputText = String(scraperTriggerInput || tenshiUserInstruction || '').trim();
-        const preSourceExplicitCedulas = extractExplicitCedulasFromText(preSourceInputText, {
-          companyNit: automationCompany?.nit || '',
-        });
-        const preSourceDocType = extractDocTypeFromInstruction(preSourceInputText);
-        const preSourceBirthDate = extractOptionalBirthDateFromInstruction(preSourceInputText);
         preSourceRouterState.evaluated = true;
-        preSourceRouterState.explicitCedulas = preSourceExplicitCedulas;
-        preSourceRouterState.extractedDocType = preSourceDocType;
-        preSourceRouterState.extractedBirthDate = preSourceBirthDate;
 
-        if (preSourceExplicitCedulas.length > 0) {
-          preSourceRouterState.hasExplicitCedula = true;
-          preSourceRouterState.branchTaken = 'SI';
-          preSourceRouterState.reason = `Cédula explícita detectada (${preSourceExplicitCedulas.join(', ')}) ➔ Rama SÍ: omitir Perfil Sociodemográfico (Hito 2) y consultar directo Web Scraping ARL.`;
+        if (preSourceCondType === 'has_attached_document') {
+          const attachedMediaCandidate = unwrapPrimaryAttachedMedia(
+            eventPayload?.attachedMedia || runOpts?.attachedMedia || null,
+          );
+          const hasAttachedDoc = Boolean(attachedMediaCandidate);
+          preSourceRouterState.hasAttachedDocument = hasAttachedDoc;
+          preSourceRouterState.conditionPassed = hasAttachedDoc;
+          preSourceRouterState.hasExplicitCedula = hasAttachedDoc;
 
-          liveTracker.upsertStep({
-            nodeKey: 'if_router',
-            nodeId: 'if_condition',
-            title: preSourceIfCfg.ifConditionLabel || '¿El usuario proporcionó número de cédula?',
-            category: 'if',
-            status: 'done',
-            durationMs: 12,
-            branchTaken: 'yes',
-            inputCount: 1,
-            outputCount: preSourceExplicitCedulas.length,
-            outputPreview: `✅ Rama SÍ activa: ${preSourceRouterState.reason}`,
-          });
-          liveTracker.upsertStep({
-            nodeKey: 'tool_hitos_hito2_perfil_socio',
-            nodeId: 'hito2_perfil_socio',
-            title: 'Perfil Sociodemográfico (Hito 2)',
-            category: 'hito',
-            status: 'skipped',
-            durationMs: 0,
-            inputCount: 0,
-            outputCount: 0,
-            outputPreview: '⏭️ Omitido (Rama SÍ · 0 consultas a BD): el número de cédula ya venía en la solicitud.',
-          });
-          liveTracker.markSkippedKeys(['tool_hitos_hito2_perfil_socio']);
-          liveTracker.setActiveStage(null, 'Consultando portales ARL directo por cédula...');
-          await liveTracker.flush();
-        } else {
-          preSourceRouterState.hasExplicitCedula = false;
-          preSourceRouterState.branchTaken = 'NO';
-          preSourceRouterState.reason =
-            'No se proporcionó cédula explícita ➔ Rama NO: consultar Perfil Sociodemográfico (Hito 2) buscando por nombre en la empresa activa.';
+          if (hasAttachedDoc) {
+            preSourceRouterState.branchTaken = 'SI';
+            preSourceRouterState.reason =
+              'Soporte documental adjunto detectado ➔ Rama SÍ: ejecutar Verificador Forense de Documentos (EXIF/PDF + Visión IA + Decreto 1427/2022).';
 
-          liveTracker.upsertStep({
-            nodeKey: 'if_router',
-            nodeId: 'if_condition',
-            title: preSourceIfCfg.ifConditionLabel || '¿El usuario proporcionó número de cédula?',
-            category: 'if',
-            status: 'done',
-            durationMs: 12,
-            branchTaken: 'no',
-            inputCount: 1,
-            outputCount: 0,
-            outputPreview: `↪️ Rama NO activa: ${preSourceRouterState.reason}`,
-          });
-          liveTracker.setActiveStage(null, 'Buscando trabajador por nombre en Perfil Sociodemográfico (Hito 2)...');
-
-          let rawCompanyWorkers = [];
-          try {
-            const liveWorkersRes = await inspectNodeLiveData({
-              userId: String(automation.user),
-              companyId: targetCompanyIdStr,
-              nodeId: 'extract_sst_workers',
+            liveTracker.upsertStep({
+              nodeKey: 'if_router',
+              nodeId: 'if_condition',
+              title:
+                preSourceIfCfg.ifConditionLabel ||
+                '¿El usuario adjuntó la imagen o PDF de la incapacidad?',
+              category: 'if',
+              status: 'done',
+              durationMs: 10,
+              branchTaken: 'yes',
+              inputCount: 1,
+              outputCount: 1,
+              outputPreview: `✅ Rama SÍ activa: ${preSourceRouterState.reason}`,
             });
-            if (Array.isArray(liveWorkersRes?.records) && liveWorkersRes.records.length > 0) {
-              rawCompanyWorkers = liveWorkersRes.records.map((rec) => ({
-                id: rec.id,
-                _id: rec.id,
-                nombre: rec.fields?.['Nombre Completo'] || rec.label || rec.nombre || '',
-                documento:
-                  rec.fields?.['Cédula / Documento'] ||
-                  rec.documento ||
-                  rec.identificacion ||
-                  rec.cedula ||
-                  '',
-                tipoDoc: rec.fields?.['Tipo Documento'] || rec.tipoDoc || 'CC',
-                cargo: rec.fields?.['Cargo'] || rec.sublabel || rec.cargo || 'Colaborador',
-                arl: rec.fields?.['ARL'] || rec.fields?.['ARL (Administradora de Riesgos Laborales)'] || '',
-                fechaNacimiento: normalizeAnyDateYmd(
-                  rec.fields?.['Fecha de Nacimiento'] || rec.fechaNacimiento || rec.birthDate || '',
-                ),
-              }));
-            }
-          } catch (lookupErr) {
-            console.warn('[AutomationScheduler] Aviso en búsqueda nominal Hito 2:', lookupErr?.message);
-          }
-
-          if (rawCompanyWorkers.length === 0 && targetCompanyIdStr && mongoose.Types.ObjectId.isValid(targetCompanyIdStr)) {
-            try {
-              const WorkerModel =
-                mongoose.models.SgsstWorker ||
-                (mongoose.modelNames().includes('SgsstWorker') ? mongoose.model('SgsstWorker') : null);
-              if (WorkerModel) {
-                const dbWorkers = await WorkerModel.find({
-                  companyId: new mongoose.Types.ObjectId(targetCompanyIdStr),
-                })
-                  .sort({ createdAt: -1 })
-                  .limit(300)
-                  .lean();
-                rawCompanyWorkers = dbWorkers.map((w) => ({
-                  id: String(w._id),
-                  _id: String(w._id),
-                  nombre: w.nombre || w.fullName || '',
-                  documento: w.documento || w.identificacion || w.cedula || w.documentNumber || '',
-                  tipoDoc: w.tipoDoc || 'CC',
-                  cargo: w.cargo || w.position || 'Colaborador',
-                  arl: w.arl || w.arlName || '',
-                  fechaNacimiento: normalizeAnyDateYmd(w.fechaNacimiento || w.birthDate || ''),
-                }));
-              }
-            } catch (_) {}
-          }
-
-          const matchedNamedWorkers = findWorkersNamedInInstruction(preSourceInputText, rawCompanyWorkers);
-          preSourceRouterState.matchedWorkers = matchedNamedWorkers;
-
-          liveTracker.upsertStep({
-            nodeKey: 'tool_hitos_hito2_perfil_socio',
-            nodeId: 'hito2_perfil_socio',
-            title: 'Perfil Sociodemográfico (Hito 2)',
-            category: 'hito',
-            status: 'done',
-            durationMs: 120,
-            inputCount: 1,
-            outputCount: matchedNamedWorkers.length,
-            outputPreview:
-              matchedNamedWorkers.length > 0
-                ? `${matchedNamedWorkers.length} trabajador(es) identificado(s) por nombre en la empresa activa.`
-                : '0 coincidencias por nombre en Perfil Sociodemográfico (Hito 2) — nómina completa protegida.',
-            outputItems: matchedNamedWorkers.slice(0, 10).map((mw, idx) => ({
-              '#': idx + 1,
-              'Nombre Completo': mw.nombre,
-              'Cédula / Documento': mw.documento,
-              Cargo: mw.cargo || 'Colaborador',
-              ARL: mw.arl || 'Sin registrar',
-              ...(mw.fechaNacimiento ? { 'Fecha de Nacimiento': mw.fechaNacimiento } : {}),
-            })),
-          });
-          await liveTracker.flush();
-
-          if (matchedNamedWorkers.length > 0) {
-            structuredSourceRes.allRecords = matchedNamedWorkers.map((mw) => ({
-              id: mw.id,
-              _sourceNodeId: 'hito2_perfil_socio',
-              label: mw.nombre,
-              sublabel: mw.cargo || 'Colaborador',
-              badge: mw.arl || 'Registrado',
-              fields: {
-                'Nombre Completo': mw.nombre,
-                'Cédula / Documento': mw.documento,
-                Cargo: mw.cargo || 'Colaborador',
-                ARL: mw.arl || '',
-                ...(mw.fechaNacimiento ? { 'Fecha de Nacimiento': mw.fechaNacimiento } : {}),
-              },
-            }));
-            liveDatabaseSurgicalBlock =
-              `[RESULTADO BÚSQUEDA NOMINAL EN PERFIL SOCIODEMOGRÁFICO (HITO 2) — EMPRESA ACTIVA]:\n` +
-              matchedNamedWorkers
-                .map(
-                  (mw, idx) =>
-                    `${idx + 1}. ${mw.nombre} · Doc: ${mw.tipoDoc || 'CC'} ${mw.documento} · Cargo: ${mw.cargo || 'N/A'} · ARL declarada: ${mw.arl || 'No registrada'}${mw.fechaNacimiento ? ` · Fecha nacimiento: ${mw.fechaNacimiento}` : ''}`,
-                )
-                .join('\n') +
-              '\n';
+            liveTracker.upsertStep({
+              nodeKey: 'tool_hitos_hito2_perfil_socio',
+              nodeId: 'hito2_perfil_socio',
+              title: 'Perfil Sociodemográfico (Hito 2)',
+              category: 'hito',
+              status: 'skipped',
+              durationMs: 0,
+              inputCount: 0,
+              outputCount: 0,
+              outputPreview:
+                '⏭️ Omitido en pre-lectura: el cruce puntual del trabajador con la empresa activa lo ejecuta directamente el Verificador Forense.',
+            });
+            liveTracker.markSkippedKeys(['tool_hitos_hito2_perfil_socio']);
+            liveTracker.setActiveStage(
+              'tool_inputs_forensic_doc_verifier',
+              'Iniciando auditoría forense de metadatos y Decreto 1427/2022...',
+            );
+            await liveTracker.flush();
           } else {
-            // 0 coincidencias nominales -> abortar antes de raspar portales o consumir tokens LLM
-            const compDisplayMissing = automationCompany?.companyName || 'tu empresa activa';
-            const missingPreSourceResult =
-              `Para verificar el certificado de ARL sin escanear toda la nómina, por favor indícame el **número de cédula** (si prefieres consulta directa sin revisar tu base interna) o el **nombre completo exacto del trabajador** registrado en **${compDisplayMissing}**. Si la persona está afiliada en una ARL que solicita fecha de nacimiento (como ARL Seguros Bolívar), puedes indicarla en el mismo mensaje.`;
+            preSourceRouterState.branchTaken = 'NO';
+            preSourceRouterState.reason =
+              'No se detectó imagen ni PDF adjunto del certificado de incapacidad ➔ Rama NO: cortocircuito limpio (0 tokens LLM) solicitando adjuntar el archivo en el chat de Tenshi.';
+            const compDisplayMissingDoc = automationCompany?.companyName || 'tu empresa activa';
+            const missingAttachmentMsg = buildMissingPreSourceUserMessage({
+              automation,
+              companyName: compDisplayMissingDoc,
+              condType: 'has_attached_document',
+            });
 
-            const wfInputsMissing = Array.isArray(automation.workflowNodes?.inputs)
-              ? automation.workflowNodes.inputs
-              : [];
-            const wfExtractorsMissing = Array.isArray(automation.workflowNodes?.extractors)
-              ? automation.workflowNodes.extractors
-              : [];
-            const skippedPreSourceScraperSteps = [
-              ...wfInputsMissing
-                .filter((inId) => isAntigravityScraperIdentifier(`tool_inputs_${inId}`, inId, null))
-                .map((inId) => ({
-                  nodeKey: `tool_inputs_${inId}`,
-                  nodeId: inId,
-                  category: 'input',
-                })),
-              ...wfExtractorsMissing
-                .filter((extId) => isAntigravityScraperIdentifier(`extractor_${extId}`, extId, null))
-                .map((extId) => ({
-                  nodeKey: `extractor_${extId}`,
-                  nodeId: extId,
-                  category: 'extractor',
-                })),
-            ];
-            if (skippedPreSourceScraperSteps.length === 0) {
-              skippedPreSourceScraperSteps.push({
-                nodeKey: 'tool_inputs_scraper_agy_arl_directo',
-                nodeId: 'scraper_agy_arl_directo',
-                category: 'input',
-              });
-            }
-            for (const skStep of skippedPreSourceScraperSteps) {
-              liveTracker.upsertStep({
-                nodeKey: skStep.nodeKey,
-                nodeId: skStep.nodeId,
-                title: 'Web Scraping ARL · Google Antigravity',
-                category: skStep.category,
-                status: 'skipped',
-                durationMs: 0,
-                outputPreview:
-                  '⏭️ Omitido (0 consultas externas): falta cédula o coincidencia nominal en Hito 2.',
-              });
-            }
+            liveTracker.upsertStep({
+              nodeKey: 'if_router',
+              nodeId: 'if_condition',
+              title:
+                preSourceIfCfg.ifConditionLabel ||
+                '¿El usuario adjuntó la imagen o PDF de la incapacidad?',
+              category: 'if',
+              status: 'done',
+              durationMs: 10,
+              branchTaken: 'no',
+              inputCount: 1,
+              outputCount: 0,
+              outputPreview: `↪️ Rama NO activa: ${preSourceRouterState.reason}`,
+            });
+            liveTracker.upsertStep({
+              nodeKey: 'tool_hitos_hito2_perfil_socio',
+              nodeId: 'hito2_perfil_socio',
+              title: 'Perfil Sociodemográfico (Hito 2)',
+              category: 'hito',
+              status: 'skipped',
+              durationMs: 0,
+              outputPreview: '⏭️ Omitido (Rama NO · 0 consultas a BD): falta soporte documental adjunto.',
+            });
+            liveTracker.upsertStep({
+              nodeKey: 'tool_inputs_forensic_doc_verifier',
+              nodeId: 'forensic_doc_verifier',
+              title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+              category: 'input',
+              status: 'skipped',
+              durationMs: 0,
+              outputPreview: '⏭️ Omitido (0 tokens IA): esperando imagen (.jpg/.png) o .pdf adjunto.',
+            });
             liveTracker.upsertStep({
               nodeKey: 'agent_root',
               nodeId: automation.agentId || 'ai_agent_root',
@@ -5792,32 +5762,36 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               category: 'agent',
               status: 'skipped',
               durationMs: 0,
-              outputPreview: '⏭️ Omitido (0 tokens LLM): falta cédula o nombre coincidente en la orden.',
+              outputPreview:
+                '⏭️ Omitido (0 tokens LLM): se solicitó adjuntar el certificado de incapacidad en el chat.',
             });
             liveTracker.markSkippedKeys([
-              ...skippedPreSourceScraperSteps.map((s) => s.nodeKey),
+              'tool_hitos_hito2_perfil_socio',
+              'tool_inputs_forensic_doc_verifier',
               'agent_root',
             ]);
-            liveTracker.setActiveStage(null, 'Esperando cédula o nombre del trabajador');
-            const missingSnap = liveTracker.getSnapshot();
+            liveTracker.setActiveStage(null, 'Esperando imagen o PDF del certificado de incapacidad');
+            const missingDocSnap = liveTracker.getSnapshot();
             await AutomationLog.updateOne(
               { _id: log._id },
               {
                 $set: {
                   status: 'success',
-                  result: missingPreSourceResult,
+                  result: missingAttachmentMsg,
                   conversationId: null,
                   evidenceFiles: [],
                   evidences: [],
                   modelUsed: '',
-                  companyName: compDisplayMissing,
-                  ...missingSnap,
+                  companyName: compDisplayMissingDoc,
+                  ...missingDocSnap,
                   executionTrace: {
                     triggerSource,
                     ifPlacement: 'pre_source',
+                    ifConditionType: 'has_attached_document',
                     activeBranch: 'no',
                     ifConditionPassed: false,
-                    ifReason: 'Sin cédula explícita y 0 coincidencias por nombre en Perfil Sociodemográfico (Hito 2).',
+                    ifReason: preSourceRouterState.reason,
+                    missingAttachedDocument: true,
                     missingInputTarget: true,
                     llmSkippedByMissingInput: true,
                     llmSkippedByPreIf: true,
@@ -5831,14 +5805,360 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               status: 'success',
               logId: log._id,
               branchTaken: 'no',
-              resultText: missingPreSourceResult,
+              resultText: missingAttachmentMsg,
               workspaceLinks: [],
               evidenceFiles: [],
               companyId: targetCompanyIdStr,
-              companyName: compDisplayMissing,
+              companyName: compDisplayMissingDoc,
               conversationId: null,
+              missingAttachedDocument: true,
               missingInputTarget: true,
             };
+          }
+        } else {
+          const preSourceExplicitCedulas = extractExplicitCedulasFromText(preSourceInputText, {
+            companyNit: automationCompany?.nit || '',
+          });
+          const preSourceExplicitPlacas =
+            preSourceCondType === 'has_explicit_cedula_or_placa'
+              ? extractExplicitPlacasFromText(preSourceInputText)
+              : [];
+          const preSourceDocType = extractDocTypeFromInstruction(preSourceInputText);
+          const preSourceBirthDate = extractOptionalBirthDateFromInstruction(preSourceInputText);
+          preSourceRouterState.explicitCedulas = preSourceExplicitCedulas;
+          preSourceRouterState.explicitPlacas = preSourceExplicitPlacas;
+          preSourceRouterState.extractedDocType = preSourceDocType;
+          preSourceRouterState.extractedBirthDate = preSourceBirthDate;
+
+          const hasDirectIdentifier =
+            preSourceExplicitCedulas.length > 0 || preSourceExplicitPlacas.length > 0;
+
+          if (hasDirectIdentifier) {
+            preSourceRouterState.conditionPassed = true;
+            preSourceRouterState.hasExplicitCedula = true;
+            preSourceRouterState.branchTaken = 'SI';
+            const targetParts = [];
+            if (preSourceExplicitCedulas.length > 0) {
+              targetParts.push(`cédula ${preSourceExplicitCedulas.join(', ')}`);
+            }
+            if (preSourceExplicitPlacas.length > 0) {
+              targetParts.push(`placa ${preSourceExplicitPlacas.join(', ')}`);
+            }
+            preSourceRouterState.reason = `Identificador explícito detectado (${targetParts.join(' · ')}) ➔ Rama SÍ: omitir Perfil Sociodemográfico (Hito 2) y consultar directo en portales oficiales.`;
+
+            liveTracker.upsertStep({
+              nodeKey: 'if_router',
+              nodeId: 'if_condition',
+              title:
+                preSourceIfCfg.ifConditionLabel || '¿El usuario proporcionó número de cédula?',
+              category: 'if',
+              status: 'done',
+              durationMs: 12,
+              branchTaken: 'yes',
+              inputCount: 1,
+              outputCount: preSourceExplicitCedulas.length + preSourceExplicitPlacas.length,
+              outputPreview: `✅ Rama SÍ activa: ${preSourceRouterState.reason}`,
+            });
+            liveTracker.upsertStep({
+              nodeKey: 'tool_hitos_hito2_perfil_socio',
+              nodeId: 'hito2_perfil_socio',
+              title: 'Perfil Sociodemográfico (Hito 2)',
+              category: 'hito',
+              status: 'skipped',
+              durationMs: 0,
+              inputCount: 0,
+              outputCount: 0,
+              outputPreview:
+                '⏭️ Omitido (Rama SÍ · 0 consultas a BD): el identificador de consulta ya venía explícito en la solicitud.',
+            });
+            liveTracker.markSkippedKeys(['tool_hitos_hito2_perfil_socio']);
+            liveTracker.setActiveStage(null, 'Consultando portales oficiales directo...');
+            await liveTracker.flush();
+          } else {
+            preSourceRouterState.conditionPassed = false;
+            preSourceRouterState.hasExplicitCedula = false;
+            preSourceRouterState.branchTaken = 'NO';
+            preSourceRouterState.reason =
+              'No se proporcionó cédula ni placa explícita ➔ Rama NO: consultar Perfil Sociodemográfico (Hito 2) buscando por nombre en la empresa activa.';
+
+            liveTracker.upsertStep({
+              nodeKey: 'if_router',
+              nodeId: 'if_condition',
+              title:
+                preSourceIfCfg.ifConditionLabel || '¿El usuario proporcionó número de cédula?',
+              category: 'if',
+              status: 'done',
+              durationMs: 12,
+              branchTaken: 'no',
+              inputCount: 1,
+              outputCount: 0,
+              outputPreview: `↪️ Rama NO activa: ${preSourceRouterState.reason}`,
+            });
+            liveTracker.setActiveStage(
+              null,
+              'Buscando trabajador por nombre en Perfil Sociodemográfico (Hito 2)...',
+            );
+
+            let rawCompanyWorkers = [];
+            try {
+              const liveWorkersRes = await inspectNodeLiveData({
+                userId: String(automation.user),
+                companyId: targetCompanyIdStr,
+                nodeId: 'extract_sst_workers',
+              });
+              if (Array.isArray(liveWorkersRes?.records) && liveWorkersRes.records.length > 0) {
+                rawCompanyWorkers = liveWorkersRes.records.map((rec) => ({
+                  id: rec.id,
+                  _id: rec.id,
+                  nombre: rec.fields?.['Nombre Completo'] || rec.label || rec.nombre || '',
+                  documento:
+                    rec.fields?.['Cédula / Documento'] ||
+                    rec.documento ||
+                    rec.identificacion ||
+                    rec.cedula ||
+                    '',
+                  tipoDoc: rec.fields?.['Tipo Documento'] || rec.tipoDoc || 'CC',
+                  cargo: rec.fields?.['Cargo'] || rec.sublabel || rec.cargo || 'Colaborador',
+                  arl:
+                    rec.fields?.['ARL'] ||
+                    rec.fields?.['ARL (Administradora de Riesgos Laborales)'] ||
+                    '',
+                  placa: rec.fields?.['Placa'] || rec.placa || '',
+                  fechaNacimiento: normalizeAnyDateYmd(
+                    rec.fields?.['Fecha de Nacimiento'] || rec.fechaNacimiento || rec.birthDate || '',
+                  ),
+                }));
+              }
+            } catch (lookupErr) {
+              console.warn(
+                '[AutomationScheduler] Aviso en búsqueda nominal Hito 2:',
+                lookupErr?.message,
+              );
+            }
+
+            if (
+              rawCompanyWorkers.length === 0 &&
+              targetCompanyIdStr &&
+              mongoose.Types.ObjectId.isValid(targetCompanyIdStr)
+            ) {
+              try {
+                const WorkerModel =
+                  mongoose.models.SgsstWorker ||
+                  (mongoose.modelNames().includes('SgsstWorker')
+                    ? mongoose.model('SgsstWorker')
+                    : null);
+                if (WorkerModel) {
+                  const dbWorkers = await WorkerModel.find({
+                    companyId: new mongoose.Types.ObjectId(targetCompanyIdStr),
+                  })
+                    .sort({ createdAt: -1 })
+                    .limit(300)
+                    .lean();
+                  rawCompanyWorkers = dbWorkers.map((w) => ({
+                    id: String(w._id),
+                    _id: String(w._id),
+                    nombre: w.nombre || w.fullName || '',
+                    documento:
+                      w.documento || w.identificacion || w.cedula || w.documentNumber || '',
+                    tipoDoc: w.tipoDoc || 'CC',
+                    cargo: w.cargo || w.position || 'Colaborador',
+                    arl: w.arl || w.arlName || '',
+                    placa: w.placa || '',
+                    fechaNacimiento: normalizeAnyDateYmd(w.fechaNacimiento || w.birthDate || ''),
+                  }));
+                }
+              } catch (_) {}
+            }
+
+            let matchedNamedWorkers = findWorkersNamedInInstruction(
+              preSourceInputText,
+              rawCompanyWorkers,
+            );
+            let usedExternalCandidateName = '';
+            if (matchedNamedWorkers.length === 0 && allowDirectNameWithoutWorkerMatch) {
+              const extractedCandidateName =
+                extractCandidatePersonNameFromInstruction(preSourceInputText);
+              if (extractedCandidateName) {
+                usedExternalCandidateName = extractedCandidateName;
+                matchedNamedWorkers = [
+                  {
+                    id: 'ext_candidate_1',
+                    _id: 'ext_candidate_1',
+                    nombre: extractedCandidateName,
+                    nombreCompleto: extractedCandidateName,
+                    documento: '',
+                    cedula: '',
+                    tipoDoc: 'CC',
+                    cargo: 'Candidato Externo (Consulta por Nombre)',
+                    arl: '',
+                    placa: '',
+                    fechaNacimiento: '',
+                    isExternalNameOnly: true,
+                  },
+                ];
+              }
+            }
+            preSourceRouterState.matchedWorkers = matchedNamedWorkers;
+
+            liveTracker.upsertStep({
+              nodeKey: 'tool_hitos_hito2_perfil_socio',
+              nodeId: 'hito2_perfil_socio',
+              title: 'Perfil Sociodemográfico (Hito 2)',
+              category: 'hito',
+              status: 'done',
+              durationMs: 120,
+              inputCount: 1,
+              outputCount: matchedNamedWorkers.length,
+              outputPreview: usedExternalCandidateName
+                ? `0 coincidencias internas en Hito 2 ➔ Se transfiere el nombre externo "${usedExternalCandidateName}" para consulta directa en Rama Judicial API v2.`
+                : matchedNamedWorkers.length > 0
+                  ? `${matchedNamedWorkers.length} trabajador(es) identificado(s) por nombre en la empresa activa.`
+                  : '0 coincidencias por nombre en Perfil Sociodemográfico (Hito 2) — nómina completa protegida.',
+              outputItems: matchedNamedWorkers.slice(0, 10).map((mw, idx) => ({
+                '#': idx + 1,
+                'Nombre Completo': mw.nombre,
+                'Cédula / Documento': mw.documento || 'Consulta directa por nombre',
+                Cargo: mw.cargo || 'Colaborador',
+                ARL: mw.arl || 'Sin registrar',
+                ...(mw.fechaNacimiento ? { 'Fecha de Nacimiento': mw.fechaNacimiento } : {}),
+              })),
+            });
+            await liveTracker.flush();
+
+            if (matchedNamedWorkers.length > 0) {
+              structuredSourceRes.allRecords = matchedNamedWorkers.map((mw) => ({
+                id: mw.id,
+                _sourceNodeId: 'hito2_perfil_socio',
+                label: mw.nombre,
+                sublabel: mw.cargo || 'Colaborador',
+                badge: mw.isExternalNameOnly ? 'Externo' : mw.arl || 'Registrado',
+                fields: {
+                  'Nombre Completo': mw.nombre,
+                  'Cédula / Documento': mw.documento,
+                  Cargo: mw.cargo || 'Colaborador',
+                  ARL: mw.arl || '',
+                  ...(mw.placa ? { Placa: mw.placa } : {}),
+                  ...(mw.fechaNacimiento ? { 'Fecha de Nacimiento': mw.fechaNacimiento } : {}),
+                },
+              }));
+              liveDatabaseSurgicalBlock = usedExternalCandidateName
+                ? `[CONSULTA NOMINAL EXTERNA EN RAMA JUDICIAL]:\n1. "${usedExternalCandidateName}" no figura en el Perfil Sociodemográfico (Hito 2) de la empresa activa; se consultaron sus procesos judiciales directamente por nombre en Rama Judicial API v2 (nota: para Contraloría General se requiere número de cédula).\n`
+                : `[RESULTADO BÚSQUEDA NOMINAL EN PERFIL SOCIODEMOGRÁFICO (HITO 2) — EMPRESA ACTIVA]:\n` +
+                  matchedNamedWorkers
+                    .map(
+                      (mw, idx) =>
+                        `${idx + 1}. ${mw.nombre} · Doc: ${mw.tipoDoc || 'CC'} ${mw.documento} · Cargo: ${mw.cargo || 'N/A'} · ARL declarada: ${mw.arl || 'No registrada'}${mw.placa ? ` · Placa: ${mw.placa}` : ''}${mw.fechaNacimiento ? ` · Fecha nacimiento: ${mw.fechaNacimiento}` : ''}`,
+                    )
+                    .join('\n') +
+                  '\n';
+            } else {
+              // 0 coincidencias nominales -> abortar antes de raspar portales o consumir tokens LLM
+              const compDisplayMissing = automationCompany?.companyName || 'tu empresa activa';
+              const missingPreSourceResult = buildMissingPreSourceUserMessage({
+                automation,
+                companyName: compDisplayMissing,
+                condType: preSourceCondType,
+              });
+
+              const wfInputsMissing = Array.isArray(automation.workflowNodes?.inputs)
+                ? automation.workflowNodes.inputs
+                : [];
+              const wfExtractorsMissing = Array.isArray(automation.workflowNodes?.extractors)
+                ? automation.workflowNodes.extractors
+                : [];
+              const skippedPreSourceScraperSteps = [
+                ...wfInputsMissing
+                  .filter((inId) => isAntigravityScraperIdentifier(`tool_inputs_${inId}`, inId, null))
+                  .map((inId) => ({
+                    nodeKey: `tool_inputs_${inId}`,
+                    nodeId: inId,
+                    category: 'input',
+                  })),
+                ...wfExtractorsMissing
+                  .filter((extId) => isAntigravityScraperIdentifier(`extractor_${extId}`, extId, null))
+                  .map((extId) => ({
+                    nodeKey: `extractor_${extId}`,
+                    nodeId: extId,
+                    category: 'extractor',
+                  })),
+              ];
+              if (skippedPreSourceScraperSteps.length === 0) {
+                skippedPreSourceScraperSteps.push({
+                  nodeKey: 'tool_inputs_scraper_agy_arl_directo',
+                  nodeId: 'scraper_agy_arl_directo',
+                  category: 'input',
+                });
+              }
+              for (const skStep of skippedPreSourceScraperSteps) {
+                liveTracker.upsertStep({
+                  nodeKey: skStep.nodeKey,
+                  nodeId: skStep.nodeId,
+                  title: formatHumanWorkflowNodeTitle(skStep.nodeId),
+                  category: skStep.category,
+                  status: 'skipped',
+                  durationMs: 0,
+                  outputPreview:
+                    '⏭️ Omitido (0 consultas externas): falta identificador o coincidencia nominal en Hito 2.',
+                });
+              }
+              liveTracker.upsertStep({
+                nodeKey: 'agent_root',
+                nodeId: automation.agentId || 'ai_agent_root',
+                title: automation.agentName || 'Tenshi',
+                category: 'agent',
+                status: 'skipped',
+                durationMs: 0,
+                outputPreview:
+                  '⏭️ Omitido (0 tokens LLM): falta cédula, placa o nombre coincidente en la orden.',
+              });
+              liveTracker.markSkippedKeys([
+                ...skippedPreSourceScraperSteps.map((s) => s.nodeKey),
+                'agent_root',
+              ]);
+              liveTracker.setActiveStage(null, 'Esperando identificador o nombre válido');
+              const missingSnap = liveTracker.getSnapshot();
+              await AutomationLog.updateOne(
+                { _id: log._id },
+                {
+                  $set: {
+                    status: 'success',
+                    result: missingPreSourceResult,
+                    conversationId: null,
+                    evidenceFiles: [],
+                    evidences: [],
+                    modelUsed: '',
+                    companyName: compDisplayMissing,
+                    ...missingSnap,
+                    executionTrace: {
+                      triggerSource,
+                      ifPlacement: 'pre_source',
+                      ifConditionType: preSourceCondType,
+                      activeBranch: 'no',
+                      ifConditionPassed: false,
+                      ifReason:
+                        'Sin identificador explícito y 0 coincidencias por nombre en Perfil Sociodemográfico (Hito 2).',
+                      missingInputTarget: true,
+                      llmSkippedByMissingInput: true,
+                      llmSkippedByPreIf: true,
+                      executedOutputs: [],
+                      scraperStepsExecuted: 0,
+                    },
+                  },
+                },
+              );
+              return {
+                status: 'success',
+                logId: log._id,
+                branchTaken: 'no',
+                resultText: missingPreSourceResult,
+                workspaceLinks: [],
+                evidenceFiles: [],
+                companyId: targetCompanyIdStr,
+                companyName: compDisplayMissing,
+                conversationId: null,
+                missingInputTarget: true,
+              };
+            }
           }
         }
       } else {
@@ -5984,7 +6304,46 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           wfInputs.includes('google_antigravity_cloud') ||
           selectedAiEngine !== 'wappy';
 
+        const isSelectiveMultiPortal = Boolean(
+          preSourceIfCfg.selectiveMultiPortalRouting ||
+            allNodeCfg.if_router?.selectiveMultiPortalRouting ||
+            automation.workflowNodes?.selectiveMultiPortalRouting,
+        );
+        const selectivePortalDecision =
+          isSelectiveMultiPortal && scraperCandidates.length > 1
+            ? evaluateSelectiveMultiPortalFilter(scraperTriggerInput || tenshiUserInstruction || '')
+            : { restricted: false, wantsAll: true, selectedSet: null };
+
+        const activeScraperCandidates = [];
+        const omittedPortalTitles = [];
         for (const sc of scraperCandidates) {
+          const portalConcept = resolveScraperPortalConceptKey(`${sc.nodeKey} ${sc.nodeId}`);
+          if (
+            selectivePortalDecision.restricted &&
+            portalConcept &&
+            !selectivePortalDecision.selectedSet.has(portalConcept)
+          ) {
+            const skippedKey = sc.nodeKey || `tool_inputs_${sc.nodeId}`;
+            const skippedTitle = sc.customNodeObj?.title || formatHumanWorkflowNodeTitle(sc.nodeId);
+            omittedPortalTitles.push(skippedTitle);
+            liveTracker.upsertStep({
+              nodeKey: skippedKey,
+              nodeId: sc.nodeId,
+              title: skippedTitle,
+              category: String(skippedKey).startsWith('tool_inputs_') ? 'input' : 'extractor',
+              status: 'skipped',
+              durationMs: 0,
+              inputCount: 0,
+              outputCount: 0,
+              outputPreview: 'Omitido (no solicitado por el usuario en este turno)',
+            });
+            liveTracker.markSkippedKeys([skippedKey]);
+          } else {
+            activeScraperCandidates.push(sc);
+          }
+        }
+
+        for (const sc of activeScraperCandidates) {
           const runningKey = sc.nodeKey || `tool_inputs_${sc.nodeId}`;
           liveTracker.upsertStep({
             nodeKey: runningKey,
@@ -5996,14 +6355,16 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
               'Consultando portales oficiales vía navegador nativo de Google Antigravity...',
           });
         }
-        liveTracker.setActiveStage(
-          scraperCandidates[0].nodeKey || `tool_inputs_${scraperCandidates[0].nodeId}`,
-          'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
-        );
+        if (activeScraperCandidates.length > 0) {
+          liveTracker.setActiveStage(
+            activeScraperCandidates[0].nodeKey || `tool_inputs_${activeScraperCandidates[0].nodeId}`,
+            'Ejecutando herramienta Web Scraping en navegador nativo de Google Antigravity...',
+          );
+        }
         await liveTracker.flush();
 
         const scrapeExecList = await Promise.all(
-          scraperCandidates.map(async (sc) => {
+          activeScraperCandidates.map(async (sc) => {
             const mergedNodeCfg = {
               ...(sc.customNodeObj?.config || {}),
               ...(allNodeCfg[sc.nodeId] || {}),
@@ -6171,8 +6532,13 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
           const isInteractiveTenshiCtx = Boolean(
             isGlobalTenshiFlow || String(triggerSource || '').toLowerCase().startsWith('tenshi'),
           );
+          const omittedSelectionNote =
+            omittedPortalTitles.length > 0
+              ? `ℹ️ [ENRUTAMIENTO SELECTIVO MULTI-PORTAL]: Se consultaron únicamente los portales solicitados en este turno. Portales omitidos por no haber sido solicitados: ${omittedPortalTitles.join(', ')} (NO inventes ni menciones resultados para los portales omitidos).\n`
+              : '';
           liveAntigravityScraperBlock =
             `\n${previewBlocks.join('\n\n')}\n` +
+            omittedSelectionNote +
             buildScraperEvidencesPromptBlock(runCapturedEvidences, {
               isInteractiveTenshi: isInteractiveTenshiCtx,
             }) +
@@ -6181,6 +6547,149 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       }
     } catch (scErr) {
       console.warn('[AutomationScheduler] Aviso en verificación real Antigravity Scraper:', scErr?.message || scErr);
+    }
+
+    // 4.85. Ejecución de Herramienta Verificador Forense de Documentos (`forensic_doc_verifier` en `Herramienta +`)
+    let liveForensicVerifierBlock = '';
+    const wfInputsForForensic = Array.isArray(automation.workflowNodes?.inputs)
+      ? automation.workflowNodes.inputs
+      : [];
+    const wfExtractorsForForensic = Array.isArray(automation.workflowNodes?.extractors)
+      ? automation.workflowNodes.extractors
+      : [];
+    const hasForensicDocVerifierNode =
+      wfInputsForForensic.includes('forensic_doc_verifier') ||
+      wfExtractorsForForensic.includes('forensic_doc_verifier');
+    let forensicVerifierTraceMeta = null;
+    if (hasForensicDocVerifierNode) {
+      const forensicNodeKey = wfInputsForForensic.includes('forensic_doc_verifier')
+        ? 'tool_inputs_forensic_doc_verifier'
+        : 'extractor_forensic_doc_verifier';
+      const attachedMediaForForensic =
+        eventPayload?.attachedMedia || runOpts?.attachedMedia || null;
+      const primaryMediaMeta = unwrapPrimaryAttachedMedia(attachedMediaForForensic);
+      const hasAttachedMediaData = Boolean(primaryMediaMeta);
+      if (hasAttachedMediaData) {
+        const fStartMs = Date.now();
+        liveTracker.setActiveStage(
+          forensicNodeKey,
+          'Ejecutando auditoría forense (metadatos EXIF/PDF, Visión IA y Decreto 1427/2022)...',
+        );
+        liveTracker.upsertStep({
+          nodeKey: forensicNodeKey,
+          nodeId: 'forensic_doc_verifier',
+          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+          status: 'running',
+          outputPreview:
+            'Inspeccionando bytes EXIF/PDF, anomalías visuales y requisitos del Decreto 1427 de 2022...',
+        });
+        await liveTracker.flush();
+        try {
+          const forensicService =
+            typeof runOpts.forensicAnalyzerOverride === 'function'
+              ? { analyzeDisabilityCertificateForensics: runOpts.forensicAnalyzerOverride }
+              : require('./forensicDocumentService');
+          const effectiveForensicUserId = String(
+            callerUserId || effectiveTenantUserId || automation.user || reqUser?.id || '',
+          );
+          const wfModelForForensic = effectiveAiModel || 'gemini-3.5-flash-lite';
+          const forensicRes = await withTimeout(
+            forensicService.analyzeDisabilityCertificateForensics({
+              attachedMedia: attachedMediaForForensic,
+              userInstruction: tenshiUserInstruction || scraperTriggerInput || '',
+              companyId: targetCompanyIdStr,
+              userId: effectiveForensicUserId,
+              modelId: wfModelForForensic,
+            }),
+            55000,
+            'analyzeDisabilityCertificateForensics',
+          );
+          const fDurationMs = Math.max(20, Date.now() - fStartMs);
+          if (Array.isArray(forensicRes?.evidenceFiles) && forensicRes.evidenceFiles.length > 0) {
+            runCapturedEvidences.push(...forensicRes.evidenceFiles);
+          }
+          const mdForensicReport = String(
+            forensicRes?.markdownReport || forensicRes?.report || forensicRes?.summary || '',
+          ).trim();
+          if (mdForensicReport) {
+            liveForensicVerifierBlock =
+              `\n🔬 [DICTAMEN EJECUTADO POR HERRAMIENTA VERIFICADOR FORENSE DE DOCUMENTOS (DECRETO 1427 DE 2022)]:\n${mdForensicReport}\n` +
+              `🚨 REGLA DE SEGURIDAD Y VERACIDAD FORENSE: Sintetiza fielmente los hallazgos de las 3 capas anteriores (EXIF/PDF binario, inspección visual y consistencia normativa Decreto 1427/2022). Incluye siempre el enlace directo oficial de SISPRO ReTHUS provisto en el reporte para que un responsable humano valide personalmente el CAPTCHA del médico tratante, y JAMÁS afirmes haber evadido o resuelto CAPTCHAs gubernamentales.\n\n`;
+          }
+          forensicVerifierTraceMeta = {
+            forensicDocVerifierExecuted: true,
+            forensicRiskLevel:
+              forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'analyzed',
+            forensicRiskScore:
+              forensicRes?.riskScore !== undefined ? forensicRes.riskScore : null,
+            forensicDurationMs: fDurationMs,
+          };
+          liveTracker.upsertStep({
+            nodeKey: forensicNodeKey,
+            nodeId: 'forensic_doc_verifier',
+            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+            status: 'done',
+            durationMs: fDurationMs,
+            inputCount: 1,
+            outputCount: 1,
+            outputPreview:
+              forensicRes?.verdictLabel ||
+              forensicRes?.summary ||
+              (mdForensicReport ? mdForensicReport.slice(0, 480) : 'Auditoría forense de 3 capas completada.'),
+            outputItems: [
+              {
+                Herramienta: 'Verificador Forense de Documentos',
+                Archivo:
+                  forensicRes?.fileMeta?.fileName ||
+                  primaryMediaMeta?.fileName ||
+                  primaryMediaMeta?.filename ||
+                  primaryMediaMeta?.name ||
+                  'Soporte adjunto',
+                MimeType:
+                  forensicRes?.fileMeta?.detectedMime ||
+                  primaryMediaMeta?.mimeType ||
+                  primaryMediaMeta?.mimetype ||
+                  'documento',
+                NivelRiesgo:
+                  forensicRes?.riskLevel || forensicRes?.verdictLabel || forensicRes?.verdict || 'Evaluado',
+                PuntajeRiesgo:
+                  forensicRes?.riskScore !== undefined ? `${forensicRes.riskScore}/100` : 'Verificado',
+                DuracionMs: fDurationMs,
+              },
+            ],
+          });
+          await liveTracker.flush();
+        } catch (fErr) {
+          console.warn(
+            '[AutomationScheduler] Aviso ejecutando forensic_doc_verifier:',
+            fErr?.message || fErr,
+          );
+          liveTracker.upsertStep({
+            nodeKey: forensicNodeKey,
+            nodeId: 'forensic_doc_verifier',
+            title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+            category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+            status: 'error',
+            durationMs: Math.max(10, Date.now() - fStartMs),
+            error: fErr?.message || 'Error en análisis forense',
+            outputPreview: `Aviso en Verificador Forense: ${fErr?.message || 'Servicio no disponible'}`,
+          });
+          liveForensicVerifierBlock =
+            `\n⚠️ [AVISO TÉCNICO DEL VERIFICADOR FORENSE DE DOCUMENTOS]: No fue posible completar la inspección técnica del archivo adjunto (${fErr?.message || 'error interno'}). Informa con transparencia al usuario y sugiere adjuntar el archivo PDF original o una imagen nítida.\n\n`;
+        }
+      } else {
+        liveTracker.upsertStep({
+          nodeKey: forensicNodeKey,
+          nodeId: 'forensic_doc_verifier',
+          title: 'Verificador Forense de Documentos (EXIF/PDF + Visión IA)',
+          category: wfInputsForForensic.includes('forensic_doc_verifier') ? 'input' : 'extractor',
+          status: 'skipped',
+          durationMs: 0,
+          outputPreview: '⏭️ Omitido: no se adjuntó imagen ni PDF en la solicitud.',
+        });
+      }
     }
 
     // Guardia determinista para Flujos Tenshi orientados a cédula cuando no llegó ni cédula ni trabajador nombrado
@@ -6192,16 +6701,11 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
       (!structuredSourceRes?.allRecords || structuredSourceRes.allRecords.length === 0)
     ) {
       const compDisplayMissing = automationCompany?.companyName || 'tu empresa activa';
-      const isArlPrimaryFlow =
-        ((Array.isArray(automation.workflowNodes?.extractors) &&
-          automation.workflowNodes.extractors.includes('scraper_agy_arl_directo')) ||
-          (Array.isArray(automation.workflowNodes?.inputs) &&
-            automation.workflowNodes.inputs.includes('scraper_agy_arl_directo'))) &&
-        !(automation.workflowNodes?.extractors || []).includes('scraper_agy_alto_riesgo') &&
-        !(automation.workflowNodes?.inputs || []).includes('scraper_agy_alto_riesgo');
-      const missingCedulaPromptResult = isArlPrimaryFlow
-        ? `Para consultar en vivo la afiliación ARL y descargar el certificado oficial, por favor indícame el **número de cédula** (y si pertenece a una ARL que lo exija, como Seguros Bolívar, añade su fecha de nacimiento) o dime el **nombre completo del trabajador** registrado en **${compDisplayMissing}**.`
-        : `Para consultar en tiempo real el certificado en portales oficiales, por favor indícame el **número de cédula** (o el nombre completo del trabajador de **${compDisplayMissing}**, o dime explícitamente si deseas auditar toda la nómina registrada).`;
+      const missingCedulaPromptResult = buildMissingPreSourceUserMessage({
+        automation,
+        companyName: compDisplayMissing,
+        condType: preSourceCondType,
+      });
 
       liveTracker.upsertStep({
         nodeKey: 'agent_root',
@@ -6909,10 +7413,14 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         `- Opera estrictamente sobre la petición exacta de este turno (trabajador, documento, tema, filtro o parámetro indicado), manteniendo el aislamiento total de la empresa activa.\n\n`
       : '';
     const realTimeEventHeader =
-      (eventPayload
+      (sanitizedEventMetadata
         ? `🚨 [EVENTO DISPARADOR EN TIEMPO REAL (${String(triggerSource || 'event').toUpperCase()}) — PRIORIDAD #1]:\n` +
-          `${typeof eventPayload === 'string' ? eventPayload : JSON.stringify(eventPayload, null, 2).slice(0, 8000)}\n\n`
+          `${typeof sanitizedEventMetadata === 'string' ? sanitizedEventMetadata : JSON.stringify(sanitizedEventMetadata, null, 2).slice(0, 8000)}\n\n`
         : '') + userInstructionBlock;
+
+    if (forensicVerifierTraceMeta && typeof forensicVerifierTraceMeta === 'object') {
+      Object.assign(preExtractionTraceMeta, forensicVerifierTraceMeta);
+    }
 
     const companyHeaderBlock = automationCompany
       ? `${realTimeEventHeader}[CONTEXTO OBLIGATORIO DE EJECUCIÓN AUTOMÁTICA — AISLAMIENTO ESTRICTO DE EMPRESA]\n` +
@@ -6927,13 +7435,14 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         liveDatabaseSurgicalBlock +
         livePreExtractionBlock +
         liveAntigravityScraperBlock +
+        liveForensicVerifierBlock +
         `- PROHIBIDO usar, mencionar, cruzar o asumir datos de cualquier otra empresa del usuario (aunque aparezcan en memorias previas o si el texto de la instrucción menciona por error otro nombre de empresa).\n` +
         `- PROHIBIDO crear nuevas automatizaciones o tareas programadas recurrentes durante esta ejecución automática.\n` +
         `- PROHIBIDO generar código fuente de aplicativos interactivos (<!DOCTYPE html>, <script>, funciones de simulación JS) como respuesta; entrega únicamente un informe ejecutivo claro y estructurado en Markdown.\n` +
         cleanExecutiveLanguageDirective +
         `- REGLA DE VERACIDAD ESTRICTA: Si Google Drive no está vinculado para "${automationCompany.companyName}" o no existen archivos nuevos reales, infórmalo con total transparencia y NO registres ni inventes datos. JAMÁS simules ni inventes trabajadores, accidentes, hallazgos o acciones ACPM, ni presentes registros antiguos de la base de datos como si acabaran de procesarse desde Drive.\n\n` +
         `[INSTRUCCIÓN DE LA TAREA PROGRAMADA]:\n`
-      : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${agentToolsConnectedDirective}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}${cleanExecutiveLanguageDirective}`;
+      : `${realTimeEventHeader}${antigravityEngineDirective}${companyProfileMemoryBlock}${previousRunMemoryBlock}${ragDocumentalMemoryBlock}${proceduralNormativeMemoryBlock}${canvasNodesContextBlock}${agentToolsConnectedDirective}${liveDatabaseSurgicalBlock}${livePreExtractionBlock}${liveAntigravityScraperBlock}${liveForensicVerifierBlock}${cleanExecutiveLanguageDirective}`;
     const effectivePrompt = `${companyHeaderBlock}${automation.prompt}${postAgentIfContractDirective}`;
 
     // Override agent model if specified in the WAPPY workflow canvas
@@ -8856,6 +9365,263 @@ function extractExplicitCedulasFromText(rawText = '', { companyNit = '' } = {}) 
   return Array.from(new Set(matches));
 }
 
+const EXCLUDED_COLOMBIAN_PLATE_PREFIXES = new Set([
+  'LEY', 'RES', 'DEC', 'ART', 'NUM', 'NRO', 'DOC', 'NIT', 'ARL', 'EPS', 'AFP', 'IPS', 'ESE',
+  'CIE', 'GTC', 'NTC', 'ISO', 'NOM', 'RET', 'SGA', 'EPP', 'EMO', 'ATS', 'PTS', 'PDF', 'PNG',
+  'JPG', 'URL', 'API', 'VIP', 'COP', 'USD', 'MES', 'DIA', 'ANO', 'VER', 'CON', 'POR', 'SIN',
+  'DEL', 'LAS', 'LOS', 'UNA', 'UNO', 'MAS', 'SON', 'SUS', 'MIS', 'TUS', 'NOS', 'HOY', 'SUR',
+  'NOR', 'EST', 'OES', 'MAX', 'MIN', 'PRO', 'SUB', 'PRE', 'POS', 'EXT', 'INT', 'CEL', 'TEL',
+  'FAX', 'COD', 'REF', 'IDN', 'RUT', 'RUN', 'SIM', 'PES', 'HIT', 'TEN', 'WAP', 'QUE', 'PAR',
+]);
+
+/**
+ * Detecta placas vehiculares colombianas reales en la instrucción del usuario:
+ * - Automóviles / Camionetas / Pesados: AAA123 o AAA-123 (y AAA 123 con contexto vehicular/SIMIT)
+ * - Motocicletas: AAA12A o AAA-12A (y AAA 12A con contexto vehicular/SIMIT)
+ * Evita falsos positivos con palabras normales, leyes ("LEY 100", "RES 491", "CIE 10") o tipos de documento.
+ */
+function extractExplicitPlacasFromText(rawText = '') {
+  const src = String(rawText || '').trim();
+  if (!src) return [];
+
+  const hasVehicleContext =
+    /\b(placas?|veh[ií]culos?|motos?|motocicletas?|camionetas?|camiones?|camion|furg[oó]n|automotor(?:es)?|simit|comparendos?|multas?|tr[aá]nsito|infracciones?|pesv|runt)\b/i.test(
+      src,
+    );
+
+  const plates = [];
+  // 1) Formato inequívoco unido o con guion: ABC123, ABC-123, KLM45D, KLM-45D
+  const compactRx = /(?:^|[^A-Za-z0-9])([A-Za-z]{3})-?(\d{3}|\d{2}[A-Za-z])(?![A-Za-z0-9])/g;
+  for (const m of src.matchAll(compactRx)) {
+    const letters = String(m[1] || '').toUpperCase();
+    const tail = String(m[2] || '').toUpperCase();
+    if (EXCLUDED_COLOMBIAN_PLATE_PREFIXES.has(letters)) continue;
+    const hadHyphen = m[0].includes('-');
+    // Si está escrito en minúsculas seguidas sin guion (ej. "abc123") exigir contexto o mayúsculas o moto
+    const rawLetters = String(m[1] || '');
+    const isUpperOrMixed = rawLetters === rawLetters.toUpperCase();
+    const isMotoTail = /^\d{2}[A-Z]$/.test(tail);
+    if (!hadHyphen && !isUpperOrMixed && !hasVehicleContext && !isMotoTail) continue;
+    plates.push(`${letters}${tail}`);
+  }
+
+  // 2) Formato separado por espacio ("placa ABC 123" / "moto KLM 45D") SOLO cuando existe contexto vehicular/SIMIT
+  if (hasVehicleContext) {
+    const spacedRx = /(?:^|[^A-Za-z0-9])([A-Za-z]{3})\s+(\d{3}|\d{2}[A-Za-z])(?![A-Za-z0-9])/g;
+    for (const m of src.matchAll(spacedRx)) {
+      const letters = String(m[1] || '').toUpperCase();
+      const tail = String(m[2] || '').toUpperCase();
+      if (EXCLUDED_COLOMBIAN_PLATE_PREFIXES.has(letters)) continue;
+      plates.push(`${letters}${tail}`);
+    }
+  }
+
+  return Array.from(new Set(plates));
+}
+
+const NON_PERSON_NAME_STOP_WORDS = new Set([
+  'verificar', 'verifica', 'verificale', 'consultar', 'consulta', 'consultale', 'revisar', 'revisa',
+  'revisale', 'buscar', 'busca', 'buscale', 'descargar', 'descarga', 'investigar', 'investiga',
+  'obtener', 'obten', 'validar', 'valida', 'sacar', 'saca', 'dame', 'hazme', 'quiero', 'necesito',
+  'puedes', 'podrias', 'ayudame', 'antecedentes', 'antecedente', 'judiciales', 'judicial', 'fiscales',
+  'fiscal', 'disciplinarios', 'disciplinario', 'rama', 'contraloria', 'procuraduria', 'policia',
+  'pasado', 'procesos', 'proceso', 'boletin', 'responsables', 'responsable', 'certificado',
+  'certificados', 'constancia', 'constancias', 'reporte', 'informe', 'trabajador', 'trabajadores',
+  'colaborador', 'colaboradores', 'empleado', 'empleados', 'candidato', 'candidata', 'aspirante',
+  'persona', 'ciudadano', 'ciudadana', 'conductor', 'conductora', 'contratista', 'externo', 'externa',
+  'nuevo', 'nueva', 'empresa', 'activa', 'nomina', 'personal', 'planta', 'todos', 'todas', 'toda',
+  'todo', 'cedula', 'documento', 'identidad', 'numero', 'nombre', 'completo', 'señor', 'senor',
+  'señora', 'senora', 'joven', 'doctor', 'doctora', 'tenshi', 'suri', 'siri', 'wappy', 'flujo',
+  'tarea', 'automatizacion', 'favor', 'gracias', 'urgente', 'ahora', 'mismo', 'hoy', 'este', 'esta',
+  'estos', 'estas', 'ese', 'esa', 'para', 'por', 'con', 'sin', 'sobre', 'desde', 'hasta', 'entre',
+  'del', 'las', 'los', 'una', 'uno', 'unos', 'unas', 'tiene', 'tenga', 'saber', 'arl', 'alturas',
+  'confinados', 'simit', 'comparendos', 'multas', 'transito', 'placa', 'sura', 'positiva', 'bolivar',
+  'colmena', 'colpatria', 'mintrabajo', 'sena', 'incapacidad', 'medica', 'rethus', 'integral',
+]);
+
+/**
+ * Extrae el nombre propio limpio de una persona/candidato externo desde una instrucción natural
+ * (ej. "consulta antecedentes de Juan Carlos Pérez Gómez" -> "Juan Carlos Pérez Gómez").
+ * Retorna "" si no existe un nombre de persona identificable (>= 2 palabras válidas).
+ */
+function extractCandidatePersonNameFromInstruction(rawText = '') {
+  const raw = String(rawText || '').trim();
+  if (!raw) return '';
+
+  // Limpiar URLs, números y signos de puntuación laterales conservando tildes y ñ
+  const cleaned = raw
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/\d+/g, ' ')
+    .replace(/["""''`«»()[\]{}|/\\;:,.!?¿¡#*_+=-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+
+  const normalizeWord = (w) =>
+    String(w || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z]/g, '');
+
+  const toTitleWord = (w) => {
+    const low = String(w || '').toLowerCase();
+    if (!low) return '';
+    return low.charAt(0).toUpperCase() + low.slice(1);
+  };
+
+  // Cortar sufijos circunstanciales comunes después del nombre ("en rama judicial", "por favor", etc.)
+  const trimmedTail = cleaned.replace(
+    /\b(?:por\s+favor|muchas\s+gracias|gracias|en\s+(?:la\s+)?rama\s+judicial|en\s+(?:la\s+)?contralor[ií]a|en\s+(?:la\s+)?procuradur[ií]a|en\s+portales?|en\s+colombia|en\s+la\s+empresa|sin\s+c[eé]dula|urgente|ahora\s+mismo|hoy)\b[\s\S]*$/i,
+    '',
+  );
+
+  const candidateSegments = [];
+  const prepRx =
+    /\b(?:a\s+nombre\s+de|nombre\s+completo|del\s+(?:candidato|señor|senor|trabajador|colaborador|aspirante|ciudadano)|de\s+la\s+(?:candidata|señora|senora|trabajadora|colaboradora|aspirante|ciudadana)|de|del|para|sobre|a)\s+([A-Za-zÁÉÍÓÚáéíóúÑñÜü]+(?:\s+[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+){1,5})/gi;
+  for (const m of trimmedTail.matchAll(prepRx)) {
+    if (m[1]) candidateSegments.push(m[1].trim());
+  }
+  candidateSegments.push(trimmedTail);
+
+  for (const seg of candidateSegments) {
+    const words = seg.split(/\s+/).filter(Boolean);
+    // Buscar la subsecuencia contigua más larga de palabras de nombre propio válidas
+    let bestRun = [];
+    let currentRun = [];
+    for (const w of words) {
+      const norm = normalizeWord(w);
+      const isConnectorParticle =
+        currentRun.length >= 1 && (norm === 'de' || norm === 'del' || norm === 'la');
+      if (isConnectorParticle) {
+        currentRun.push(w.toLowerCase());
+        continue;
+      }
+      const isValidNameToken =
+        norm.length >= 2 &&
+        /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+$/.test(w) &&
+        !NON_PERSON_NAME_STOP_WORDS.has(norm);
+      if (isValidNameToken) {
+        currentRun.push(toTitleWord(w));
+      } else {
+        if (currentRun.length > bestRun.length) bestRun = currentRun;
+        currentRun = [];
+      }
+    }
+    if (currentRun.length > bestRun.length) bestRun = currentRun;
+
+    // Limpiar partículas colgantes al final ("de", "del", "la")
+    while (bestRun.length > 0 && /^(de|del|la)$/i.test(bestRun[bestRun.length - 1])) {
+      bestRun.pop();
+    }
+
+    const substantialWords = bestRun.filter((tok) => normalizeWord(tok).length >= 3);
+    if (bestRun.length >= 2 && bestRun.length <= 6 && substantialWords.length >= 2) {
+      return bestRun.join(' ');
+    }
+  }
+
+  return '';
+}
+
+function resolveScraperPortalConceptKey(nodeKeyOrId = '') {
+  const low = String(nodeKeyOrId || '').toLowerCase();
+  if (low.includes('arl_directo') || low.includes('agy_arl') || /\barl\b/.test(low)) {
+    return 'arl';
+  }
+  if (low.includes('alto_riesgo') || low.includes('mintrabajo') || low.includes('centrosentrenamiento')) {
+    return 'alturas';
+  }
+  if (low.includes('vial_pesv') || low.includes('simit')) {
+    return 'simit';
+  }
+  if (low.includes('antecedentes') || low.includes('rama_judicial')) {
+    return 'antecedentes';
+  }
+  return null;
+}
+
+/**
+ * Determina qué subconjunto de portales oficiales solicitó el usuario en un flujo multi-portal
+ * (`selectiveMultiPortalRouting: true`). Si pidió "todos" / "completa" / "360" o los 4 conceptos,
+ * habilita los 4 portales.
+ */
+function evaluateSelectiveMultiPortalFilter(instructionText = '') {
+  const q = String(instructionText || '').trim();
+  const allFour = ['arl', 'alturas', 'simit', 'antecedentes'];
+  if (!q) {
+    return { restricted: false, wantsAll: true, selectedSet: new Set(allFour) };
+  }
+
+  const wantsAll =
+    /investigaci[oó]n\s+(?:completa|integral|360|multi[\s-]?portal)|\b360\b|\btodos?\s+los\s+(?:certificados|portales)\b|\bverificar?\s+todo\b|\bconsultar?\s+todo\b|\binvestigaci[oó]n\s+completa\b/i.test(
+      q,
+    );
+  const arl = /\barl\b|riesgos?\s+laborales?|\bsura\b|\bpositiva\b|bol[ií]var|\bcolmena\b|\bcolpatria\b/i.test(
+    q,
+  );
+  const alturas = /\balturas?\b|confinados?|trabajo\s+en\s+alturas|mintrabajo|\b4272\b|\b0491\b/i.test(
+    q,
+  );
+  const simit =
+    /\bsimit\b|comparendos?|multas?\s+(?:de\s+)?tr[aá]nsito|infracciones?|\bpesv\b|\bplaca\b|\brunt\b/i.test(
+      q,
+    ) || extractExplicitPlacasFromText(q).length > 0;
+  const antecedentes =
+    /\bantecedentes?\b|rama\s+judicial|procesos?\s+judiciales?|contralor[ií]a|fiscales?|procuradur[ií]a|pasado\s+judicial/i.test(
+      q,
+    );
+
+  const selected = [];
+  if (arl) selected.push('arl');
+  if (alturas) selected.push('alturas');
+  if (simit) selected.push('simit');
+  if (antecedentes) selected.push('antecedentes');
+
+  if (wantsAll || selected.length === 0 || selected.length === 4) {
+    return { restricted: false, wantsAll: true, selectedSet: new Set(allFour) };
+  }
+  return { restricted: true, wantsAll: false, selectedSet: new Set(selected) };
+}
+
+function buildMissingPreSourceUserMessage({
+  automation = {},
+  companyName = 'tu empresa activa',
+  condType = 'has_explicit_cedula',
+} = {}) {
+  const wfInputs = Array.isArray(automation?.workflowNodes?.inputs)
+    ? automation.workflowNodes.inputs
+    : [];
+  if (condType === 'has_attached_document' || wfInputs.includes('forensic_doc_verifier')) {
+    return (
+      `Para realizar la **Auditoría Forense del Certificado de Incapacidad Médica** (inspección de metadatos binarios EXIF/PDF, detección de alteraciones visuales y verificación normativa bajo el **Decreto 1427 de 2022**), por favor **adjunta aquí mismo en el chat de Tenshi la imagen (\`.jpg\` / \`.png\`) o el archivo \`.pdf\`** del soporte de incapacidad.`
+    );
+  }
+  if (wfInputs.length > 1) {
+    return (
+      `Para ejecutar la **Investigación Multi-Portal** sin escanear toda la nómina, por favor indícame el **número de cédula** (o la **placa vehicular** si deseas incluir SIMIT, o el **nombre completo exacto del colaborador** registrado en **${companyName}**).`
+    );
+  }
+  if (wfInputs.includes('scraper_agy_vial_pesv') || condType === 'has_explicit_cedula_or_placa') {
+    return (
+      `Para consultar en tiempo real comparendos y Paz y Salvo en **SIMIT**, por favor indícame el **número de cédula**, la **placa del vehículo** (ej. \`ABC123\` o \`KLM45D\`) o el **nombre completo del conductor** registrado en **${companyName}**.`
+    );
+  }
+  if (wfInputs.includes('scraper_agy_antecedentes')) {
+    return (
+      `Para verificar **Antecedentes Judiciales y Fiscales** (Contraloría General y Rama Judicial), por favor indícame el **número de cédula** o el **nombre completo de la persona** a consultar.`
+    );
+  }
+  if (wfInputs.includes('scraper_agy_alto_riesgo')) {
+    return (
+      `Para verificar en vivo el **Certificado de Trabajo Seguro en Alturas y Espacios Confinados** en el Ministerio del Trabajo, por favor indícame el **número de cédula** o el **nombre completo del trabajador** registrado en **${companyName}**.`
+    );
+  }
+  return (
+    `Para verificar el certificado de ARL sin escanear toda la nómina, por favor indícame el **número de cédula** (si prefieres consulta directa sin revisar tu base interna) o el **nombre completo exacto del trabajador** registrado en **${companyName}**. Si la persona está afiliada en una ARL que solicita fecha de nacimiento (como ARL Seguros Bolívar), puedes indicarla en el mismo mensaje.`
+  );
+}
+
 function resolvePortalDisplayFallback({
   specificPortalAction = null,
   isAntecedentes = false,
@@ -9602,9 +10368,21 @@ async function executeRealAntigravityScraperVerification({
   const promptExplicitCedulas = extractExplicitCedulasFromText(promptExplicitText, { companyNit });
   const explicitCedulas =
     triggerExplicitCedulas.length > 0 ? triggerExplicitCedulas : promptExplicitCedulas;
+  const triggerExplicitPlacas = extractExplicitPlacasFromText(
+    [mockTriggerInput, nodeCfg?.placa, customNodeObj?.config?.placa].filter(Boolean).join(' '),
+  );
+  const promptExplicitPlacas = extractExplicitPlacasFromText(promptExplicitText);
+  const explicitPlacas =
+    triggerExplicitPlacas.length > 0 ? triggerExplicitPlacas : promptExplicitPlacas;
   const effectiveSourceInstruction = triggerExplicitText || promptExplicitText;
   const extractedDocType = extractDocTypeFromInstruction(effectiveSourceInstruction);
   const extractedBirthDate = extractOptionalBirthDateFromInstruction(effectiveSourceInstruction);
+  const allowDirectNameWithoutMatch = Boolean(
+    nodeCfg?.allowDirectNameWithoutWorkerMatch ||
+      allNodeConfigs?.if_router?.allowDirectNameWithoutWorkerMatch ||
+      allNodeConfigs?.if_condition?.allowDirectNameWithoutWorkerMatch ||
+      allNodeConfigs?.hito2_perfil_socio?.allowDirectNameWithoutWorkerMatch,
+  );
 
   // 2. Prioridad #1 (Flujo real entre nodos estilo n8n):
   // Si `upstreamInputItems` trae registros del nodo anterior (ej. Paso #2: Extraer Trabajadores), extraer de ahí mismo
@@ -9687,7 +10465,14 @@ async function executeRealAntigravityScraperVerification({
           placa: item['Placa'] || item.placa || '',
         };
       })
-      .filter((w) => Boolean(w.documento));
+      .filter(
+        (w) =>
+          Boolean(w.documento) ||
+          (Boolean(isAntecedentes && !isAltoRiesgo) &&
+            Boolean(w.nombre) &&
+            String(w.nombre).trim().length >= 5) ||
+          (Boolean(isVialPesv) && Boolean(w.placa)),
+      );
 
     if (upstreamWorkers.length > 0) {
       companyWorkers = upstreamWorkers;
@@ -9890,7 +10675,8 @@ async function executeRealAntigravityScraperVerification({
 
   if (explicitCedulas.length > 0) {
     // Modo consulta puntual: usar companyWorkers ÚNICAMENTE para hidratar ficha interna si existe en Hito 2; PROHIBIDO escanear el resto de la nómina.
-    for (const ced of explicitCedulas) {
+    for (let cIdx = 0; cIdx < explicitCedulas.length; cIdx++) {
+      const ced = explicitCedulas[cIdx];
       const matchedWorker = companyWorkers.find(
         (w) =>
           String(w.documento || w.identificacion || w.cedula || w.documentNumber || '').replace(/\D/g, '') ===
@@ -9904,7 +10690,7 @@ async function executeRealAntigravityScraperVerification({
         nombre: matchedWorker?.nombre || matchedWorker?.fullName || `Cédula solicitada (${ced})`,
         cargo: matchedWorker?.cargo || matchedWorker?.position || 'Consulta directa',
         riesgo: matchedWorker?.nivelRiesgo || matchedWorker?.riskLevel || 'N/A',
-        placa: matchedWorker?.placa || '',
+        placa: matchedWorker?.placa || explicitPlacas[cIdx] || explicitPlacas[0] || '',
         arl: matchedWorker?.arl || matchedWorker?.arlName || '',
         eps: matchedWorker?.eps || matchedWorker?.epsName || '',
         afp: matchedWorker?.afp || matchedWorker?.fondoPensiones || '',
@@ -9916,6 +10702,28 @@ async function executeRealAntigravityScraperVerification({
     addLog(
       'info',
       `Consulta puntual directa: ${explicitCedulas.length} cédula(s) solicitada(s) (${explicitCedulas.join(', ')}) sin escanear el resto de la nómina de "${companyName}".`,
+    );
+  } else if (isVialPesv && explicitPlacas.length > 0) {
+    for (const pl of explicitPlacas) {
+      targetsMap.set(`PLACA_${pl}`, {
+        rawDoc: `PLACA ${pl}`,
+        cleanCedula: '',
+        tipoDoc: 'PLACA',
+        isNumericValid: false,
+        isPlacaValid: true,
+        nombre: `Vehículo Placa ${pl}`,
+        cargo: 'Consulta Vehicular SIMIT',
+        riesgo: 'N/A',
+        placa: pl,
+        arl: '',
+        eps: '',
+        afp: '',
+        fechaNacimiento: '',
+      });
+    }
+    addLog(
+      'info',
+      `Consulta vehicular directa en SIMIT: ${explicitPlacas.length} placa(s) solicitada(s) (${explicitPlacas.join(', ')}) sin escanear la nómina de "${companyName}".`,
     );
   } else {
     let workersToScan = companyWorkers;
@@ -9936,6 +10744,53 @@ async function executeRealAntigravityScraperVerification({
         );
       } else if (hasUpstreamItems && companyWorkers.length > 0 && preSourceBranch === 'no') {
         workersToScan = companyWorkers;
+      } else if (allowDirectNameWithoutMatch && isAntecedentes && !isAltoRiesgo) {
+        const directExternalName = extractCandidatePersonNameFromInstruction(mockTriggerInput);
+        if (directExternalName) {
+          workersToScan = [
+            {
+              _id: 'ext_candidate_1',
+              id: 'ext_candidate_1',
+              nombre: directExternalName,
+              nombreCompleto: directExternalName,
+              documento: '',
+              cedula: '',
+              cargo: 'Candidato Externo (Consulta por Nombre)',
+              nivelRiesgo: 'N/A',
+              placa: '',
+              arl: '',
+              eps: '',
+              afp: '',
+              fechaNacimiento: '',
+            },
+          ];
+          addLog(
+            'info',
+            `Consulta externa por nombre propio en Rama Judicial API v2: "${directExternalName}".`,
+          );
+        } else {
+          const durationMsMissing = Math.max(1, Date.now() - t0);
+          return {
+            durationMs: durationMsMissing,
+            missingInputTarget: true,
+            recordsCount: 0,
+            relayUsedCount: 0,
+            verifiedWithCoursesCount: 0,
+            verifiedNoCoursesCount: 0,
+            antigravityMode,
+            portalLabel: nodeTitle || 'Consulta de Antecedentes',
+            inputSummary: 'Falta número de cédula o nombre completo de la persona en la solicitud.',
+            outputPreview:
+              `⚠️ **FALTA CÉDULA O NOMBRE PARA CONSULTA DE ANTECEDENTES:**\n` +
+              `- La solicitud actual no incluye un número de cédula ni un nombre completo identificable.\n` +
+              `- Solicita amablemente al usuario el número de cédula o el nombre completo de la persona.`,
+            inputItems: [],
+            outputItems: [],
+            evidences: [],
+            logs: stepLogs,
+            error: null,
+          };
+        }
       } else {
         const durationMsMissing = Math.max(1, Date.now() - t0);
         addLog(
@@ -9991,10 +10846,14 @@ async function executeRealAntigravityScraperVerification({
 
   const allTargets = Array.from(targetsMap.values());
   const canQueryByNameOnly = Boolean(isAntecedentes && !isAltoRiesgo);
+  const canQueryByPlacaOnly = Boolean(isVialPesv);
   const validTargets = allTargets
     .filter(
       (t) =>
         t.isNumericValid ||
+        (canQueryByPlacaOnly &&
+          Boolean(t.placa) &&
+          /^[A-Z]{3}\d{2}[0-9A-Z]$/i.test(String(t.placa).trim())) ||
         (canQueryByNameOnly &&
           t.nombre &&
           t.nombre.trim().length >= 5 &&
@@ -10093,7 +10952,7 @@ async function executeRealAntigravityScraperVerification({
       pdfFileName: rawPdfName,
       imageBase64: rawImgB64,
       imageFileName: rawImgName,
-      cedula: target.cleanCedula || target.rawDoc,
+      cedula: target.cleanCedula || target.placa || target.rawDoc,
       workerName: target.nombre,
       portalLabel: fuenteStr || nodeTitle || 'Certificado',
     });
@@ -10113,7 +10972,7 @@ async function executeRealAntigravityScraperVerification({
 
     evidences.push({
       workerName: target.nombre,
-      cedula: target.cleanCedula,
+      cedula: target.cleanCedula || target.placa || '',
       cargo: target.cargo,
       portal: fuenteStr,
       title: title || 'Certificado / Constancia Oficial',
@@ -10206,7 +11065,7 @@ async function executeRealAntigravityScraperVerification({
           }
 
           if (isAntecedentes && !isAltoRiesgo) {
-            const effectiveDocForRj = target.isNumericValid ? target.cleanCedula : target.rawDoc;
+            const effectiveDocForRj = target.isNumericValid ? target.cleanCedula : '';
             const shouldIncludeAntecedentesEvidence =
               i < 10 || explicitCedulas.includes(target.cleanCedula);
             const forceFirstEvidence = i === 0 && batchIdx === 0;
@@ -10333,9 +11192,11 @@ async function executeRealAntigravityScraperVerification({
           fuenteStr,
           title: certTitle,
         });
+        const displayPortalDoc =
+          target.cleanCedula || (target.placa ? `PLACA ${target.placa}` : target.rawDoc);
         verificationRows.push({
           nombre: effectivePortalName,
-          documento: target.cleanCedula,
+          documento: displayPortalDoc,
           cargo: target.cargo,
           arl: target.arl || pRes.entidadDetectada || '',
           eps: target.eps || '',
@@ -10355,7 +11216,7 @@ async function executeRealAntigravityScraperVerification({
               : hasPositiveRecord
                 ? 'success'
                 : 'info',
-          `CC ${target.cleanCedula} (${effectivePortalName}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
+          `${target.cleanCedula ? `CC ${target.cleanCedula}` : `Placa ${target.placa || displayPortalDoc}`} (${effectivePortalName}): ${estadoStr}${evMeta.pdfFileName || evMeta.imageFileName ? ' [📎 Evidencia]' : ''}`,
           `Fuente: ${fuenteStr} · ${detalleStr}`,
         );
         continue;
@@ -10393,7 +11254,11 @@ async function executeRealAntigravityScraperVerification({
           fuenteStr,
           title: rjCertTitle,
         });
-        const displayDoc = target.isNumericValid ? target.cleanCedula : target.rawDoc;
+        const displayDoc = target.isNumericValid
+          ? target.cleanCedula
+          : target.rawDoc && target.rawDoc !== 'S/D'
+            ? target.rawDoc
+            : 'Consulta por Nombre';
         verificationRows.push({
           nombre: effectiveRjName,
           documento: displayDoc,
@@ -11414,8 +12279,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         stepError = whRes.error || 'Error en consulta HTTPS externa';
         addStepLog('error', `Error consultando API/Webhook HTTPS: ${stepError}`);
       }
-    } else if (isPreSourceSim && isAntigravityScraperIdentifier(nodeKey, nodeId, null)) {
-      // En flujos pre_source (ej. ARL por cédula), el scraper directo evita pre-hidratar nómina completa desde el inspector
+    } else if (
+      (isPreSourceSim && isAntigravityScraperIdentifier(nodeKey, nodeId, null)) ||
+      nodeId === 'forensic_doc_verifier'
+    ) {
+      // En flujos pre_source (scrapers por cédula/placa o forensic_doc_verifier), evita pre-hidratar nómina completa desde el inspector
       liveData = {
         nodeId,
         canonicalNodeId: nodeId,
@@ -11470,6 +12338,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       category === 'hito' &&
       resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'source_read'
     ) {
+      const simAllowDirectName = Boolean(
+        simIfRouterCfg?.allowDirectNameWithoutWorkerMatch ||
+          cfg?.allowDirectNameWithoutWorkerMatch ||
+          nodeConfigs?.hito2_perfil_socio?.allowDirectNameWithoutWorkerMatch,
+      );
       const namedRecs = findWorkersNamedInInstruction(
         mockTriggerInput,
         allRecords.map((r) => ({
@@ -11479,6 +12352,25 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       );
       const matchedIds = new Set(namedRecs.map((mr) => String(mr.id || mr._id || mr.label)));
       filteredRecords = allRecords.filter((r) => matchedIds.has(String(r.id || r._id || r.label)));
+      if (filteredRecords.length === 0 && simAllowDirectName) {
+        const simDirectName = extractCandidatePersonNameFromInstruction(mockTriggerInput);
+        if (simDirectName) {
+          filteredRecords = [
+            {
+              id: 'ext_candidate_1',
+              label: simDirectName,
+              sublabel: 'Candidato Externo (Consulta directa por nombre)',
+              badge: 'Externo',
+              isCritical: false,
+              fields: {
+                'Nombre Completo': simDirectName,
+                'Cédula / Documento': '',
+                Cargo: 'Candidato Externo',
+              },
+            },
+          ];
+        }
+      }
       if (filteredRecords.length === 0) {
         preSourceNoMatchAbort = true;
       }
@@ -11873,6 +12765,37 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       } catch (wsErr) {
         addStepLog('warn', `Aviso en Búsqueda Web en Vivo: ${wsErr?.message || wsErr}`);
       }
+    } else if (nodeId === 'forensic_doc_verifier') {
+      const forensicLayers = [
+        'Capa 1 — Forense Binario EXIF / Estructura PDF: Inspección de cabeceras %PDF/%%EOF, revisiones incrementales, software productor/editor y timestamps CreateDate vs ModifyDate',
+        'Capa 2 — Inspección Visual Multimodal (Gemini Vision): Análisis de coherencia tipográfica, alineación de renglones, parches de compresión y sellos institucionales EPS/IPS',
+        'Capa 3 — Cumplimiento Decreto 1427 de 2022 + ReTHUS Humano: Validación matemática de fechas/días otorgados, código CIE-10, dígito DIAN (módulo 11) del NIT emisor, cruce con empresa activa y enlace directo oficial a SISPRO ReTHUS para confirmación humana del CAPTCHA del médico tratante',
+      ];
+      previewLines.unshift(
+        `🔬 **AUDITORÍA FORENSE DE CERTIFICADO DE INCAPACIDAD (3 CAPAS VERIFICADAS — SANDBOX):**\n  • ${forensicLayers.join('\n  • ')}`,
+      );
+      stepOutputItems = [
+        {
+          index: 1,
+          id: `${nodeKey}_forensic_3layers_preview`,
+          nodo: resolvedTitle,
+          nodeId: 'forensic_doc_verifier',
+          categoria: category,
+          empresa: companyName,
+          estado: 'auditoria_forense_3_capas_simulada_sandbox',
+          capa1_ForenseBinarioExifPdf: forensicLayers[0],
+          capa2_InspeccionVisualMultimodal: forensicLayers[1],
+          capa3_Decreto1427YRethusHumano: forensicLayers[2],
+          enlaceOficialRethusManual:
+            'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx',
+        },
+      ];
+      finalRecordsCount = 1;
+      inputSummaryText = `🔬 Verificador Forense de Documentos (3 Capas: EXIF/PDF + Visión IA + Decreto 1427/2022) simulado en Sandbox`;
+      addStepLog(
+        'success',
+        'Simulación de las 3 capas forenses (EXIF/PDF binario, Gemini Vision y Decreto 1427/2022 + enlace ReTHUS humano) completada exitosamente',
+      );
     } else {
       addStepLog(
         filteredRecords.length > 0 ? 'success' : 'info',
@@ -12434,7 +13357,8 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         category === 'hito' &&
         resolveWorkflowHitoRole(nodeConfigs, nodeId) === 'source_read' &&
         ifHasEvaluated &&
-        ifEvaluation.branchTaken === 'SI'
+        (ifEvaluation.branchTaken === 'SI' ||
+          String(simIfRouterCfg?.ifConditionType || '').trim() === 'has_attached_document')
       ) {
         await emitProgress({ type: 'step_start', nodeKey, nodeId, category });
         const skippedSourceStep = {
@@ -12442,15 +13366,15 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           nodeKey,
           nodeId,
           category,
-          title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — Rama SÍ activa · 0 consultas a BD)`,
+          title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — ${ifEvaluation.branchTaken === 'SI' ? 'Rama SÍ activa' : 'Falta adjunto'} · 0 consultas a BD)`,
           status: 'skipped',
           durationMs: 1,
           recordsCount: 0,
           surgicalFields: [],
-          inputSummary: '⏭️ Omitido — Rama SÍ activa · 0 consultas a Perfil Sociodemográfico Hito 2',
-          inputContext: '⏭️ Omitido — Rama SÍ activa · 0 consultas a Perfil Sociodemográfico Hito 2',
+          inputSummary: '⏭️ Omitido — 0 consultas previas a Perfil Sociodemográfico Hito 2',
+          inputContext: '⏭️ Omitido — 0 consultas previas a Perfil Sociodemográfico Hito 2',
           outputPreview:
-            '⏭️ Omitido (0 consultas a BD): El usuario entregó número de cédula directamente, por lo que no se consulta Perfil Sociodemográfico (Hito 2).',
+            '⏭️ Omitido (0 consultas previas a BD): El enrutador pre_source procesa directamente el identificador o soporte documental.',
           sourceNodeKey: lastProducerNode.nodeKey,
           sourceNodeTitle: lastProducerNode.title,
           inputItems: [],
@@ -12460,7 +13384,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
             {
               timestamp: new Date().toISOString(),
               level: 'info',
-              message: '⏭️ Omitido (0 consultas a BD) porque Rama SÍ recibió cédula directa.',
+              message: '⏭️ Omitido en pre-lectura por enrutamiento directo pre_source.',
             },
           ],
           error: null,
@@ -12474,6 +13398,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         isPreSourceSim &&
         preSourceNoMatchAbort &&
         (category === 'memory' ||
+          nodeId === 'forensic_doc_verifier' ||
           ((category === 'extractor' || category === 'tool') &&
             isAntigravityScraperIdentifier(nodeKey, nodeId, null)))
       ) {
@@ -12488,12 +13413,14 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
           durationMs: 1,
           recordsCount: 0,
           surgicalFields: [],
-          inputSummary: '⏭️ Omitido — Sin cédula ni trabajador coincidente en Hito 2',
-          inputContext: '⏭️ Omitido — Sin cédula ni trabajador coincidente en Hito 2',
+          inputSummary: '⏭️ Omitido — Falta identificador, soporte adjunto o coincidencia nominal',
+          inputContext: '⏭️ Omitido — Falta identificador, soporte adjunto o coincidencia nominal',
           outputPreview:
             category === 'memory'
-              ? '⏭️ Omitido: No se invocó el Agente IA al faltar cédula o coincidencia nominal en Perfil Sociodemográfico (Hito 2).'
-              : '⏭️ Omitido (0 consultas externas): No se recibió número de cédula ni nombre coincidente en Perfil Sociodemográfico (Hito 2).',
+              ? '⏭️ Omitido: No se invocó el Agente IA en cortocircuito de entrada.'
+              : nodeId === 'forensic_doc_verifier'
+                ? '⏭️ Omitido (0 tokens IA): Falta imagen (.jpg/.png) o .pdf adjunto del certificado de incapacidad.'
+                : '⏭️ Omitido (0 consultas externas): No se recibió identificador ni nombre coincidente.',
           sourceNodeKey: lastProducerNode.nodeKey,
           sourceNodeTitle: lastProducerNode.title,
           inputItems: [],
@@ -12505,6 +13432,54 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         nodeTrace.push(skippedScraperStep);
         await emitProgress({ type: 'step_done', nodeKey, nodeId, step: skippedScraperStep });
         continue;
+      }
+
+      // Enrutamiento selectivo multi-portal en Sandbox (`selectiveMultiPortalRouting`)
+      if (
+        Boolean(simIfRouterCfg?.selectiveMultiPortalRouting) &&
+        (category === 'tool' || category === 'extractor') &&
+        isAntigravityScraperIdentifier(nodeKey, nodeId, null) &&
+        configuredInputs.filter((x) => isAntigravityScraperIdentifier(`tool_inputs_${x}`, x, null)).length > 1
+      ) {
+        const simPortalConcept = resolveScraperPortalConceptKey(`${nodeKey} ${nodeId}`);
+        const simPortalFilter = evaluateSelectiveMultiPortalFilter(mockTriggerInput);
+        if (
+          simPortalFilter.restricted &&
+          simPortalConcept &&
+          !simPortalFilter.selectedSet.has(simPortalConcept)
+        ) {
+          await emitProgress({ type: 'step_start', nodeKey, nodeId, category });
+          const omittedStep = {
+            stepIndex: ++stepCounter,
+            nodeKey,
+            nodeId,
+            category,
+            title: `${stepCustomTitle || formatHumanWorkflowNodeTitle(nodeId)} (⏭️ Omitido — No solicitado)`,
+            status: 'skipped',
+            durationMs: 1,
+            recordsCount: 0,
+            surgicalFields: [],
+            inputSummary: 'Omitido (no solicitado por el usuario en este turno)',
+            inputContext: 'Omitido (no solicitado por el usuario en este turno)',
+            outputPreview: 'Omitido (no solicitado por el usuario en este turno)',
+            sourceNodeKey: lastProducerNode.nodeKey,
+            sourceNodeTitle: lastProducerNode.title,
+            inputItems: [],
+            outputItems: [],
+            evidences: [],
+            logs: [
+              {
+                timestamp: new Date().toISOString(),
+                level: 'info',
+                message: 'Omitido (no solicitado por el usuario en este turno)',
+              },
+            ],
+            error: null,
+          };
+          nodeTrace.push(omittedStep);
+          await emitProgress({ type: 'step_done', nodeKey, nodeId, step: omittedStep });
+          continue;
+        }
       }
 
       if (
@@ -13238,17 +14213,56 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         return observed === target;
       };
 
-      if (condType === 'has_explicit_cedula') {
+      if (condType === 'has_explicit_cedula' || condType === 'has_explicit_cedula_or_placa') {
         const simExplicitCedulas = extractExplicitCedulasFromText(mockTriggerInput, {
           companyNit: automationCompany?.nit || '',
         });
-        const hasCed = simExplicitCedulas.length > 0;
+        const simExplicitPlacas =
+          condType === 'has_explicit_cedula_or_placa'
+            ? extractExplicitPlacasFromText(mockTriggerInput)
+            : [];
+        const hasDirectId = simExplicitCedulas.length > 0 || simExplicitPlacas.length > 0;
+        const foundParts = [
+          ...(simExplicitCedulas.length > 0 ? [`cédula ${simExplicitCedulas.join(', ')}`] : []),
+          ...(simExplicitPlacas.length > 0 ? [`placa ${simExplicitPlacas.join(', ')}`] : []),
+        ];
         ifEvaluation = {
           enabled: true,
-          branchTaken: hasCed ? 'SI' : 'NO',
-          reason: hasCed
-            ? `El usuario entregó número de cédula explícito (${simExplicitCedulas.join(', ')}) -> Rama SÍ: omitir Perfil Sociodemográfico (Hito 2) y consultar directo en Web Scraping ARL.`
-            : 'No se entregó número de cédula -> Rama NO: consultar primero por nombre en Perfil Sociodemográfico (Hito 2) y luego ejecutar Web Scraping ARL.',
+          branchTaken: hasDirectId ? 'SI' : 'NO',
+          reason: hasDirectId
+            ? `El usuario entregó identificador explícito (${foundParts.join(' · ')}) -> Rama SÍ: omitir Perfil Sociodemográfico (Hito 2) y consultar directo en portales oficiales.`
+            : 'No se entregó identificador explícito -> Rama NO: consultar primero por nombre en Perfil Sociodemográfico (Hito 2) y luego ejecutar herramientas oficiales.',
+        };
+      } else if (condType === 'has_attached_document') {
+        const hasSimAttachedMediaObj = Array.isArray(params?.attachedMedia)
+          ? params.attachedMedia.some(
+              (m) => m && typeof m === 'object' && (m.buffer || m.dataUrl || m.base64 || m.data),
+            )
+          : Boolean(
+              params?.attachedMedia?.dataUrl ||
+                params?.attachedMedia?.base64 ||
+                params?.attachedMedia?.buffer ||
+                params?.attachedMedia?.data ||
+                (Array.isArray(params?.attachedMedia?.files) &&
+                  params.attachedMedia.files.length > 0),
+            );
+        const hasSimAttachedDoc =
+          (hasSimAttachedMediaObj ||
+            /\b(adjunt\w*|pdf|png|jpg|jpeg|imagen|foto|soporte\s+adjunto|archivo\s+adjunto)\b/i.test(
+              mockTriggerInput,
+            )) &&
+          !/\b(sin\s+adjunt\w*|sin\s+archivo|sin\s+soporte|no\s+adjunt\w*)\b/i.test(
+            mockTriggerInput,
+          );
+        if (!hasSimAttachedDoc) {
+          preSourceNoMatchAbort = true;
+        }
+        ifEvaluation = {
+          enabled: true,
+          branchTaken: hasSimAttachedDoc ? 'SI' : 'NO',
+          reason: hasSimAttachedDoc
+            ? 'Soporte documental adjunto detectado -> Rama SÍ: ejecutar Verificador Forense de Documentos (3 capas) y Agente IA Tenshi.'
+            : 'No se adjuntó imagen ni PDF del certificado de incapacidad -> Rama NO: cortocircuito en 0 tokens LLM solicitando adjuntar el archivo en el chat de Tenshi.',
         };
       } else if (condType === 'new_external_items') {
         const numMatch = ruleExpr.match(/(>=|<=|>|<|===|==|=|!=|!==)\s*(\d+(?:\.\d+)?)/);
@@ -13430,8 +14444,11 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
 
       if ((ifHasEvaluated && ifEvaluation.branchTaken === 'NO' && !isPreSourceSim) || preSourceNoMatchAbort) {
         if (preSourceNoMatchAbort && !finalResponse) {
-          finalResponse =
-            `Para verificar el certificado de ARL sin consultar toda la nómina, por favor indícame el **número de cédula** (para ir directo al portal ARL sin leer el Perfil Sociodemográfico) o el **nombre completo del trabajador** registrado en **${companyName}**.`;
+          finalResponse = buildMissingPreSourceUserMessage({
+            automation: { workflowNodes: wf },
+            companyName,
+            condType: String(simIfRouterCfg?.ifConditionType || 'has_explicit_cedula').trim(),
+          });
         }
         await emitProgress({
           type: 'step_start',
@@ -14153,5 +15170,9 @@ module.exports = {
   loadProcessedEntityKeysForAutomation,
   evaluatePreAgentDeterministicIf,
   evaluatePostAgentSemanticIf,
+  extractExplicitCedulasFromText,
+  extractExplicitPlacasFromText,
+  extractCandidatePersonNameFromInstruction,
+  evaluateSelectiveMultiPortalFilter,
 };
 

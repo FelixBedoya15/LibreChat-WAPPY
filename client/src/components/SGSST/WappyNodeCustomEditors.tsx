@@ -46,6 +46,9 @@ import {
   Image as ImageIcon,
   Video,
   CheckCircle2,
+  ScanSearch,
+  FileSearch,
+  Stethoscope,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import ExpandableButton from '~/components/Common/ExpandableButton';
@@ -4296,6 +4299,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           ? 'keyword_match'
           : [
                 'has_explicit_cedula',
+                'has_explicit_cedula_or_placa',
+                'has_attached_document',
                 'critical_findings',
                 'new_external_items',
                 'numeric_threshold',
@@ -4308,6 +4313,8 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
     const computeIfConditionLabel = (condType: string, expr?: string): string => {
       if (condType === 'has_explicit_cedula') return '¿Dio número de cédula?';
+      if (condType === 'has_explicit_cedula_or_placa') return 'Cédula o Placa en mensaje';
+      if (condType === 'has_attached_document') return 'Archivo / Imagen adjunta';
       if (condType === 'critical_findings') return '¿Críticos abiertos?';
       if (condType === 'new_external_items') return '¿Nuevos ítems >= 1?';
       if (condType === 'ai_verdict' || condType === 'ai_evaluation') {
@@ -4369,26 +4376,35 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 <button
                   key={plOpt.id}
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    const keepPreSourceType = [
+                      'has_explicit_cedula',
+                      'has_explicit_cedula_or_placa',
+                      'has_attached_document',
+                    ].includes(resolvedIfConditionType)
+                      ? resolvedIfConditionType
+                      : 'has_explicit_cedula';
                     onUpdateNodeConfig(activeNode.key, {
                       ifPlacement: plOpt.id,
                       ...(plOpt.id === 'pre_source'
                         ? {
-                            ifConditionType: 'has_explicit_cedula',
-                            ifConditionMode: 'has_explicit_cedula',
-                            ifConditionLabel: computeIfConditionLabel('has_explicit_cedula'),
+                            ifConditionType: keepPreSourceType as any,
+                            ifConditionMode: keepPreSourceType,
+                            ifConditionLabel: computeIfConditionLabel(keepPreSourceType),
                           }
                         : plOpt.id === 'post_agent' &&
                             (resolvedIfConditionType === 'new_external_items' ||
-                              resolvedIfConditionType === 'has_explicit_cedula')
+                              resolvedIfConditionType === 'has_explicit_cedula' ||
+                              resolvedIfConditionType === 'has_explicit_cedula_or_placa' ||
+                              resolvedIfConditionType === 'has_attached_document')
                           ? {
                               ifConditionType: 'ai_verdict',
                               ifConditionMode: 'ai_verdict',
                               ifConditionLabel: computeIfConditionLabel('ai_verdict'),
                             }
                           : {}),
-                    })
-                  }
+                    });
+                  }}
                   className={`p-3 rounded-xl border-2 text-left transition ${
                     isSelected
                       ? 'bg-emerald-50/90 dark:bg-slate-800 border-emerald-600 dark:border-[#C7F303] ring-1 ring-emerald-500/25 shadow-2xs'
@@ -4431,7 +4447,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   ifConditionType: nextType as any,
                   ifConditionMode: nextType,
                   ifConditionLabel: computeIfConditionLabel(nextType, currentCfg.ifRuleExpression),
-                  ...(nextType === 'has_explicit_cedula'
+                  ...(nextType === 'has_explicit_cedula' ||
+                  nextType === 'has_explicit_cedula_or_placa' ||
+                  nextType === 'has_attached_document'
                     ? { ifPlacement: 'pre_source' }
                     : nextType === 'ai_verdict' && resolvedIfPlacement !== 'post_agent'
                       ? { ifPlacement: 'post_agent' }
@@ -4442,6 +4460,12 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             >
               <option value="has_explicit_cedula">
                 🪪 ¿El usuario proporcionó número de cédula?
+              </option>
+              <option value="has_explicit_cedula_or_placa">
+                🪪🚗 Cédula o Placa en mensaje (PESV / Multi-Portal)
+              </option>
+              <option value="has_attached_document">
+                📎 Archivo / Imagen adjunta (Incapacidad / Soporte PDF/PNG)
               </option>
               <option value="critical_findings">
                 🚨 Brechas Críticas / Vencimientos en BD (&gt;= 1)
@@ -4528,12 +4552,24 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           <div className="p-3.5 rounded-2xl border border-teal-500/35 bg-teal-500/5 dark:bg-slate-900/70 space-y-1.5">
             <span className="text-xs font-black uppercase text-teal-900 dark:text-[#C7F303] flex items-center gap-1.5">
               <GitBranch className="w-4 h-4 text-teal-600 dark:text-[#C7F303]" />
-              🚦 Topología Convergente Pre-Fuentes (`pre_source`)
+              🚦 Topología Pre-Fuentes (`pre_source`)
             </span>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-              • <strong>🟢 Rama SÍ (Dio Cédula):</strong> Conecta directo por el carril superior hacia el <strong>Agente IA</strong> (que invoca su herramienta <em>Web Scraping ARL · Antigravity</em> en <code>Herramienta +</code>) sin consultar nómina.<br />
-              • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge directamente hacia el <strong>Agente IA</strong> y la Salida final.
-            </p>
+            {resolvedIfConditionType === 'has_attached_document' ? (
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                • <strong>🟢 Rama SÍ (Archivo / Imagen adjunta):</strong> Entrega el PDF o imagen adjunta directamente al <strong>Agente IA</strong> y su nodo <em>Forense Incapacidad</em> para ejecutar la auditoría de metadatos binarios EXIF/PDF, Visión IA y Decreto 1427/2022.<br />
+                • <strong>⚪ Rama NO (Sin soporte adjunto):</strong> Solicita adjuntar la incapacidad o certificado médico en PDF/PNG/JPG sin consumir llamadas innecesarias.
+              </p>
+            ) : resolvedIfConditionType === 'has_explicit_cedula_or_placa' ? (
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                • <strong>🟢 Rama SÍ (Cédula o Placa en mensaje):</strong> Conecta directo por el carril superior hacia el <strong>Agente IA</strong> y sus herramientas en <code>Herramienta +</code> (<em>SIMIT &amp; RUNT Vial</em> o <em>Multi-Portal</em>) sin escanear la nómina.<br />
+                • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge hacia el <strong>Agente IA</strong> y la Salida final.
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                • <strong>🟢 Rama SÍ (Dio Cédula):</strong> Conecta directo por el carril superior hacia el <strong>Agente IA</strong> (que invoca su herramienta en <code>Herramienta +</code>) sin consultar nómina.<br />
+                • <strong>⚪ Rama NO (Solo Nombre):</strong> Consulta primero el aplicativo Hito en modo lectura (<em>Perfil Sociodemográfico · Por Nombre</em>) y converge directamente hacia el <strong>Agente IA</strong> y la Salida final.
+              </p>
+            )}
           </div>
         ) : (
         /* Tarjeta: Enrutamiento de Salidas Conectadas (Rama SÍ vs Rama NO) */
@@ -4867,6 +4903,219 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       rawId.includes('search_node') ||
       cleanId.includes('search_node'));
 
+  const isForensicDocVerifierNode =
+    cleanId === 'forensic_doc_verifier' ||
+    activeNode.key === 'extractor_forensic_doc_verifier' ||
+    activeNode.key === 'tool_inputs_forensic_doc_verifier';
+
+  if (isForensicDocVerifierNode) {
+    const isConnectedAsAgentTool =
+      activeNode.shape === 'circle_tool' || activeNode.key.startsWith('tool_inputs_');
+    const checkMetadata = currentCfg.forensicCheckMetadata !== false;
+    const checkVisualTampering = currentCfg.forensicCheckVisualTampering !== false;
+    const checkDecreto1427 = currentCfg.forensicCheckDecreto1427 !== false;
+    const activeLayersCount =
+      (checkMetadata ? 1 : 0) + (checkVisualTampering ? 1 : 0) + (checkDecreto1427 ? 1 : 0);
+    const selectedForensicModel =
+      currentCfg.aiModel === 'gemini-3.5-flash-lite' ||
+      currentCfg.aiModel === 'gemini-3.8-flash' ||
+      currentCfg.aiModel === 'gemini-3.6-flash'
+        ? currentCfg.aiModel
+        : 'gemini-3.6-flash';
+    const rethusPublicUrl =
+      'https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx';
+
+    const forensicLayers = [
+      {
+        id: 'forensicCheckMetadata' as const,
+        checked: checkMetadata,
+        badge: 'Capa 1 · Binaria',
+        title: '1. Metadatos Binarios EXIF / XMP / PDF y Estructura %%EOF',
+        desc: 'Inspecciona cabeceras internas (/Producer, /Creator, /CreationDate vs /ModDate), tablas XREF incrementales y múltiples marcadores %%EOF para detectar rastros de edición en Canva, Photoshop, Illustrator, iLovePDF o Sejda.',
+        cardTone:
+          'border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/15 text-purple-900 dark:text-purple-200',
+        badgeTone:
+          'bg-purple-500/15 border-purple-500/30 text-purple-700 dark:text-purple-300',
+      },
+      {
+        id: 'forensicCheckVisualTampering' as const,
+        checked: checkVisualTampering,
+        badge: 'Capa 2 · Visión IA',
+        title: '2. Detección Visual Multimodal de Alteración Tipográfica y Sellos',
+        desc: 'Analiza con Visión IA anomalías visuales de tipografía, desalineación de renglones, cambios de grosor o color en fechas/días otorgados, halos de compresión por recorte y superposición artificial de sellos o firmas médicas.',
+        cardTone:
+          'border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15 text-rose-900 dark:text-rose-200',
+        badgeTone: 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300',
+      },
+      {
+        id: 'forensicCheckDecreto1427' as const,
+        checked: checkDecreto1427,
+        badge: 'Capa 3 · Normativa',
+        title: '3. Validación Legal y Aritmética Decreto 1427/2022 + CIE-10 + NIT DIAN',
+        desc: 'Verifica los campos mínimos del certificado de incapacidad (Decreto 1427 de 2022), el cuadre matemático exacto entre Fecha Inicio, Fecha Fin y Días Otorgados, estructura válida de diagnóstico CIE-10 y consistencia del NIT DIAN de la entidad emisora.',
+        cardTone:
+          'border-teal-500/30 bg-teal-500/10 hover:bg-teal-500/15 text-teal-900 dark:text-teal-200',
+        badgeTone: 'bg-teal-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300',
+      },
+    ];
+
+    return (
+      <div className="space-y-3.5 min-w-0">
+        {/* Encabezado Glassmorphism WAPPY 14-Group Design System */}
+        <div className="p-3.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 dark:bg-slate-900/70 space-y-2.5 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-rose-500/30 bg-rose-500/10 text-[10.5px] font-black uppercase tracking-wide text-rose-800 dark:text-rose-300">
+              <ScanSearch className="w-3.5 h-3.5 shrink-0" />
+              <span>🔬 AUDITORÍA FORENSE DE INCAPACIDADES Y SOPORTES MÉDICOS</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-xl text-[10px] font-extrabold border bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300">
+                {isConnectedAsAgentTool ? '🔧 Herramienta + del Agente IA' : '📥 Etapa 2 · Extracción Forense'}
+              </span>
+              <span className="px-2 py-0.5 rounded-xl text-[10px] font-extrabold border bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300">
+                ✓ {activeLayersCount}/3 Capas Activas
+              </span>
+              {activeLayersCount < 3 && (
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
+                  icon={<Check className="w-3.5 h-3.5" />}
+                  label="Activar las 3 Capas"
+                  onClick={() =>
+                    onUpdateNodeConfig(activeNode.key, {
+                      forensicCheckMetadata: true,
+                      forensicCheckVisualTampering: true,
+                      forensicCheckDecreto1427: true,
+                    })
+                  }
+                />
+              )}
+            </div>
+          </div>
+          <p className="text-[11.5px] leading-relaxed font-medium text-slate-700 dark:text-slate-200">
+            Evalúa de forma no destructiva si un PDF o imagen de incapacidad médica presenta indicios de alteración digital, inconsistencias aritméticas o vacíos frente al Decreto 1427 de 2022 antes de registrarlo en Ausentismo / Condiciones de Salud.
+          </p>
+        </div>
+
+        {/* Selector de Modelo Multimodal de Visión Forense */}
+        <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 space-y-1.5 min-w-0">
+          <label className="block text-[10.5px] font-extrabold uppercase text-indigo-700 dark:text-indigo-300">
+            🧠 Modelo IA de Inspección Visual y Documental
+          </label>
+          <select
+            value={selectedForensicModel}
+            onChange={(e) => onUpdateNodeConfig(activeNode.key, { aiModel: e.target.value })}
+            className="w-full min-w-0 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+          >
+            <option value="gemini-3.6-flash">
+              Gemini 3.6 Flash (Recomendado · Equilibrio Visión Forense + Velocidad)
+            </option>
+            <option value="gemini-3.8-flash">
+              Gemini 3.8 Flash (Máxima precisión en sellos, micro-tipografía y PDFs escaneados)
+            </option>
+            <option value="gemini-3.5-flash-lite">
+              Gemini 3.5 Flash Lite (Ultra rápido · Pre-filtro ágil de soportes digitales)
+            </option>
+          </select>
+        </div>
+
+        {/* Las 3 Capas Activas de Verificación Forense */}
+        <div className="space-y-2.5 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-wide text-slate-800 dark:text-slate-100">
+              🛡️ Las 3 Capas Activas de Verificación Forense
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2.5">
+            {forensicLayers.map((layer) => (
+              <label
+                key={layer.id}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 select-none ${
+                  layer.checked
+                    ? layer.cardTone
+                    : 'border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 opacity-75 hover:opacity-100'
+                }`}
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-snug">
+                      {layer.title}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-lg border text-[9.5px] font-extrabold uppercase tracking-tight ${layer.badgeTone}`}
+                    >
+                      {layer.badge}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {layer.desc}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={layer.checked}
+                  onChange={(e) =>
+                    onUpdateNodeConfig(activeNode.key, { [layer.id]: e.target.checked })
+                  }
+                  className="w-4 h-4 mt-0.5 rounded border-rose-500 text-rose-600 shrink-0"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Nota Informativa Transparente sobre ReTHUS SISPRO (Sin evasión de CAPTCHA) */}
+        <div className="p-3.5 rounded-2xl border border-sky-500/30 bg-sky-500/10 dark:bg-slate-900/70 space-y-2 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-wide text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
+              <Stethoscope className="w-4 h-4 shrink-0" />
+              <span>🏥 Validación Humana Transparente en ReTHUS (SISPRO)</span>
+            </span>
+            <ExpandableButton
+              size="sm"
+              variant="blue"
+              icon={<ExternalLink className="w-3.5 h-3.5" />}
+              label="Portal ReTHUS SISPRO"
+              title="Abrir Consulta Pública Oficial de Talento Humano en Salud (SISPRO)"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.open(rethusPublicUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+            />
+          </div>
+          <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
+            Al detectar el nombre o número de identificación del médico u odontólogo tratante en el soporte, este nodo extrae sus datos y entrega el enlace oficial directo a{' '}
+            <code className="px-1 py-0.5 rounded bg-white/80 dark:bg-slate-950/70 border border-sky-500/25 text-[10.5px] font-mono text-sky-800 dark:text-sky-300">
+              ConsultaPublicaDeTHxIdentificacion.aspx
+            </code>{' '}
+            para que el responsable del SG-SST complete personalmente la verificación con el CAPTCHA visual (
+            <code className="px-1 py-0.5 rounded bg-white/80 dark:bg-slate-950/70 border border-sky-500/25 text-[10.5px] font-mono text-sky-800 dark:text-sky-300">
+              imgCaptcha
+            </code>
+            ), respetando íntegramente los controles de seguridad del portal estatal sin evadirlos.
+          </p>
+        </div>
+
+        {/* Instrucción Operativa Opcional */}
+        <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 space-y-1.5 min-w-0">
+          <label className="block text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-200">
+            💬 Instrucción Adicional de Auditoría Forense (`customInstruction`)
+          </label>
+          <input
+            type="text"
+            value={currentCfg.customInstruction || ''}
+            onChange={(e) =>
+              onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
+            }
+            placeholder="Ej: Contrastar nombre y cédula del paciente con Perfil Sociodemográfico (Hito 2) y resaltar cualquier rastro de edición PDF..."
+            className="w-full min-w-0 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-rose-500"
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (isWebScraperNode) {
     const isOfficialAgyPortalScraper = cleanId.startsWith('scraper_agy_');
     const isConnectedAsAgentTool =
@@ -4880,7 +5129,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const rawEngine =
       currentCfg.scriptEngine || customNodeObj?.scriptEngine || defaultCatalogEngine;
     const normalizedEngine =
-      rawEngine === 'chrome_devtools_mcp'
+      rawEngine === 'chrome_devtools_mcp' || rawEngine === 'antigravity_native_browser'
         ? 'chrome_mcp'
         : rawEngine === 'node_cheerio_puppeteer'
           ? 'node_cheerio'

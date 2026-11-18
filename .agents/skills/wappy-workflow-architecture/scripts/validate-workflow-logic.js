@@ -330,9 +330,20 @@ const VALID_SCRAPER_ENGINES = new Set([
   'custom_script',
 ]);
 
+const VALID_PRE_SOURCE_CONDITION_TYPES = new Set([
+  'has_explicit_cedula',
+  'has_explicit_cedula_or_placa',
+  'has_attached_document',
+]);
+
+const VALID_STRUCTURED_VERIFIER_TOOLS = new Set([
+  'tool_web_scraping_agy',
+  'forensic_doc_verifier',
+]);
+
 // Patrón estricto anti-fuga de identificadores técnicos internos en textos visibles al usuario
 const INTERNAL_CODE_IDENTIFIERS_REGEX =
-  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|google_antigravity|chrome_mcp|antigravity_native_browser|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
+  /\b(extract_drive|extract_gmail|extract_pc_folder|extract_ai_doc_ocr|extract_sst_workers|extract_sst_app|extract_web_scraping_agy|tool_web_scraping_agy|scraper_node_antigravity|scraper_agy_[a-z0-9_]+|forensic_doc_verifier|web_scraper_live|web_scraper|wappy_notebooklm|wappy_rag_documental|google_flow|google_antigravity|chrome_mcp|antigravity_native_browser|hito\d+_[a-z0-9_]+|matrices_[a-z0-9_]+|wappy_notification|acpm_task|email_report|canvas_doc|google_sheets|google_docs|google_slides|google_calendar|logic_merge|logic_loop|logic_approval_\d+|logic_merge_\d+|source_read|target_write_report|agent_tool|pre_source|pre_agent|post_agent|has_explicit_cedula|has_explicit_cedula_or_placa|has_attached_document|selectiveMultiPortalRouting|allowDirectNameWithoutWorkerMatch|name_lookup_only|schedule_cron|trigger_tenshi|trigger_email_in|trigger_qr_worker|trigger_webhook_in|wappy_memory_company|wappy_memory_antiduplicate|somos_sst_trabajadores|somos_sst_examenes|somos_sst_epp|somos_sst_perfiles_cargo|consultar_medlineplus_rehabilitacion|consultar_pubchem_quimico|pronostico_clima_sst|buscar_centros_emergencia|cursos_lms|web_search|matriz_pesv|matriz_compatibilidad|expiry_only|critical_only|write_and_update|write_and_report|read_only)\b/gi;
 
 function getHitoConfig(nodeConfigs, hitoId) {
   if (!nodeConfigs || typeof nodeConfigs !== 'object') return {};
@@ -485,10 +496,15 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
     }
   }
 
-  // Invariante 4: Cero redundancia / solapamiento de fuentes y Hitos sin duplicar
+  // Invariante 4: Cero redundancia / solapamiento de fuentes y Hitos/Herramientas sin duplicar
   if (new Set(hitos).size !== hitos.length) {
     errors.push(
       `[Inv-04] Aplicativos Hito duplicados en \`workflowNodes.hitos\`: [${hitos.join(', ')}] (prohibido leer el mismo Hito en Etapa 2 y a la vez en Herramienta +).`,
+    );
+  }
+  if (new Set(inputs).size !== inputs.length) {
+    errors.push(
+      `[Inv-04] Herramientas duplicadas en \`workflowNodes.inputs\`: [${inputs.join(', ')}] (se permiten múltiples \`scraper_agy_*\` distintos, pero jamás repetidos).`,
     );
   }
   const activeSet = new Set([...extractors, ...inputs, ...hitos, ...memories]);
@@ -697,8 +713,16 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
 
     if (placement === 'pre_source') {
       // En `pre_source` estilo n8n (AI Agent + Herramienta +):
-      // Rama SÍ va directo al Agente IA y su Herramienta + (ej. `scraper_agy_arl_directo` en `inputs[]`, con `extractors: []`),
-      // mientras Rama NO consulta primero el Hito `source_read` (`name_lookup_only`) y converge hacia el Agente IA -> Salidas.
+      // Rama SÍ va directo al Agente IA y su Herramienta + (ej. `scraper_agy_*` o `forensic_doc_verifier` en `inputs[]`, con `extractors: []`),
+      // mientras Rama NO consulta primero el Hito `source_read` (`name_lookup_only`) o corta en 0 tokens y converge hacia Salidas.
+      if (
+        ifCfg.ifConditionType &&
+        !VALID_PRE_SOURCE_CONDITION_TYPES.has(String(ifCfg.ifConditionType).trim())
+      ) {
+        errors.push(
+          `[Inv-08] \`ifConditionType\` inválido para \`pre_source\`: "${ifCfg.ifConditionType}". Permitidos: ${Array.from(VALID_PRE_SOURCE_CONDITION_TYPES).join(', ')}.`,
+        );
+      }
       for (const outId of outputs) {
         if (!VALID_OUTPUTS.has(outId)) {
           errors.push(`[Inv-09] Nodo de salida desconocido: "${outId}".`);
@@ -713,11 +737,11 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
         );
       }
       const hasAgentStructuredScraperTool = inputs.some(
-        (inId) => String(inId).startsWith('scraper_agy_') || inId === 'tool_web_scraping_agy',
+        (inId) => String(inId).startsWith('scraper_agy_') || VALID_STRUCTURED_VERIFIER_TOOLS.has(inId),
       );
       if (extractors.length === 0 && !hasAgentStructuredScraperTool && agentToolHitos.length === 0) {
         errors.push(
-          '[Inv-08] El enrutador `pre_source` requiere una herramienta estructurada en `Herramienta +` (`inputs[]`, ej. `scraper_agy_*`) o un extractor convergente.',
+          '[Inv-08] El enrutador `pre_source` requiere una herramienta estructurada en `Herramienta +` (`inputs[]`, ej. `scraper_agy_*` o `forensic_doc_verifier`) o un extractor convergente.',
         );
       }
     } else {
@@ -942,6 +966,34 @@ function validateSingleWorkflow(preset, index = 0, options = {}) {
       );
     }
   }
+  if (inputs.includes('forensic_doc_verifier')) {
+    const directForensicCfg = nodeConfigs.forensic_doc_verifier;
+    const prefixedForensicCfg = nodeConfigs.tool_inputs_forensic_doc_verifier;
+    if (!directForensicCfg || typeof directForensicCfg !== 'object') {
+      errors.push(
+        '[Inv-19] Falta configuración espejo en `nodeConfigs["forensic_doc_verifier"]` para la herramienta `forensic_doc_verifier`.',
+      );
+    }
+    if (!prefixedForensicCfg || typeof prefixedForensicCfg !== 'object') {
+      errors.push(
+        '[Inv-19] Falta configuración espejo en `nodeConfigs["tool_inputs_forensic_doc_verifier"]` para la herramienta `forensic_doc_verifier`.',
+      );
+    }
+  }
+  if (extractors.includes('forensic_doc_verifier')) {
+    const directForensicCfg = nodeConfigs.forensic_doc_verifier;
+    const prefixedForensicCfg = nodeConfigs.extractor_forensic_doc_verifier;
+    if (!directForensicCfg || typeof directForensicCfg !== 'object') {
+      errors.push(
+        '[Inv-19] Falta configuración espejo en `nodeConfigs["forensic_doc_verifier"]` para el extractor `forensic_doc_verifier`.',
+      );
+    }
+    if (!prefixedForensicCfg || typeof prefixedForensicCfg !== 'object') {
+      errors.push(
+        '[Inv-19] Falta configuración espejo en `nodeConfigs["extractor_forensic_doc_verifier"]` para el extractor `forensic_doc_verifier`.',
+      );
+    }
+  }
 
   // Invariante 14: Cero fuga de identificadores internos de código en textos visibles al usuario
   const promptStr = String(preset.prompt || '');
@@ -1142,6 +1194,25 @@ function main() {
         catalogGlobalErrors.push(`[Catálogo] Nombre de flujo duplicado: "${w.name}".`);
       }
       seenNames.add(w.name);
+    }
+  } else if (isTenshiAudit && !presetFilter) {
+    if (workflows.length !== 6) {
+      catalogGlobalErrors.push(
+        `[Tenshi Global] Se exigen exactamente 6 Flujos Globales Oficiales de Tenshi (actual: ${workflows.length}).`,
+      );
+    }
+    const seenTenshiKeys = new Set();
+    const seenTenshiNames = new Set();
+    for (const w of workflows) {
+      const k = w?.presetKey || w?.key;
+      if (seenTenshiKeys.has(k)) {
+        catalogGlobalErrors.push(`[Tenshi Global] presetKey duplicado: "${k}".`);
+      }
+      seenTenshiKeys.add(k);
+      if (seenTenshiNames.has(w?.name)) {
+        catalogGlobalErrors.push(`[Tenshi Global] Nombre de flujo duplicado: "${w?.name}".`);
+      }
+      seenTenshiNames.add(w?.name);
     }
   }
 
