@@ -1368,6 +1368,8 @@ const googleModels = {
     gemini: 1000000,
     'gemini-pro-vision': 12288,
     'gemini-exp': 2000000,
+    'gemini-4': 1000000,
+    'gemini-4-hydrogen': 1000000,
     'gemini-3': 1000000,
     'gemini-3.8-flash': 1000000,
     'gemini-3.6-pro': 1000000,
@@ -29346,7 +29348,11 @@ function getGoogleConfig(credentials, options = {}) {
     else {
         throw new Error(`Invalid credentials provided. Please provide either a valid API key or service account credentials for Google Cloud.`);
     }
-    const shouldEnableThinking = thinking && thinkingBudget != null && (thinkingBudget > 0 || thinkingBudget === -1);
+    const isGemini4Model = /gemini-4|hydrogen/i.test(String(llmConfig.model || ''));
+    const shouldEnableThinking = !isGemini4Model &&
+        thinking &&
+        thinkingBudget != null &&
+        (thinkingBudget > 0 || thinkingBudget === -1);
     if (shouldEnableThinking && provider === agents.Providers.GOOGLE) {
         llmConfig.thinkingConfig = {
             thinkingBudget: thinking ? thinkingBudget : librechatDataProvider.googleSettings.thinkingBudget.default,

@@ -19,7 +19,7 @@ import {
   useGetAgentByIdQuery,
   useGetExpandedAgentByIdQuery,
 } from '~/data-provider';
-import { createProviderOption, getDefaultAgentFormValues } from '~/utils';
+import { createProviderOption, getDefaultAgentFormValues, isTextChatModel } from '~/utils';
 import { useResourcePermissions } from '~/hooks/useResourcePermissions';
 import { useSelectAgent, useLocalize, useAuthContext } from '~/hooks';
 import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
@@ -63,7 +63,16 @@ export default function AgentPanel() {
 
   const agentQuery = canEdit && expandedAgentQuery.data ? expandedAgentQuery : basicAgentQuery;
 
-  const models = useMemo(() => modelsQuery.data ?? {}, [modelsQuery.data]);
+  const models = useMemo(() => {
+    const rawModels = modelsQuery.data ?? {};
+    const filtered: Record<string, string[]> = {};
+    for (const [providerKey, providerModels] of Object.entries(rawModels)) {
+      filtered[providerKey] = Array.isArray(providerModels)
+        ? providerModels.filter((m) => isTextChatModel(m))
+        : [];
+    }
+    return filtered;
+  }, [modelsQuery.data]);
   const methods = useForm<AgentForm>({
     defaultValues: getDefaultAgentFormValues(),
     mode: 'onChange',

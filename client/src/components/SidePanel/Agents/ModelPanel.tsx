@@ -14,7 +14,7 @@ import {
 import type * as t from 'librechat-data-provider';
 import type { AgentForm, AgentModelPanelProps, StringOption } from '~/common';
 import { useGetEndpointsQuery } from '~/data-provider';
-import { getEndpointField, cn } from '~/utils';
+import { getEndpointField, cn, isTextChatModel } from '~/utils';
 import { useLocalize } from '~/hooks';
 import { Panel } from '~/common';
 
@@ -39,7 +39,7 @@ export default function ModelPanel({
     return value ?? '';
   }, [providerOption]);
   const models = useMemo(
-    () => (provider ? (modelsData[provider] ?? []) : []),
+    () => (provider ? (modelsData[provider] ?? []).filter((m) => isTextChatModel(m)) : []),
     [modelsData, provider],
   );
 
@@ -48,8 +48,7 @@ export default function ModelPanel({
     if (provider && _model) {
       const modelExists = models.includes(_model);
       if (!modelExists) {
-        const newModels = modelsData[provider] ?? [];
-        setValue('model', newModels[0] ?? '');
+        setValue('model', models[0] ?? '');
       }
       localStorage.setItem(LocalStorageKeys.LAST_AGENT_MODEL, _model);
       localStorage.setItem(LocalStorageKeys.LAST_AGENT_PROVIDER, provider);
@@ -58,7 +57,7 @@ export default function ModelPanel({
     if (provider && !_model) {
       setValue('model', models[0] ?? '');
     }
-  }, [provider, models, modelsData, setValue, model]);
+  }, [provider, models, setValue, model]);
 
   const { data: endpointsConfig = {} } = useGetEndpointsQuery();
 

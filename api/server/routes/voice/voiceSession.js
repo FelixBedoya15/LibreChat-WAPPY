@@ -1266,7 +1266,7 @@ class VoiceSession {
                                             description: { type: "string" },
                                             category: { type: "string", description: "'sgsst'|'legal'|'medicina'|'general'" },
                                             instructions: { type: "string" },
-                                            model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'" },
+                                            model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'|'gemini-4-hydrogen'" },
                                             temperature: { type: "number" },
                                             tools: { type: "array", items: { type: "string" } },
                                             incluirTodasLasHerramientas: { type: "boolean" },
@@ -1294,7 +1294,7 @@ class VoiceSession {
                                     description: { type: "string", description: "Especialidad breve" },
                                     category: { type: "string", description: "'sgsst'|'legal'|'medicina'|'general'" },
                                     instructions: { type: "string", description: "System Prompt / instrucciones" },
-                                    model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'" },
+                                    model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'|'gemini-4-hydrogen'" },
                                     temperature: { type: "number", description: "0.0-1.0 (defecto 0.2)" },
                                     tools: { type: "array", items: { type: "string" }, description: "['todas'] o ['sst','google','notebooklm','antigravity','flow','canvas','web_search','matriz_ipevar','matriz_pesv','matriz_compatibilidad']" },
                                     incluirTodasLasHerramientas: { type: "boolean" },
@@ -1317,7 +1317,7 @@ class VoiceSession {
                                     description: { type: "string" },
                                     category: { type: "string" },
                                     instructions: { type: "string" },
-                                    model: { type: "string" },
+                                    model: { type: "string", description: "'gemini-3.5-flash-lite'|'gemini-3.6-flash'|'gemini-3.8-flash'|'gemini-4-hydrogen'" },
                                     temperature: { type: "number" },
                                     tools: { type: "array", items: { type: "string" } },
                                     agregar_herramientas: { type: "array", items: { type: "string" } },
@@ -1895,7 +1895,7 @@ class VoiceSession {
                                     },
                                     modelo_ia: {
                                         type: "string",
-                                        description: "Modelo Gemini vigente del sistema para el nodo LLM del DAG: 'gemini-3.5-flash-lite' (por defecto), 'gemini-3.6-flash' o 'gemini-3.8-flash'."
+                                        description: "Modelo Gemini vigente del sistema para el nodo LLM del DAG: 'gemini-3.5-flash-lite' (por defecto), 'gemini-3.6-flash', 'gemini-3.8-flash' o 'gemini-4-hydrogen'."
                                     },
                                     crear_como_flujo_tenshi: {
                                         type: "boolean",
@@ -2853,7 +2853,7 @@ Eres Tenshi, copiloto y orquestadora oficial de WAPPY IA y Somos SST. Tienes con
   2. Descripción breve / Especialidad ('description'): Resumen de 1 línea en la tarjeta del agente.
   3. Categoría ('category'): 'sgsst', 'legal', 'medicina' o 'general'.
   4. Instrucciones del Sistema / Prompt ('instructions'): Su rol experto, normas legales colombianas que domina, tono y estructura de respuesta.
-  5. Modelo de IA y Temperatura ('model' y 'temperature'): Por defecto 'gemini-3.5-flash-lite' (o 'gemini-3.6-flash' / 'gemini-3.8-flash') y temperatura 0.2 (precisión técnica).
+  5. Modelo de IA y Temperatura ('model' y 'temperature'): Por defecto 'gemini-3.5-flash-lite' (o 'gemini-3.6-flash' / 'gemini-3.8-flash' / 'gemini-4-hydrogen') y temperatura 0.2 (precisión técnica).
   6. Herramientas Activas ('tools' / 'incluirTodasLasHerramientas'): Atajo ['todas'] (las 63 herramientas: 20 de WAPPY SST + 8 de Google Workspace/Antigravity/Flow + 35 de NotebookLM) o paquetes puntuales (['sst'], ['google'], ['notebooklm'], ['antigravity'], ['flow'], ['canvas'], ['web_search']).
   7. Habilidades / Skills ('skills'): Conocimientos especializados en api/config/skills (puedes usar ['todas']).
   8. Frases Iniciadoras ('conversation_starters'): 2 a 4 preguntas rápidas sugeridas al abrir el chat con el agente.

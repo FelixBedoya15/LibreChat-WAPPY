@@ -17,7 +17,7 @@ import {
   useUpdateAssistantMutation,
   useAvailableAgentToolsQuery,
 } from '~/data-provider';
-import { cn, cardStyle, defaultTextProps, removeFocusOutlines } from '~/utils';
+import { cn, cardStyle, defaultTextProps, removeFocusOutlines, isTextChatModel } from '~/utils';
 import AssistantConversationStarters from './AssistantConversationStarters';
 import AssistantToolsDialog from '~/components/Tools/AssistantToolsDialog';
 import { useSelectAssistant, useLocalize } from '~/hooks';
@@ -367,7 +367,7 @@ export default function AssistantPanel({
                     emptyTitle={true}
                     value={field.value}
                     setValue={field.onChange}
-                    availableValues={modelsQuery.data?.[endpoint] ?? []}
+                    availableValues={(modelsQuery.data?.[endpoint] ?? []).filter((m) => isTextChatModel(m))}
                     showAbove={false}
                     showLabel={false}
                     className={cn(

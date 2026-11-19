@@ -13,7 +13,7 @@ import { TooltipAnchor } from '@librechat/client';
 import { useAgentSessionOverrides } from '~/hooks/Agents';
 import type { NotebookLMNotebookItem } from '~/hooks/Agents/useAgentSessionOverrides';
 import { useLocalize, useAuthContext } from '~/hooks';
-import { cn } from '~/utils';
+import { cn, isTextChatModel } from '~/utils';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
 
@@ -237,10 +237,16 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         const allModels = new Set<string>();
         Object.values(data).forEach((list) => {
             if (Array.isArray(list)) {
-                list.forEach((m) => allModels.add(m));
+                list.forEach((m) => {
+                    if (isTextChatModel(m)) {
+                        allModels.add(m);
+                    }
+                });
             }
         });
-        const providerModels = agentProvider ? (data[agentProvider] ?? []) : [];
+        const providerModels = agentProvider
+            ? (data[agentProvider] ?? []).filter((m) => isTextChatModel(m))
+            : [];
         return providerModels.length > 0 ? providerModels : [...allModels].sort();
     }, [modelsQuery.data, agentProvider]);
 

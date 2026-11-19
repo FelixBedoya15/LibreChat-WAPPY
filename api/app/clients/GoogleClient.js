@@ -248,7 +248,7 @@ class GoogleClient extends BaseClient {
       if (!currentModel || currentModel.includes('live') || currentModel.includes('native-audio') || currentModel.includes('transcribe') || currentModel.includes('tts')) {
         currentModel = 'gemini-3.6-flash';
       }
-      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash')
+      const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-4-hydrogen')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
@@ -265,7 +265,7 @@ class GoogleClient extends BaseClient {
 
     this._modelFallbackIndex++;
     const nextModel = this._modelFallbacks[this._modelFallbackIndex];
-    logger.warn(`[GoogleClient] 503 / overloaded — rotating model to "${nextModel}" (fallback ${this._modelFallbackIndex}/${this._modelFallbacks.length - 1})`);
+    logger.warn(`[GoogleClient] 503/504 / overloaded — rotating model to "${nextModel}" (fallback ${this._modelFallbackIndex}/${this._modelFallbacks.length - 1})`);
 
     // Apply new model and reset key rotation to retry all keys
     this.modelOptions.model = nextModel;
@@ -747,6 +747,9 @@ class GoogleClient extends BaseClient {
         if (!modelOptions.mediaResolution) {
           modelOptions.mediaResolution = 'MEDIA_RESOLUTION_LOW';
         }
+        if (/gemini-4|hydrogen/i.test(modelName) && modelOptions.thinkingConfig) {
+          delete modelOptions.thinkingConfig;
+        }
 
         /** @type {GenerateContentRequest} */
         const requestOptions = {
@@ -766,7 +769,7 @@ class GoogleClient extends BaseClient {
           };
         }
 
-        const delay = modelName.includes('flash') ? 8 : 15;
+        const delay = modelName.includes('flash') || modelName.includes('hydrogen') ? 8 : 15;
         /** @type {GenAIUsageMetadata} */
         let usageMetadata;
 
@@ -827,7 +830,7 @@ class GoogleClient extends BaseClient {
         if (this.isGenerativeModel) {
           delay = 15;
         }
-        if (modelName.includes('flash')) {
+        if (modelName.includes('flash') || modelName.includes('hydrogen')) {
           delay = 5;
         }
       }
@@ -859,22 +862,32 @@ class GoogleClient extends BaseClient {
       error = e;
       logger.error('[GoogleClient] There was an issue generating the completion', e);
 
-      // Check for rate limit (429), quota exceeded (403), or invalid key (400) errors
-      const isRateLimit = e.status === 429 || (e.response && e.response.status === 429);
-      const isQuotaExceeded = e.status === 403 || (e.response && e.response.status === 403);
-      const isInvalidKey = (e.status === 400 || (e.response && e.response.status === 400)) &&
+      // Check for rate limit (429), quota exceeded (403), invalid key (400), or 503/504 service unavailable errors
+      const errStatus = e.status || (e.response && e.response.status);
+      const isRateLimit = errStatus === 429;
+      const isQuotaExceeded = errStatus === 403;
+      const isInvalidKey = errStatus === 400 &&
         e.message && (e.message.includes('API_KEY_INVALID') || e.message.includes('API key not valid'));
-      const isServiceUnavailable = e.status === 503 || (e.response && e.response.status === 503) ||
-        (e.message && (e.message.includes('overloaded') || e.message.includes('Service Unavailable') || e.message.includes('UNAVAILABLE')));
+      const isServiceUnavailable =
+        errStatus === 503 ||
+        errStatus === 504 ||
+        (e.message &&
+          (e.message.includes('503') ||
+            e.message.includes('504') ||
+            e.message.includes('overloaded') ||
+            e.message.includes('Service Unavailable') ||
+            e.message.includes('UNAVAILABLE') ||
+            e.message.includes('DEADLINE_EXCEEDED') ||
+            e.message.includes('Gateway Timeout')));
 
       if (isRateLimit || isQuotaExceeded || isInvalidKey) {
         geminiPoolManager.reportKeyStatus(this.apiKey, this.modelOptions?.model, {
-          status: e.status || (e.response && e.response.status),
+          status: errStatus,
           message: e.message,
           isDailyLimit: e.message && (e.message.includes('GenerateRequestsPerDay') || e.message.includes('limit: 20')),
         });
         if (this.rotateKey()) {
-          logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
+          logger.warn(`[GoogleClient] Encountered ${errStatus} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
           const { sendEvent } = require('@librechat/api');
           await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
 
@@ -898,11 +911,11 @@ class GoogleClient extends BaseClient {
 
       if (isServiceUnavailable) {
         geminiPoolManager.reportKeyStatus(this.apiKey, this.modelOptions?.model, {
-          status: 503,
+          status: errStatus === 504 ? 504 : 503,
           message: e.message,
         });
         if (this.rotateModel()) {
-          logger.warn(`[GoogleClient] Model overloaded/unavailable (503). Switching to fallback model and retrying...`);
+          logger.warn(`[GoogleClient] Model overloaded/unavailable (${errStatus || '503/504'}). Switching to fallback model and retrying...`);
           const { sendEvent } = require('@librechat/api');
           await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
 

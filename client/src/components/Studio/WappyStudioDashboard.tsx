@@ -373,6 +373,12 @@ interface TtsJobState {
 
 export const WAPPY_GOOGLE_MODELS_ECOSYSTEM = [
   {
+    id: 'gemini-4-hydrogen',
+    category: 'Generación IA & Guiones',
+    badge: 'Nuevo 4.0',
+    description: 'Modelo insignia de nueva generación para guiones complejos, arquitectura HTML/GSAP y dirección creativa.',
+  },
+  {
     id: 'gemini-3.8-flash',
     category: 'Generación IA & Guiones',
     badge: 'Principal 3.8',
@@ -2738,7 +2744,7 @@ export default function WappyStudioDashboard({
   // Modelo de IA para generación de escenas HTML/GSAP y mejora de guiones (leído desde GOOGLE_MODELS igual que los demás módulos de WAPPY)
   const [selectedAiModel, setSelectedAiModel] = useState<string>(() =>
     user?.personalization?.geminiModels?.sstManagement ||
-    (process.env.GOOGLE_MODELS || 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite').split(',')[0].trim() ||
+    (process.env.GOOGLE_MODELS || 'gemini-3.8-flash,gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite').split(',')[0].trim() ||
     'gemini-3.8-flash',
   );
   const [isEnhancingScript, setIsEnhancingScript] = useState<boolean>(false);
@@ -13175,6 +13181,7 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                   {WAPPY_GOOGLE_MODELS_ECOSYSTEM.map((gm) => {
                     const isTts = gm.id.includes('tts');
                     const isGen =
+                      gm.id === 'gemini-4-hydrogen' ||
                       gm.id === 'gemini-3.8-flash' ||
                       gm.id === 'gemini-3.6-flash' ||
                       gm.id === 'gemini-3.5-flash-lite';

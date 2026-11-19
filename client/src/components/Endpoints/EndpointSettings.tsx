@@ -3,7 +3,7 @@ import { SettingsViews, TConversation } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import type { TSettingsProps } from '~/common';
 import { useGetEndpointsQuery } from '~/data-provider';
-import { cn, getEndpointField } from '~/utils';
+import { cn, getEndpointField, isTextChatModel } from '~/utils';
 import { getSettings } from './Settings';
 import store from '~/store';
 
@@ -24,7 +24,7 @@ export default function Settings({
 
   const { settings, multiViewSettings } = getSettings();
   const { endpoint: _endpoint } = conversation as TConversation;
-  const models = modelsQuery.data?.[_endpoint ?? ''] ?? [];
+  const models = (modelsQuery.data?.[_endpoint ?? ''] ?? []).filter((m) => isTextChatModel(m));
   const OptionComponent = settings[endpoint];
 
   if (OptionComponent) {

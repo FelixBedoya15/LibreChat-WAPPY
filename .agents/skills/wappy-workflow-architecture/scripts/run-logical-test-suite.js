@@ -164,7 +164,7 @@ async function runFullLogicalTestSuite() {
   let totalPresetErrors = 0;
   let totalPresetWarnings = 0;
   let totalHitoParityChecks = 0;
-  const allowedEnvModels = new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']);
+  const allowedEnvModels = new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen']);
 
   for (let idx = 0; idx < SYSTEM_WORKFLOW_PRESETS.length; idx++) {
     const preset = SYSTEM_WORKFLOW_PRESETS[idx];

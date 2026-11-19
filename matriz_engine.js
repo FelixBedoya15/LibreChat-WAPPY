@@ -361,7 +361,7 @@ const DISEASE_KEYWORDS = [
   { name: 'VBM / Raynaud', keywords: ['vibración', 'vbm', 'raynaud', 'mano-brazo', 'martillo'] }
 ];
 
-const ALLOWED_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+const ALLOWED_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-4-hydrogen', 'gemini-3.5-flash-lite'];
 
 // GTC45_TARGET_FIELDS está administrado en el motor homologador universal
 

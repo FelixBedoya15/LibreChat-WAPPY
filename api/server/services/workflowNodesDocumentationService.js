@@ -350,7 +350,7 @@ const SPECIAL_NODE_OVERRIDES = {
     backendMechanics:
       'Ejecuta `analyzeDisabilityCertificateForensics` (`api/server/services/forensicDocumentService.js`) en **4 capas reales**:\n' +
       '  - **Capa 1 (Forense Binaria Determinista):** Huella SHA-256, validación de Magic Bytes reales vs MIME declarado, inspección de diccionarios `/Info`, XMP, múltiples marcadores `%%EOF`/`xref` y detección de editores gráficos/PDF (`Canva`, `iLovePDF`, `Photoshop`, `Sejda`, `CorelDRAW`) o metadatos EXIF/PNG/WEBP.\n' +
-      '  - **Capa 2 (Visión Multimodal IA):** Inspección visual con Gemini (`gemini-3.5-flash-lite` / `gemini-3.6-flash` / `gemini-3.8-flash`) detectando parches blancos, desalineaciones de renglón, tipografías superpuestas, sellos pixelados y plausibilidad clínica CIE-10 vs días.\n' +
+      '  - **Capa 2 (Visión Multimodal IA):** Inspección visual con Gemini (`gemini-3.5-flash-lite` / `gemini-3.6-flash` / `gemini-3.8-flash` / `gemini-4-hydrogen`) detectando parches blancos, desalineaciones de renglón, tipografías superpuestas, sellos pixelados y plausibilidad clínica CIE-10 vs días.\n' +
       '  - **Capa 3 (Matemática, DIAN y Censo Hito 2):** Cuadre inclusivo `fechaFin - fechaInicio + 1 === diasNumero`, concordancia entre días en cifras y letras en español (`parseSpanishDaysWords`), validación Módulo 11 DIAN del NIT emisor y cruce aislado por `companyId` contra `SgsstWorker` / `PerfilSociodemograficoData`.\n' +
       '  - **Capa 4 (Verificación Institucional Automática 100% SIN CAPTCHA):** Consulta la API Abierta Socrata de **MinSalud REPS** (`datos.gov.co/resource/c36g-9fc2.json`, timeout `5500ms`, 0 CAPTCHA) para validar si el NIT de la IPS/Clínica y/o la cédula del profesional independiente están **HABILITADOS EN REPS**, y cruza la cédula del médico en **Contraloría General** (`consultarContraloriaFiscalPorCedula`, timeout `9000ms`) comparando tokens sin tildes del titular real del Estado contra el nombre impreso (disparando bandera de fraude `HIGH` si la cédula pertenece a otra persona). Además, cuando se conecta junto a `scraper_agy_antecedentes`, le transfiere automáticamente `medicoCedula` y `medicoNombre` para adjuntar el PDF oficial de Contraloría del médico firmante. Informa con total precisión que la consulta puntual del título académico en `SISPRO ReTHUS` exige resolver manualmente el CAPTCHA visual humano (`imgCaptcha`).',
     tenshiPromptExample:
@@ -787,7 +787,7 @@ function buildStepByStepConfigSection(entry) {
   } else if (entry.id === 'extract_ai_doc_ocr') {
     lines.push(
       '- **1. Conectar Fuente Previa:** Ubícalo después de `extract_drive`, `extract_gmail` o `extract_pc_folder`.',
-      '- **2. Modelo Multimodal (`aiModel`):** Elige `gemini-3.6-flash` (balance óptimo), `gemini-3.5-flash-lite` (alta velocidad) o `gemini-3.8-flash` (formularios densos/manuscritos como FURAT).',
+      '- **2. Modelo Multimodal (`aiModel`):** Elige `gemini-3.6-flash` (balance óptimo), `gemini-3.5-flash-lite` (alta velocidad), `gemini-3.8-flash` (formularios densos/manuscritos como FURAT) o `gemini-4-hydrogen` (motor agéntico Gemini 4 para razonamiento profundo).',
       '- **3. Esquema Exacto (`aiExtractionSchema`):** Define de 4 a 7 columnas tipadas (`{ key, label, type: "string"|"date"|"number"|"boolean", required, hint }`) tanto en `nodeConfigs.extractor_extract_ai_doc_ocr` como en `nodeConfigs.extract_ai_doc_ocr`.',
     );
   } else if (entry.id === 'forensic_doc_verifier') {

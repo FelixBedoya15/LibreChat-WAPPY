@@ -14,6 +14,7 @@ import { useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
 import { useModelSelectorChatContext } from './ModelSelectorChatContext';
 import useSelectMention from '~/hooks/Input/useSelectMention';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
+import { isTextChatModel } from '~/utils';
 import { filterItems } from './utils';
 
 type ModelSelectorContextType = {
@@ -115,12 +116,17 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
         return true;
       })
       .map((endpoint) => {
-        if (endpoint.models) {
+        if (
+          endpoint.models &&
+          !isAgentsEndpoint(endpoint.value) &&
+          !isAssistantsEndpoint(endpoint.value)
+        ) {
           return {
             ...endpoint,
-            models: endpoint.models.filter(
-              (m) => !LIVE_ONLY_MODELS.includes(typeof m === 'string' ? m : (m as any).name || ''),
-            ),
+            models: endpoint.models.filter((m) => {
+              const modelName = typeof m === 'string' ? m : (m as any).name || '';
+              return !LIVE_ONLY_MODELS.includes(modelName) && isTextChatModel(modelName);
+            }),
           };
         }
         return endpoint;

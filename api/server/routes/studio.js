@@ -186,7 +186,7 @@ const STUDIO_MODELS_METADATA = {
 
 function getEnvGoogleModelsList() {
   const defaultEnv =
-    'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.8-live,gemini-3.1-flash-live-preview,gemini-2.5-flash-native-audio-preview-12-2025,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-3.8-flash-lite-tts';
+    'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-4-hydrogen,gemini-3.8-live,gemini-3.1-flash-live-preview,gemini-2.5-flash-native-audio-preview-12-2025,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-3.8-flash-lite-tts';
   return (process.env.GOOGLE_MODELS || defaultEnv)
     .split(',')
     .map((m) => m.trim().replace('models/', ''))
@@ -2620,7 +2620,7 @@ Devuelve ÚNICAMENTE un JSON válido sin markdown con esta estructura exacta:
         });
       }
 
-      const analysisModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash'];
+      const analysisModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-4-hydrogen'];
       let analysisResp = null;
       for (const aModel of analysisModels) {
         for (let cStep = 0; cStep < Math.min(candidateKeyIndices.length, 4); cStep++) {

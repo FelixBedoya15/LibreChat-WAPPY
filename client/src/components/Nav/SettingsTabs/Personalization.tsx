@@ -4,6 +4,7 @@ import { useGetUserQuery, useUpdateMemoryPreferencesMutation, useGetEndpointsQue
 // import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { EModelEndpoint } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
+import { isTextChatModel } from '~/utils';
 
 interface PersonalizationProps {
   hasMemoryOptOut: boolean;
@@ -107,9 +108,10 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
+        'gemini-4-hydrogen',
+        'gemini-3.8-flash',
         'gemini-3.6-flash',
         'gemini-3.5-flash-lite',
-        'gemini-3.8-flash',
       ];
     }
 
@@ -120,8 +122,9 @@ export default function Personalization({
     googleModels.forEach((model) => {
       const modelId = typeof model === 'string' ? model : (model as any).id || (model as any).value;
       let modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
-      if (modelId && !modelId.includes('live') && !modelId.includes('native-audio') && !modelId.includes('tts') && !modelId.includes('3.1') && !modelId.includes('3.7')) {
-        if (modelId === 'gemini-3.8-flash') modelLabel = 'Gemini 3.8 Flash';
+      if (isTextChatModel(modelId) && !modelId.includes('3.1') && !modelId.includes('3.7')) {
+        if (modelId === 'gemini-4-hydrogen') modelLabel = 'Gemini 4 Hydrogen';
+        else if (modelId === 'gemini-3.8-flash') modelLabel = 'Gemini 3.8 Flash';
         else if (modelId === 'gemini-3.6-flash') modelLabel = 'Gemini 3.6 Flash';
         else if (modelId === 'gemini-3.5-flash-lite') modelLabel = 'Gemini 3.5 Flash Lite';
         options.push({ value: modelId, label: modelLabel });

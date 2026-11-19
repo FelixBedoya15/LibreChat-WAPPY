@@ -43,7 +43,7 @@ Todo flujo se construye respondiendo en orden estricto estas 6 preguntas:
      * Configura `if_router` con `ifPlacement: "pre_agent"`. Si existen `0` brechas/archivos nuevos, el flujo corta directo por la **`Rama NO`** hacia `wappy_notification` con **`0 tokens LLM`**.
    - Usa `ifPlacement: "post_agent"` **solo** cuando el evento entrante requiera valoración experta previa del Agente IA (ej. triaje de reportes QR en campo contra GTC 45), exigiendo los marcadores `[VEREDICTO_IF: SI]` / `[VEREDICTO_IF: NO]`.
 4. **¿Qué razona el Agente IA y qué herramientas invoca en `Herramienta +`? (`agent_root` + Clúster Inferior):**
-   - `aiModel`: Únicamente modelos verificados en `.env` (`gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`).
+   - `aiModel`: Únicamente modelos verificados en `.env` (`gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`, `gemini-4-hydrogen`).
    - **OBLIGATORIO (`>= 1` herramienta visible en `Herramienta +`):** Ningún `Agente IA` puede quedar con `Herramienta +` vacío (`inputs.length + agentToolHitos.length >= 1`).
    - **Rol `hitoRole: "agent_tool"` (Estilo `n8n` AI Agent Tools):**
      * **PROHIBIDO `hitoRole: "target_write_report"`** (no se colocan cajas Hito post-agente a la derecha).

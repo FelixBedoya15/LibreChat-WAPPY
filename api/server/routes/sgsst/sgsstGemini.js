@@ -26,11 +26,12 @@ const { User } = require('~/db/models');
 const { logger } = require('~/config');
 const geminiPoolManager = require('~/server/services/GeminiPoolManager');
 
-// Non-live Gemini models for 503 fallback rotation (strictly aligned with GOOGLE_MODELS in .env)
+// Non-live Gemini models for 503/504 fallback rotation (strictly aligned with GOOGLE_MODELS in .env)
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 
 const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,7 +39,7 @@ const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Translates WAPPY UI/preset legacy/non-text model IDs (e.g. 'gemini-3.7-flash', live/tts)
  * to real Google Generative Language API text model IDs BEFORE issuing network requests.
- * Preserves '.env' GOOGLE_MODELS text IDs ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash').
+ * Preserves '.env' GOOGLE_MODELS text IDs ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen').
  *
  * @param {string} rawModel
  * @param {string} [defaultModel='gemini-3.6-flash']
@@ -360,6 +361,10 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
       mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
     }
 
+    if (/gemini-4|hydrogen/i.test(targetModel) && mergedGenConfig.thinkingConfig) {
+      delete mergedGenConfig.thinkingConfig;
+    }
+
     const modelParams = { model: targetModel, generationConfig: mergedGenConfig };
 
     const systemInstruction = safeOpts.systemInstruction || (modelInstance && modelInstance.systemInstruction);
@@ -473,8 +478,10 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const isInvalidKey = status === 400 &&
           (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
 
-        // 503 service unavailable — unique to SGSST: retry 1 extra key after 1s, then rotate model
-        const is503 = status === 503 || msg.includes('503') ||
+        // 503/504 service unavailable or deadline exceeded — rotate model immediately
+        const is504 = status === 504 || msg.includes('504') ||
+          msg.includes('deadline_exceeded') || msg.includes('gateway timeout');
+        const is503 = status === 503 || is504 || msg.includes('503') ||
           msg.includes('service unavailable') || msg.includes('overloaded');
 
         // 404 model not found — unique to SGSST: rotate model so we don't freeze on deprecated experimental models
@@ -497,7 +504,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const isDaily = msg.includes('generaterequestsperday') || msg.includes('limit: 20');
 
         geminiPoolManager.reportKeyStatus(apiKey, currentModel, {
-          status: isModelTimeout || isTransientNet ? 503 : status,
+          status: is504 ? 504 : isModelTimeout || isTransientNet ? 503 : status,
           message: err.message,
           isDailyLimit: isDaily,
         });
@@ -518,7 +525,7 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           continue; // next key, same model
         }
 
-        // Rotate MODEL immediately on model/server unavailability (503, 404, timeout, network/fetch failure)
+        // Rotate MODEL immediately on model/server unavailability (503, 504, 404, timeout, network/fetch failure)
         if (is503 || is404 || isModelTimeout || isTransientNet) {
           if (is503 || isModelTimeout || isTransientNet) {
             saw503AcrossModels = true;
@@ -526,6 +533,8 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           modelCooldownMap.set(currentModel, Date.now() + (is404 ? 3600000 : 120000));
           const failLabel = is404
             ? '404 No Encontrado'
+            : is504
+            ? '504 Gateway Timeout / DEADLINE_EXCEEDED'
             : isModelTimeout
             ? 'Timeout sin respuesta'
             : isTransientNet

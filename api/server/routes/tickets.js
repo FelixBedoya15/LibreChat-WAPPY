@@ -181,12 +181,12 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
 
         const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
-        // Dual-axis rotation: keys first, model fallback on 503
+        // Dual-axis rotation: keys first, model fallback on 503/504
         const primaryModel = modelName || 'gemini-3.5-flash-lite';
-        const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash')
+        const envModels = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash,gemini-4-hydrogen')
             .split(',')
             .map(m => m.trim().replace('models/', ''))
-            .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'));
+            .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'));
         const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
 
         // ... (knowledge gathering stays unchanged)
@@ -309,9 +309,18 @@ INSTRUCCIONES:
                         logger.warn(`[Tickets AI] Clave #${i + 1} rechazada (${status}). Rotando clave...`);
                         continue;
                     }
-                    // Model fallback on 503
-                    if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
-                        logger.warn(`[Tickets AI] Modelo "${currentModel}" no disponible (503). Cambiando modelo...`);
+                    // Model fallback on 503/504
+                    if (
+                        status === 503 ||
+                        status === 504 ||
+                        msg.includes('503') ||
+                        msg.includes('504') ||
+                        msg.includes('overloaded') ||
+                        msg.includes('Service Unavailable') ||
+                        msg.includes('DEADLINE_EXCEEDED') ||
+                        msg.includes('Gateway Timeout')
+                    ) {
+                        logger.warn(`[Tickets AI] Modelo "${currentModel}" no disponible (${status || '503/504'}). Cambiando modelo...`);
                         break;
                     }
                     throw keyError;

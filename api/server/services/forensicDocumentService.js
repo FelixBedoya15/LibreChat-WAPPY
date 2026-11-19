@@ -25,6 +25,7 @@ const ALLOWED_FORENSIC_GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 
 const DIAN_MOD11_PRIMES = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];

@@ -1383,10 +1383,14 @@ export default function WappyWorkflowCanvas({
 
   const currentModelDef = useMemo(() => {
     if (aiEngine === 'antigravity_cloud') {
-      return AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity_cloud') || AI_ENGINE_MODELS[4] || AI_ENGINE_MODELS[3];
+      return (
+        AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity_cloud') ||
+        AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity') ||
+        AI_ENGINE_MODELS[0]
+      );
     }
     if (aiEngine === 'antigravity') {
-      return AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity') || AI_ENGINE_MODELS[3];
+      return AI_ENGINE_MODELS.find((m) => m.engine === 'antigravity') || AI_ENGINE_MODELS[0];
     }
     return (
       AI_ENGINE_MODELS.find((m) => m.engine === 'wappy' && m.model === aiModel) || AI_ENGINE_MODELS[0]

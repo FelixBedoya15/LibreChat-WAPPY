@@ -495,6 +495,7 @@ SIEMPRE que crees, diseñes o modifiques un aplicativo interactivo, calculadora,
      - \`gemini-3.5-flash-lite\` (Ultra Velocidad y Baja Latencia)
      - \`gemini-3.6-flash\` (Predeterminado - Potente y Equilibrado SST)
      - \`gemini-3.8-flash\` (Avanzado y Análisis Profundo)
+     - \`gemini-4-hydrogen\` (Motor Agéntico Gemini 4 — Alta Inteligencia y Herramientas)
   3. Contexto Dinámico (\`getAppCurrentContext()\`): El aplicativo debe recolectar en tiempo real los datos en pantalla (Razón Social, NIT, indicadores visibles de \`.metric-card\` o \`[data-metric]\`, filas de la tabla de datos o Google Sheets, filtros activos) y enviarlos en el payload como \`context\`.
   4. Petición al Backend: Realiza llamadas fetch autenticadas a \`/api/sgsst/canvas/app-builder/generate\` (o \`/api/sgsst/canvas/ai-chat\`) con \`credentials: 'include'\`, pasando \`{ model, userInput, context, history }\`.
   5. Capacidades del Chat: El usuario puede consultar cálculos, pedir diagnósticos SST, recomendaciones normativas (Dec. 1072, Res. 0312, PESV), resumir hallazgos o simular escenarios sobre los datos cargados en el aplicativo.
@@ -1183,7 +1184,7 @@ ${availablePreview}
       if (primaryMemModel.includes('live') || primaryMemModel.includes('native-audio') || primaryMemModel.includes('transcribe') || primaryMemModel.includes('tts')) {
         primaryMemModel = 'gemini-3.5-flash-lite';
       }
-      const envMemModels = (process.env.GOOGLE_MODELS || '')
+      const envMemModels = (process.env.GOOGLE_MODELS || 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash,gemini-4-hydrogen')
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
@@ -1221,6 +1222,10 @@ ${availablePreview}
               }
               appConfig.memory.agent.model_parameters.apiKey = currentKey;
               appConfig.memory.agent.model_parameters.model = currentMemModel;
+              if (/gemini-4|hydrogen/i.test(currentMemModel)) {
+                delete appConfig.memory.agent.model_parameters.thinkingConfig;
+                delete appConfig.memory.agent.model_parameters.thinkingBudget;
+              }
             }
             // Re-create the processor with the updated key & model
             await this.useMemory();
@@ -1233,8 +1238,15 @@ ${availablePreview}
             const isQuota = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
-            const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
-              err?.message?.includes('overloaded') || err?.message?.includes('UNAVAILABLE');
+            const isServiceUnavailable =
+              err?.status === 503 ||
+              err?.status === 504 ||
+              err?.message?.includes('503') ||
+              err?.message?.includes('504') ||
+              err?.message?.includes('overloaded') ||
+              err?.message?.includes('UNAVAILABLE') ||
+              err?.message?.includes('DEADLINE_EXCEEDED') ||
+              err?.message?.includes('Gateway Timeout');
             const isDaily = err?.message?.includes('GenerateRequestsPerDay') || err?.message?.includes('limit: 20');
 
             geminiPoolManager.reportKeyStatus(currentKey, currentMemModel, {
@@ -1805,10 +1817,10 @@ ${availablePreview}
       // Build model fallback list from GOOGLE_MODELS env for quota/overload rotation
       // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const isPublicChat = this.options.req?.body?.isPublicChat === true;
-      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash';
+      let defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash,gemini-4-hydrogen';
 
       if (isPublicChat) {
-        defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash';
+        defaultModels = 'gemini-3.5-flash-lite,gemini-3.6-flash,gemini-3.8-flash,gemini-4-hydrogen';
       }
 
       const envAgentModels = (process.env.GOOGLE_MODELS || defaultModels)
@@ -1951,21 +1963,21 @@ ${availablePreview}
 
       if (isPublicChat) {
         primaryAgentModel = 'gemini-3.5-flash-lite';
-        rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+        rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
       } else if (userExplicitModel && userExplicitModel !== 'default' && userExplicitModel !== '') {
         primaryAgentModel = userExplicitModel === 'gemini-3.7-flash' ? 'gemini-3.6-flash' : userExplicitModel;
-        rawFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)].filter(Boolean);
+        rawFallbacks = [...new Set([primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel), 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'])].filter(Boolean);
         logger.info(`[WAPPY Brain Router] Modelo explícito del usuario: "${primaryAgentModel}"`);
       } else if (isCanvasTask) {
         // Arquitectura de Dos Modelos (Copia 3): Agente orquestador rápido (gemini-3.5-flash-lite) + CanvasTool potente
         // gemini-3.5-flash-lite no entra en bucle de pensamientos: ejecuta de inmediato la tool call de Canvas
-        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+        const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
         primaryAgentModel = 'gemini-3.5-flash-lite';
         rawFallbacks = operationalModels;
         logger.info(`[WAPPY Brain Router] [DOS MODELOS] Tarea de Aplicativo/Canvas detectada. Orquestador: "${primaryAgentModel}" (500 RPD, baja latencia). CanvasTool delegará la síntesis de código.`);
       } else if (isComplexTask) {
         // Matrices Especializadas (IPEVAR, PESV, Química) y Redacción Documental:
-        const matrixModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+        const matrixModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
         if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7')) {
           primaryAgentModel = 'gemini-3.6-flash';
         }
@@ -1977,10 +1989,10 @@ ${availablePreview}
         if (hasWebSearchIntent) {
           // gemini-3.5-flash-lite no entra en bucle de pensamientos tras ejecutar tools: ejecuta web_search y responde de inmediato con alta calidad y 500 RPD
           primaryAgentModel = 'gemini-3.5-flash-lite';
-          rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+          rawFallbacks = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
           logger.info(`[WAPPY Brain Router] [BÚSQUEDA WEB] Tarea con búsqueda web detectada. Modelo prioritario: "${primaryAgentModel}" (500 RPD, sin bucles de pensamiento)`);
         } else {
-          const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+          const operationalModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
           if (!primaryAgentModel || primaryAgentModel.includes('live') || primaryAgentModel.includes('native-audio') || primaryAgentModel.includes('transcribe') || primaryAgentModel.includes('gemini-2.5') || primaryAgentModel.includes('gemini-3.7')) {
             primaryAgentModel = 'gemini-3.5-flash-lite';
           }
@@ -2014,11 +2026,12 @@ ${availablePreview}
           break;
         }
         const currentModel = agentModelFallbacks[mi];
+        const isCurrentGemini4 = /gemini-4|hydrogen/i.test(currentModel);
         const isModelChanged = this.options.agent.model !== currentModel || this.options.agent.model_parameters?.model !== currentModel;
-        if (isModelChanged || mi > 0) {
+        if (isModelChanged || mi > 0 || isCurrentGemini4) {
           if (mi > 0) {
             logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
-          } else {
+          } else if (isModelChanged) {
             logger.info(`[AgentClient] Applying active model "${currentModel}" for agent execution`);
           }
           if (!this.options.agent.model_parameters) {
@@ -2026,11 +2039,19 @@ ${availablePreview}
           }
           this.options.agent.model_parameters.model = currentModel;
           this.options.agent.model_parameters.maxRetries = 0;
+          if (isCurrentGemini4) {
+            delete this.options.agent.model_parameters.thinkingConfig;
+            delete this.options.agent.model_parameters.thinkingBudget;
+          }
           this.options.agent.model = currentModel;
           this.model = currentModel;
           if (config?.configurable?.endpointOption?.model_parameters) {
             config.configurable.endpointOption.model_parameters.model = currentModel;
             config.configurable.endpointOption.model_parameters.maxRetries = 0;
+            if (isCurrentGemini4) {
+              delete config.configurable.endpointOption.model_parameters.thinkingConfig;
+              delete config.configurable.endpointOption.model_parameters.thinkingBudget;
+            }
           }
           if (config?.configurable?.endpointOption) {
             config.configurable.endpointOption.model = currentModel;
@@ -2042,12 +2063,18 @@ ${availablePreview}
               if (secondaryAg.model_parameters) {
                 secondaryAg.model_parameters.model = currentModel;
                 secondaryAg.model_parameters.maxRetries = 0;
+                if (isCurrentGemini4) {
+                  delete secondaryAg.model_parameters.thinkingConfig;
+                  delete secondaryAg.model_parameters.thinkingBudget;
+                }
               }
               secondaryAg.model = currentModel;
             }
           }
           // Reset attempt errors for new model
-          attemptErrors = [];
+          if (isModelChanged || mi > 0) {
+            attemptErrors = [];
+          }
         }
 
         let rotateToNextModel = false;
@@ -2135,10 +2162,19 @@ ${availablePreview}
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isNotFound = err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('not supported for generateContent');
-            const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
-              err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') ||
-              err?.message?.includes('UNAVAILABLE') || err?.message?.includes('Failed to parse stream') ||
-              err?.message?.includes('parse stream') || err?.message?.includes('Failed to parse');
+            const isServiceUnavailable =
+              err?.status === 503 ||
+              err?.status === 504 ||
+              err?.message?.includes('503') ||
+              err?.message?.includes('504') ||
+              err?.message?.includes('overloaded') ||
+              err?.message?.includes('Service Unavailable') ||
+              err?.message?.includes('UNAVAILABLE') ||
+              err?.message?.includes('DEADLINE_EXCEEDED') ||
+              err?.message?.includes('Gateway Timeout') ||
+              err?.message?.includes('Failed to parse stream') ||
+              err?.message?.includes('parse stream') ||
+              err?.message?.includes('Failed to parse');
             const isNetworkError = err?.message?.includes('fetch failed') ||
               err?.message?.includes('ECONNRESET') ||
               err?.message?.includes('ETIMEDOUT') ||
@@ -2381,22 +2417,24 @@ ${availablePreview}
         }
       }
 
-      // Second rotation pass across all fallback models if first pass hit transient Google 503 wave
+      // Second rotation pass across all fallback models if first pass hit transient Google 503/504 wave
       const lastErrMsg = String(lastErr?.message || '');
       const isLastErrTransient503OrNet =
         lastErr?.status === 503 ||
-        /503|overloaded|service unavailable|unavailable|failed to parse|parse stream|fetch failed|econnreset|etimedout|socket hang up|undici/i.test(
+        lastErr?.status === 504 ||
+        /503|504|overloaded|service unavailable|unavailable|deadline_exceeded|gateway timeout|failed to parse|parse stream|fetch failed|econnreset|etimedout|socket hang up|undici/i.test(
           lastErrMsg,
         );
       if (!success && lastErr && isLastErrTransient503OrNet && !abortController?.signal?.aborted) {
-        const rescueModels = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', ...agentModelFallbacks])];
+        const rescueModels = [...new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen', ...agentModelFallbacks])];
         logger.warn(
-          `[AgentClient Rescue Pass] First pass hit transient 503/network (${lastErrMsg.slice(0, 120)}). ` +
+          `[AgentClient Rescue Pass] First pass hit transient 503/504/network (${lastErrMsg.slice(0, 120)}). ` +
             `Waiting 2500ms for second rotation pass across [${rescueModels.join(', ')}]...`,
         );
         await sleep(2500, abortController?.signal);
         for (let rIdx = 0; rIdx < rescueModels.length && !success && !abortController?.signal?.aborted; rIdx++) {
           const rescueModel = rescueModels[rIdx];
+          const isRescueGemini4 = /gemini-4|hydrogen/i.test(rescueModel);
           try {
             const currentUserId = this.user ?? this.options?.req?.user?.id ?? 'global';
             const rescuePrioritizedKeys = geminiPoolManager.getPrioritizedKeys(keys, rescueModel, currentUserId);
@@ -2407,6 +2445,10 @@ ${availablePreview}
             }
             this.options.agent.model_parameters.model = rescueModel;
             this.options.agent.model_parameters.maxRetries = 0;
+            if (isRescueGemini4) {
+              delete this.options.agent.model_parameters.thinkingConfig;
+              delete this.options.agent.model_parameters.thinkingBudget;
+            }
             if (rescueKey) {
               this.options.agent.model_parameters.apiKey = rescueKey;
             }
@@ -2418,6 +2460,10 @@ ${availablePreview}
               if (config.configurable.endpointOption.model_parameters) {
                 config.configurable.endpointOption.model_parameters.model = rescueModel;
                 config.configurable.endpointOption.model_parameters.maxRetries = 0;
+                if (isRescueGemini4) {
+                  delete config.configurable.endpointOption.model_parameters.thinkingConfig;
+                  delete config.configurable.endpointOption.model_parameters.thinkingBudget;
+                }
                 if (rescueKey) {
                   config.configurable.endpointOption.model_parameters.apiKey = rescueKey;
                 }
@@ -2430,6 +2476,10 @@ ${availablePreview}
                 }
                 secondaryAg.model_parameters.model = rescueModel;
                 secondaryAg.model_parameters.maxRetries = 0;
+                if (isRescueGemini4) {
+                  delete secondaryAg.model_parameters.thinkingConfig;
+                  delete secondaryAg.model_parameters.thinkingBudget;
+                }
                 if (rescueKey) {
                   secondaryAg.model_parameters.apiKey = rescueKey;
                 }

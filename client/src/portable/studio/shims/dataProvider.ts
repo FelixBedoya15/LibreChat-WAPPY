@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react';
 
 /** Lista oficial de modelos (GOOGLE_MODELS del .env de producción). */
 export const PORTABLE_GOOGLE_MODELS = [
+  'gemini-4-hydrogen',
   'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',

@@ -91,6 +91,8 @@ const googleModels = {
   gemini: 1000000,
   'gemini-pro-vision': 12288,
   'gemini-exp': 2000000,
+  'gemini-4': 1000000,
+  'gemini-4-hydrogen': 1000000,
   'gemini-3': 1000000,
   'gemini-3.8-flash': 1000000,
   'gemini-3.6-pro': 1000000,

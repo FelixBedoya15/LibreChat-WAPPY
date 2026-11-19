@@ -542,7 +542,7 @@ export interface AiEngineModelDef {
 }
 
 /**
- * Modelos verificados en .env (GOOGLE_MODELS=gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash)
+ * Modelos verificados en .env (GOOGLE_MODELS=gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.8-flash)
  * + Motor Google Antigravity Local (Mac/PC) y Google Antigravity Cloud 24/7 (antigravity.google.com) con Servidor MCP WAPPY (110+ tools).
  */
 export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
@@ -572,6 +572,15 @@ export const AI_ENGINE_MODELS: AiEngineModelDef[] = [
     shortLabel: 'Gemini 3.8 Flash',
     subtitle: 'WAPPY Cloud · Máxima Precisión',
     description: 'Máxima capacidad analítica para auditorías Res. 0312, investigación ATEL, Matriz Legal y DOFA.',
+  },
+  {
+    id: 'wappy_gemini_4_hydrogen',
+    engine: 'wappy',
+    model: 'gemini-4-hydrogen',
+    label: 'WAPPY IA · Gemini 4 Hydrogen (Nueva Generación)',
+    shortLabel: 'Gemini 4 Hydrogen',
+    subtitle: 'WAPPY Cloud · Generación 4',
+    description: 'Modelo insignia de nueva generación para razonamiento profundo, auditoría integral SST y síntesis avanzada.',
   },
   {
     id: 'antigravity_mcp_engine',
@@ -8995,6 +9004,43 @@ export const MODULE_METADATA_MAP: Record<string, NodeModuleMetadata> = {
           'Valoración Cuantitativa Completa GTC-45, PESV Res. 40595 y SGA Dec. 1496',
           'Correlación Epidemiológica y Biocéntrica (Salud, OWAS, EPT y Psicosocial)',
           'Redacción de Informes Técnicos Formales Listos para Firma y Exportación',
+        ],
+      },
+    ],
+    reportTags: [],
+  },
+  wappy_gemini_4_hydrogen: {
+    moduleTitle: '🧠 Motor IA · WAPPY IA · Gemini 4 Hydrogen (Nueva Generación)',
+    moduleBadge: 'Motor IA · Gemini 4 Hydrogen',
+    fieldsLabel: 'Directivas de Razonamiento Avanzado Generación 4, Auditoría Integral y Síntesis Ejecutiva',
+    fields: [
+      'Razonamiento de Nueva Generación con Rotación Automática de Claves WAPPY 24/7',
+      'Auditoría Integral de los 60 Estándares Mínimos (Res. 0312) y Decreto 1072',
+      'Correlación Multi-Hito y Análisis Causal Profundo ATEL / Vigilancia Epidemiológica',
+      'Cruce Estricto por Número de Cédula, NIT y Nombre Completo sin Alucinaciones',
+      'Valoración Técnica GTC-45, PESV Res. 40595 y Compatibilidad Química SGA',
+      'Redacción Ejecutiva y Jurídico-Técnica Lista para Gerencia, Firma y Exportación',
+      'Invocación Precisa de Herramientas Nativas Somos SST y Plan de Acción ACPM',
+      'Salida Limpia en Tablas Markdown + Tarjeta Ejecutiva wappy-card',
+    ],
+    quickCombos: [
+      {
+        label: '⚡ Generación 4 · Auditoría Integral SST + Cruce Multi-Hito + Cero Invención',
+        description: 'Máximo nivel de razonamiento para informes directivos, legales y auditorías',
+        fields: [
+          'Razonamiento de Nueva Generación con Rotación Automática de Claves WAPPY 24/7',
+          'Auditoría Integral de los 60 Estándares Mínimos (Res. 0312) y Decreto 1072',
+          'Correlación Multi-Hito y Análisis Causal Profundo ATEL / Vigilancia Epidemiológica',
+          'Cruce Estricto por Número de Cédula, NIT y Nombre Completo sin Alucinaciones',
+        ],
+      },
+      {
+        label: '⚡ Dictamen Técnico GTC-45/PESV/SGA + Herramientas SST + Salida Ejecutiva',
+        description: 'Combina matrices técnicas con acciones concretas en Somos SST',
+        fields: [
+          'Valoración Técnica GTC-45, PESV Res. 40595 y Compatibilidad Química SGA',
+          'Invocación Precisa de Herramientas Nativas Somos SST y Plan de Acción ACPM',
+          'Redacción Ejecutiva y Jurídico-Técnica Lista para Gerencia, Firma y Exportación',
         ],
       },
     ],

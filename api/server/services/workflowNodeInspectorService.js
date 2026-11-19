@@ -7790,7 +7790,7 @@ async function inspectOtherNodeTeams(ctx) {
     };
   }
 
-  // 10. Equipo 3 y 5: Agente Principal (`agent_root`), Motores IA (`sub_model`, Gemini 3.5/3.6/3.8, Antigravity) y Conectores MCP / Webhook
+  // 10. Equipo 3 y 5: Agente Principal (`agent_root`), Motores IA (`sub_model`, Gemini 3.5/3.6/3.8/4, Antigravity) y Conectores MCP / Webhook
   if (
     [
       'agent_root',
@@ -7798,6 +7798,7 @@ async function inspectOtherNodeTeams(ctx) {
       'wappy_gemini_3_6_flash',
       'wappy_gemini_3_5_flash_lite',
       'wappy_gemini_3_8_flash',
+      'wappy_gemini_4_hydrogen',
       'antigravity_mcp_engine',
       'antigravity_cloud_mcp_engine',
       'google_antigravity',
@@ -7809,6 +7810,7 @@ async function inspectOtherNodeTeams(ctx) {
       wappy_gemini_3_6_flash: 'gemini-3.6-flash (Motor Rápido & Preciso WAPPY)',
       wappy_gemini_3_5_flash_lite: 'gemini-3.5-flash-lite (Motor Ultra-Veloz Alto Volumen)',
       wappy_gemini_3_8_flash: 'gemini-3.8-flash (Motor Razonamiento Profundo SST)',
+      wappy_gemini_4_hydrogen: 'gemini-4-hydrogen (Motor Agéntico Gemini 4)',
       antigravity_mcp_engine: 'Google Antigravity Local (Mac/PC + MCP Push SSE)',
       antigravity_cloud_mcp_engine: 'Google Antigravity Cloud 24/7 (Servidor MCP)',
       sub_model: ctx?.nodeConfig?.modelId || 'gemini-3.6-flash',
@@ -7849,7 +7851,7 @@ async function inspectOtherNodeTeams(ctx) {
         {
           id: `engine_${canonicalId}`,
           label: `⚡ ${canonicalId === 'agent_root' ? 'Agente Orquestador Principal Activo' : `Conector / Motor Activo: ${engineLabel}`} — ${company?.companyName || 'Empresa Activa'}`,
-          sublabel: `Modelos activos (.env): gemini-3.6-flash · gemini-3.5-flash-lite · gemini-3.8-flash • Puente Push SSE Antigravity + 140+ tools MCP`,
+          sublabel: `Modelos activos (.env): gemini-3.6-flash · gemini-3.5-flash-lite · gemini-3.8-flash · gemini-4-hydrogen • Puente Push SSE Antigravity + 140+ tools MCP`,
           badge: 'OPERATIVO',
           badgeTone: 'emerald',
           isCritical: false,

@@ -5722,7 +5722,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         : rawEngine === 'antigravity'
           ? 'antigravity'
           : 'wappy';
-    const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+    const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
     const requestedModel = automation.workflowNodes?.aiModel;
     const effectiveAiModel = allowedTextModels.includes(requestedModel)
       ? requestedModel
@@ -8580,7 +8580,7 @@ async function runAutomation(rawAutomation, optionsOrIsManual = false) {
         errOrStr?.message || errOrStr?.status || errOrStr?.code || errOrStr || '',
       ).toLowerCase();
       if (!msg) return false;
-      return /\b503\b|high\s+demand|service\s+unavailable|overloaded|resource_exhausted|experiencing\s+high\s+demand|temporarily\s+unavailable|google\s*generative\s*ai.*503/i.test(
+      return /\b503\b|\b504\b|high\s+demand|service\s+unavailable|overloaded|resource_exhausted|experiencing\s+high\s+demand|temporarily\s+unavailable|deadline_exceeded|gateway\s+timeout|google\s*generative\s*ai.*50[34]/i.test(
         msg,
       );
     };
@@ -13050,11 +13050,11 @@ async function executeSandboxAgentCall({
     modelId,
     { fastFallback = true, callTimeoutMs = perAttemptMs, allowWebSearch = Boolean(useWebSearch), thinkingBudget = 512 } = {},
   ) => {
-    const isLite = modelId.includes('lite');
+    const skipThinkingBudget = modelId.includes('lite') || /gemini-4|hydrogen/i.test(modelId);
     const generationConfig = {
       temperature: 0.15,
       maxOutputTokens: 16384,
-      ...(!isLite ? { thinkingConfig: { thinkingBudget } } : {}),
+      ...(!skipThinkingBudget ? { thinkingConfig: { thinkingBudget } } : {}),
     };
     const res = await generateWithKeyRotation(
       modelId,
@@ -13078,11 +13078,17 @@ async function executeSandboxAgentCall({
   const altModel = preferredModel.includes('gemini-3.5-flash-lite')
     ? 'gemini-3.6-flash'
     : 'gemini-3.5-flash-lite';
+  const thirdModel =
+    preferredModel === 'gemini-4-hydrogen'
+      ? 'gemini-3.6-flash'
+      : preferredModel === 'gemini-3.6-flash'
+        ? 'gemini-4-hydrogen'
+        : 'gemini-3.6-flash';
   const attemptPlan = [
     { modelId: preferredModel, callTimeoutMs: perAttemptMs, allowWebSearch: Boolean(useWebSearch), thinkingBudget: 512 },
     { modelId: altModel, callTimeoutMs: 35000, allowWebSearch: false, thinkingBudget: 512 },
-    // Tercer intento acotado sobre gemini-3.6-flash (geminiPoolManager entrega la siguiente clave sana)
-    { modelId: 'gemini-3.6-flash', callTimeoutMs: 35000, allowWebSearch: false, thinkingBudget: 256 },
+    // Tercer intento acotado rotando hacia modelo alterno (incluye gemini-4-hydrogen en rotación)
+    { modelId: thirdModel, callTimeoutMs: 35000, allowWebSearch: false, thinkingBudget: 256 },
   ];
 
   let lastError = null;
@@ -13537,7 +13543,7 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
         ? 'antigravity'
         : 'wappy';
 
-  const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  const allowedTextModels = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
   const requestedModel = wf?.aiModel;
   const effectiveAiModel = allowedTextModels.includes(requestedModel)
     ? requestedModel

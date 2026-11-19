@@ -20,7 +20,7 @@ import {
 } from '~/data-provider';
 import useAssistantListMap from '~/hooks/Assistants/useAssistantListMap';
 import { useAgentsMapContext } from '~/Providers/AgentsMapContext';
-import { mapEndpoints, getPresetTitle } from '~/utils';
+import { mapEndpoints, getPresetTitle, isTextChatModel } from '~/utils';
 import { EndpointIcon } from '~/components/Endpoints';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -169,17 +169,19 @@ export default function useMentions({
         return [];
       }
 
-      const models = (modelsConfig?.[endpoint] ?? []).map((model) => ({
-        value: endpoint,
-        label: model,
-        type: 'model' as const,
-        icon: EndpointIcon({
-          conversation: { endpoint, model },
-          endpointsConfig,
-          context: 'menu-item',
-          size: 20,
-        }),
-      }));
+      const models = (modelsConfig?.[endpoint] ?? [])
+        .filter((model) => isTextChatModel(model))
+        .map((model) => ({
+          value: endpoint,
+          label: model,
+          type: 'model' as const,
+          icon: EndpointIcon({
+            conversation: { endpoint, model },
+            endpointsConfig,
+            context: 'menu-item',
+            size: 20,
+          }),
+        }));
       return models;
     });
 

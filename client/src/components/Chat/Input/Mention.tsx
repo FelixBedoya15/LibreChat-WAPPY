@@ -9,7 +9,7 @@ import useSelectMention from '~/hooks/Input/useSelectMention';
 import { useLocalize, TranslationKeys } from '~/hooks';
 import { useAssistantsMapContext } from '~/Providers';
 import useMentions from '~/hooks/Input/useMentions';
-import { removeCharIfLast } from '~/utils';
+import { removeCharIfLast, isTextChatModel } from '~/utils';
 import MentionItem from './MentionItem';
 
 const ROW_HEIGHT = 40;
@@ -93,11 +93,13 @@ export default function Mention({
       setActiveIndex(0);
       inputRef.current?.focus();
     } else if (mention.type === 'endpoint') {
-      const models = (modelsConfig?.[mention.value || ''] ?? []).map((model) => ({
-        value: mention.value,
-        label: model,
-        type: 'model',
-      }));
+      const models = (modelsConfig?.[mention.value || ''] ?? [])
+        .filter((model) => isTextChatModel(model))
+        .map((model) => ({
+          value: mention.value,
+          label: model,
+          type: 'model',
+        }));
 
       setActiveIndex(0);
       setSearchValue('');

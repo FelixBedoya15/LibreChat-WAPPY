@@ -32,6 +32,7 @@ const ALLOWED_WORKFLOW_AI_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 
 const BLOCKED_CONSTRUCTION_NODE_IDS = new Set([
@@ -227,7 +228,7 @@ class GestorAutomatizaciones extends Tool {
       salidas: z.array(z.string()).optional().describe('IDs de nodos de salida/acción del flujo (ej. ["email_report", "wappy_notification", "acpm_task", "canvas_doc", "google_calendar"]). Por defecto incluye "wappy_notification" y, si hay correos o se solicita envío por correo, "email_report".'),
       incluir_condicion_if: z.boolean().optional().describe('Si es true (por defecto), incluye nodo condicional Sí/No (if_router) en el lienzo DAG.'),
       condicion_if: z.string().optional().describe('Etiqueta clara del criterio condicional Sí/No (ej. "¿Existen vencimientos o novedades críticas?").'),
-      modelo_ia: z.string().optional().describe('Modelo de IA del Agente en el flujo (solo modelos válidos de .env: "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash"; por defecto "gemini-3.5-flash-lite").'),
+      modelo_ia: z.string().optional().describe('Modelo de IA del Agente en el flujo (solo modelos válidos de .env: "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash", "gemini-4-hydrogen"; por defecto "gemini-3.5-flash-lite").'),
       crear_como_flujo_tenshi: z.boolean().optional().describe('Si es true y el usuario es ADMIN, crea un Flujo Global Tenshi en TENSHI_GLOBAL activo para todos los usuarios; si no es admin, crea un flujo propio de su empresa con trigger_tenshi activo.'),
     });
   }

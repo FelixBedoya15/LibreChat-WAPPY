@@ -10,6 +10,7 @@ const SYSTEM_GOOGLE_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 
 class WappyQueueService {
@@ -134,7 +135,7 @@ class WappyQueueService {
       const envModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
-        .filter((m) => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts'));
+        .filter((m) => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('tts') && !m.includes('transcribe'));
 
       const modelFallbacks = envModels.length > 0 ? envModels : SYSTEM_GOOGLE_MODELS;
 
@@ -247,8 +248,17 @@ Responde conversacionalmente de acuerdo a las reglas de estilo, el contexto del 
               continue;
             }
 
-            if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
-              console.warn(`[Chat SST @wappy] Modelo "${currentModel}" no disponible (503). Cambiando a modelo fallback...`);
+            if (
+              status === 503 ||
+              status === 504 ||
+              msg.includes('503') ||
+              msg.includes('504') ||
+              msg.includes('overloaded') ||
+              msg.includes('Service Unavailable') ||
+              msg.includes('DEADLINE_EXCEEDED') ||
+              msg.includes('Gateway Timeout')
+            ) {
+              console.warn(`[Chat SST @wappy] Modelo "${currentModel}" no disponible (${status || '503/504'}). Cambiando a modelo fallback...`);
               break;
             }
 

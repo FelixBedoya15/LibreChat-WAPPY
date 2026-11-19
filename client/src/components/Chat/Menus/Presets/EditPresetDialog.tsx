@@ -17,6 +17,7 @@ import {
   removeFocusOutlines,
   mapEndpoints,
   getConvoSwitchLogic,
+  isTextChatModel,
 } from '~/utils';
 import { useSetIndexOptions, useLocalize, useDebouncedInput } from '~/hooks';
 import PopoverButtons from '~/components/Chat/Input/PopoverButtons';
@@ -71,7 +72,8 @@ const EditPresetDialog = ({
       return;
     }
 
-    const models = modelsConfig[presetEndpoint] as string[] | undefined;
+    const rawModels = modelsConfig[presetEndpoint] as string[] | undefined;
+    const models = rawModels?.filter((m) => isTextChatModel(m));
     if (!models) {
       return;
     }

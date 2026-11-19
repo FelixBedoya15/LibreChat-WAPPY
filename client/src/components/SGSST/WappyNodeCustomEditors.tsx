@@ -4917,6 +4917,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     const activeLayersCount =
       (checkMetadata ? 1 : 0) + (checkVisualTampering ? 1 : 0) + (checkDecreto1427 ? 1 : 0);
     const selectedForensicModel =
+      currentCfg.aiModel === 'gemini-4-hydrogen' ||
       currentCfg.aiModel === 'gemini-3.5-flash-lite' ||
       currentCfg.aiModel === 'gemini-3.8-flash' ||
       currentCfg.aiModel === 'gemini-3.6-flash'
@@ -5007,6 +5008,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             onChange={(e) => onUpdateNodeConfig(activeNode.key, { aiModel: e.target.value })}
             className="w-full min-w-0 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
           >
+            <option value="gemini-4-hydrogen">
+              Gemini 4 Hydrogen (Nueva Generación · Máximo razonamiento forense y multimodal)
+            </option>
             <option value="gemini-3.6-flash">
               Gemini 3.6 Flash (Recomendado · Equilibrio Visión Forense + Velocidad)
             </option>
@@ -5655,6 +5659,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         : DEFAULT_AI_DOC_SCHEMA;
 
       const selectedOcrModel =
+        currentCfg.aiModel === 'gemini-4-hydrogen' ||
         currentCfg.aiModel === 'gemini-3.5-flash-lite' ||
         currentCfg.aiModel === 'gemini-3.8-flash' ||
         currentCfg.aiModel === 'gemini-3.6-flash'
@@ -5774,6 +5779,9 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 }
                 className="w-full min-w-0 px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
               >
+                <option value="gemini-4-hydrogen">
+                  Gemini 4 Hydrogen (Nueva Generación · Máxima precisión OCR y tablas complejas)
+                </option>
                 <option value="gemini-3.6-flash">
                   Gemini 3.6 Flash (Recomendado · Equilibrio OCR + Precisión)
                 </option>

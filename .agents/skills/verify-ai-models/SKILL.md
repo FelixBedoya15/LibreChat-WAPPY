@@ -48,7 +48,7 @@ Esta skill establece el protocolo obligatorio para cualquier agente que configur
 
 1. **Revisar SIEMPRE el archivo `.env` del Sistema (`GOOGLE_MODELS`, `GOOGLE_TITLE_MODEL`, etc.):**
    - Leer `.env` antes de tocar cualquier archivo de código para verificar cuáles son los modelos realmente configurados y utilizados en el sistema:
-     - **Texto / Agentes / Studio:** `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`
+     - **Texto / Agentes / Studio:** `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`, `gemini-4-hydrogen`
      - **Voz Multimodal Live:** `gemini-3.8-live`, `gemini-3.1-flash-live-preview`, `gemini-2.5-flash-native-audio-preview-12-2025`
      - **Síntesis de Voz TTS:** `gemini-3.8-flash-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-flash-preview-tts`, `gemini-3.8-flash-lite-tts`
    - **PROHIBIDO** inyectar modelos de texto que no existan en `GOOGLE_MODELS` del `.env` (como `gemini-2.5-flash`, `gemini-2.0-flash` o `gemini-1.5-flash`).
@@ -59,7 +59,7 @@ Esta skill establece el protocolo obligatorio para cualquier agente que configur
 3. **Validar la Fecha y Estado del Modelo:**
    - Confirmar si el modelo está en **GA (General Availability)** o **Preview** y su nomenclatura exacta.
 4. **No Degradar Arbitrariamente a Versiones Obsoletas o Ausentes del `.env`:**
-   - Si el sistema ya tiene modelos configurados en `.env`, nunca agregues a las listas de fallback modelos antiguos o que no estén en `.env`. Usa estrictamente la escalera de modelos de `.env` (`gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`).
+   - Si el sistema ya tiene modelos configurados en `.env`, nunca agregues a las listas de fallback modelos antiguos o que no estén en `.env`. Usa estrictamente la escalera de modelos de `.env` (`gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.8-flash`, `gemini-4-hydrogen`).
 
 ---
 

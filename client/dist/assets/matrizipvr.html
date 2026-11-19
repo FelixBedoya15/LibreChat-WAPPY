@@ -1063,6 +1063,7 @@
           <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           <div class="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
             <select id="modelSelector" onchange="changeModel(this.value)" class="bg-transparent font-extrabold outline-none text-indigo-900 cursor-pointer py-1">
+              <option value="gemini-4-hydrogen">Gemini 4 Hydrogen</option>
               <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
               <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
               <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
@@ -3069,7 +3070,7 @@ const DISEASE_KEYWORDS = [
   { name: 'VBM / Raynaud', keywords: ['vibración', 'vbm', 'raynaud', 'mano-brazo', 'martillo'] }
 ];
 
-const ALLOWED_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+const ALLOWED_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-4-hydrogen', 'gemini-3.5-flash-lite'];
 
 // GTC45_TARGET_FIELDS está administrado en el motor homologador universal
 

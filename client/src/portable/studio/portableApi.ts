@@ -11,6 +11,7 @@
  * Solo el render MP4 (Puppeteer + FFmpeg) requiere el servidor; si no hay conexión se informa.
  */
 import { getPortableGoogleModels, setPortableGoogleModels } from './shims/dataProvider';
+import { isTextChatModel } from '../../utils/textModels';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const KEYS_STORAGE = 'wappy_gemini_api_keys';
@@ -55,13 +56,10 @@ function ttsModelIds(): string[] {
 }
 
 function textModelIds(): string[] {
-  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+  const fastDefaults = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-4-hydrogen'];
   const ids = getPortableGoogleModels().filter(
     (m) =>
-      !m.includes('live') &&
-      !m.includes('native-audio') &&
-      !m.includes('tts') &&
-      !m.includes('transcribe') &&
+      isTextChatModel(m) &&
       !m.includes('2.5') &&
       !m.includes('3.8-flash'),
   );

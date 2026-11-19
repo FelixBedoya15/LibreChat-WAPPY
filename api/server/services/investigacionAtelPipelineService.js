@@ -27,6 +27,7 @@ const ALLOWED_GEMINI_TEXT_MODELS = [
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
+  'gemini-4-hydrogen',
 ];
 
 const ATEL_STRUCTURED_RESPONSE_SCHEMA = {

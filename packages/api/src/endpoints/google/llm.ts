@@ -153,8 +153,12 @@ export function getGoogleConfig(
     );
   }
 
+  const isGemini4Model = /gemini-4|hydrogen/i.test(String(llmConfig.model || ''));
   const shouldEnableThinking =
-    thinking && thinkingBudget != null && (thinkingBudget > 0 || thinkingBudget === -1);
+    !isGemini4Model &&
+    thinking &&
+    thinkingBudget != null &&
+    (thinkingBudget > 0 || thinkingBudget === -1);
 
   if (shouldEnableThinking && provider === Providers.GOOGLE) {
     (llmConfig as GoogleClientOptions).thinkingConfig = {

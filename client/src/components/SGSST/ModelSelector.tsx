@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Brain, ChevronDown, Check } from 'lucide-react';
-import { cn } from '~/utils';
+import { cn, isTextChatModel } from '~/utils';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { EModelEndpoint } from 'librechat-data-provider';
 
-// Modern official Gemini Flash model lineup (from GOOGLE_MODELS)
+// Modern official Gemini model lineup (from GOOGLE_MODELS)
 export const AI_MODELS = [
+  { id: 'gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
   { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Recomendado)' },
   { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
   { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite' },
@@ -44,10 +45,17 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           const id = typeof m === 'string' ? m : m?.id || m?.value || '';
           return id.replace('models/', '').trim();
         })
-        .filter((id: string) => id && !id.includes('live') && !id.includes('native-audio') && !id.includes('tts') && !id.includes('preview') && !id.includes('3.1') && !id.includes('3.7'));
+        .filter(
+          (id: string) =>
+            isTextChatModel(id) &&
+            !id.includes('preview') &&
+            !id.includes('3.1') &&
+            !id.includes('3.7'),
+        );
 
       if (filtered.length > 0) {
         const formatName = (id: string) => {
+          if (id === 'gemini-4-hydrogen') return 'Gemini 4 Hydrogen';
           if (id === 'gemini-3.8-flash') return 'Gemini 3.8 Flash';
           if (id === 'gemini-3.6-flash') return 'Gemini 3.6 Flash';
           if (id === 'gemini-3.5-flash-lite') return 'Gemini 3.5 Flash Lite';
@@ -62,7 +70,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const currentModelName =
     availableModels.find((m) => m.id === selectedModel)?.name ||
-    (selectedModel === 'gemini-3.8-flash' ? 'Gemini 3.8 Flash' :
+    (selectedModel === 'gemini-4-hydrogen' ? 'Gemini 4 Hydrogen' :
+     selectedModel === 'gemini-3.8-flash' ? 'Gemini 3.8 Flash' :
      selectedModel === 'gemini-3.6-flash' ? 'Gemini 3.6 Flash' :
      selectedModel === 'gemini-3.5-flash-lite' ? 'Gemini 3.5 Flash Lite' :
      availableModels[0]?.name || selectedModel);

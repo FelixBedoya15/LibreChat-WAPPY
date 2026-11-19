@@ -22,7 +22,7 @@ interface Skill {
 }
 import { useGetEndpointsQuery } from '~/data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import { createProviderOption, cn } from '~/utils';
+import { createProviderOption, cn, isTextChatModel } from '~/utils';
 import { isAssistantsEndpoint } from 'librechat-data-provider';
 import { useOutletContext } from 'react-router-dom';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -83,7 +83,7 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
         const lowerProviderKey = providerKey.toLowerCase();
 
         const modelsFromQuery = modelsData[providerKey] || modelsData[lowerProviderKey] || [];
-        return modelsFromQuery;
+        return modelsFromQuery.filter((m) => isTextChatModel(m));
     }, [modelsData, formData.provider]);
 
     const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
@@ -406,7 +406,7 @@ export default function TenshiAdminPanel({ isEmbedded = false }: TenshiAdminPane
                                         setFormData(prev => ({
                                             ...prev,
                                             provider: newProvider,
-                                            model: modelsData[newProvider]?.[0] || ''
+                                            model: (modelsData[newProvider] || []).find((m) => isTextChatModel(m)) || ''
                                         }));
                                     }}
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900"
