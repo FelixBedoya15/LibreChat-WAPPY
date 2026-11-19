@@ -321,6 +321,121 @@ class GestorAutomatizaciones extends Tool {
     return { accion, nuevo_estado, forcedAll };
   }
 
+  _cleanFlowDisplayName(rawName = '') {
+    const cleaned = String(rawName || '')
+      .replace(/^(?:[\p{Extended_Pictographic}\u2600-\u27BF\uFE0F\u200D\u20E3\s])+/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned || String(rawName || '').trim();
+  }
+
+  _emitTenshiFlowEvent(eventName, payload = {}, explicitUserId = null) {
+    try {
+      const callerUserId = explicitUserId || this.req?.user?.id || this.req?.user?._id;
+      if (!callerUserId || !eventName) {
+        return 0;
+      }
+      let mcpBridge = null;
+      try {
+        mcpBridge = require('~/server/routes/mcpBridge');
+      } catch (_) {
+        try {
+          mcpBridge = require('../../../../server/routes/mcpBridge');
+        } catch (_relErr) {}
+      }
+      if (!mcpBridge || typeof mcpBridge.broadcastAntigravityEvent !== 'function') {
+        return 0;
+      }
+      return mcpBridge.broadcastAntigravityEvent(String(callerUserId), eventName, payload);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  _dispatchCompanyAutomationWithEvents({
+    runAutomation,
+    automation,
+    runOptions,
+    indicaciones = '',
+    empresa = '',
+    logErrorLabel = 'Error en ejecución manual background',
+  }) {
+    const runId =
+      this.req?.__tenshiFlowRunId ||
+      `tflow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const cleanFlowName = this._cleanFlowDisplayName(automation?.name || 'Flujo empresarial');
+    const cleanIndicaciones = String(indicaciones || cleanFlowName || 'Ejecución de flujo')
+      .trim()
+      .slice(0, 260);
+    const channel = this.req?.isVoiceSession ? 'voice' : 'chat';
+    const callerUserId = this.req?.user?.id || this.req?.user?._id || null;
+    const isVoiceManaged = Boolean(this.req?.__tenshiFlowVoiceManaged);
+    const empresaName = String(empresa || '').trim();
+
+    if (!this.req?.__tenshiFlowStartedEmitted) {
+      this._emitTenshiFlowEvent(
+        'tenshi_flow_started',
+        {
+          runId,
+          flowName: cleanFlowName,
+          indicaciones: cleanIndicaciones,
+          empresa: empresaName,
+          origenFlujo: 'flujo_propio_empresa',
+          channel,
+          startedAt: new Date().toISOString(),
+        },
+        callerUserId,
+      );
+    }
+
+    Promise.resolve()
+      .then(() => runAutomation(automation, runOptions))
+      .then((runRes) => {
+        if (!(isVoiceManaged || this.req?.__tenshiFlowVoiceManaged)) {
+          const ok = runRes?.status
+            ? !['failed', 'error', 'stopped'].includes(String(runRes.status))
+            : true;
+          const hasEvidences =
+            Array.isArray(runRes?.evidenceFiles) && runRes.evidenceFiles.length > 0;
+          this._emitTenshiFlowEvent(
+            'tenshi_flow_completed',
+            {
+              runId,
+              flowName: cleanFlowName,
+              indicaciones: cleanIndicaciones,
+              empresa: empresaName,
+              origenFlujo: 'flujo_propio_empresa',
+              success: ok,
+              hasEvidences,
+              channel,
+              completedAt: new Date().toISOString(),
+            },
+            callerUserId,
+          );
+        }
+      })
+      .catch((err) => {
+        console.error(`[GestorAutomatizaciones Tool] ${logErrorLabel}:`, err);
+        if (!(isVoiceManaged || this.req?.__tenshiFlowVoiceManaged)) {
+          this._emitTenshiFlowEvent(
+            'tenshi_flow_completed',
+            {
+              runId,
+              flowName: cleanFlowName,
+              indicaciones: cleanIndicaciones,
+              empresa: empresaName,
+              origenFlujo: 'flujo_propio_empresa',
+              success: false,
+              hasEvidences: false,
+              channel,
+              completedAt: new Date().toISOString(),
+            },
+            callerUserId,
+          );
+        }
+      });
+  }
+
   _cleanFlowNameForVoiceCommand(rawName = '') {
     const cleaned = String(rawName || '')
       .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, ' ')
@@ -831,6 +946,7 @@ class GestorAutomatizaciones extends Tool {
   async _cloneAndActivateSystemPreset({
     query,
     companyId,
+    companyName = '',
     userId,
     emails,
     currentAgentId,
@@ -925,16 +1041,21 @@ class GestorAutomatizaciones extends Tool {
       await alreadyInCompany.save();
 
       if (executeImmediately) {
-        runAutomation(alreadyInCompany, {
-          triggerSource: 'tenshi_voice',
-          eventPayload: {
-            commandText: commandText || rawQuery,
-            matchedVoiceCommand: cleanName,
-            invokedVia: 'gestor_automatizaciones',
-            invokedAt: new Date().toISOString(),
+        this._dispatchCompanyAutomationWithEvents({
+          runAutomation,
+          automation: alreadyInCompany,
+          runOptions: {
+            triggerSource: 'tenshi_voice',
+            eventPayload: {
+              commandText: commandText || rawQuery,
+              matchedVoiceCommand: cleanName,
+              invokedVia: 'gestor_automatizaciones',
+              invokedAt: new Date().toISOString(),
+            },
           },
-        }).catch((err) => {
-          console.error('[GestorAutomatizaciones Tool] Error ejecutando flujo ya instalado:', err);
+          indicaciones: commandText || rawQuery || alreadyInCompany.name,
+          empresa: companyName,
+          logErrorLabel: 'Error ejecutando flujo ya instalado',
         });
       }
 
@@ -1016,16 +1137,21 @@ class GestorAutomatizaciones extends Tool {
     });
 
     if (executeImmediately) {
-      runAutomation(clonedAutomation, {
-        triggerSource: 'tenshi_voice',
-        eventPayload: {
-          commandText: commandText || rawQuery,
-          matchedVoiceCommand: ensured.primaryVoiceCommand,
-          invokedVia: 'gestor_automatizaciones_preset_clone',
-          invokedAt: new Date().toISOString(),
+      this._dispatchCompanyAutomationWithEvents({
+        runAutomation,
+        automation: clonedAutomation,
+        runOptions: {
+          triggerSource: 'tenshi_voice',
+          eventPayload: {
+            commandText: commandText || rawQuery,
+            matchedVoiceCommand: ensured.primaryVoiceCommand,
+            invokedVia: 'gestor_automatizaciones_preset_clone',
+            invokedAt: new Date().toISOString(),
+          },
         },
-      }).catch((err) => {
-        console.error('[GestorAutomatizaciones Tool] Error ejecutando preset clonado:', err);
+        indicaciones: commandText || rawQuery || clonedAutomation.name,
+        empresa: companyName,
+        logErrorLabel: 'Error ejecutando preset clonado',
       });
     }
 
@@ -1204,9 +1330,39 @@ class GestorAutomatizaciones extends Tool {
   }) {
     const { executeTenshiFlowInstant } = require('~/server/services/tenshiFlowService');
     const isVoice = Boolean(this.req?.isVoiceSession);
+    const channel = isVoice ? 'voice' : 'chat';
     const waitTimeoutMs = esperar_resultado === false ? 0 : (isVoice ? 35000 : 60000);
     const triggerSource = isVoice ? 'tenshi_voice' : 'tenshi_flow_instant';
     const resolvedAttachedMedia = attachedMedia || this.req?.__tenshiAttachedMedia || null;
+    const runId =
+      this.req?.__tenshiFlowRunId ||
+      `tflow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const cleanFlowName = this._cleanFlowDisplayName(flow?.name || 'Flujo Tenshi');
+    const indicaciones = String(userInstruction || flow?.name || 'Consulta solicitada')
+      .trim()
+      .slice(0, 260);
+    const empresa = strictCtx?.companyName || '';
+    const callerUserId = this.req?.user?.id || this.req?.user?._id || null;
+    const isVoiceManaged = Boolean(this.req?.__tenshiFlowVoiceManaged);
+
+    if (!this.req?.__tenshiFlowStartedEmitted) {
+      this._emitTenshiFlowEvent(
+        'tenshi_flow_started',
+        {
+          runId,
+          flowName: cleanFlowName,
+          indicaciones,
+          empresa,
+          origenFlujo: 'flujo_global_tenshi',
+          channel,
+          startedAt: new Date().toISOString(),
+        },
+        callerUserId,
+      );
+    }
+
+    let completedOk = false;
+    let evidenciasCount = 0;
 
     try {
       const execRes = await executeTenshiFlowInstant({
@@ -1219,6 +1375,7 @@ class GestorAutomatizaciones extends Tool {
       });
 
       if (execRes?.completedInTurn === false || execRes?.status === 'running_background') {
+        completedOk = true;
         return JSON.stringify({
           success: true,
           origenFlujo: 'flujo_global_tenshi',
@@ -1235,6 +1392,8 @@ class GestorAutomatizaciones extends Tool {
 
       if (execRes?.status === 'success') {
         const evidencias = Array.isArray(execRes.evidenceFiles) ? execRes.evidenceFiles : [];
+        completedOk = true;
+        evidenciasCount = evidencias.length;
         let mensaje;
         if (evidencias.length === 1) {
           mensaje =
@@ -1265,6 +1424,7 @@ class GestorAutomatizaciones extends Tool {
         });
       }
 
+      completedOk = false;
       return JSON.stringify({
         error: execRes?.error || 'Error ejecutando el flujo interno.',
         origenFlujo: 'flujo_global_tenshi',
@@ -1273,18 +1433,38 @@ class GestorAutomatizaciones extends Tool {
         logId: execRes?.logId || null,
       });
     } catch (flowErr) {
+      completedOk = false;
       return JSON.stringify({
         error: flowErr?.message || 'Error ejecutando el flujo interno.',
         origenFlujo: 'flujo_global_tenshi',
         ...(fallbackFromOwnFlow ? { fallbackDesdeEjecutarAhora: true } : {}),
         flujo: flow?.name || 'Flujo Tenshi',
       });
+    } finally {
+      if (!(isVoiceManaged || this.req?.__tenshiFlowVoiceManaged)) {
+        this._emitTenshiFlowEvent(
+          'tenshi_flow_completed',
+          {
+            runId,
+            flowName: cleanFlowName,
+            indicaciones,
+            empresa,
+            origenFlujo: 'flujo_global_tenshi',
+            success: completedOk,
+            hasEvidences: evidenciasCount > 0,
+            channel,
+            completedAt: new Date().toISOString(),
+          },
+          callerUserId,
+        );
+      }
     }
   }
 
   async _executeCompanyAutomation({
     automation,
     companyId,
+    companyName = '',
     userId,
     matchSource = 'id',
     matchedVoiceCommand = null,
@@ -1357,8 +1537,21 @@ class GestorAutomatizaciones extends Tool {
           }
         : true;
 
-    runAutomation(automation, runOptions).catch((err) => {
-      console.error('[GestorAutomatizaciones Tool] Error en ejecución manual background:', err);
+    const rawIndicaciones =
+      cleanInstruction ||
+      (!this._isObjectId(nombre) ? String(nombre || '').trim() : '') ||
+      matchedVoiceCommand ||
+      (!this._isObjectId(automatizacion_id) ? String(automatizacion_id || '').trim() : '') ||
+      automation?.name ||
+      'Ejecución de flujo';
+
+    this._dispatchCompanyAutomationWithEvents({
+      runAutomation,
+      automation,
+      runOptions,
+      indicaciones: rawIndicaciones,
+      empresa: companyName,
+      logErrorLabel: 'Error en ejecución manual background',
     });
 
     return JSON.stringify({
@@ -1559,6 +1752,7 @@ class GestorAutomatizaciones extends Tool {
             return await this._executeCompanyAutomation({
               automation: ownCompanyFlowById,
               companyId,
+              companyName: strictCtx?.companyName || '',
               userId,
               matchSource: 'id',
               matchedVoiceCommand: null,
@@ -1856,6 +2050,7 @@ class GestorAutomatizaciones extends Tool {
             const presetResult = await this._cloneAndActivateSystemPreset({
               query: targetQuery,
               companyId,
+              companyName: strictCtx?.companyName || '',
               userId,
               emails: correos_notificacion,
               currentAgentId,
@@ -1983,16 +2178,28 @@ class GestorAutomatizaciones extends Tool {
 
           if (shouldAutoDispatchTenshi) {
             triggeredNow = true;
-            runAutomation(automation, {
-              triggerSource: 'tenshi_voice',
-              eventPayload: {
-                commandText: automatizacion_id || nombre || matchedVoiceCommand || '',
-                matchedVoiceCommand,
-                invokedVia: 'gestor_automatizaciones',
-                invokedAt: new Date().toISOString(),
+            const rawIndicaciones =
+              String(instruccion_usuario || '').trim() ||
+              (!this._isObjectId(nombre) ? String(nombre || '').trim() : '') ||
+              matchedVoiceCommand ||
+              (!this._isObjectId(automatizacion_id) ? String(automatizacion_id || '').trim() : '') ||
+              automation?.name ||
+              'Ejecución de flujo';
+            this._dispatchCompanyAutomationWithEvents({
+              runAutomation,
+              automation,
+              runOptions: {
+                triggerSource: 'tenshi_voice',
+                eventPayload: {
+                  commandText: automatizacion_id || nombre || matchedVoiceCommand || '',
+                  matchedVoiceCommand,
+                  invokedVia: 'gestor_automatizaciones',
+                  invokedAt: new Date().toISOString(),
+                },
               },
-            }).catch(err => {
-              console.error('[GestorAutomatizaciones Tool] Error disparando flujo por voiceCommand:', err);
+              indicaciones: rawIndicaciones,
+              empresa: strictCtx?.companyName || '',
+              logErrorLabel: 'Error disparando flujo por voiceCommand',
             });
           }
 
@@ -2080,6 +2287,7 @@ class GestorAutomatizaciones extends Tool {
             const presetResult = await this._cloneAndActivateSystemPreset({
               query: fallbackQuery,
               companyId,
+              companyName: strictCtx?.companyName || '',
               userId,
               emails: correos_notificacion,
               currentAgentId,
@@ -2103,6 +2311,7 @@ class GestorAutomatizaciones extends Tool {
         return await this._executeCompanyAutomation({
           automation,
           companyId,
+          companyName: strictCtx?.companyName || '',
           userId,
           matchSource,
           matchedVoiceCommand,
