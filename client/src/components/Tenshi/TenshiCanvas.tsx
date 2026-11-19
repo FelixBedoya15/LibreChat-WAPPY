@@ -179,13 +179,33 @@ export const TenshiCanvas: React.FC<TenshiCanvasProps> = ({
 
     let animId: number;
     let isRunning = true;
+    let blinkTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    stateRef.current.lastTime = performance.now();
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (blinkTimeoutId) {
+          clearTimeout(blinkTimeoutId);
+          blinkTimeoutId = null;
+        }
+        stateRef.current.open = 1;
+      } else {
+        const resumeNow = performance.now();
+        stateRef.current.lastTime = resumeNow;
+        stateRef.current.nextBlink = resumeNow + 2800 + Math.random() * 3200;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const render = () => {
       if (!isRunning) return;
 
       const now = performance.now();
       const s = stateRef.current;
-      const dt = Math.min(0.05, (now - s.lastTime) / 1000);
+      const delta = (now - s.lastTime) / 1000;
+      const dt = Math.max(0, Math.min(delta, 0.05));
       s.lastTime = now;
       const t = (now - s.t0) / 1000;
 
@@ -251,13 +271,16 @@ export const TenshiCanvas: React.FC<TenshiCanvasProps> = ({
       s.sx += (targetSx - s.sx) * kGen;
       s.oy += (0 - s.oy) * kGen;
 
-      // Parpadeo natural
-      if (now > s.nextBlink) {
+      // Parpadeo natural blindado (sin fugas de setTimeout ni ráfagas tras segundo plano)
+      if (!document.hidden && now > s.nextBlink) {
         s.open = 0.08;
-        setTimeout(() => {
+        if (blinkTimeoutId) clearTimeout(blinkTimeoutId);
+        blinkTimeoutId = setTimeout(() => {
+          blinkTimeoutId = null;
+          if (!isRunning) return;
           s.open = 1;
-        }, 120);
-        s.nextBlink = now + 2400 + Math.random() * 3200;
+        }, 145);
+        s.nextBlink = now + 3200 + Math.random() * 3200;
       } else if (s.open < 0.99) {
         s.open += (1 - s.open) * (1 - Math.pow(0.0001, dt));
       }
@@ -557,6 +580,11 @@ export const TenshiCanvas: React.FC<TenshiCanvasProps> = ({
     return () => {
       isRunning = false;
       cancelAnimationFrame(animId);
+      if (blinkTimeoutId) {
+        clearTimeout(blinkTimeoutId);
+        blinkTimeoutId = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [size, mood, isSpeaking, outputAmplitude, isListening, voiceAmplitude, showHalo, showWings]);
 

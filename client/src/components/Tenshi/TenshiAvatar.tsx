@@ -220,6 +220,8 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     glareY: 50,
   });
   const [haloLag, setHaloLag] = useState({ dx: 0, dy: 0, tilt: 0 });
+  const [idleGaze, setIdleGaze] = useState({ x: 0, y: 0 });
+  const [isCursorFollowing, setIsCursorFollowing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [isSquashing, setIsSquashing] = useState(false);
@@ -233,11 +235,60 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   // Contadores de gestos tipo Coucou (Poke / Slap & Petting / Acariciar)
   const pokeCountRef = useRef(0);
   const lastPokeTimeRef = useRef(0);
-  const transientTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const transientTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const haloLagTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const squashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clickedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const petMovesRef = useRef(0);
   const lastPetXRef = useRef<number | null>(null);
   const lastPetDirRef = useRef<number>(0);
-  const idleSleepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const idleSleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMouseMoveAtRef = useRef<number>(0);
+
+  // Helpers seguros para animaciones táctiles con auto-limpieza
+  const triggerSquash = useCallback((duration = 320) => {
+    setIsSquashing(true);
+    if (squashTimeoutRef.current) clearTimeout(squashTimeoutRef.current);
+    squashTimeoutRef.current = setTimeout(() => {
+      squashTimeoutRef.current = null;
+      setIsSquashing(false);
+    }, duration);
+  }, []);
+
+  const triggerClickPulse = useCallback((duration = 220) => {
+    setIsClicked(true);
+    if (clickedTimeoutRef.current) clearTimeout(clickedTimeoutRef.current);
+    clickedTimeoutRef.current = setTimeout(() => {
+      clickedTimeoutRef.current = null;
+      setIsClicked(false);
+    }, duration);
+  }, []);
+
+  // Limpieza global de timers puntuales al desmontar
+  useEffect(() => {
+    return () => {
+      if (transientTimeoutRef.current) {
+        clearTimeout(transientTimeoutRef.current);
+        transientTimeoutRef.current = null;
+      }
+      if (haloLagTimeoutRef.current) {
+        clearTimeout(haloLagTimeoutRef.current);
+        haloLagTimeoutRef.current = null;
+      }
+      if (squashTimeoutRef.current) {
+        clearTimeout(squashTimeoutRef.current);
+        squashTimeoutRef.current = null;
+      }
+      if (clickedTimeoutRef.current) {
+        clearTimeout(clickedTimeoutRef.current);
+        clickedTimeoutRef.current = null;
+      }
+      if (idleSleepTimerRef.current) {
+        clearTimeout(idleSleepTimerRef.current);
+        idleSleepTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Función para emitir una ráfaga de emoticones gatunos personalizados
   const emitCustomEmojis = useCallback((emojis: string[]) => {
@@ -263,6 +314,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     setTransientMood(newMood);
     if (transientTimeoutRef.current) clearTimeout(transientTimeoutRef.current);
     transientTimeoutRef.current = setTimeout(() => {
+      transientTimeoutRef.current = null;
       setTransientMood(null);
     }, duration);
   }, []);
@@ -285,8 +337,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       }>;
       if (custom.detail?.mood) {
         setIsSleeping(false);
-        setIsSquashing(true);
-        setTimeout(() => setIsSquashing(false), 320);
+        triggerSquash(320);
         triggerTransient(custom.detail.mood, custom.detail.durationMs || 2400);
         if (custom.detail.emojis && custom.detail.emojis.length > 0) {
           emitCustomEmojis(custom.detail.emojis);
@@ -295,7 +346,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     };
     window.addEventListener('tenshi-react', handleGlobalReaction);
     return () => window.removeEventListener('tenshi-react', handleGlobalReaction);
-  }, [triggerTransient, emitCustomEmojis]);
+  }, [triggerTransient, emitCustomEmojis, triggerSquash]);
 
   // Determinar emoción activa con prioridad jerárquica
   const activeMood: TenshiAvatarMood = useMemo(() => {
@@ -307,6 +358,54 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     if (isSleeping) return 'sleeping';
     return explicitMood || 'idle';
   }, [transientMood, explicitMood, isSpeaking, isTyping, isVoiceActive, isSleeping]);
+
+  // Refs sincronizadas para evitar recrear ciclos de parpadeo / mirada / mouse en cada cambio de estado
+  const activeMoodRef = useRef<TenshiAvatarMood>(activeMood);
+  activeMoodRef.current = activeMood;
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
+  const isSpeakingRef = useRef(isSpeaking);
+  isSpeakingRef.current = isSpeaking;
+  const isVoiceActiveRef = useRef(isVoiceActive);
+  isVoiceActiveRef.current = isVoiceActive;
+  const isTypingRef = useRef(isTyping);
+  isTypingRef.current = isTyping;
+  const isSleepingRef = useRef(isSleeping);
+  isSleepingRef.current = isSleeping;
+
+  // Limpiar estados oculares si entra en sueño o sale de estados compatibles con mirada autónoma
+  useEffect(() => {
+    if (activeMood === 'sleeping') {
+      setIsBlinking(false);
+      setIsWinking(false);
+    }
+    if (activeMood !== 'idle' && activeMood !== 'listening') {
+      setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+    }
+  }, [activeMood]);
+
+  // Despertar si hay actividad de voz/chat y rearmar el temporizador de sueño cuando vuelve a reposo
+  useEffect(() => {
+    if (isSpeaking || isVoiceActive || isTyping) {
+      if (isSleepingRef.current) {
+        setIsSleeping(false);
+      }
+      if (idleSleepTimerRef.current) {
+        clearTimeout(idleSleepTimerRef.current);
+        idleSleepTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (!isSleeping) {
+      if (idleSleepTimerRef.current) clearTimeout(idleSleepTimerRef.current);
+      idleSleepTimerRef.current = setTimeout(() => {
+        if (!isSpeakingRef.current && !isVoiceActiveRef.current && !isTypingRef.current) {
+          setIsSleeping(true);
+        }
+      }, 95000);
+    }
+  }, [isSpeaking, isVoiceActive, isTyping, isSleeping]);
 
   // Determinar si el visor HUD está en modo de alta intensidad (conversación o reacción activa)
   const isHighEnergy =
@@ -425,7 +524,9 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   useEffect(() => {
     if (activeMood !== 'sleeping') return;
     const zInterval = setInterval(() => {
-      emitParticles('z', 3);
+      if (typeof document === 'undefined' || !document.hidden) {
+        emitParticles('z', 3);
+      }
     }, 2600);
     return () => clearInterval(zInterval);
   }, [activeMood, emitParticles]);
@@ -439,66 +540,217 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     return () => clearTimeout(timer);
   }, [particles]);
 
-  // Parpadeo natural autónomo (con doble parpadeo ocasional y guiños espontáneos estilo Coucou)
+  // Parpadeo natural autónomo blindado (cero fugas de timers, pausa en segundo plano y cadencia serena)
   useEffect(() => {
-    let blinkTimer: NodeJS.Timeout;
-    const scheduleNextBlink = () => {
-      const delay = 2200 + Math.random() * 2800;
-      blinkTimer = setTimeout(() => {
+    let cancelled = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+
+    const clearAllTimers = () => {
+      timers.forEach((id) => clearTimeout(id));
+      timers.clear();
+    };
+
+    const scheduleSafe = (fn: () => void, ms: number) => {
+      if (cancelled) return;
+      const id = setTimeout(() => {
+        timers.delete(id);
+        if (!cancelled) fn();
+      }, ms);
+      timers.add(id);
+    };
+
+    const scheduleNextBlink = (overrideDelay?: number) => {
+      clearAllTimers();
+      if (cancelled || (typeof document !== 'undefined' && document.hidden)) {
+        return;
+      }
+
+      // Cadencia orgánica y serena: intervalo natural entre 3.2 s y 6.4 s
+      const delay = overrideDelay ?? 3200 + Math.random() * 3200;
+      scheduleSafe(() => {
+        if (cancelled || (typeof document !== 'undefined' && document.hidden)) {
+          setIsBlinking(false);
+          setIsWinking(false);
+          return;
+        }
+
+        const currentMood = activeMoodRef.current;
+        if (currentMood === 'sleeping') {
+          setIsBlinking(false);
+          setIsWinking(false);
+          scheduleNextBlink(3800 + Math.random() * 2400);
+          return;
+        }
+
         const rand = Math.random();
-        if (rand < 0.12 && activeMood === 'idle') {
-          // Guiño amistoso ocasional
+        // Guiño amistoso sutil (~6% solo en idle)
+        if (rand < 0.06 && currentMood === 'idle') {
           setIsWinking(true);
-          setTimeout(() => {
+          scheduleSafe(() => {
             setIsWinking(false);
             scheduleNextBlink();
           }, 260);
         } else {
+          // Parpadeo suave de 145 ms
           setIsBlinking(true);
-          setTimeout(() => {
+          scheduleSafe(() => {
             setIsBlinking(false);
-            // 22% de probabilidad de doble parpadeo rápido
-            if (Math.random() < 0.22) {
-              setTimeout(() => {
+            // Doble parpadeo ocasional (~12%) con pausa natural de 130 ms
+            if (Math.random() < 0.12 && activeMoodRef.current !== 'sleeping') {
+              scheduleSafe(() => {
+                if (activeMoodRef.current === 'sleeping') {
+                  scheduleNextBlink();
+                  return;
+                }
                 setIsBlinking(true);
-                setTimeout(() => {
+                scheduleSafe(() => {
                   setIsBlinking(false);
                   scheduleNextBlink();
-                }, 110);
-              }, 90);
+                }, 145);
+              }, 130);
             } else {
               scheduleNextBlink();
             }
-          }, 130);
+          }, 145);
         }
       }, delay);
     };
-    scheduleNextBlink();
-    return () => clearTimeout(blinkTimer);
-  }, [activeMood]);
+
+    const handleVisibilityChange = () => {
+      if (cancelled) return;
+      clearAllTimers();
+      setIsBlinking(false);
+      setIsWinking(false);
+      if (!document.hidden) {
+        scheduleNextBlink(2600 + Math.random() * 2600);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    scheduleNextBlink(2800 + Math.random() * 2600);
+
+    return () => {
+      cancelled = true;
+      clearAllTimers();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Movimiento autónomo NATURAL de mirada (solo cuando el mouse lleva >4 s quieto y está relajado/atento)
+  useEffect(() => {
+    let cancelled = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+
+    const clearAllTimers = () => {
+      timers.forEach((id) => clearTimeout(id));
+      timers.clear();
+    };
+
+    const scheduleSafe = (fn: () => void, ms: number) => {
+      if (cancelled) return;
+      const id = setTimeout(() => {
+        timers.delete(id);
+        if (!cancelled) fn();
+      }, ms);
+      timers.add(id);
+    };
+
+    const scheduleNextGaze = (overrideDelay?: number) => {
+      clearAllTimers();
+      if (cancelled || (typeof document !== 'undefined' && document.hidden)) {
+        return;
+      }
+
+      // Cada 3.8 – 6.8 segundos evalúa un desplazamiento ocular suave y natural
+      const waitMs = overrideDelay ?? 3800 + Math.random() * 3000;
+      scheduleSafe(() => {
+        if (cancelled || (typeof document !== 'undefined' && document.hidden)) {
+          setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+          return;
+        }
+
+        const currentMood = activeMoodRef.current;
+        const mouseQuietMs = Date.now() - lastMouseMoveAtRef.current;
+        const canLookAround =
+          !isSleepingRef.current &&
+          (currentMood === 'idle' || currentMood === 'listening') &&
+          !isSpeakingRef.current &&
+          mouseQuietMs > 4000;
+
+        if (!canLookAround) {
+          setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+          const retryMs =
+            mouseQuietMs <= 4000
+              ? Math.max(1200, 4200 - mouseQuietMs + Math.random() * 1400)
+              : 3800 + Math.random() * 3000;
+          scheduleNextGaze(retryMs);
+          return;
+        }
+
+        // ~40% de las veces regresa/permanece calmadamente al centro
+        if (Math.random() < 0.4) {
+          setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+          scheduleNextGaze();
+          return;
+        }
+
+        // Destino natural y contenido: x ∈ [-0.48, +0.48], y ∈ [-0.28, +0.22]
+        const moodScale = currentMood === 'listening' ? 0.55 : 1;
+        const nextX = (-0.48 + Math.random() * 0.96) * moodScale;
+        const nextY = (-0.28 + Math.random() * 0.5) * moodScale;
+        setIdleGaze({ x: nextX, y: nextY });
+
+        // Sostiene la mirada calmadamente 2.2 – 4.2 s y vuelve suave al centro
+        const holdMs = 2200 + Math.random() * 2000;
+        scheduleSafe(() => {
+          setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+          scheduleNextGaze();
+        }, holdMs);
+      }, waitMs);
+    };
+
+    const handleVisibilityChange = () => {
+      if (cancelled) return;
+      clearAllTimers();
+      setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
+      if (!document.hidden) {
+        scheduleNextGaze(4200 + Math.random() * 2600);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    scheduleNextGaze(4200 + Math.random() * 2600);
+
+    return () => {
+      cancelled = true;
+      clearAllTimers();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Seguimiento global 24/7 del cursor + Detector de inactividad (Sleep)
   useEffect(() => {
-    let returnCenterTimeout: NodeJS.Timeout;
+    let returnCenterTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const resetSleepTimer = () => {
-      setIsSleeping((prev) => {
-        if (prev) {
-          setIsSquashing(true);
-          setTimeout(() => setIsSquashing(false), 320);
-        }
-        return false;
-      });
+      if (isSleepingRef.current) {
+        setIsSleeping(false);
+        triggerSquash(320);
+      }
       if (idleSleepTimerRef.current) clearTimeout(idleSleepTimerRef.current);
       idleSleepTimerRef.current = setTimeout(() => {
-        if (!isSpeaking && !isVoiceActive && !isTyping) {
+        if (!isSpeakingRef.current && !isVoiceActiveRef.current && !isTypingRef.current) {
           setIsSleeping(true);
         }
       }, 95000);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      lastMouseMoveAtRef.current = Date.now();
+      setIsCursorFollowing(true);
+      setIdleGaze((prev) => (prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 }));
       resetSleepTimer();
+
       const el = containerRef.current;
       if (!el) return;
 
@@ -509,17 +761,18 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / Math.max(window.innerWidth * 0.45, 320)));
       const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / Math.max(window.innerHeight * 0.45, 320)));
 
-      const factor = interactive ? 1 : 0;
+      const factor = interactiveRef.current ? 1 : 0;
+      const currentMood = activeMoodRef.current;
       const ry = dx * 16 * factor;
       const rx = -dy * 13 * factor;
       const rz =
-        activeMood === 'question'
+        currentMood === 'question'
           ? 7.5
-          : activeMood === 'listening'
+          : currentMood === 'listening'
           ? 4.5
-          : activeMood === 'thinking'
+          : currentMood === 'thinking'
           ? -4.5
-          : activeMood === 'love'
+          : currentMood === 'love'
           ? 5
           : dx * 3.2 * factor;
 
@@ -528,8 +781,10 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
 
       setTilt({ rx, ry, rz, lookX: dx, lookY: dy, glareX, glareY });
 
-      // Resorte físico con retraso para la Aureola Celestial (Spring Lag de Coucou)
-      setTimeout(() => {
+      // Resorte físico con retraso para la Aureola Celestial (cancelando siempre el timer previo)
+      if (haloLagTimeoutRef.current) clearTimeout(haloLagTimeoutRef.current);
+      haloLagTimeoutRef.current = setTimeout(() => {
+        haloLagTimeoutRef.current = null;
         setHaloLag({
           dx: dx * 6,
           dy: dy * 3.5,
@@ -537,12 +792,19 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
         });
       }, 65);
 
-      clearTimeout(returnCenterTimeout);
+      if (returnCenterTimeout) clearTimeout(returnCenterTimeout);
       returnCenterTimeout = setTimeout(() => {
+        returnCenterTimeout = null;
+        if (haloLagTimeoutRef.current) {
+          clearTimeout(haloLagTimeoutRef.current);
+          haloLagTimeoutRef.current = null;
+        }
+        const moodNow = activeMoodRef.current;
+        setIsCursorFollowing(false);
         setTilt({
           rx: 0,
           ry: 0,
-          rz: activeMood === 'question' ? 7 : activeMood === 'thinking' ? -4 : 0,
+          rz: moodNow === 'question' ? 7 : moodNow === 'thinking' ? -4 : 0,
           lookX: 0,
           lookY: 0,
           glareX: 50,
@@ -552,14 +814,23 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       }, 3400);
     };
 
-    resetSleepTimer();
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      clearTimeout(returnCenterTimeout);
-      if (idleSleepTimerRef.current) clearTimeout(idleSleepTimerRef.current);
+      if (returnCenterTimeout) {
+        clearTimeout(returnCenterTimeout);
+        returnCenterTimeout = null;
+      }
+      if (haloLagTimeoutRef.current) {
+        clearTimeout(haloLagTimeoutRef.current);
+        haloLagTimeoutRef.current = null;
+      }
+      if (idleSleepTimerRef.current) {
+        clearTimeout(idleSleepTimerRef.current);
+        idleSleepTimerRef.current = null;
+      }
     };
-  }, [interactive, activeMood, isSpeaking, isVoiceActive, isTyping]);
+  }, [triggerSquash]);
 
   // Detector de caricias en la cabeza (Petting Gesture -> estado 'love')
   const handleContainerMouseMove = useCallback(
@@ -580,14 +851,13 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           if (petMovesRef.current >= 4 && activeMood !== 'love') {
             petMovesRef.current = 0;
             triggerTransient('love', 2600);
-            setIsSquashing(true);
-            setTimeout(() => setIsSquashing(false), 340);
+            triggerSquash(340);
           }
         }
       }
       lastPetXRef.current = e.clientX;
     },
-    [activeMood, triggerTransient]
+    [interactive, activeMood, triggerTransient, triggerSquash]
   );
 
   // Manejador de Clic con progresión estilo Coucou:
@@ -605,10 +875,8 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     }
     lastPokeTimeRef.current = now;
 
-    setIsClicked(true);
-    setIsSquashing(true);
-    setTimeout(() => setIsClicked(false), 220);
-    setTimeout(() => setIsSquashing(false), 380);
+    triggerClickPulse(220);
+    triggerSquash(380);
 
     if (pokeCountRef.current >= 4) {
       pokeCountRef.current = 0;
@@ -622,7 +890,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     }
 
     if (onClick) onClick();
-  }, [onClick, triggerTransient]);
+  }, [interactive, onClick, triggerTransient, triggerClickPulse, triggerSquash]);
 
   // Drag & Drop de archivos sobre Tenshi (Efecto "Gulp" de Coucou)
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -639,14 +907,13 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
       e.preventDefault();
       setIsDragOver(false);
       tenshiAudio.playGulp();
-      setIsSquashing(true);
-      setTimeout(() => setIsSquashing(false), 450);
+      triggerSquash(450);
       triggerTransient('success', 2000);
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0 && onFileDrop) {
         onFileDrop(e.dataTransfer.files);
       }
     },
-    [onFileDrop, triggerTransient]
+    [onFileDrop, triggerTransient, triggerSquash]
   );
 
   // Cinemática Elástica de Cuerpo Completo (0 cortes clip-path, 100% acabado de estudio como BotEngine de Coucou)
@@ -676,15 +943,22 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
   const renderHUDLenses = () => {
     if (!showHUD || size < 28) return null;
 
+    const usingAutonomousGaze =
+      !isCursorFollowing &&
+      (activeMood === 'idle' || activeMood === 'listening') &&
+      !isSpeaking;
+    const effectiveLookX = usingAutonomousGaze ? idleGaze.x : tilt.lookX;
+    const effectiveLookY = usingAutonomousGaze ? idleGaze.y : tilt.lookY;
+
     const maxShift = size < 55 ? 1.4 : Math.min(12, Math.max(3.2, size * 0.018));
     const eyeOffsetX =
-      activeMood === 'thinking' ? maxShift * 0.75 : tilt.lookX * maxShift;
+      activeMood === 'thinking' ? maxShift * 0.75 : effectiveLookX * maxShift;
     const eyeOffsetY =
       activeMood === 'thinking'
         ? -maxShift * 0.65
         : activeMood === 'sleeping'
         ? maxShift * 0.5
-        : tilt.lookY * (maxShift * 0.78);
+        : effectiveLookY * (maxShift * 0.78);
 
     const lensCommonClass = cn(
       'absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-hidden transition-all duration-200',
@@ -742,7 +1016,7 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
           }}
         >
           <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent animate-tenshi-lens-gleam pointer-events-none" />
-          {renderFriendlyEye(eyeOffsetX, eyeOffsetY, 'left')}
+          {renderFriendlyEye(eyeOffsetX, eyeOffsetY, 'left', usingAutonomousGaze)}
         </div>
 
         {/* Lente Derecho */}
@@ -760,14 +1034,19 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
             className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent animate-tenshi-lens-gleam pointer-events-none"
             style={{ animationDelay: '0.18s' }}
           />
-          {renderFriendlyEye(eyeOffsetX, eyeOffsetY, 'right')}
+          {renderFriendlyEye(eyeOffsetX, eyeOffsetY, 'right', usingAutonomousGaze)}
         </div>
       </div>
     );
   };
 
   // Ojos amigables tipo Mochi / Astro Bot (sin anillos concéntricos intimidantes)
-  const renderFriendlyEye = (offsetX: number, offsetY: number, side: 'left' | 'right') => {
+  const renderFriendlyEye = (
+    offsetX: number,
+    offsetY: number,
+    side: 'left' | 'right',
+    isAutonomousGaze = false
+  ) => {
     // 1. Parpadeo natural o durmiendo (arco suave cerrado ︶)
     if (isBlinking || activeMood === 'sleeping') {
       return (
@@ -782,7 +1061,10 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     if ((isWinking || activeMood === 'greeting') && side === 'left') {
       return (
         <div
-          className="w-[56%] h-[36%] rounded-t-full border-t-[2.5px] border-emerald-200 shadow-[0_-2px_8px_rgba(110,231,183,0.9)]"
+          className={cn(
+            'w-[56%] h-[36%] rounded-t-full border-t-[2.5px] border-emerald-200 shadow-[0_-2px_8px_rgba(110,231,183,0.9)] transition-transform',
+            isAutonomousGaze ? 'duration-500 ease-in-out' : 'duration-150 ease-out'
+          )}
           style={{ transform: `translate(${offsetX * 0.5}px, ${offsetY * 0.5}px)` }}
         />
       );
@@ -854,7 +1136,8 @@ export const TenshiAvatar: React.FC<TenshiAvatarProps> = ({
     return (
       <div
         className={cn(
-          'relative flex items-center justify-center transition-transform duration-75 ease-out',
+          'relative flex items-center justify-center transition-transform',
+          isAutonomousGaze ? 'duration-500 ease-in-out' : 'duration-150 ease-out',
           isHighEnergy ? 'opacity-100' : 'opacity-75 group-hover:opacity-100'
         )}
         style={{
