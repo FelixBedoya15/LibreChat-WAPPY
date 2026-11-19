@@ -12576,11 +12576,12 @@ async function executeRealAntigravityScraperVerification({
                 ? true
                 : i < 12;
             const portalTimeoutMs =
-              specificPortalAction === 'vial_pesv' || specificPortalAction === 'pensiones'
-                ? 45000
-                : shouldIncludePortalEvidence
-                  ? 35000
-                  : 25000;
+              specificPortalAction === 'arl' ||
+              specificPortalAction === 'vial_pesv' ||
+              specificPortalAction === 'pensiones' ||
+              shouldIncludePortalEvidence
+                ? 58000
+                : 25000;
             const docTypeForTarget = target.tipoDoc || extractedDocType || 'CC';
             const birthDateForTarget = target.fechaNacimiento || extractedBirthDate || '';
             const arlForTarget =
@@ -12645,6 +12646,7 @@ async function executeRealAntigravityScraperVerification({
                   nombre: target.nombre,
                   includeEvidence: shouldIncludeAntecedentesEvidence,
                   forceEvidence: forceFirstEvidence,
+                  timeoutMs: 58000,
                   antigravityMode,
                 })
                 .catch(() => null);
@@ -13053,6 +13055,7 @@ async function executeRealAntigravityScraperVerification({
               nombre: fbRow.nombre,
               includeEvidence: true,
               forceEvidence: true,
+              timeoutMs: 58000,
               antigravityMode,
             })
             .catch(() => null);

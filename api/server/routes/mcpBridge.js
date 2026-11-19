@@ -12973,7 +12973,22 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
   const resolvedTipoDoc = String(tipoDoc || 'CC').trim() || 'CC';
   const resolvedCedula = String(cedula || payload?.documento || '').trim();
   const mode = String(payload?.antigravityMode || 'auto').toLowerCase();
-  const effectiveTimeoutMs = Number(payload?.timeoutMs || timeoutMs || 45000);
+  const normalizedAction = String(action || 'query').toLowerCase().trim();
+  const isRealPortalOsintAction = [
+    'arl',
+    'alturas',
+    'alto_riesgo',
+    'vial_pesv',
+    'antecedentes',
+    'query',
+    'pdf',
+    'pensiones',
+  ].includes(normalizedAction);
+  const defaultRelayTimeoutMs = isRealPortalOsintAction ? 58000 : 45000;
+  const requestedTimeoutMs = Number(payload?.timeoutMs || timeoutMs || 0);
+  const effectiveTimeoutMs = isRealPortalOsintAction
+    ? Math.max(58000, requestedTimeoutMs || 58000)
+    : requestedTimeoutMs || defaultRelayTimeoutMs;
 
   const getClientEnv = (c) => ((c?.env || c?.__wappyDaemonEnv || 'local') === 'cloud' ? 'cloud' : 'local');
   const sortPreferredDaemons = (arr) =>
@@ -13047,7 +13062,7 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
     const primaryClient = liveGroup[0];
     const resolvedEnv = envLabel || getClientEnv(primaryClient);
     const requestId = `osint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const waitMs = Math.max(3000, Number(stepTimeoutMs || effectiveTimeoutMs || 45000));
+    const waitMs = Math.max(3000, Number(stepTimeoutMs || effectiveTimeoutMs || defaultRelayTimeoutMs));
 
     logger.info(
       `[MCP Bridge] 📡 Despachando acción Antigravity (action=${action}, doc=${resolvedTipoDoc} ${resolvedCedula || folderPath || targetUrl}, mode=${mode} -> ${resolvedEnv}, host=${primaryClient?.__wappyDaemonHost || resolvedEnv}, timeout=${waitMs}ms) al daemon Google Antigravity (${requestId})...`,
@@ -13183,8 +13198,9 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
   }
 
   if (mode === 'local') {
-    const primaryTimeout =
-      cloudClientsInitial.length > 0
+    const primaryTimeout = isRealPortalOsintAction
+      ? effectiveTimeoutMs
+      : cloudClientsInitial.length > 0
         ? Math.min(effectiveTimeoutMs, Math.max(12000, Math.round(effectiveTimeoutMs * 0.6)))
         : effectiveTimeoutMs;
     const localRes = await tryDispatchToClients(localClientsInitial, 'local', primaryTimeout);
@@ -13202,8 +13218,9 @@ async function dispatchOsintViaAntigravityDaemon(payload = {}, timeoutMs = 45000
   }
 
   // mode === 'auto' (por defecto): Cascada real 1° Antigravity Local -> 2° Antigravity Cloud -> 3° null (Respaldo Directo Ligero Seguro VPS)
-  const localTierTimeout =
-    cloudClientsInitial.length > 0
+  const localTierTimeout = isRealPortalOsintAction
+    ? effectiveTimeoutMs
+    : cloudClientsInitial.length > 0
       ? Math.min(effectiveTimeoutMs, Math.max(12000, Math.round(effectiveTimeoutMs * 0.6)))
       : effectiveTimeoutMs;
 

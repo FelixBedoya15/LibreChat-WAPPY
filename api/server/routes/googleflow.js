@@ -1617,47 +1617,62 @@ async function executeFlowVideoGeneration({
 function buildFlowStudioCanvasHtml(mediaResult) {
   const isVideo = mediaResult.type === 'video';
   const title = isVideo ? 'Google Flow Studio • Video Generado' : 'Google Flow Studio • Imagen Generada';
-  const safePrompt = String(mediaResult.prompt || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escapeHtml = (val) =>
+    String(val || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const safePrompt = escapeHtml(mediaResult.prompt);
+  const safeModel = escapeHtml(mediaResult.model || 'Google Flow Studio');
+  const safeAspectRatio = escapeHtml(mediaResult.aspectRatio || '16:9');
+  const safePublicUrl = escapeHtml(mediaResult.publicUrl);
+  const safeFilename = escapeHtml(mediaResult.filename || (isVideo ? 'wappy-flow.mp4' : 'wappy-flow.png'));
+  const safePosterUrl = mediaResult.posterUrl ? escapeHtml(mediaResult.posterUrl) : '';
 
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      background-color: #0b0f19 !important;
+      color: #f8fafc !important;
+      margin: 0;
+    }
+  </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col p-6 font-sans">
+<body class="bg-slate-950 bg-[#0b0f19] text-slate-100 min-h-screen flex flex-col p-6 font-sans" style="background-color:#0b0f19;color:#f8fafc;">
   <div class="max-w-4xl w-full mx-auto space-y-5">
-    <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20 font-bold text-white">
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-3.5 shadow-lg" style="background-color:#0f172a;border-color:#1e293b;">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20 font-bold text-white" style="color:#ffffff;">
           ✨
         </div>
-        <div>
-          <h1 class="text-base font-bold text-white">${title}</h1>
-          <p class="text-xs text-zinc-400">Motor: ${mediaResult.model} &bull; Formato ${mediaResult.aspectRatio}</p>
+        <div class="min-w-0">
+          <h1 class="text-base font-bold text-slate-50 leading-snug" style="color:#f8fafc;margin:0;">${title}</h1>
+          <p class="text-xs text-slate-300 leading-snug" style="color:#cbd5e1;margin:2px 0 0 0;">Motor: ${safeModel} &bull; Formato ${safeAspectRatio}</p>
         </div>
       </div>
-      <a href="${mediaResult.publicUrl}" download="${mediaResult.filename}" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md">
+      <a href="${safePublicUrl}" download="${safeFilename}" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shrink-0" style="background-color:#9333ea;color:#ffffff;text-decoration:none;">
         ⬇ Descargar ${isVideo ? 'MP4' : 'PNG'}
       </a>
     </div>
 
-    <div class="rounded-2xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center shadow-2xl">
+    <div class="rounded-2xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center shadow-2xl" style="background-color:#000000;border-color:#1e293b;">
       ${
         isVideo
-          ? `<video src="${mediaResult.publicUrl}" ${mediaResult.posterUrl ? `poster="${mediaResult.posterUrl}"` : ''} controls autoplay loop playsinline class="max-h-[70vh] w-auto object-contain"></video>`
-          : `<img src="${mediaResult.publicUrl}" alt="${safePrompt}" class="max-h-[70vh] w-auto object-contain" />`
+          ? `<video src="${safePublicUrl}" ${safePosterUrl ? `poster="${safePosterUrl}"` : ''} controls autoplay loop playsinline class="max-h-[70vh] w-auto object-contain"></video>`
+          : `<img src="${safePublicUrl}" alt="${safePrompt}" class="max-h-[70vh] w-auto object-contain" />`
       }
     </div>
 
-    <div class="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-1">
-      <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400">Prompt Utilizado</span>
-      <p class="text-xs text-zinc-300 leading-relaxed">${safePrompt}</p>
+    <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1" style="background-color:#0f172a;border-color:#1e293b;">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-purple-300" style="color:#d8b4fe;">Prompt Utilizado</span>
+      <p class="text-xs text-slate-200 leading-relaxed" style="color:#e2e8f0;margin:4px 0 0 0;">${safePrompt}</p>
     </div>
   </div>
 </body>

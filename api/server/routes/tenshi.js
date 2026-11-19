@@ -5203,6 +5203,74 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const MAX_ROTATION_WALL_MS = 46000;         // Tope total antes de activar 503 Rescue y evitar bloqueos >60s
             const rotationStartMs = Date.now();
 
+            const sanitizeInternalSynthesisMarkers = (text) =>
+                String(text || '')
+                    .replace(/\n*\[Objetivo de s[ií]ntesis solicitado\]:[^\n]*/gi, '')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+
+            const isTransientSynthesisErr = (err) => {
+                const status = err?.status || (err?.response && err.response.status) || 0;
+                const msg = String(err?.message || '').toLowerCase();
+                return (
+                    status === 503 ||
+                    status === 504 ||
+                    status === 429 ||
+                    Boolean(err?.isTimeout) ||
+                    msg.includes('503') ||
+                    msg.includes('504') ||
+                    msg.includes('429') ||
+                    msg.includes('overloaded') ||
+                    msg.includes('service unavailable') ||
+                    msg.includes('deadline_exceeded') ||
+                    msg.includes('gateway timeout') ||
+                    msg.includes('high demand') ||
+                    msg.includes('timeout') ||
+                    msg.includes('aborted')
+                );
+            };
+
+            const tryFastSynthesisKeyRetry = async (synthErr, currentKeyIdx, contents, timeoutMs, labelTag) => {
+                if (!isTransientSynthesisErr(synthErr) || !Array.isArray(apiKeys) || apiKeys.length === 0) {
+                    return null;
+                }
+                let retryKeyIdx = apiKeys.length > 1 ? (currentKeyIdx + 1) % apiKeys.length : currentKeyIdx;
+                if (apiKeys.length > 1 && apiKeys[retryKeyIdx] === apiKeys[currentKeyIdx]) {
+                    const distinctIdx = apiKeys.findIndex(
+                        (k, idx) => idx !== currentKeyIdx && k && k !== apiKeys[currentKeyIdx]
+                    );
+                    if (distinctIdx !== -1) retryKeyIdx = distinctIdx;
+                }
+                const retryApiKey = apiKeys[retryKeyIdx];
+                if (!retryApiKey) return null;
+                try {
+                    logger.warn(
+                        `[Tenshi Synthesis Retry] ${labelTag} falló (${synthErr.message}). Reintento rápido en ${PRIMARY_TEXT_MODEL} rotando a clave #${retryKeyIdx + 1}/${apiKeys.length} (timeout=${timeoutMs}ms)...`
+                    );
+                    const retryGenAI = new GoogleGenerativeAI(retryApiKey);
+                    const retryModel = retryGenAI.getGenerativeModel({
+                        model: PRIMARY_TEXT_MODEL,
+                        systemInstruction: systemMessage,
+                        tools: [{ functionDeclarations: toolsToAttach }],
+                        generationConfig: { temperature: 0.7, maxOutputTokens: 65536 }
+                    });
+                    const retryRes = await withGeminiTimeout(
+                        retryModel.generateContent({ contents }),
+                        timeoutMs,
+                        `Tenshi Chat (${PRIMARY_TEXT_MODEL}) synthesis retry key#${retryKeyIdx + 1}`
+                    );
+                    logger.info(
+                        `[Tenshi Synthesis Retry] ✅ Síntesis recuperada para ${labelTag} con clave #${retryKeyIdx + 1}/${apiKeys.length} en ${PRIMARY_TEXT_MODEL}.`
+                    );
+                    return retryRes;
+                } catch (retryErr) {
+                    logger.warn(
+                        `[Tenshi Synthesis Retry] ❌ Reintento rápido en ${PRIMARY_TEXT_MODEL} (clave #${retryKeyIdx + 1}) también falló: ${retryErr.message}`
+                    );
+                    return null;
+                }
+            };
+
             let pass503Index = 0;
             let saw503InPass = false;
             let sawNon503InPass = false;
@@ -5395,18 +5463,44 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         }
                                     }
                                 } catch (synthErr) {
-                                    logger.warn(`[Tenshi Parallel Synthesis Fallback] Error sintetizando lote paralelo (${synthErr.message}). Rescatando dictamen consolidado...`);
-                                    const rescuedText = parallelRes.formattedMarkdown || '✅ Se completaron las consultas paralelas a los especialistas.';
-                                    responseResult = {
-                                        response: {
-                                            text: () => rescuedText,
-                                            candidates: [],
-                                            functionCalls: () => null,
-                                        },
-                                    };
-                                    candidate = null;
-                                    calls = null;
-                                    break;
+                                    const retriedParallelResult = await tryFastSynthesisKeyRetry(
+                                        synthErr,
+                                        keyIdx,
+                                        currentContents,
+                                        18000,
+                                        'lote paralelo de especialistas'
+                                    );
+                                    if (retriedParallelResult) {
+                                        responseResult = retriedParallelResult;
+                                        candidate = responseResult.response.candidates && responseResult.response.candidates[0];
+                                        calls = responseResult.response.functionCalls();
+                                        if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
+                                            while (queuedCalls.length > 0) {
+                                                const nextQueued = queuedCalls.shift();
+                                                const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                                if (!executedCallSigs.has(nextSig)) {
+                                                    calls = [nextQueued];
+                                                    candidate = null;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        logger.warn(`[Tenshi Parallel Synthesis Fallback] Error sintetizando lote paralelo (${synthErr.message}). Rescatando dictamen consolidado...`);
+                                        const rescuedText = sanitizeInternalSynthesisMarkers(
+                                            parallelRes.formattedMarkdown || '✅ Se completaron las consultas paralelas a los especialistas.'
+                                        );
+                                        responseResult = {
+                                            response: {
+                                                text: () => rescuedText,
+                                                candidates: [],
+                                                functionCalls: () => null,
+                                            },
+                                        };
+                                        candidate = null;
+                                        calls = null;
+                                        break;
+                                    }
                                 }
                                 continue;
                             }
@@ -6211,50 +6305,80 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     }
                                 }
                             } catch (synthErr) {
-                                logger.warn(`[Tenshi Synthesis Fallback] Error sintetizando respuesta de herramienta ${call.name} (${synthErr.message}). Rescatando resultado directo...`);
-                                // Si la herramienta ya se ejecutó con éxito pero el segundo llamado a Gemini dio 503,
-                                // no perder el resultado ni lanzar error 503 al usuario: construir síntesis limpia en español.
-                                let rescuedText = '';
-                                if (lightResponse.error) {
-                                    rescuedText = `Revisé el módulo solicitado: ${lightResponse.error}`;
-                                } else if (lightResponse.titulo || lightResponse.informeCompleto) {
-                                    const cleanExtract = String(lightResponse.informeCompleto || lightResponse.resumen || '')
-                                        .replace(/<[^>]+>/g, ' ')
-                                        .replace(/\s+/g, ' ')
-                                        .trim()
-                                        .substring(0, 700);
-                                    rescuedText = `✅ **Revisión completada: ${lightResponse.titulo || 'Informe del Aplicativo'}**\n\n${cleanExtract ? `${cleanExtract}...\n\n` : ''}Ya tienes el documento técnico oficial adjunto aquí mismo en nuestro chat para que puedas abrirlo, revisarlo en detalle o descargarlo en PDF/Word.`;
-                                } else if (capturedEvidenceFiles.length > 0) {
-                                    const certNotice =
-                                        capturedEvidenceFiles.length === 1
-                                            ? '✅ **El certificado oficial fue emitido y ya lo recibiste aquí en tu chat de Tenshi; ya puedes abrirlo o descargarlo.**'
-                                            : `✅ **Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí en tu chat de Tenshi; ya puedes abrirlos o descargarlos.**`;
-                                    const baseRes = String(lightResponse.resultado || '').trim();
-                                    rescuedText = baseRes ? `${certNotice}\n\n${baseRes}` : certNotice;
-                                } else if (lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
-                                    rescuedText = String(lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
-                                } else if (
-                                    (call.name === 'consultar_multiples_especialistas_paralelo' ||
-                                        call.name === 'consultar_agente_especializado') &&
-                                    typeof lightResponse.result === 'string' &&
-                                    lightResponse.result.trim()
-                                ) {
-                                    rescuedText = lightResponse.result.trim();
-                                } else if (capturedFile || capturedHtmlReport) {
-                                    rescuedText = `✅ Listo, he revisado y cargado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** directamente aquí en nuestro chat para tu revisión.`;
-                                } else {
-                                    rescuedText = `✅ He ejecutado la revisión solicitada (${call.name}). Los datos han sido procesados correctamente.`;
-                                }
-                                responseResult = {
-                                    response: {
-                                        text: () => rescuedText,
-                                        candidates: [],
-                                        functionCalls: () => null
+                                const retrySynthTimeoutMs =
+                                    call.name === 'consultar_multiples_especialistas_paralelo' ||
+                                    call.name === 'consultar_agente_especializado'
+                                        ? 18000
+                                        : PRIMARY_RETRY_TIMEOUT_MS;
+                                const retriedSynthResult = await tryFastSynthesisKeyRetry(
+                                    synthErr,
+                                    keyIdx,
+                                    currentContents,
+                                    retrySynthTimeoutMs,
+                                    `herramienta ${call.name}`
+                                );
+                                if (retriedSynthResult) {
+                                    responseResult = retriedSynthResult;
+                                    candidate = responseResult.response.candidates && responseResult.response.candidates[0];
+                                    calls = responseResult.response.functionCalls();
+                                    if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
+                                        while (queuedCalls.length > 0) {
+                                            const nextQueued = queuedCalls.shift();
+                                            const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                            if (!executedCallSigs.has(nextSig)) {
+                                                calls = [nextQueued];
+                                                candidate = null;
+                                                break;
+                                            }
+                                        }
                                     }
-                                };
-                                candidate = null;
-                                calls = null;
-                                break;
+                                } else {
+                                    logger.warn(`[Tenshi Synthesis Fallback] Error sintetizando respuesta de herramienta ${call.name} (${synthErr.message}). Rescatando resultado directo...`);
+                                    // Si la herramienta ya se ejecutó con éxito pero el segundo llamado a Gemini dio 503,
+                                    // no perder el resultado ni lanzar error 503 al usuario: construir síntesis limpia en español.
+                                    let rescuedText = '';
+                                    if (lightResponse.error) {
+                                        rescuedText = `Revisé el módulo solicitado: ${lightResponse.error}`;
+                                    } else if (lightResponse.titulo || lightResponse.informeCompleto) {
+                                        const cleanExtract = String(lightResponse.informeCompleto || lightResponse.resumen || '')
+                                            .replace(/<[^>]+>/g, ' ')
+                                            .replace(/\s+/g, ' ')
+                                            .trim()
+                                            .substring(0, 700);
+                                        rescuedText = `✅ **Revisión completada: ${lightResponse.titulo || 'Informe del Aplicativo'}**\n\n${cleanExtract ? `${cleanExtract}...\n\n` : ''}Ya tienes el documento técnico oficial adjunto aquí mismo en nuestro chat para que puedas abrirlo, revisarlo en detalle o descargarlo en PDF/Word.`;
+                                    } else if (capturedEvidenceFiles.length > 0) {
+                                        const certNotice =
+                                            capturedEvidenceFiles.length === 1
+                                                ? '✅ **El certificado oficial fue emitido y ya lo recibiste aquí en tu chat de Tenshi; ya puedes abrirlo o descargarlo.**'
+                                                : `✅ **Los ${capturedEvidenceFiles.length} certificados oficiales fueron emitidos y ya los recibiste aquí en tu chat de Tenshi; ya puedes abrirlos o descargarlos.**`;
+                                        const baseRes = String(lightResponse.resultado || '').trim();
+                                        rescuedText = baseRes ? `${certNotice}\n\n${baseRes}` : certNotice;
+                                    } else if (lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
+                                        rescuedText = String(lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
+                                    } else if (
+                                        (call.name === 'consultar_multiples_especialistas_paralelo' ||
+                                            call.name === 'consultar_agente_especializado') &&
+                                        typeof lightResponse.result === 'string' &&
+                                        lightResponse.result.trim()
+                                    ) {
+                                        rescuedText = lightResponse.result.trim();
+                                    } else if (capturedFile || capturedHtmlReport) {
+                                        rescuedText = `✅ Listo, he revisado y cargado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** directamente aquí en nuestro chat para tu revisión.`;
+                                    } else {
+                                        rescuedText = `✅ He ejecutado la revisión solicitada (${call.name}). Los datos han sido procesados correctamente.`;
+                                    }
+                                    rescuedText = sanitizeInternalSynthesisMarkers(rescuedText);
+                                    responseResult = {
+                                        response: {
+                                            text: () => rescuedText,
+                                            candidates: [],
+                                            functionCalls: () => null
+                                        }
+                                    };
+                                    candidate = null;
+                                    calls = null;
+                                    break;
+                                }
                             }
                         }
 
@@ -6296,10 +6420,12 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         if (responseText) {
                             // SIEMPRE eliminar bloques wappy-card de Tenshi (Tenshi usa exclusivamente TenshiGenerativeWidget)
-                            responseText = responseText
-                                .replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '')
-                                .replace(/en el panel de la derecha|en el panel lateral/gi, 'aquí mismo dentro de nuestro chat')
-                                .trim();
+                            // y limpiar marcadores internos de síntesis para que jamás se filtren a la UI
+                            responseText = sanitizeInternalSynthesisMarkers(
+                                responseText
+                                    .replace(/```(?:wappy-card|card)[\s\S]*?```/gi, '')
+                                    .replace(/en el panel de la derecha|en el panel lateral/gi, 'aquí mismo dentro de nuestro chat')
+                            );
                             if (capturedEvidenceFiles.length > 0) {
                                 responseText = responseText
                                     .replace(/\[([^\]]+)\]\((?:https?:\/\/[^)\s]+)?\/api\/sgsst\/automatizaciones\/evidencias\/[^)\s]+\)/gi, '$1')

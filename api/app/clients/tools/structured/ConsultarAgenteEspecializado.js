@@ -6,6 +6,49 @@ const crypto = require('crypto');
 const MAX_PARALLEL_SPECIALISTS = 4;
 const DEFAULT_SPECIALIST_TIMEOUT_MS = 55000;
 const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
+const INTERNAL_ROUTER_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 WappyInternalRouter/2.0';
+const REJECTED_MIDDLEWARE_ERROR_RE = /^illegal request(?:\s*:\s*endpoint mismatch)?$/i;
+
+function isRejectedErrorText(text) {
+  const trimmed = String(text || '').trim();
+  return Boolean(trimmed && REJECTED_MIDDLEWARE_ERROR_RE.test(trimmed));
+}
+
+function extractHttpErrorMessage(rawBody) {
+  const raw = String(rawBody || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      const msg =
+        parsed?.message ||
+        parsed?.error?.message ||
+        (typeof parsed?.error === 'string' ? parsed.error : '') ||
+        parsed?.text ||
+        '';
+      if (msg) return String(msg).trim().slice(0, 300);
+    } catch (_e) {
+      // Fallback a texto plano
+    }
+  }
+  const sseDataMatch = raw.match(/data:\s*(\{[\s\S]*?\})(?:\r?\n|$)/);
+  if (sseDataMatch) {
+    try {
+      const parsed = JSON.parse(sseDataMatch[1]);
+      const msg =
+        parsed?.message ||
+        parsed?.error?.message ||
+        (typeof parsed?.error === 'string' ? parsed.error : '') ||
+        parsed?.text ||
+        '';
+      if (msg) return String(msg).trim().slice(0, 300);
+    } catch (_e) {
+      // Ignorar JSON parcial
+    }
+  }
+  return raw.replace(/\s+/g, ' ').slice(0, 300);
+}
 
 function signInternalJwt(payload, secret, expiresInSeconds = 300) {
   try {
@@ -575,13 +618,36 @@ function extractDeltaText(dataObj) {
 
 function processSseLine(line, state) {
   const trimmed = String(line || '').trim();
-  if (!trimmed || !trimmed.startsWith('data:')) return;
+  if (!trimmed) {
+    state.lastEvent = '';
+    return;
+  }
+  if (trimmed.startsWith('event:')) {
+    state.lastEvent = trimmed.replace(/^event:\s*/, '').trim().toLowerCase();
+    return;
+  }
+  if (!trimmed.startsWith('data:')) return;
 
   const dataStr = trimmed.replace(/^data:\s*/, '').trim();
+  const currentEvent = state.lastEvent || '';
+  state.lastEvent = '';
   if (!dataStr || dataStr === '[DONE]') return;
 
   try {
     const dataObj = JSON.parse(dataStr);
+
+    // 0. Eventos de error SSE (`event: error` de handleError / uaParser / validateEndpoint / validateModel) o `error: true`
+    if (currentEvent === 'error' || dataObj.error === true) {
+      const errText =
+        (typeof dataObj === 'string' && dataObj) ||
+        (typeof dataObj.message === 'string' && dataObj.message) ||
+        (typeof dataObj.text === 'string' && dataObj.text) ||
+        (typeof dataObj.error === 'string' && dataObj.error) ||
+        extractTextFromAgentMessage(dataObj.responseMessage) ||
+        'Error interno del servidor de agentes.';
+      state.sseError = String(errText).trim();
+      return;
+    }
 
     // 1. Respuesta final estructurada
     if (dataObj.final) {
@@ -609,6 +675,9 @@ function processSseLine(line, state) {
       }
     }
   } catch (_e) {
+    if (currentEvent === 'error') {
+      state.sseError = dataStr.replace(/^"|"$/g, '').trim();
+    }
     // Ignorar chunks JSON truncados o líneas de control SSE no-JSON
   }
 }
@@ -774,7 +843,7 @@ class ConsultarAgenteEspecializado extends Tool {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            'User-Agent': 'Wappy-Internal-Specialist-Router/2.0',
+            'User-Agent': INTERNAL_ROUTER_USER_AGENT,
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
@@ -800,6 +869,18 @@ class ConsultarAgenteEspecializado extends Tool {
 
       try {
         if (!response.ok) {
+          let rawErrBody = '';
+          try {
+            rawErrBody =
+              typeof response.text === 'function'
+                ? await response.text()
+                : typeof response.json === 'function'
+                  ? JSON.stringify(await response.json())
+                  : '';
+          } catch (_readErr) {
+            rawErrBody = '';
+          }
+          const httpErrDetail = extractHttpErrorMessage(rawErrBody);
           return {
             ok: false,
             requestedName,
@@ -807,13 +888,14 @@ class ConsultarAgenteEspecializado extends Tool {
             agentId,
             question,
             response: '',
-            error: `Error interno conectando con el especialista ${agent.name} (HTTP ${response.status}).`,
+            error: `Error interno conectando con el especialista ${agent.name} (HTTP ${response.status}${httpErrDetail ? `: ${httpErrDetail}` : ''}).`,
             durationMs: Date.now() - startedAt,
           };
         }
 
         const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase();
         let resolvedText = '';
+        let sseError = '';
         let rawDebugStream = '';
 
         // Caso 1: Respuesta JSON directa (no SSE) o sin ReadableStream
@@ -833,18 +915,32 @@ class ConsultarAgenteEspecializado extends Tool {
           if (rawText.trim().startsWith('{')) {
             try {
               const jsonObj = JSON.parse(rawText);
-              resolvedText =
-                extractTextFromAgentMessage(jsonObj.responseMessage) ||
-                extractTextFromAgentMessage(jsonObj.message) ||
-                extractTextFromAgentMessage(jsonObj);
+              if (
+                jsonObj.error === true ||
+                (typeof jsonObj.error === 'string' && !jsonObj.responseMessage)
+              ) {
+                sseError = extractHttpErrorMessage(rawText);
+              } else {
+                resolvedText =
+                  extractTextFromAgentMessage(jsonObj.responseMessage) ||
+                  extractTextFromAgentMessage(jsonObj.message) ||
+                  extractTextFromAgentMessage(jsonObj);
+              }
             } catch (_e) {
               resolvedText = '';
             }
           } else if (rawText.includes('data:')) {
-            const state = { finalResponseText: '', accumulatedDeltas: '', fallbackMessageText: '' };
+            const state = {
+              finalResponseText: '',
+              accumulatedDeltas: '',
+              fallbackMessageText: '',
+              lastEvent: '',
+              sseError: '',
+            };
             for (const line of rawText.split('\n')) {
               processSseLine(line, state);
             }
+            sseError = state.sseError;
             resolvedText =
               state.finalResponseText || state.accumulatedDeltas || state.fallbackMessageText || '';
           }
@@ -852,7 +948,13 @@ class ConsultarAgenteEspecializado extends Tool {
           // Caso 2: Stream SSE estándar de /api/agents/chat
           const reader = response.body.getReader();
           const decoder = new TextDecoder('utf-8');
-          const state = { finalResponseText: '', accumulatedDeltas: '', fallbackMessageText: '' };
+          const state = {
+            finalResponseText: '',
+            accumulatedDeltas: '',
+            fallbackMessageText: '',
+            lastEvent: '',
+            sseError: '',
+          };
           let buffer = '';
 
           while (true) {
@@ -883,17 +985,25 @@ class ConsultarAgenteEspecializado extends Tool {
             }
           }
 
+          sseError = state.sseError;
           resolvedText =
             state.finalResponseText || state.accumulatedDeltas || state.fallbackMessageText || '';
 
           // Fallback si el servidor devolvió JSON plano sin header application/json
-          if (!resolvedText.trim() && rawDebugStream.trim().startsWith('{')) {
+          if (!resolvedText.trim() && !sseError && rawDebugStream.trim().startsWith('{')) {
             try {
               const jsonFallback = JSON.parse(rawDebugStream.trim());
-              resolvedText =
-                extractTextFromAgentMessage(jsonFallback.responseMessage) ||
-                extractTextFromAgentMessage(jsonFallback.message) ||
-                extractTextFromAgentMessage(jsonFallback);
+              if (
+                jsonFallback.error === true ||
+                (typeof jsonFallback.error === 'string' && !jsonFallback.responseMessage)
+              ) {
+                sseError = extractHttpErrorMessage(rawDebugStream.trim());
+              } else {
+                resolvedText =
+                  extractTextFromAgentMessage(jsonFallback.responseMessage) ||
+                  extractTextFromAgentMessage(jsonFallback.message) ||
+                  extractTextFromAgentMessage(jsonFallback);
+              }
             } catch (_e) {
               // ignore
             }
@@ -901,6 +1011,36 @@ class ConsultarAgenteEspecializado extends Tool {
         }
 
         const cleanResponse = String(resolvedText || '').trim();
+        const cleanSseError = String(sseError || '').trim();
+
+        // Rechazar explícitamente errores de middleware (`Illegal request`, `Illegal request: Endpoint mismatch`) o eventos SSE `event: error`
+        if (cleanSseError && !cleanResponse) {
+          return {
+            ok: false,
+            requestedName,
+            agentName: agent.name,
+            agentId,
+            question,
+            response: '',
+            error: `El servidor interno rechazó la consulta al especialista ${agent.name}: ${cleanSseError}`,
+            durationMs: Date.now() - startedAt,
+          };
+        }
+
+        if (isRejectedErrorText(cleanResponse) || isRejectedErrorText(cleanSseError)) {
+          const rejectedReason = isRejectedErrorText(cleanResponse) ? cleanResponse : cleanSseError;
+          return {
+            ok: false,
+            requestedName,
+            agentName: agent.name,
+            agentId,
+            question,
+            response: '',
+            error: `El servidor interno rechazó la consulta al especialista ${agent.name} (${rejectedReason}).`,
+            durationMs: Date.now() - startedAt,
+          };
+        }
+
         if (cleanResponse.length > 0) {
           return {
             ok: true,
@@ -1113,5 +1253,7 @@ ConsultarAgenteEspecializado.extractTextFromAgentMessage = extractTextFromAgentM
 ConsultarAgenteEspecializado.cleanString = cleanString;
 ConsultarAgenteEspecializado.ALIAS_MAP = ALIAS_MAP;
 ConsultarAgenteEspecializado.MAX_PARALLEL_SPECIALISTS = MAX_PARALLEL_SPECIALISTS;
+ConsultarAgenteEspecializado.INTERNAL_ROUTER_USER_AGENT = INTERNAL_ROUTER_USER_AGENT;
+ConsultarAgenteEspecializado.isRejectedErrorText = isRejectedErrorText;
 
 module.exports = ConsultarAgenteEspecializado;

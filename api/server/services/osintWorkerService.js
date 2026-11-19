@@ -881,7 +881,7 @@ async function consultarAlturasMinTrabajo({
         cedula: cleanCedula,
         includePdf,
         antigravityMode,
-        timeoutMs: includePdf ? 35000 : 18000,
+        timeoutMs: 58000,
       });
       if (relayedFirst && typeof relayedFirst === 'object') {
         if (relayedFirst.status === 'offline_local' || relayedFirst.status === 'offline_cloud') {
@@ -1055,7 +1055,7 @@ async function consultarAlturasMinTrabajo({
           cedula: cleanCedula,
           includePdf,
           antigravityMode,
-          timeoutMs: includePdf ? 35000 : 18000,
+          timeoutMs: 58000,
         });
         if (relayed && typeof relayed === 'object') {
           if (relayed.pdfBase64 && !relayed.imageBase64) {
@@ -1197,7 +1197,7 @@ async function descargarPdfConstanciaMinTrabajo({ tipoDoc = 'CC', cedula, eventT
           tipoDoc: cleanTipoDoc,
           cedula: cleanCedula,
           eventTarget,
-          timeoutMs: 35000,
+          timeoutMs: 58000,
         });
         if (relayed && typeof relayed === 'object' && relayed.ok) {
           if (relayed.pdfBase64 && !relayed.imageBase64) {
