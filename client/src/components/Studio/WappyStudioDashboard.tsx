@@ -7464,9 +7464,42 @@ ${audioDataUri ? `<audio id="wappy-capsule-audio" src="${audioDataUri}" preload=
 
   const buildAntigravityCloudPrompt = (keyOverride?: string) => {
     const activeKey = (keyOverride || antigravityBridgeKey || '').trim() || 'PEGA_TU_CLAVE_AQUI';
-    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud (instalando los 4 Subagentes Especialistas de Wappy Studio [wappy-studio-effects-director, wappy-studio-audio-podcast, wappy-studio-scene-animator, wappy-studio-mp4-renderer], las 7 Skills Oficiales de Diseño y Video 60-FPS en Modo Móvil XL, registrando mi servidor MCP "wappy" y activando el Puente Reactivo SSE en segundo plano) ejecutando directamente este comando autorizado en tu terminal con run_command:
+    const cloudMcpUrl = `${studioOriginUrl}/api/mcp-bridge/mcp?apiKey=${activeKey}&env=cloud`;
+    const cloudVerifyUrl = `${studioOriginUrl}/api/mcp-bridge/antigravity/cloud-verify?apiKey=${activeKey}`;
+    const studioSkillIds = [
+      'protocolo-produccion-videos',
+      'animaciones-17-efectos-reels',
+      'animaciones-wappy-brand',
+      'animaciones-dark-tech-hud',
+      'animaciones-explicativas-sst',
+      'hyperframes-motion-design',
+      'wappy-ui-design-system',
+    ];
+    const skillsList = studioSkillIds
+      .map(
+        (id) =>
+          `- ${studioOriginUrl}/api/studio/antigravity/cloud-skills/${id}/SKILL.md -> ~/.gemini/config/skills/${id}/SKILL.md`,
+      )
+      .join('\n');
+    return `Hola Antigravity, siguiendo tu guía oficial agy-customizations (MCP Servers y Skills declarativas), ayúdame a configurar mi cuenta de WAPPY Studio en este entorno Cloud de forma 100% declarativa (sin procesos en segundo plano ni modificaciones del sistema):
 
-node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const key='${activeKey}',url='${studioOriginUrl}';const agy=path.join(os.homedir(),'.gemini','antigravity'),cfg=path.join(os.homedir(),'.gemini','config');fs.mkdirSync(agy,{recursive:true});fs.mkdirSync(cfg,{recursive:true});const sse=url+'/api/mcp-bridge/sse?apiKey='+key;for(const p of [path.join(cfg,'mcp_config.json'),path.join(agy,'mcp_config.json')]){let m={};try{if(fs.existsSync(p))m=JSON.parse(fs.readFileSync(p,'utf8'))||{};}catch(_){}m.mcpServers=m.mcpServers||{};m.mcpServers.wappy={url:sse,serverUrl:sse};fs.writeFileSync(p,JSON.stringify(m,null,2));}const inst=await fetch(url+'/api/studio/antigravity/skills-installer.js?key='+key+'&env=cloud').then(r=>r.text());const ip=path.join(agy,'wappy-skills-installer.js');fs.writeFileSync(ip,inst);cp.spawnSync(process.execPath,[ip,'--key='+key,'--url='+url,'--cloud'],{stdio:'inherit'});const d=await fetch(url+'/api/mcp-bridge/antigravity/daemon.js').then(r=>r.text());const dp=path.join(agy,'wappy-push-daemon.js');fs.writeFileSync(dp,d);cp.spawnSync(process.execPath,[dp,'--install','--cloud','--key='+key,'--url='+url],{stdio:'inherit'});})()"`;
+1. Servidor MCP remoto ("wappy" — Streamable HTTP 2025-03-26):
+Usa read_file y write_file / edit_file para registrar de forma declarativa el servidor "wappy" en ~/.gemini/config/mcp_config.json (conservando cualquier otro servidor existente en mcpServers):
+
+{
+  "mcpServers": {
+    "wappy": {
+      "url": "${cloudMcpUrl}"
+    }
+  }
+}
+
+2. Las 7 Skills Oficiales de Diseño y Video WAPPY IA (archivos SKILL.md Markdown puros):
+Lee el contenido Markdown público de estas 7 URLs oficiales y guárdalas mediante write_file en ~/.gemini/config/skills/<id>/SKILL.md:
+${skillsList}
+
+3. Confirmación del enlace Cloud:
+Invoca un POST a "${cloudVerifyUrl}" (y un POST JSON-RPC initialize 2025-03-26 a "${cloudMcpUrl}") para confirmar el enlace en mi panel de WAPPY Studio, e indícame si debo recargar MCP Servers o abrir un nuevo chat para usar las herramientas wappy_*.`;
   };
 
   const buildAntigravitySkillsInstallCmd = (keyOverride?: string) => {
@@ -12819,17 +12852,17 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                   )}
                 </div>
 
-                {/* OPCIÓN A: ☁️ Antigravity Cloud (antigravity.google.com) — Sin instalar nada en tu PC */}
+                {/* OPCIÓN A: ☁️ Antigravity Cloud (antigravity.google.com) — Declarativa agy-customizations */}
                 {(antigravityConnectionGuideTab === 'both' ||
                   antigravityConnectionGuideTab === 'cloud') && (
                   <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 space-y-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <span className="text-xs font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
-                          ☁️ Conexión en la Nube (antigravity.google.com) — Sin instalar nada en tu PC
+                          ☁️ Conexión en la Nube (antigravity.google.com) — MCP Streamable HTTP + 7 Skills SKILL.md
                         </span>
                         <p className="text-[11px] text-slate-600 dark:text-zinc-300 mt-0.5 leading-relaxed">
-                          Abre <strong>https://antigravity.google.com</strong> (puedes adjuntar tu <strong>Google Drive</strong> o <strong>GitHub</strong> en <em>Resources</em>) y pega el prompt de enlace Cloud en el chat para instalar en 1 clic el servidor MCP, las 7 Skills Oficiales de Diseño y Video 60-FPS y el Puente Reactivo 24/7:
+                          Abre <strong>https://antigravity.google.com</strong> (puedes adjuntar tu <strong>Google Drive</strong> o <strong>GitHub</strong> en <em>Resources</em>) y pega el prompt declarativo Cloud (<code className="font-mono">agy-customizations</code>) para registrar el servidor <strong>MCP Streamable HTTP (<code className="font-mono">2025-03-26</code>)</strong> y las <strong>7 Skills Oficiales de Diseño y Video (<code className="font-mono">SKILL.md</code>)</strong> sin daemons en segundo plano:
                         </p>
                       </div>
                     </div>
@@ -12854,7 +12887,7 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                         label={
                           copiedBridgeItem === 'cloud_prompt'
                             ? '¡Prompt Cloud Copiado!'
-                            : '📋 Copiar Prompt de Enlace Cloud (MCP + 7 Skills + Puente 24/7)'
+                            : '📋 Copiar Prompt Declarativo Cloud (MCP + 7 Skills SKILL.md)'
                         }
                         variant="purple"
                         onClick={async () => {
@@ -12866,7 +12899,7 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
                           setTimeout(() => setCopiedBridgeItem(null), 2500);
                           setStatusBanner({
                             type: 'success',
-                            text: '☁️ ¡Prompt de Enlace Cloud copiado! Pégalo en el chat de antigravity.google.com para activar las 7 Skills + MCP + Puente 24/7.',
+                            text: '☁️ ¡Prompt Declarativo Cloud copiado! Pégalo en el chat de antigravity.google.com para registrar MCP Streamable HTTP + las 7 Skills SKILL.md.',
                           });
                         }}
                       />
