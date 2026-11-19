@@ -236,7 +236,7 @@ export interface CanvasNodeConfig {
   emailCc?: string;
   attachOfficialAppReport?: boolean;
   onlyOnCriticalAlerts?: boolean;
-  alertPriority?: 'info' | 'warn' | 'critical';
+  alertPriority?: 'auto' | 'info' | 'warn' | 'critical';
   tenshiSpeakSummary?: boolean;
   whatsappNumbers?: string;
   calendarEventTitle?: string;
@@ -244,11 +244,11 @@ export interface CanvasNodeConfig {
   calendarAttendees?: string;
   documentTitle?: string;
   documentTemplate?: string;
-  kanbanStatus?: 'todo' | 'in_progress' | 'due_soon' | 'overdue' | 'done' | 'urgent';
-  kanbanActionType?: 'correctiva' | 'preventiva' | 'mejora';
+  kanbanStatus?: 'auto' | 'todo' | 'in_progress' | 'due_soon' | 'overdue' | 'done' | 'urgent';
+  kanbanActionType?: 'auto' | 'correctiva' | 'preventiva' | 'mejora';
   kanbanTaskTitle?: string;
-  kanbanPriority?: 'high' | 'medium' | 'low';
-  kanbanDueDays?: number;
+  kanbanPriority?: 'auto' | 'high' | 'medium' | 'low';
+  kanbanDueDays?: number | 'auto';
   kanbanAssignee?: string;
   /** Parámetros propios de Nodos Lógicos If / Loop / Merge / Aprobación (Equipo 8) */
   ifBranch?: 'yes' | 'no';
@@ -12306,7 +12306,10 @@ export function getPresetFieldsForNode(nodeId: string, shape?: string): string[]
  * (filtro de registros en vivo, campos seleccionados e informes adjuntos).
  */
 export function buildNodeConfigSummary(cfg?: CanvasNodeConfig, nodeId?: string): string {
-  if (!cfg) return '';
+  const isAcpmNode = String(nodeId || '').includes('acpm_task');
+  if (!cfg) {
+    return isAcpmNode ? '🤖 Automático (Agente IA)' : '';
+  }
   const badges: string[] = [];
 
   if (
@@ -12420,16 +12423,59 @@ export function buildNodeConfigSummary(cfg?: CanvasNodeConfig, nodeId?: string):
   if (cfg.ifRuleExpression?.trim()) {
     badges.push('🔀 Regla Si/No');
   }
-  if (cfg.kanbanStatus) {
-    const stageLabels: Record<string, string> = {
-      todo: '📋 Etapa: Pendientes',
-      in_progress: '⚙️ Etapa: En Ejecución',
-      due_soon: '⏳ Etapa: Próximas a Vencer',
-      overdue: '🚨 Etapa: Vencidas (Alerta)',
-      done: '✅ Etapa: Completadas',
-      urgent: '🚨 Etapa: Vencidas (Alerta)',
-    };
-    badges.push(stageLabels[cfg.kanbanStatus] || `📋 Etapa: ${cfg.kanbanStatus}`);
+  const hasFixedKanbanStatus = Boolean(cfg.kanbanStatus && cfg.kanbanStatus !== 'auto');
+  const hasFixedKanbanAction = Boolean(cfg.kanbanActionType && cfg.kanbanActionType !== 'auto');
+  const hasFixedKanbanPriority = Boolean(cfg.kanbanPriority && cfg.kanbanPriority !== 'auto');
+  const hasFixedKanbanDue = typeof cfg.kanbanDueDays === 'number' && cfg.kanbanDueDays > 0;
+  const hasFixedKanbanAssignee = Boolean(cfg.kanbanAssignee?.trim());
+  const hasFixedKanbanTitle = Boolean(cfg.kanbanTaskTitle?.trim());
+  const hasAnyKanbanOverride =
+    hasFixedKanbanStatus ||
+    hasFixedKanbanAction ||
+    hasFixedKanbanPriority ||
+    hasFixedKanbanDue ||
+    hasFixedKanbanAssignee ||
+    hasFixedKanbanTitle;
+  const hasExplicitAutoKanban =
+    cfg.kanbanStatus === 'auto' ||
+    cfg.kanbanActionType === 'auto' ||
+    cfg.kanbanPriority === 'auto' ||
+    cfg.kanbanDueDays === 'auto' ||
+    cfg.kanbanDueDays === 0;
+
+  if (hasAnyKanbanOverride) {
+    if (hasFixedKanbanStatus && cfg.kanbanStatus) {
+      const stageLabels: Record<string, string> = {
+        todo: '📋 Etapa: Pendientes',
+        in_progress: '⚙️ Etapa: En Ejecución',
+        due_soon: '⏳ Etapa: Próximas a Vencer',
+        overdue: '🚨 Etapa: Vencidas (Alerta)',
+        done: '✅ Etapa: Completadas',
+        urgent: '🚨 Etapa: Vencidas (Alerta)',
+      };
+      badges.push(stageLabels[cfg.kanbanStatus] || `📋 Etapa: ${cfg.kanbanStatus}`);
+    }
+    if (hasFixedKanbanAction && cfg.kanbanActionType) {
+      const actionLabels: Record<string, string> = {
+        correctiva: '🛠️ Correctiva',
+        preventiva: '🛡️ Preventiva',
+        mejora: '🚀 Mejora',
+      };
+      badges.push(actionLabels[cfg.kanbanActionType] || cfg.kanbanActionType);
+    }
+    if (hasFixedKanbanPriority && cfg.kanbanPriority) {
+      const prioLabels: Record<string, string> = {
+        high: '🔴 Alta',
+        medium: '🟡 Media',
+        low: '🟢 Baja',
+      };
+      badges.push(`Prioridad ${prioLabels[cfg.kanbanPriority] || cfg.kanbanPriority}`);
+    }
+    if (hasFixedKanbanDue) {
+      badges.push(`📆 ${cfg.kanbanDueDays}d`);
+    }
+  } else if (isAcpmNode || hasExplicitAutoKanban) {
+    badges.push('🤖 Automático (Agente IA)');
   }
   if (cfg.customInstruction?.trim()) {
     badges.push('⚙️ Instrucción');
@@ -12690,14 +12736,28 @@ export function buildPromptFromWorkflowNodes(
     if (cfg.documentTitle?.trim()) {
       parts.push(`Documento Vivo: "${cfg.documentTitle.trim()}" (${cfg.documentTemplate || 'Informe'})`);
     }
-    if (
-      cfg.kanbanStatus ||
-      cfg.kanbanActionType ||
-      cfg.kanbanPriority ||
-      cfg.kanbanDueDays ||
-      cfg.kanbanAssignee ||
-      cfg.kanbanTaskTitle
-    ) {
+    const isAcpmKey = keys.some((k) => k.includes('acpm_task'));
+    const hasFixedKanbanStatus = Boolean(cfg.kanbanStatus && cfg.kanbanStatus !== 'auto');
+    const hasFixedKanbanAction = Boolean(cfg.kanbanActionType && cfg.kanbanActionType !== 'auto');
+    const hasFixedKanbanPriority = Boolean(cfg.kanbanPriority && cfg.kanbanPriority !== 'auto');
+    const hasFixedKanbanDue = typeof cfg.kanbanDueDays === 'number' && cfg.kanbanDueDays > 0;
+    const hasFixedKanbanAssignee = Boolean(cfg.kanbanAssignee?.trim());
+    const hasFixedKanbanTitle = Boolean(cfg.kanbanTaskTitle?.trim());
+    const hasAnyKanbanOverride =
+      hasFixedKanbanStatus ||
+      hasFixedKanbanAction ||
+      hasFixedKanbanPriority ||
+      hasFixedKanbanDue ||
+      hasFixedKanbanAssignee ||
+      hasFixedKanbanTitle;
+    const hasExplicitAutoKanban =
+      cfg.kanbanStatus === 'auto' ||
+      cfg.kanbanActionType === 'auto' ||
+      cfg.kanbanPriority === 'auto' ||
+      cfg.kanbanDueDays === 'auto' ||
+      cfg.kanbanDueDays === 0;
+
+    if (hasAnyKanbanOverride) {
       const stageMap: Record<string, string> = {
         todo: 'Pendientes (Por Hacer)',
         in_progress: 'En Ejecución / En Curso',
@@ -12706,11 +12766,30 @@ export function buildPromptFromWorkflowNodes(
         done: 'Completadas',
         urgent: 'Vencidas (Alerta)',
       };
-      const stLabel = stageMap[cfg.kanbanStatus || 'todo'] || 'Pendientes (Por Hacer)';
-      const actLabel = cfg.kanbanActionType || 'correctiva';
+      const kanbanSegments: string[] = [];
+      if (hasFixedKanbanStatus && cfg.kanbanStatus) {
+        kanbanSegments.push(`Etapa "${stageMap[cfg.kanbanStatus] || cfg.kanbanStatus}"`);
+      }
+      if (hasFixedKanbanAction && cfg.kanbanActionType) {
+        kanbanSegments.push(`Tipo de Acción "${cfg.kanbanActionType}"`);
+      }
+      if (hasFixedKanbanPriority && cfg.kanbanPriority) {
+        kanbanSegments.push(`Prioridad ${cfg.kanbanPriority}`);
+      }
+      if (hasFixedKanbanDue) {
+        kanbanSegments.push(`Plazo ${cfg.kanbanDueDays} días`);
+      }
+      if (hasFixedKanbanAssignee && cfg.kanbanAssignee?.trim()) {
+        kanbanSegments.push(`Responsable: ${cfg.kanbanAssignee.trim()}`);
+      }
+      if (hasFixedKanbanTitle && cfg.kanbanTaskTitle?.trim()) {
+        kanbanSegments.push(`Título: "${cfg.kanbanTaskTitle.trim()}"`);
+      }
       parts.push(
-        `Crear Actividad en Centro de Control: Etapa "${stLabel}", Tipo de Acción "${actLabel}", Prioridad ${cfg.kanbanPriority || 'high'}, Plazo ${cfg.kanbanDueDays || 7} días${cfg.kanbanAssignee ? `, Responsable: ${cfg.kanbanAssignee}` : ''}${cfg.kanbanTaskTitle ? `, Título: "${cfg.kanbanTaskTitle}"` : ''}`,
+        `Crear Actividad en Centro de Control (${kanbanSegments.join(', ')}; demás campos definidos automáticamente por el Agente IA)`,
       );
+    } else if (isAcpmKey || hasExplicitAutoKanban) {
+      parts.push('🤖 Automático (Agente IA)');
     }
     if (cfg.ifRuleExpression?.trim()) {
       parts.push(`Condición Si/No: "${cfg.ifRuleExpression.trim()}" | Si CUMPLE (Sí): "${cfg.conditionTrueLabel || 'Continuar a Hito/Alerta'}" | Si NO CUMPLE (No): "${cfg.conditionFalseLabel || 'Solo registrar en bitácora'}"`);

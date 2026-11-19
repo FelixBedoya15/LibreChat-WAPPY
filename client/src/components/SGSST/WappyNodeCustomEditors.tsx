@@ -3688,15 +3688,11 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
           .includes(companyDefaultEmail.toLowerCase());
       return (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl border border-teal-200 dark:border-teal-800/70 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
-            ✉️ <strong>Salida directa:</strong> Cuando el flujo llegue a este nodo (por conexión directa o por la rama activa de <em>Condición Sí/No</em>), enviará automáticamente el mensaje o informe ejecutivo listo del paso anterior.
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
                 <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200">
-                  📧 Para (Correos de destinatarios separados por coma) *
+                  📧 Para (Destinatarios) *
                 </label>
                 {canAddCompanyEmail && (
                   <button
@@ -3707,7 +3703,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                         : companyDefaultEmail;
                       onChangeEmailsStr && onChangeEmailsStr(nextVal);
                     }}
-                    className="px-2 py-0.5 rounded-lg bg-teal-600/10 hover:bg-teal-600/20 border border-teal-500/30 text-[10px] font-extrabold text-teal-800 dark:text-[#C7F303] transition"
+                    className="px-2 py-0.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 text-[10px] font-extrabold text-teal-800 dark:text-[#C7F303] transition"
                   >
                     + Usar correo empresa ({companyDefaultEmail})
                   </button>
@@ -3724,7 +3720,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                👥 CC / Copia Opcional (Separados por coma)
+                👥 CC (Opcional)
               </label>
               <input
                 type="text"
@@ -3738,34 +3734,34 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ✉️ Asunto del Correo (Opcional — automático según el flujo si se deja vacío)
-            </label>
-            <input
-              type="text"
-              value={currentCfg.emailSubject || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { emailSubject: e.target.value })
-              }
-              placeholder="Ej: [SG-SST] Informe Ejecutivo y Hallazgos Detectados"
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-end">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                ✉️ Asunto fijo (opcional · automático por el Agente IA si queda vacío)
+              </label>
+              <input
+                type="text"
+                value={currentCfg.emailSubject || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { emailSubject: e.target.value })
+                }
+                placeholder="Automático — el Agente IA redacta asunto y cuerpo"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+              />
+            </div>
 
-          <label className="inline-flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-            <input
-              type="checkbox"
-              checked={currentCfg.attachOfficialAppReport !== false}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { attachOfficialAppReport: e.target.checked })
-              }
-              className="rounded border-teal-500 text-teal-600"
-            />
-            <span>
-              📄 Incluir Informe Oficial HTML corporativo si el flujo genera uno en un aplicativo
-            </span>
-          </label>
+            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={currentCfg.attachOfficialAppReport !== false}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { attachOfficialAppReport: e.target.checked })
+                }
+                className="rounded border-teal-500 text-teal-600 shrink-0"
+              />
+              <span>📄 Adjuntar Informe Oficial HTML corporativo</span>
+            </label>
+          </div>
         </div>
       );
     }
@@ -3773,50 +3769,26 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     // 7.2 NOTIFICAR EN WAPPY + TENSHI VOZ
     if (cleanId.includes('wappy_notification') || cleanId === 'notify_wappy') {
       return (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1.5">
-                🔔 Nivel de Prioridad de la Notificación en WAPPY
-              </label>
-              <div className="flex flex-wrap items-center gap-2 py-1 px-1">
-                {[
-                  { id: 'info', label: '🟢 Prioridad Informativa (Verde)', variant: 'emerald' as const },
-                  { id: 'warn', label: '🟡 Prioridad Preventiva (Ámbar)', variant: 'amber' as const },
-                  { id: 'critical', label: '🔴 Prioridad Crítica Urgente (Roja)', variant: 'danger' as const },
-                ].map((p) => {
-                  const active = (currentCfg.alertPriority || 'warn') === p.id;
-                  return (
-                    <ExpandableButton
-                      key={p.id}
-                      type="button"
-                      size="sm"
-                      variant={active ? p.variant : 'neutral'}
-                      isActive={active}
-                      icon={<Bell className="w-3.5 h-3.5" />}
-                      label={p.label}
-                      onClick={() =>
-                        onUpdateNodeConfig(activeNode.key, { alertPriority: p.id as any })
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            <div className="flex items-end">
-              <label className="w-full flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={currentCfg.tenshiSpeakSummary !== false}
-                  onChange={(e) =>
-                    onUpdateNodeConfig(activeNode.key, { tenshiSpeakSummary: e.target.checked })
-                  }
-                  className="rounded border-teal-500 text-teal-600"
-                />
-                <span>🐱 Hacer que Tenshi Avatar 3D anuncie el resumen en voz al entrar</span>
-              </label>
-            </div>
+        <div className="space-y-2.5">
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-teal-500/30 bg-teal-500/10 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+            <Bell className="w-4 h-4 text-teal-700 dark:text-teal-300 shrink-0 mt-0.5" />
+            <span>
+              <strong className="text-teal-800 dark:text-teal-300">🤖 Prioridad automática:</strong>{' '}
+              El Agente IA define automáticamente si la alerta es Informativa, Preventiva o Crítica según los hallazgos reales.
+            </span>
           </div>
+
+          <label className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200 hover:border-teal-500/40 transition">
+            <input
+              type="checkbox"
+              checked={currentCfg.tenshiSpeakSummary !== false}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { tenshiSpeakSummary: e.target.checked })
+              }
+              className="rounded border-teal-500 text-teal-600 shrink-0"
+            />
+            <span>Anunciar resumen por voz con Tenshi</span>
+          </label>
         </div>
       );
     }
@@ -3861,10 +3833,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (cleanId.includes('calendar')) {
       return (
         <div className="space-y-3">
+          <div className="px-3 py-2 rounded-xl border border-teal-500/25 bg-teal-500/10 text-xs text-slate-700 dark:text-slate-200">
+            <strong className="text-teal-800 dark:text-teal-300">🤖 Automático por el Agente IA:</strong>{' '}
+            Si dejas el título en blanco, el Agente IA define automáticamente el título y detalle del evento según los hallazgos.
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📅 Título del Evento / Inspección / Comité
+                📅 Título fijo del Evento (Opcional)
               </label>
               <input
                 type="text"
@@ -3872,7 +3849,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { calendarEventTitle: e.target.value })
                 }
-                placeholder="Ej: Reunión Extraordinaria COPASST / Revisión SST"
+                placeholder="Automático — definido por el Agente IA"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
@@ -3914,158 +3891,194 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       );
     }
 
-    // 7.5 CREAR ACTIVIDAD EN EL CENTRO DE CONTROL (EN CUALQUIERA DE SUS ETAPAS)
+    // 7.5 CREAR ACTIVIDAD EN EL CENTRO DE CONTROL (AI-FIRST + OVERRIDES OPCIONALES)
     if (cleanId.includes('acpm_task')) {
-      const activeStage = currentCfg.kanbanStatus || 'todo';
-      const controlStages: Array<{
-        id: 'todo' | 'in_progress' | 'due_soon' | 'overdue' | 'done';
-        badge: string;
-        label: string;
-        variant: 'teal' | 'cyan' | 'amber' | 'danger' | 'compliance-ok';
-        icon: React.ReactNode;
-      }> = [
-        {
-          id: 'todo',
-          badge: '1 · Pendientes',
-          label: 'Etapa 1: Pendientes (Por Hacer)',
-          variant: 'teal',
-          icon: <Kanban className="w-3.5 h-3.5" />,
-        },
-        {
-          id: 'in_progress',
-          badge: '2 · En Ejecución',
-          label: 'Etapa 2: En Ejecución / En Curso',
-          variant: 'cyan',
-          icon: <Activity className="w-3.5 h-3.5" />,
-        },
-        {
-          id: 'due_soon',
-          badge: '3 · Próximas a Vencer',
-          label: 'Etapa 3: Próximas a Vencer (Seguimiento)',
-          variant: 'amber',
-          icon: <Clock className="w-3.5 h-3.5" />,
-        },
-        {
-          id: 'overdue',
-          badge: '4 · Vencidas (Alerta)',
-          label: 'Etapa 4: Vencidas (Alerta Crítica)',
-          variant: 'danger',
-          icon: <AlertTriangle className="w-3.5 h-3.5" />,
-        },
-        {
-          id: 'done',
-          badge: '5 · Completadas',
-          label: 'Etapa 5: Completadas (Evidencia Cerrada)',
-          variant: 'compliance-ok',
-          icon: <Check className="w-3.5 h-3.5" />,
-        },
-      ];
+      const stageVal = currentCfg.kanbanStatus || 'auto';
+      const actionTypeVal = currentCfg.kanbanActionType || 'auto';
+      const priorityVal = currentCfg.kanbanPriority || 'auto';
+      const dueDaysVal =
+        currentCfg.kanbanDueDays === undefined ||
+        currentCfg.kanbanDueDays === 0 ||
+        currentCfg.kanbanDueDays === 'auto'
+          ? 'auto'
+          : String(currentCfg.kanbanDueDays);
+      const activeManualOverridesCount = [
+        stageVal !== 'auto',
+        actionTypeVal !== 'auto',
+        priorityVal !== 'auto',
+        dueDaysVal !== 'auto',
+        Boolean(currentCfg.kanbanAssignee?.trim()),
+        Boolean(currentCfg.kanbanTaskTitle?.trim()),
+      ].filter(Boolean).length;
 
       return (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60">
-            <label className="block text-xs font-extrabold uppercase text-amber-900 dark:text-amber-300 mb-1.5">
-              📋 1. Elige en qué Etapa del Centro de Control se creará la Actividad
-            </label>
-            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
-              {controlStages.map((st, stIdx) => (
-                <ExpandableButton
-                  key={st.id}
-                  type="button"
-                  size="sm"
-                  variant={st.variant}
-                  isActive={activeStage === st.id}
-                  icon={st.icon}
-                  badge={stIdx + 1}
-                  label={st.label}
-                  title={st.label}
-                  onClick={() => onUpdateNodeConfig(activeNode.key, { kanbanStatus: st.id })}
-                />
-              ))}
+          <div className="flex items-start gap-2.5 p-3 rounded-xl border border-teal-500/30 bg-teal-500/10 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+            <Kanban className="w-4 h-4 text-teal-700 dark:text-teal-300 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="font-extrabold text-teal-900 dark:text-teal-200">
+                🤖 Definido automáticamente por el Agente IA
+              </div>
+              <p className="text-[11.5px] text-slate-700 dark:text-slate-300">
+                El Agente IA define dinámicamente según cada hallazgo el{' '}
+                <strong>título de la actividad</strong>, el{' '}
+                <strong>tipo de acción (Correctiva / Preventiva / Mejora)</strong>, la{' '}
+                <strong>prioridad</strong>, el <strong>plazo en días</strong>, el{' '}
+                <strong>responsable</strong> y la crea en <strong>Pendientes</strong> del Centro de Control.
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                🛡️ 2. Tipo de Acción (ACPM)
-              </label>
-              <select
-                value={currentCfg.kanbanActionType || 'correctiva'}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { kanbanActionType: e.target.value as any })
-                }
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-              >
-                <option value="correctiva">🛠️ Acción Correctiva</option>
-                <option value="preventiva">🛡️ Acción Preventiva</option>
-                <option value="mejora">🚀 Acción de Mejora</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                🚨 3. Prioridad en el Centro de Control
-              </label>
-              <select
-                value={currentCfg.kanbanPriority || 'high'}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { kanbanPriority: e.target.value as any })
-                }
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-              >
-                <option value="high">🔴 Prioridad Alta (Crítica)</option>
-                <option value="medium">🟡 Prioridad Media (Preventiva)</option>
-                <option value="low">🟢 Prioridad Baja (Mejora)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📆 4. Plazo de Cumplimiento (Días)
-              </label>
-              <select
-                value={currentCfg.kanbanDueDays || 7}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { kanbanDueDays: Number(e.target.value) })
-                }
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
-              >
-                <option value={1}>Inmediato (24 horas)</option>
-                <option value={3}>3 días</option>
-                <option value={7}>7 días (1 semana)</option>
-                <option value={15}>15 días</option>
-                <option value={30}>30 días (1 mes)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                👤 5. Responsable Asignado
-              </label>
-              <input
-                type="text"
-                value={currentCfg.kanbanAssignee || ''}
-                onChange={(e) =>
-                  onUpdateNodeConfig(activeNode.key, { kanbanAssignee: e.target.value })
-                }
-                placeholder="Ej: Coordinador SST / Jefe de Planta"
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-              />
-            </div>
-          </div>
+          <details className="group rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/50">
+            <summary className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 cursor-pointer select-none text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-teal-700 dark:hover:text-teal-300 transition list-none">
+              <span>⚙️ Ajustes manuales opcionales — solo si deseas forzar valores fijos</span>
+              <span className="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400">
+                {activeManualOverridesCount > 0
+                  ? `${activeManualOverridesCount} valor(es) fijo(s)`
+                  : 'Todo automático'}
+              </span>
+            </summary>
 
-          <div>
-            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ✏️ 6. Prefijo o Título de la Actividad (Opcional)
-            </label>
-            <input
-              type="text"
-              value={currentCfg.kanbanTaskTitle || ''}
-              onChange={(e) =>
-                onUpdateNodeConfig(activeNode.key, { kanbanTaskTitle: e.target.value })
-              }
-              placeholder="Ej: Plan de Acción Investigación ATEL — Seguimiento de Controles"
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
-            />
-          </div>
+            <div className="px-3 pb-3 pt-2 border-t border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Etapa del Centro de Control
+                  </label>
+                  <select
+                    value={stageVal}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        kanbanStatus: e.target.value as CanvasNodeConfig['kanbanStatus'],
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="auto">🤖 Automático · Pendientes</option>
+                    <option value="todo">📋 Pendientes (Por Hacer)</option>
+                    <option value="in_progress">⚙️ En Ejecución / En Curso</option>
+                    <option value="due_soon">⏳ Próximas a Vencer</option>
+                    <option value="overdue">🚨 Vencidas (Alerta Crítica)</option>
+                    <option value="done">✅ Completadas (Evidencia Cerrada)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Tipo de Acción (ACPM)
+                  </label>
+                  <select
+                    value={actionTypeVal}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        kanbanActionType: e.target.value as CanvasNodeConfig['kanbanActionType'],
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="auto">🤖 Automático · decide el Agente IA</option>
+                    <option value="correctiva">🛠️ Acción Correctiva</option>
+                    <option value="preventiva">🛡️ Acción Preventiva</option>
+                    <option value="mejora">🚀 Acción de Mejora</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Prioridad
+                  </label>
+                  <select
+                    value={priorityVal}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        kanbanPriority: e.target.value as CanvasNodeConfig['kanbanPriority'],
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="auto">🤖 Automático · decide el Agente IA</option>
+                    <option value="high">🔴 Alta (Crítica)</option>
+                    <option value="medium">🟡 Media (Preventiva)</option>
+                    <option value="low">🟢 Baja (Mejora)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Plazo de Cumplimiento (Días)
+                  </label>
+                  <select
+                    value={dueDaysVal}
+                    onChange={(e) => {
+                      const nextVal = e.target.value;
+                      onUpdateNodeConfig(activeNode.key, {
+                        kanbanDueDays: nextVal === 'auto' ? 'auto' : Number(nextVal),
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="auto">🤖 Automático · según urgencia del Agente IA</option>
+                    <option value="1">1 día (Inmediato · 24h)</option>
+                    <option value="3">3 días</option>
+                    <option value="7">7 días (1 semana)</option>
+                    <option value="15">15 días</option>
+                    <option value="30">30 días (1 mes)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Responsable fijo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={currentCfg.kanbanAssignee || ''}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, { kanbanAssignee: e.target.value })
+                    }
+                    placeholder="Automático según hallazgo"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">
+                    Prefijo o Título fijo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={currentCfg.kanbanTaskTitle || ''}
+                    onChange={(e) =>
+                      onUpdateNodeConfig(activeNode.key, { kanbanTaskTitle: e.target.value })
+                    }
+                    placeholder="Automático según hallazgo"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {activeManualOverridesCount > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateNodeConfig(activeNode.key, {
+                        kanbanStatus: 'auto',
+                        kanbanActionType: 'auto',
+                        kanbanPriority: 'auto',
+                        kanbanDueDays: 'auto',
+                        kanbanAssignee: '',
+                        kanbanTaskTitle: '',
+                      })
+                    }
+                    className="text-[11px] font-bold text-teal-700 dark:text-teal-300 hover:underline underline-offset-2 cursor-pointer"
+                  >
+                    Restablecer todo a Automático (Agente IA)
+                  </button>
+                </div>
+              )}
+            </div>
+          </details>
         </div>
       );
     }
@@ -4110,39 +4123,44 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
 
     // 7.7 SALIDA: DOCUMENTO FORMAL EN LIVEEDITOR (canvas_doc)
     if (cleanId.includes('canvas_doc')) {
-      const activeTpl = currentCfg.documentTemplate || 'Informe Técnico';
       return (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border border-fuchsia-200/80 dark:border-fuchsia-800/60">
-            <label className="block text-xs font-extrabold uppercase text-fuchsia-900 dark:text-fuchsia-300 mb-1.5">
-              🎨 1. Plantilla Formal del Documento en LiveEditor (Exportable a Word .docx y PDF)
-            </label>
-            <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
-              {[
-                { id: 'Informe Investigación ATEL Res. 1401', label: '📋 Informe Oficial de Investigación ATEL (Res. 1401)', variant: 'fuchsia' as const },
-                { id: 'Acta Oficial con Cabezote y Firmas', label: '🏛️ Acta Oficial de Comité (COPASST / CCL / PESV) con Firmas', variant: 'purple' as const },
-                { id: 'Informe Ejecutivo de Auditoría 0312', label: '📊 Informe Ejecutivo de Auditoría y Brechas Res. 0312', variant: 'teal' as const },
-                { id: 'Procedimiento / Programa SG-SST', label: '📑 Procedimiento Operativo Estándar (PON) o Programa PVE', variant: 'indigo' as const },
-              ].map((tpl) => (
-                <ExpandableButton
-                  key={tpl.id}
-                  type="button"
-                  size="sm"
-                  variant={activeTpl === tpl.id ? tpl.variant : 'neutral'}
-                  isActive={activeTpl === tpl.id}
-                  icon={<FileText className="w-3.5 h-3.5" />}
-                  label={tpl.label}
-                  onClick={() =>
-                    onUpdateNodeConfig(activeNode.key, { documentTemplate: tpl.id })
-                  }
-                />
-              ))}
-            </div>
+          <div className="px-3 py-2 rounded-xl border border-fuchsia-500/25 bg-fuchsia-500/10 text-xs text-slate-700 dark:text-slate-200">
+            <strong className="text-fuchsia-800 dark:text-fuchsia-300">🤖 Automático por el Agente IA:</strong>{' '}
+            El Agente IA genera el título, estructura y formato del documento en LiveEditor (exportable a Word .docx y PDF). Los campos siguientes son opcionales.
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                📄 2. Título Oficial del Documento Vivo
+                🎨 Plantilla sugerida (Opcional)
+              </label>
+              <select
+                value={currentCfg.documentTemplate || ''}
+                onChange={(e) =>
+                  onUpdateNodeConfig(activeNode.key, { documentTemplate: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="">🤖 Automático (decide el Agente IA)</option>
+                <option value="Informe Investigación ATEL Res. 1401">
+                  📋 Informe de Investigación ATEL (Res. 1401)
+                </option>
+                <option value="Acta Oficial con Cabezote y Firmas">
+                  🏛️ Acta Oficial de Comité (COPASST / CCL / PESV)
+                </option>
+                <option value="Informe Ejecutivo de Auditoría 0312">
+                  📊 Informe de Auditoría y Brechas (Res. 0312)
+                </option>
+                <option value="Procedimiento / Programa SG-SST">
+                  📑 Procedimiento Operativo (PON) o Programa PVE
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+                📄 Título fijo del Documento (Opcional)
               </label>
               <input
                 type="text"
@@ -4150,13 +4168,14 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
                 }
-                placeholder="Ej: Informe de Investigación de Accidente de Trabajo — Res. 1401 de 2007"
+                placeholder="Automático — generado por el Agente IA"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
               />
             </div>
-            <div>
+
+            <div className="md:col-span-2">
               <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-                ✍️ 3. Nota de Formato / Bloques de Firma (Opcional)
+                ✍️ Nota de formato o bloques de firma (Opcional)
               </label>
               <input
                 type="text"
@@ -4164,7 +4183,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                 onChange={(e) =>
                   onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
                 }
-                placeholder="Ej: Incluir cabezote con NIT, tablas con bordes sólidos y firma de Representante Legal + Responsable SST"
+                placeholder="Ej: Incluir cabezote con NIT y firma de Representante Legal + Responsable SST"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
               />
             </div>
@@ -6538,39 +6557,43 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     cleanId === 'cursos_lms';
 
   if (activeNode.shape === 'circle_tool' && cleanId === 'canvas_doc') {
-    const activeTpl = currentCfg.documentTemplate || 'Informe Investigación ATEL Res. 1401';
     return (
       <div className="space-y-3">
-        <div className="p-3 rounded-xl bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border border-fuchsia-200/80 dark:border-fuchsia-800/60">
-          <label className="block text-xs font-extrabold uppercase text-fuchsia-900 dark:text-fuchsia-300 mb-1.5">
-            🎨 1. Plantilla Formal del Documento en LiveEditor para «{resolvedCompanyFull}»
-          </label>
-          <div className="flex flex-wrap items-center gap-2.5 py-1 px-1">
-            {[
-              { id: 'Informe Investigación ATEL Res. 1401', label: '📋 Informe Oficial de Investigación ATEL (Res. 1401)', variant: 'fuchsia' as const },
-              { id: 'Acta Oficial con Cabezote y Firmas', label: '🏛️ Acta Oficial de Comité (COPASST / CCL / PESV) con Firmas', variant: 'purple' as const },
-              { id: 'Informe Ejecutivo de Auditoría 0312', label: '📊 Informe Ejecutivo de Auditoría y Brechas Res. 0312', variant: 'teal' as const },
-              { id: 'Procedimiento / Programa SG-SST', label: '📑 Procedimiento Operativo Estándar (PON) o Programa PVE', variant: 'indigo' as const },
-            ].map((tpl) => (
-              <ExpandableButton
-                key={tpl.id}
-                type="button"
-                size="sm"
-                variant={activeTpl === tpl.id ? tpl.variant : 'neutral'}
-                isActive={activeTpl === tpl.id}
-                icon={<FileText className="w-3.5 h-3.5" />}
-                label={tpl.label}
-                onClick={() =>
-                  onUpdateNodeConfig(activeNode.key, { documentTemplate: tpl.id })
-                }
-              />
-            ))}
-          </div>
+        <div className="px-3 py-2 rounded-xl border border-fuchsia-500/25 bg-fuchsia-500/10 text-xs text-slate-700 dark:text-slate-200">
+          <strong className="text-fuchsia-800 dark:text-fuchsia-300">🤖 Automático por el Agente IA:</strong>{' '}
+          El Agente IA genera el título, estructura y formato del documento en LiveEditor para «{resolvedCompanyFull}». Los campos siguientes son opcionales.
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              📄 2. Título Oficial del Documento Vivo
+              🎨 Plantilla sugerida (Opcional)
+            </label>
+            <select
+              value={currentCfg.documentTemplate || ''}
+              onChange={(e) =>
+                onUpdateNodeConfig(activeNode.key, { documentTemplate: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
+            >
+              <option value="">🤖 Automático (decide el Agente IA)</option>
+              <option value="Informe Investigación ATEL Res. 1401">
+                📋 Informe de Investigación ATEL (Res. 1401)
+              </option>
+              <option value="Acta Oficial con Cabezote y Firmas">
+                🏛️ Acta Oficial de Comité (COPASST / CCL / PESV)
+              </option>
+              <option value="Informe Ejecutivo de Auditoría 0312">
+                📊 Informe de Auditoría y Brechas (Res. 0312)
+              </option>
+              <option value="Procedimiento / Programa SG-SST">
+                📑 Procedimiento Operativo (PON) o Programa PVE
+              </option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
+              📄 Título fijo del Documento (Opcional)
             </label>
             <input
               type="text"
@@ -6578,13 +6601,13 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { documentTitle: e.target.value })
               }
-              placeholder={`Ej: Informe Oficial SG-SST — ${resolvedCompanyFull}`}
+              placeholder={`Automático — generado por el Agente IA (${resolvedCompanyFull})`}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white"
             />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-xs font-extrabold uppercase text-slate-700 dark:text-slate-200 mb-1">
-              ✍️ 3. Estructura de Cabezote, Tablas y Bloque de Firmas
+              ✍️ Nota de formato o bloques de firma (Opcional)
             </label>
             <input
               type="text"
@@ -6592,7 +6615,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
               onChange={(e) =>
                 onUpdateNodeConfig(activeNode.key, { customInstruction: e.target.value })
               }
-              placeholder="Ej: Incluir cabezote con NIT, tablas con bordes sólidos y firma de Representante Legal + Responsable SST"
+              placeholder="Ej: Incluir cabezote con NIT y firma de Representante Legal + Responsable SST"
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
             />
           </div>
@@ -7189,14 +7212,15 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       effectiveNodeAiEngine === 'antigravity_cloud');
 
   const globalIfPlacement =
-    workflowNodes?.canvasLayout?.nodeConfigs?.['if_condition']?.ifPlacement ||
-    workflowNodes?.canvasLayout?.nodeConfigs?.['if_router']?.ifPlacement;
+    workflowNodes?.canvasLayout?.nodeConfigs?.['if_router']?.ifPlacement ||
+    workflowNodes?.canvasLayout?.nodeConfigs?.['if_condition']?.ifPlacement;
   const shouldRenderOutputIfBranchSelector =
     activeNode.shape === 'square_output' &&
     Boolean(workflowNodes?.includeIfNode) &&
-    globalIfPlacement !== 'pre_source';
+    globalIfPlacement === 'post_agent';
 
-  const renderOutputIfBranchSelectorBanner = () => {
+  const renderOutputIfBranchPill = () => {
+    if (!shouldRenderOutputIfBranchSelector) return null;
     const outList =
       workflowNodes?.outputs !== undefined
         ? Array.isArray(workflowNodes.outputs)
@@ -7214,49 +7238,37 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
             workflowNodes?.canvasLayout?.nodeConfigs,
             outList,
           );
+    const nextBranch: 'yes' | 'no' = effectiveBranch === 'yes' ? 'no' : 'yes';
 
     return (
-      <div className="p-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/5 dark:bg-slate-900/80 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <span className="text-xs font-black uppercase text-emerald-900 dark:text-[#C7F303] flex items-center gap-1.5">
-            <GitBranch className="w-3.5 h-3.5 text-emerald-600 dark:text-[#C7F303]" />
-            Conectado en el lienzo al cable de Condición Sí/No:
-          </span>
-          <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-            Define cuándo se activa esta salida
-          </span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'yes' })}
-            className={`p-2 rounded-xl border-2 text-left text-xs font-extrabold transition ${
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/60 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+          <GitBranch className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+          <span className="text-slate-500 dark:text-slate-400">Rama del lienzo:</span>
+          <strong
+            className={
               effectiveBranch === 'yes'
-                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/30'
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-400'
-            }`}
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : 'text-slate-700 dark:text-slate-200'
+            }
           >
-            ✅ Cable SÍ (Con hallazgos / condición cumplida)
-          </button>
-          <button
-            type="button"
-            onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: 'no' })}
-            className={`p-2 rounded-xl border-2 text-left text-xs font-extrabold transition ${
-              effectiveBranch === 'no'
-                ? 'bg-slate-500/20 border-slate-500 text-slate-900 dark:text-slate-100 ring-1 ring-slate-500/30'
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
-            }`}
-          >
-            ⚪ Cable NO (Sin hallazgos / ruta alternativa)
-          </button>
-        </div>
+            {effectiveBranch === 'yes' ? '✅ SÍ (Con hallazgos)' : '⚪ NO (Ruta alternativa)'}
+          </strong>
+        </span>
+        <button
+          type="button"
+          onClick={() => onUpdateNodeConfig(activeNode.key, { ifBranch: nextBranch })}
+          className="text-[11px] font-bold text-teal-700 dark:text-teal-300 hover:underline underline-offset-2 transition cursor-pointer"
+        >
+          {nextBranch === 'no' ? 'Cambiar a NO' : 'Cambiar a SÍ'}
+        </button>
       </div>
     );
   };
 
   return (
     <div className="space-y-4 min-w-0">
-      {shouldRenderOutputIfBranchSelector && renderOutputIfBranchSelectorBanner()}
+      {renderOutputIfBranchPill()}
       {shouldRenderTopAntigravityBanner && renderAntigravityModeSelectorPanel()}
       {renderSpecificNodeEditor()}
     </div>

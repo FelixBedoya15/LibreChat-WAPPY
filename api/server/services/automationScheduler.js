@@ -4283,6 +4283,348 @@ async function buildLivePreExtractionAndLogicBlocks({
 }
 
 /**
+ * Infiere dinámicamente metadatos operativos (prioridad, nivel de alerta, tipo de acción ACPM,
+ * plazo de cumplimiento en días, etapa inicial y título ejecutivo) a partir del análisis real
+ * generado por el Agente IA principal del flujo.
+ *
+ * Estos valores se aplican por defecto en `wappy_notification` y `acpm_task` / `wappy_kanban`,
+ * respetando siempre cualquier override manual explícito (distinto de `'auto'`) configurado por el usuario.
+ *
+ * @param {string} responseText - Respuesta real generada por el Agente IA principal.
+ * @param {string} automationName - Nombre de la automatización.
+ * @param {string} compLabel - Nombre de la empresa activa.
+ * @returns {{ priority: 'alta'|'media'|'baja', alertPriority: 'critical'|'warn'|'info', actionType: 'correctiva'|'preventiva'|'mejora', dueDays: number, stage: 'todo', title: string }}
+ */
+function inferAiOutputMetadataFromResponse(responseText = '', automationName = '', compLabel = '') {
+  const raw = String(responseText || '').trim();
+  const cleanAutomationName =
+    String(automationName || 'Automatización SG-SST').trim() || 'Automatización SG-SST';
+  const cleanCompLabel = String(compLabel || 'Somos SST').trim() || 'Somos SST';
+  const fallbackTitle = `[Centro de Control] ${cleanAutomationName} — ${cleanCompLabel}`;
+
+  const strippedMd = raw
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const normalized = strippedMd
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  // Neutralizar menciones explícitamente negadas o preventivas genéricas antes de evaluar hallazgos críticos
+  const nounMod =
+    '(?:hallazgos?|equipos?|elementos?|epps?|cascos?|arneses?|certificados?|documentos?|casos?|registros?|reportes?|novedades?|riesgos?|eventos?|trabajadores?)';
+  const criticalHazardTerm =
+    '(?:critic[oa]s?|vencid[oa]s?|accidentes?(?:\\s+(?:de\\s+trabajo|laborales?|graves?|mortales?))?|bloqueos?|incumplimientos?(?:\\s+graves?)?|suspension(?:es)?|fuera\\s+de\\s+servicio|peligro\\s+alto)';
+  const effectiveForCritical = normalized
+    .replace(
+      new RegExp(
+        `(?:\\b(?:sin|ni|ningun[ao]?|cero)\\s+)(?:(?:${nounMod}\\s+){0,2})${criticalHazardTerm}`,
+        'g',
+      ),
+      ' ',
+    )
+    .replace(
+      new RegExp(
+        `\\bno\\s+(?:se\\s+)?(?:encontr(?:o|aron)|hay|existen?|presentan?|registran?|reportan?|detect(?:o|aron)|evidenci(?:o|aron))\\s+(?:(?:ningun[ao]?|${nounMod})\\s+){0,2}${criticalHazardTerm}`,
+        'g',
+      ),
+      ' ',
+    )
+    .replace(
+      /\b(?:prevencion\s+de|prevenir|evitar|reducir)\s+(?:(?:los?|el|un[ao]?)\s+)?(?:accidentes?|incumplimientos?|bloqueos?|suspension(?:es)?)/g,
+      ' ',
+    )
+    .replace(new RegExp(`${criticalHazardTerm}\\s*[:|]\\s*0\\b`, 'g'), ' ')
+    .replace(new RegExp(`\\b0\\s+(?:(?:${nounMod}\\s+){0,2})${criticalHazardTerm}\\b`, 'g'), ' ');
+
+  // 1. Prioridad ('alta' | 'media' | 'baja')
+  const hasHighSignal =
+    /(?:critic[oa]?|prioridad\s*[:\-–]?\s*(?:alta|critica|urgente)|inmediat[oa]?|vencid[oa]?|fuera\s+de\s+servicio|bloqueo|peligro\s+alto|suspension|accidente|incumplimiento\s+grave)/.test(
+      effectiveForCritical,
+    );
+  const hasExplicitLowPriority =
+    /\bprioridad\s*[:\-–]?\s*(?:baja|informativa)\b/.test(normalized) &&
+    !/\bprioridad\s*[:\-–]?\s*(?:media|moderada)\b/.test(normalized);
+  const hasMediumSignal =
+    /(?:proxim[oa]s?\s+a\s+vencer|preventiv[oa]?|prioridad\s*[:\-–]?\s*(?:media|moderada)|seguimiento|reposicion|pendiente)/.test(
+      normalized,
+    );
+  const hasLowSignal =
+    /(?:mejora|prioridad\s*[:\-–]?\s*(?:baja|informativa)|informativ[oa]?|al\s+dia|sin\s+hallazgos)/.test(
+      normalized,
+    );
+
+  let priority = 'media';
+  if (hasHighSignal) {
+    priority = 'alta';
+  } else if (hasExplicitLowPriority) {
+    priority = 'baja';
+  } else if (hasMediumSignal) {
+    priority = 'media';
+  } else if (hasLowSignal) {
+    priority = 'baja';
+  }
+
+  // 2. Mapeo directo de nivel de alerta para Notificaciones en WAPPY ('critical' | 'warn' | 'info')
+  const alertPriority =
+    priority === 'alta' ? 'critical' : priority === 'baja' ? 'info' : 'warn';
+
+  // 3. Tipo de acción ACPM ('correctiva' | 'preventiva' | 'mejora')
+  const hasExplicitCorrective = /\baccion\s+correctiva\b/.test(normalized);
+  const hasCorrectiveHazard =
+    /(?:vencid[oa]?|fuera\s+de\s+servicio|incumplimiento|accidente|bloqueo)/.test(
+      effectiveForCritical,
+    );
+  const hasExplicitPreventive = /\baccion\s+preventiva\b/.test(normalized);
+  const hasExplicitImprovement = /\baccion\s+de\s+mejora\b/.test(normalized);
+  const hasPreventiveSignal =
+    /(?:proxim[oa]s?\s+a\s+vencer|alerta\s+temprana|riesgo\s+preventivo|preventiv[oa]?)/.test(
+      normalized,
+    );
+  const hasImprovementSignal =
+    /(?:\baccion\s+de\s+mejora\b|\boportunidad(?:es)?\s+de\s+mejora\b|\bmejora\s+continua\b)/.test(
+      normalized,
+    );
+
+  let actionType;
+  if (hasExplicitCorrective || hasCorrectiveHazard) {
+    actionType = 'correctiva';
+  } else if (hasExplicitPreventive) {
+    actionType = 'preventiva';
+  } else if (hasExplicitImprovement) {
+    actionType = 'mejora';
+  } else if (hasPreventiveSignal) {
+    actionType = 'preventiva';
+  } else if (hasImprovementSignal || priority === 'baja') {
+    actionType = 'mejora';
+  } else if (priority === 'alta') {
+    actionType = 'correctiva';
+  } else {
+    actionType = 'preventiva';
+  }
+
+  // 4. Plazo en días: respeta plazo explícito del Agente IA (acotado entre 1 y 90 días); si no, por prioridad
+  let explicitDueDays = null;
+  const daysMatch =
+    normalized.match(
+      /\bplazo(?:\s+(?:maximo|estimado|sugerido|recomendado|limite|de\s+(?:cumplimiento|ejecucion|cierre|atencion|reposicion)))?\s*(?::|de)?\s*(\d{1,3})\s*dias?(?:\s+(?:habiles|calendario))?\b/,
+    ) ||
+    normalized.match(
+      /\b(?:en\s+un\s+plazo(?:\s+maximo)?\s+de|maximo(?:\s+en|\s+de)?|en\s+maximo|antes\s+de|en\s+menos\s+de|ejecutar\s+en|cerrar\s+en|resolver\s+en|atender\s+en|cumplir\s+en|reponer\s+en)\s*(\d{1,3})\s*dias?(?:\s+(?:habiles|calendario))?\b/,
+    ) ||
+    normalized.match(
+      /\b(\d{1,3})\s*dias?(?:\s+(?:habiles|calendario))?\s+(?:de\s+plazo|para\s+(?:cierre|cumplimiento|ejecucion|atencion|reposicion|subsanar))\b/,
+    );
+  if (daysMatch && daysMatch[1]) {
+    explicitDueDays = Number(daysMatch[1]);
+  } else {
+    const hoursMatch = normalized.match(
+      /\b(?:plazo(?:\s+(?:maximo|de))?\s*(?::|de)?|en\s+un\s+plazo\s+de|maximo(?:\s+de)?|antes\s+de|dentro\s+de|en)\s*(\d{1,3})\s*(?:horas?|hrs?)\b/,
+    );
+    if (hoursMatch && hoursMatch[1]) {
+      const hoursVal = Number(hoursMatch[1]);
+      if (Number.isFinite(hoursVal) && hoursVal > 0) {
+        explicitDueDays = Math.ceil(hoursVal / 24);
+      }
+    } else {
+      const weeksMatch = normalized.match(
+        /\b(?:plazo(?:\s+(?:maximo|de))?\s*(?::|de)?|maximo(?:\s+de)?)\s*(\d{1,2})\s*semanas?\b/,
+      );
+      if (weeksMatch && weeksMatch[1]) {
+        const weeksVal = Number(weeksMatch[1]);
+        if (Number.isFinite(weeksVal) && weeksVal > 0) {
+          explicitDueDays = weeksVal * 7;
+        }
+      }
+    }
+  }
+
+  const defaultDueDays = priority === 'alta' ? 3 : priority === 'baja' ? 15 : 7;
+  const dueDays =
+    Number.isFinite(explicitDueDays) && explicitDueDays > 0
+      ? Math.min(90, Math.max(1, Math.round(explicitDueDays)))
+      : defaultDueDays;
+
+  // 5. Etapa inicial: siempre 'todo' (Pendientes) por defecto para actividades nuevas
+  const stage = 'todo';
+
+  // 6. Título ejecutivo concreto extraído del encabezado principal del análisis
+  const genericGreetingRe =
+    /^(?:hola|buenos?\s+dias?|buenas?\s+tardes?|buenas?\s+noches?|saludos?|cordial\s+saludo|estimad[oa]s?|claro|por\s+supuesto|con\s+gusto|perfecto|listo|entendido|a\s+continuacion|aqui\s+tienes|te\s+presento|he\s+(?:completado|revisado|analizado|generado))\b/;
+  const genericHeadingRe =
+    /^(?:resumen(?:\s+ejecutivo)?|informe(?:\s+ejecutivo|\s+general)?|analisis(?:\s+general|\s+ejecutivo)?|reporte(?:\s+general|\s+ejecutivo)?|conclusiones?|recomendaciones?|hallazgos?(?:\s+principales)?|introduccion|contexto|resultados?|detalles?|observaciones?|estado\s+actual|datos|tabla(?:\s+resumen)?|plan\s+de\s+accion)$/;
+
+  let title = fallbackTitle;
+  if (raw) {
+    const nonEmptyLines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 14);
+
+    for (const line of nonEmptyLines) {
+      if (
+        line.startsWith('|') ||
+        line.startsWith('```') ||
+        /^[-*_]{3,}$/.test(line) ||
+        /^[-*•]\s+/.test(line) ||
+        /^\d+[.)]\s+/.test(line)
+      ) {
+        continue;
+      }
+
+      let rawCandidate = '';
+      const headingMatch = line.match(/^#{1,3}\s+(.+)$/);
+      const labeledTitleMatch = line.match(
+        /^(?:\*\*|__)?(?:t[ií]tulo|asunto)(?:\*\*|__)?\s*:\s*(.+)$/i,
+      );
+      const boldLineMatch = line.match(/^\*\*([^*\n]{10,95})\*\*$/);
+
+      if (headingMatch) {
+        rawCandidate = headingMatch[1];
+      } else if (labeledTitleMatch) {
+        rawCandidate = labeledTitleMatch[1];
+      } else if (boldLineMatch) {
+        rawCandidate = boldLineMatch[1];
+      } else {
+        continue;
+      }
+
+      const cleaned = String(rawCandidate || '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/[*_`~#]/g, '')
+        .replace(/^(?:t[ií]tulo|asunto)\s*:\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .replace(/[:;.\-–—]+$/, '')
+        .trim();
+
+      if (cleaned.length < 10 || cleaned.length > 95) continue;
+      if (/[|{}]|https?:\/\//i.test(cleaned)) continue;
+
+      const cleanedNorm = cleaned
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!cleanedNorm || cleanedNorm.length < 8) continue;
+      if (genericGreetingRe.test(cleanedNorm) || genericHeadingRe.test(cleanedNorm)) continue;
+
+      title = cleaned;
+      break;
+    }
+  }
+
+  return {
+    priority,
+    alertPriority,
+    actionType,
+    dueDays,
+    stage,
+    title,
+  };
+}
+
+/**
+ * Resuelve el nivel de prioridad de `wappy_notification` respetando únicamente un override
+ * manual explícito distinto de `'auto'`; de lo contrario usa `aiMeta.alertPriority`.
+ */
+function resolveNotificationAlertPriority(notifCfg = {}, aiMeta = {}) {
+  const rawAlertPriority = String(notifCfg?.alertPriority ?? '').trim().toLowerCase();
+  const isManualOverride =
+    rawAlertPriority !== '' &&
+    rawAlertPriority !== 'auto' &&
+    ['critical', 'warn', 'info', 'alta', 'high', 'media', 'medium', 'baja', 'low'].includes(
+      rawAlertPriority,
+    );
+
+  if (!isManualOverride) {
+    return {
+      alertPriority: aiMeta.alertPriority || 'warn',
+      isManualOverride: false,
+    };
+  }
+
+  const alertPriority = ['critical', 'alta', 'high'].includes(rawAlertPriority)
+    ? 'critical'
+    : ['warn', 'media', 'medium'].includes(rawAlertPriority)
+      ? 'warn'
+      : 'info';
+
+  return {
+    alertPriority,
+    isManualOverride: true,
+  };
+}
+
+/**
+ * Resuelve los parámetros de una actividad en el Centro de Control (`acpm_task` / `wappy_kanban`):
+ * usa dinámicamente los metadatos inferidos por el Agente IA (`aiMeta`) salvo cuando el usuario
+ * definió explícitamente un override manual distinto de vacío/`0`/`'auto'`.
+ */
+function resolveAcpmTaskParams(acpmCfg = {}, aiMeta = {}) {
+  const rawStage = String(acpmCfg?.kanbanStatus ?? '').trim().toLowerCase();
+  const validStage =
+    !rawStage || rawStage === 'auto'
+      ? aiMeta.stage || 'todo'
+      : rawStage === 'urgent'
+        ? 'overdue'
+        : ['todo', 'in_progress', 'due_soon', 'overdue', 'done'].includes(rawStage)
+          ? rawStage
+          : aiMeta.stage || 'todo';
+
+  const rawPriority = String(acpmCfg?.kanbanPriority ?? '').trim().toLowerCase();
+  const validPriority =
+    !rawPriority || rawPriority === 'auto'
+      ? aiMeta.priority || 'media'
+      : rawPriority === 'low' || rawPriority === 'baja'
+        ? 'baja'
+        : rawPriority === 'medium' || rawPriority === 'media'
+          ? 'media'
+          : rawPriority === 'high' || rawPriority === 'alta' || rawPriority === 'critical'
+            ? 'alta'
+            : aiMeta.priority || 'media';
+
+  const rawActionType = String(acpmCfg?.kanbanActionType ?? '').trim().toLowerCase();
+  const validActionType =
+    !rawActionType || rawActionType === 'auto'
+      ? aiMeta.actionType || 'preventiva'
+      : ['correctiva', 'preventiva', 'mejora'].includes(rawActionType)
+        ? rawActionType
+        : aiMeta.actionType || 'preventiva';
+
+  const rawDueDaysStr = String(acpmCfg?.kanbanDueDays ?? '').trim().toLowerCase();
+  const parsedDueDays =
+    !rawDueDaysStr || rawDueDaysStr === 'auto' ? 0 : Number(acpmCfg.kanbanDueDays);
+  const dueDays =
+    Number.isFinite(parsedDueDays) && parsedDueDays > 0
+      ? Math.min(365, Math.max(1, Math.round(parsedDueDays)))
+      : Math.min(90, Math.max(1, Number(aiMeta.dueDays) || 7));
+
+  const rawCustomTitle = String(acpmCfg?.kanbanTaskTitle ?? '').trim();
+  const resolvedTitle =
+    !rawCustomTitle || rawCustomTitle.toLowerCase() === 'auto'
+      ? aiMeta.title || '[Centro de Control] Automatización SG-SST'
+      : rawCustomTitle;
+
+  const customAssignee = String(acpmCfg?.kanbanAssignee ?? '').trim();
+
+  return {
+    validStage,
+    validPriority,
+    validActionType,
+    dueDays,
+    resolvedTitle,
+    customAssignee,
+  };
+}
+
+/**
  * Ejecuta todas las salidas finales permitidas por la rama activa (`outputsToExecute`):
  * `wappy_notification`, `tenshi_alert`, `antigravity_local_report`, `antigravity_cloud_report`,
  * `canvas_doc`, `acpm_task`, `wappy_kanban`, `email_report`, `google_calendar`, `google_docs`,
@@ -4343,19 +4685,51 @@ async function executeDownstreamOutputs({
     dateStyle: 'full',
     timeStyle: 'medium',
   }).format(new Date());
+  const aiMeta = inferAiOutputMetadataFromResponse(safeResponseText, automation.name, compLabel);
 
   // 1. Notificación en WAPPY + Chat de Tenshi (`wappy_notification` / `tenshi_alert`)
   if (outputsToExecute.includes('wappy_notification') || outputsToExecute.includes('tenshi_alert')) {
     try {
+      const notifCfg =
+        postNodeConfigs.out_wappy_notification ||
+        postNodeConfigs.wappy_notification ||
+        postNodeConfigs.out_notify_wappy ||
+        postNodeConfigs.notify_wappy ||
+        postNodeConfigs.out_tenshi_alert ||
+        postNodeConfigs.tenshi_alert ||
+        {};
+      const { alertPriority: resolvedAlertPriority, isManualOverride: isAlertPriorityManual } =
+        resolveNotificationAlertPriority(notifCfg, aiMeta);
+      const notifTitlePrefix =
+        resolvedAlertPriority === 'critical'
+          ? '🔴 Alerta Crítica'
+          : resolvedAlertPriority === 'warn'
+            ? '🟡 Alerta Preventiva'
+            : '✅ Bitácora Completada';
+      const alertBadge =
+        resolvedAlertPriority === 'critical'
+          ? '🔴 [Crítica]'
+          : resolvedAlertPriority === 'warn'
+            ? '🟡 [Preventiva]'
+            : '🟢 [Informativa]';
       const shortSummary = safeResponseText.replace(/[#*_`]/g, '').substring(0, 260);
       const effectiveNotifUserId = notificationUserId || automation.user || userId;
       await withTimeout(
         Notification.create({
           user: effectiveNotifUserId,
           companyId: targetCompanyIdStr || automation.companyId || null,
-          title: `✅ Bitácora Completada: ${automation.name} (${compLabel})`,
+          title: `${notifTitlePrefix}: ${automation.name} (${compLabel})`,
           body: `${shortSummary}${safeResponseText.length > 260 ? '...' : ''}`,
           type: 'system_update',
+          metadata: {
+            automationId: automation._id ? String(automation._id) : null,
+            automationName: automation.name || '',
+            alertPriority: resolvedAlertPriority,
+            prioritySource: isAlertPriorityManual ? 'manual' : 'ai_inferred',
+            inferredPriority: aiMeta.priority,
+            inferredActionType: aiMeta.actionType,
+            tenshiSpeakSummary: notifCfg.tenshiSpeakSummary !== false,
+          },
           read: false,
         }),
         12000,
@@ -4373,7 +4747,7 @@ async function executeDownstreamOutputs({
             companyId: targetCompanyIdStr || null,
             role: 'assistant',
             content:
-              `🤖 **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
+              `🤖 ${alertBadge} **Automatización Ejecutada: ${automation.name} (${compLabel})**\n\n` +
               `${safeResponseText.substring(0, 900)}${safeResponseText.length > 900 ? '\n\n*(Ver informe completo en el Historial de Ejecuciones de /tareas)*' : ''}`,
           }),
           12000,
@@ -4502,30 +4876,15 @@ async function executeDownstreamOutputs({
         postNodeConfigs.out_wappy_kanban ||
         postNodeConfigs.wappy_kanban ||
         {};
-      const rawStage = String(acpmCfg.kanbanStatus || 'todo').trim();
-      const validStage =
-        rawStage === 'urgent'
-          ? 'overdue'
-          : ['todo', 'in_progress', 'due_soon', 'overdue', 'done'].includes(rawStage)
-            ? rawStage
-            : 'todo';
-      const rawPriority = String(acpmCfg.kanbanPriority || 'high').toLowerCase();
-      const validPriority =
-        rawPriority === 'low' || rawPriority === 'baja'
-          ? 'baja'
-          : rawPriority === 'medium' || rawPriority === 'media'
-            ? 'media'
-            : 'alta';
-      const validActionType = ['correctiva', 'preventiva', 'mejora'].includes(
-        String(acpmCfg.kanbanActionType || '').toLowerCase(),
-      )
-        ? String(acpmCfg.kanbanActionType).toLowerCase()
-        : 'correctiva';
-      const dueDays = Math.max(1, Number(acpmCfg.kanbanDueDays) || 7);
+      const {
+        validStage,
+        validPriority,
+        validActionType,
+        dueDays,
+        resolvedTitle,
+        customAssignee,
+      } = resolveAcpmTaskParams(acpmCfg, aiMeta);
       const dueTarget = new Date(Date.now() + dueDays * 24 * 3600000);
-      const customTitle = String(acpmCfg.kanbanTaskTitle || '').trim();
-      const customAssignee = String(acpmCfg.kanbanAssignee || '').trim();
-      const resolvedTitle = customTitle || `[Centro de Control] ${automation.name} — ${compLabel}`;
 
       const existingOpenTask = await KanbanTask.findOne({
         user: automation.user || userId,
@@ -4548,6 +4907,7 @@ async function executeDownstreamOutputs({
             $set: {
               description: combinedDesc,
               priority: validPriority,
+              actionType: validActionType,
               dueDate: dueTarget,
               updatedAt: new Date(),
             },
@@ -16446,6 +16806,30 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     .filter((s) => s.category === 'hito')
     .map((s) => s.nodeId);
 
+  const simAiMeta = inferAiOutputMetadataFromResponse(finalResponse, flowName, companyName);
+  const simNotifCfg =
+    nodeConfigs?.out_wappy_notification ||
+    nodeConfigs?.wappy_notification ||
+    nodeConfigs?.out_notify_wappy ||
+    nodeConfigs?.notify_wappy ||
+    nodeConfigs?.out_tenshi_alert ||
+    nodeConfigs?.tenshi_alert ||
+    {};
+  const simNotifResolved = resolveNotificationAlertPriority(simNotifCfg, simAiMeta);
+  const simNotifPrefix =
+    simNotifResolved.alertPriority === 'critical'
+      ? '🔴 Alerta Crítica'
+      : simNotifResolved.alertPriority === 'warn'
+        ? '🟡 Alerta Preventiva'
+        : '✅ Bitácora Completada';
+  const simAcpmCfg =
+    nodeConfigs?.out_acpm_task ||
+    nodeConfigs?.acpm_task ||
+    nodeConfigs?.out_wappy_kanban ||
+    nodeConfigs?.wappy_kanban ||
+    {};
+  const simAcpmResolved = resolveAcpmTaskParams(simAcpmCfg, simAiMeta);
+
   const simulatedOutputs = {
     emailPreview: {
       enabled: connectedOutputsList.includes('email_report'),
@@ -16467,7 +16851,9 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
     wappyNotificationPreview: {
       enabled: connectedOutputsList.includes('wappy_notification'),
       blocked: true,
-      title: `✅ Bitácora Completada: ${flowName} (${companyName})`,
+      title: `${simNotifPrefix}: ${flowName} (${companyName})`,
+      alertPriority: simNotifResolved.alertPriority,
+      prioritySource: simNotifResolved.isManualOverride ? 'manual' : 'ai_inferred',
       body: shortSummary,
       tenshiChatPreview: `🤖 **Automatización Ejecutada: ${flowName} (${companyName})**\n\n${finalResponse.substring(0, 900)}`,
     },
@@ -16484,7 +16870,12 @@ async function runWorkflowSandboxSimulation(params = {}, onProgress = null) {
       blocked: true,
       targetHitos: connectedHitosList,
       targetOutputs: connectedOutputsList,
-      acpmTaskTitle: `[ACPM Automatización] ${flowName} — ${companyName}`,
+      acpmTaskTitle: simAcpmResolved.resolvedTitle,
+      acpmStage: simAcpmResolved.validStage,
+      acpmPriority: simAcpmResolved.validPriority,
+      acpmActionType: simAcpmResolved.validActionType,
+      acpmDueDays: simAcpmResolved.dueDays,
+      aiInferredMetadata: simAiMeta,
       liveDocTitle: `📄 Informe Automatizado: ${flowName} (${companyName})`,
       summary: `En ejecución real se actualizarían únicamente los hitos conectados [${connectedHitosList.join(', ') || 'ninguno'}] y salidas conectadas [${connectedOutputsList.join(', ') || 'ninguna'}]. En Modo Desarrollo no se modificó ningún registro.`,
     },
@@ -16556,6 +16947,9 @@ module.exports = {
   matchesQrSeverityFilter,
   checkEmailTriggeredAutomations,
   dispatchAgentTriggeredAutomations,
+  inferAiOutputMetadataFromResponse,
+  resolveNotificationAlertPriority,
+  resolveAcpmTaskParams,
   executeDownstreamOutputs,
   isSafePublicHttpsUrl,
   fetchSafeWebhookApiData,
