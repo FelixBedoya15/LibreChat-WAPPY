@@ -3576,6 +3576,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           operar_interfaz_visual: '✨ Tenshi operando pantalla...',
           wappy_generar_analisis_aplicativo: '⚡ Ejecutando análisis IA...',
           wappy_abrir_chat_agente: '🤝 Conectando con especialista...',
+          consultar_agente_especializado: '🩺 Consultando especialista en segundo plano...',
+          consultar_multiples_especialistas_paralelo: '⚡ Mesa Técnica Multi-Agente en paralelo...',
           wappy_abrir_curso: '🎓 Abriendo curso formativo...',
           wappy_abrir_articulo_blog: '📰 Abriendo artículo del Blog...',
           wappy_delegar_orden_antigravity: '🚀 Orden enviada a Antigravity...',
@@ -4230,19 +4232,131 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             resultMsg = `Informe "${title}" entregado exitosamente en el chat de Tenshi.`;
           } else if (action.name === 'wappy_dictamen_especialista') {
             const res = (action as any).result || {};
-            const agente = action.args?.agente || 'Especialista';
-            const dictamen = res.respuesta || action.args?.respuesta || '';
-            if (dictamen) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: 'assistant',
-                  content: `🩺 **Dictamen Técnico Especializado - ${agente}**:\n\n${dictamen}`,
-                },
-              ]);
-              setIsOpen(true);
+            const agente =
+              String(action.args?.agente || res.agente || 'Especialista').trim() || 'Especialista';
+            const dictamen = String(res.respuesta || action.args?.respuesta || '').trim();
+            const messageId = res.messageId ? String(res.messageId) : undefined;
+            if (dictamen && !dictamen.startsWith('❌')) {
+              const formattedContent = dictamen.startsWith('🩺 **Dictamen')
+                ? dictamen
+                : `🩺 **Dictamen Técnico Especializado — ${agente}**:\n\n${dictamen}`;
+              const trimmedFormatted = formattedContent.trim();
+              setMessages((prev) => {
+                if (messageId && prev.some((m) => m._id && String(m._id) === messageId)) {
+                  return prev;
+                }
+                if (prev.slice(-6).some((m) => (m.content || '').trim() === trimmedFormatted)) {
+                  return prev;
+                }
+                return [
+                  ...prev,
+                  {
+                    ...(messageId ? { _id: messageId } : {}),
+                    role: 'assistant',
+                    content: formattedContent,
+                    _localCreatedAt: Date.now(),
+                  },
+                ];
+              });
+              if (isMobileHeroModeRef.current) {
+                setHeroPanelTab('chat');
+                setIsHeroChatOpen(true);
+                setTimeout(() => scrollMessagesToBottom(true), 120);
+              } else {
+                setIsOpen(true);
+              }
+              tenshiAudio.playSuccess();
+              const plainSnippet = dictamen
+                .replace(/[#*_>`]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+              const subtitleSnippet =
+                plainSnippet.length > 110
+                  ? `${plainSnippet.slice(0, 107)}...`
+                  : plainSnippet || 'Concepto técnico registrado en el chat de Tenshi';
+              triggerRichVoiceCard({
+                id: `dictamen-${messageId || Date.now()}`,
+                kind: 'report',
+                badge: `🩺 Dictamen Especialista • ${agente}`,
+                title: `Dictamen Técnico — ${agente}`,
+                subtitle: subtitleSnippet,
+                actionLabel: '📄 Llevar dictamen a Canvas',
+                actionPrompt: `Compila el último dictamen de ${agente} en un informe HTML interactivo en Canvas.`,
+              });
+              resultMsg = `Dictamen de ${agente} entregado en el chat de Tenshi.`;
+            } else {
+              resultMsg = `No se recibió un dictamen técnico válido de ${agente}.`;
             }
-            resultMsg = `Dictamen de ${agente} entregado en el chat de Tenshi.`;
+          } else if (action.name === 'wappy_mesa_tecnica_paralela') {
+            const res = (action as any).result || {};
+            const formattedMarkdown = String(res.formattedMarkdown || '').trim();
+            const results = Array.isArray(res.results) ? res.results : [];
+            const rawSucceeded = Number(
+              res.succeededCount || results.filter((r: any) => Boolean(r?.ok)).length || 0,
+            );
+            const succeededCount = Number.isFinite(rawSucceeded) ? rawSucceeded : 0;
+            const rawTotal = Number(res.total || results.length || 0);
+            const total = Number.isFinite(rawTotal) ? rawTotal : 0;
+            const messageId = res.messageId ? String(res.messageId) : undefined;
+            if (formattedMarkdown && !formattedMarkdown.startsWith('❌')) {
+              setMessages((prev) => {
+                if (messageId && prev.some((m) => m._id && String(m._id) === messageId)) {
+                  return prev;
+                }
+                if (prev.some((m) => (m.content || '').trim() === formattedMarkdown)) {
+                  return prev;
+                }
+                return [
+                  ...prev,
+                  {
+                    ...(messageId ? { _id: messageId } : {}),
+                    role: 'assistant',
+                    content: formattedMarkdown,
+                    _localCreatedAt: Date.now(),
+                  },
+                ];
+              });
+              if (isMobileHeroModeRef.current) {
+                setHeroPanelTab('chat');
+                setIsHeroChatOpen(true);
+                setTimeout(() => scrollMessagesToBottom(true), 120);
+              } else {
+                setIsOpen(true);
+              }
+              tenshiAudio.playSuccess();
+              const specialistNames = Array.from(
+                new Set(
+                  results
+                    .map((r: any) =>
+                      String(
+                        r?.agentName ||
+                          r?.agente ||
+                          r?.nombre_especialista ||
+                          r?.especialista ||
+                          r?.agent ||
+                          r?.name ||
+                          '',
+                      ).trim(),
+                    )
+                    .filter(Boolean),
+                ),
+              );
+              const subtitleText =
+                specialistNames.length > 0
+                  ? specialistNames.join(' • ')
+                  : 'Dictámenes interdisciplinarios consolidados en el chat de Tenshi';
+              triggerRichVoiceCard({
+                id: `mesa-tecnica-${messageId || Date.now()}`,
+                kind: 'report',
+                badge: '⚡ Mesa Técnica Multi-Agente • En Paralelo',
+                title: `⚡ Mesa Técnica Multi-Agente (${succeededCount}/${total} especialistas en paralelo)`,
+                subtitle: subtitleText,
+                actionLabel: '📄 Compilar en Informe Canvas',
+                actionPrompt:
+                  'Compila las conclusiones de esta Mesa Técnica Multi-Agente en un informe ejecutivo HTML interactivo en Canvas.',
+              });
+            }
+            resultMsg = `Mesa Técnica Multi-Agente (${succeededCount}/${total}) entregada en el chat de Tenshi.`;
           } else if (action.name === 'wappy_controlar_videollamada' || action.name === 'controlar_videollamada') {
             const accion = action.args?.accion;
             if (accion === 'activar_camara') {
@@ -6260,7 +6374,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return String(m?.media?.name || '').trim();
           };
 
-          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media, attachments o image), widgets interactivos (widget) o certificados emitidos (evidenceFiles)
+          const nowTs = Date.now();
+          const isRecentSpecialistReport = (m: any): boolean => {
+            if (!m || m.role !== 'assistant' || !m._localCreatedAt) return false;
+            if (nowTs - Number(m._localCreatedAt) > 25000) return false;
+            const trimmed = String(m.content || '').trim();
+            return (
+              trimmed.startsWith('🩺 **Dictamen') ||
+              trimmed.startsWith('⚡ **Mesa Técnica') ||
+              trimmed.startsWith('### 🤝 Mesa Técnica') ||
+              trimmed.startsWith('🤝 **Mesa Técnica')
+            );
+          };
+
+          // Extraer mensajes locales que contengan archivos (file o htmlReport), medios (media, attachments o image), widgets interactivos (widget), certificados emitidos (evidenceFiles) o dictámenes / mesas técnicas recientes
           const localExtras = prev.filter(
             (m) =>
               m.file ||
@@ -6269,7 +6396,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               m.image ||
               (Array.isArray(m.attachments) && m.attachments.length > 0) ||
               m.widget ||
-              (Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0),
+              (Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0) ||
+              isRecentSpecialistReport(m),
           );
 
           // 1. Mapa de archivos locales por contenido o por título
@@ -6454,7 +6582,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
           });
 
-          const nowTs = Date.now();
           // Conservar las burbujas en vivo (isLiveVoice) del turno de habla actual (< 10s) que aún no se han guardado en MongoDB
           const activeLiveVoiceTail = prev.slice(-2).filter((m: any) => {
             if (!m || !m.isLiveVoice || m._id) return false;
@@ -6547,7 +6674,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 m.evidenceFiles.length > 0 &&
                 m._localCreatedAt &&
                 nowTs - Number(m._localCreatedAt) <=
-                  (m._isVoiceEvidenceBubble ? 30 * 60 * 1000 : 30000)),
+                  (m._isVoiceEvidenceBubble ? 30 * 60 * 1000 : 30000)) ||
+              (m.role === 'assistant' &&
+                m._localCreatedAt &&
+                nowTs - Number(m._localCreatedAt) <= 25000 &&
+                (String(m.content || '').trim().startsWith('🩺 **Dictamen') ||
+                  String(m.content || '').trim().startsWith('⚡ **Mesa Técnica') ||
+                  String(m.content || '').trim().startsWith('### 🤝 Mesa Técnica') ||
+                  String(m.content || '').trim().startsWith('🤝 **Mesa Técnica'))),
           );
           const activeFlowAcks = prev.filter(
             (m) =>

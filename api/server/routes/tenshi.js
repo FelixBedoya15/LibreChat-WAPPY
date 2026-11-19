@@ -2587,14 +2587,18 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 
 ### ⚡ DIRECTIVAS CRÍTICAS DE VELOCIDAD, ORQUESTACIÓN Y HERRAMIENTAS:
 1. **RESPUESTAS INMEDIATAS A PREGUNTAS TEÓRICAS/CONCEPTUALES**: Si el usuario te hace preguntas conceptuales, definiciones teóricas (ej: "¿qué es SST?", "¿qué es un ATS?", "¿cuáles son las obligaciones del empleador?"), saludos o preguntas generales, RESPONDE DIRECTAMENTE EN TEXTO en 1 solo turno de forma concisa y alegre. ¡ESTÁ PROHIBIDO invocar herramientas como 'somos_sst' o 'resumen_empresa' para responder preguntas teóricas!
-2. **DIFERENCIACIÓN ESTRICTA DE LOS 3 MODOS DE INTERACCIÓN CON ESPECIALISTAS (REGLA DE ORO)**:
+2. **DIFERENCIACIÓN ESTRICTA DE LOS MODOS DE INTERACCIÓN CON ESPECIALISTAS (REGLA DE ORO)**:
    - **MODO 1 — RESPUESTA DIRECTA DE TENSHI (POR DEFECTO EN EL 90% DE LOS CASOS)**:
      * Si el usuario te hace una consulta técnica, médica, jurídica, ergonómica, química o de SST (ej: "tengo un trabajador con dolor lumbar", "cómo califico este accidente", "qué hago ante un despido con incapacidad") y **NO** te pide explícitamente llamar al especialista ni abrir un chat:
      * **RESPONDE TÚ MISMA DIRECTAMENTE** en 1 sola llamada usando tus competencias integradas de Médico Laboral, Abogado Laboral, Ingeniero SST, etc.
-     * **ESTÁ TERMINANTEMENTE PROHIBIDO** despertar subagentes ('consultar_agente_especializado') o abrir chats ('wappy_abrir_chat_agente') por iniciativa propia cuando el usuario no lo pidió literalmente.
+     * **ESTÁ TERMINANTEMENTE PROHIBIDO** despertar subagentes ('consultar_agente_especializado', 'consultar_multiples_especialistas_paralelo') o abrir chats ('wappy_abrir_chat_agente') por iniciativa propia cuando el usuario no lo pidió literalmente.
    - **MODO 2 — DICTAMEN DE SUBAGENTE EFÍMERO EN SEGUNDO PLANO ('consultar_agente_especializado')**:
      * ÚNICAMENTE cuando el usuario pide literalmente el dictamen, concepto u opinión de un especialista **dentro de tu propio chat** sin pedir cambiar de ventana (ej: "Quiero el dictamen formal del Abogado Laboral", "Pregúntale al Médico Laboral qué opina", "Dame el concepto del Psicólogo SST"):
      * Invoca **'consultar_agente_especializado'**. El subagente especialista analizará el caso en segundo plano y tú le entregarás su dictamen consolidado aquí mismo en el chat de Tenshi, **SIN abrir un nuevo chat en pantalla**.
+   - **MODO 2B — MESA TÉCNICA MULTI-AGENTE EN PARALELO ('consultar_multiples_especialistas_paralelo')**:
+     * ÚNICAMENTE cuando el usuario pida consultar a **2, 3 o 4 especialistas al mismo tiempo / en paralelo** (ej: "mesa técnica", "en paralelo", "pregúntale al psicólogo y al abogado al tiempo", "consúltale simultáneamente al médico laboral, al abogado laboral y a la fisioterapeuta"):
+     * Invoca **'consultar_multiples_especialistas_paralelo'** en **1 sola llamada** (máximo 4 especialistas simultáneos) pasando el arreglo \`consultas\` con el especialista y la pregunta detallada para cada uno.
+     * Todos los especialistas responderán simultáneamente en segundo plano; luego sintetiza e integra sus conclusiones de forma clara y estructurada en tu respuesta aquí mismo en el chat de Tenshi (y si el usuario pidió un documento, acta o informe formal, compílalo en \`canvas_tool\`).
    - **MODO 3 — ABRIR UN CHAT DEDICADO CON EL AGENTE EN PANTALLA ('wappy_abrir_chat_agente')**:
      * ÚNICAMENTE cuando el usuario te pide explícitamente **abrir un chat**, **ir al chat** o **crear una conversación** con el agente especialista en la interfaz principal (ej: "Ábreme un chat con el agente Médico Laboral", "Abre un chat con el Abogado Laboral", "Llévame al chat del Ingeniero Químico"):
      * Invoca **'wappy_abrir_chat_agente'**. Esta herramienta abrirá en la pantalla principal la ventana de chat dedicada con ese especialista y le enviará la consulta estructurada.
@@ -3028,6 +3032,39 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         consulta_completa: { type: 'STRING', description: 'Consulta técnica estructurada con contexto ocupacional y solicitud de fundamentación normativa vigente.' }
                     },
                     required: ['nombre_especialista', 'consulta_completa']
+                }
+            };
+
+            const consultarMultiplesEspecialistasDeclaration = {
+                name: 'consultar_multiples_especialistas_paralelo',
+                description: 'MODO 2B — Mesa Técnica Multi-Agente en Paralelo (SIN salir del chat de Tenshi): Consulta SIMULTÁNEAMENTE a 2, 3 o hasta 4 Agentes Especialistas distintos en paralelo en 1 sola llamada (ej: Psicólogo SST + Abogado Laboral + Médico Laboral + Fisioterapeuta Laboral) y devuelve sus dictámenes consolidados para que los sintetices aquí mismo en el chat de Tenshi. Úsala ÚNICAMENTE cuando el usuario pida consultar a varios especialistas al mismo tiempo, en paralelo o en mesa técnica. Máximo 4 especialistas simultáneos.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        consultas: {
+                            type: 'ARRAY',
+                            description: 'Lista de entre 2 y 4 consultas a ejecutar en paralelo (máximo 4 especialistas simultáneos).',
+                            items: {
+                                type: 'OBJECT',
+                                properties: {
+                                    nombre_especialista: {
+                                        type: 'STRING',
+                                        description: 'Nombre del Agente Especialista a consultar (ej: "Psicólogo SST", "Abogado Laboral", "Médico Laboral", "Fisioterapeuta Laboral", "Terapeuta en Salud Mental", "Coordinador de Seguridad Vial", "Coordinador de Tareas Críticas").'
+                                    },
+                                    consulta_completa: {
+                                        type: 'STRING',
+                                        description: 'Consulta técnica íntegra y específica para ese especialista, con contexto del caso y solicitud de normatividad colombiana vigente.'
+                                    }
+                                },
+                                required: ['nombre_especialista', 'consulta_completa']
+                            }
+                        },
+                        sintesis_objetivo: {
+                            type: 'STRING',
+                            description: 'Objetivo opcional de integración o consolidación de los dictámenes (ej: "Consolidar plan de acción conjunto médico, legal y psicosocial").'
+                        }
+                    },
+                    required: ['consultas']
                 }
             };
 
@@ -4518,6 +4555,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyLeerInformeAplicativoDeclaration,
                 wappyActivarHerramientaAgenteDeclaration,
                 consultarAgenteDeclaration,
+                consultarMultiplesEspecialistasDeclaration,
                 wappyAbrirChatAgenteDeclaration,
                 wappyBuscarHistorialDeclaration,
                 canvasDeclaration,
@@ -4669,6 +4707,148 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         while (calls && calls.length > 0 && loops < 7) {
                             loops++;
+                            if (
+                                calls.length > 1 &&
+                                calls.every((c) => c && c.name === 'consultar_agente_especializado')
+                            ) {
+                                const maxBatch = ConsultarAgenteEspecializado.MAX_PARALLEL_SPECIALISTS || 4;
+                                const batchCalls = calls.slice(0, maxBatch);
+                                const overflowCalls = calls.slice(maxBatch);
+                                for (const extraCall of overflowCalls) {
+                                    const sig = `${extraCall.name}:${JSON.stringify(extraCall.args || {})}`;
+                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.name}:${JSON.stringify(q.args || {})}` === sig)) {
+                                        queuedCalls.push(extraCall);
+                                    }
+                                }
+                                for (const bc of batchCalls) {
+                                    executedCallSigs.add(`${bc.name}:${JSON.stringify(bc.args || {})}`);
+                                }
+                                logger.info(
+                                    `[Tenshi Tool Call] Ejecutando lote paralelo de ${batchCalls.length} llamadas consultar_agente_especializado simultáneamente`
+                                );
+                                const toolInstance = new ConsultarAgenteEspecializado({ req });
+                                const batchConsultas = batchCalls.map((bc) => ({
+                                    nombre_especialista: bc.args?.nombre_especialista || bc.args?.agente || '',
+                                    consulta_completa: bc.args?.consulta_completa || bc.args?.pregunta || '',
+                                }));
+
+                                let parallelRes;
+                                try {
+                                    parallelRes = await toolInstance.executeParallelSpecialists(batchConsultas, {
+                                        maxParallel: batchCalls.length,
+                                    });
+                                } catch (batchErr) {
+                                    logger.error('[Tenshi Tool Error] Error en lote paralelo de especialistas:', batchErr);
+                                    parallelRes = {
+                                        ok: false,
+                                        total: batchCalls.length,
+                                        succeededCount: 0,
+                                        failedCount: batchCalls.length,
+                                        totalDurationMs: 0,
+                                        results: batchConsultas.map((q) => ({
+                                            ok: false,
+                                            requestedName: q.nombre_especialista,
+                                            agentName: q.nombre_especialista,
+                                            agentId: null,
+                                            question: q.consulta_completa,
+                                            response: '',
+                                            error: batchErr.message,
+                                            durationMs: 0,
+                                        })),
+                                        formattedMarkdown: `❌ Error ejecutando consultas paralelas: ${batchErr.message}`,
+                                    };
+                                }
+
+                                const rawCandidateParts = (candidate && candidate.content && Array.isArray(candidate.content.parts))
+                                    ? candidate.content.parts
+                                    : [];
+                                let keptFuncCount = 0;
+                                const filteredBatchParts = rawCandidateParts.filter((p) => {
+                                    if (p && p.functionCall) {
+                                        if (keptFuncCount < batchCalls.length && p.functionCall.name === 'consultar_agente_especializado') {
+                                            keptFuncCount++;
+                                            return true;
+                                        }
+                                        return false;
+                                    }
+                                    return true;
+                                });
+                                const modelParts =
+                                    keptFuncCount === batchCalls.length
+                                        ? filteredBatchParts
+                                        : batchCalls.map((bc) => ({
+                                              functionCall: { name: bc.name, args: bc.args },
+                                          }));
+                                currentContents.push({ role: 'model', parts: modelParts });
+
+                                const fnResponseParts = batchCalls.map((bc, idx) => {
+                                    const reqName = ConsultarAgenteEspecializado.cleanString(
+                                        bc.args?.nombre_especialista || bc.args?.agente || ''
+                                    );
+                                    const reqQ = ConsultarAgenteEspecializado.cleanString(
+                                        bc.args?.consulta_completa || bc.args?.pregunta || ''
+                                    );
+                                    const matched =
+                                        parallelRes.results.find(
+                                            (r) =>
+                                                ConsultarAgenteEspecializado.cleanString(r.requestedName) === reqName &&
+                                                ConsultarAgenteEspecializado.cleanString(r.question) === reqQ
+                                        ) || parallelRes.results[idx];
+                                    const textOut = matched
+                                        ? matched.ok
+                                            ? `✅ [Respuesta de Especialista ${matched.agentName}]:\n${matched.response}`
+                                            : `❌ ${matched.error || 'No se pudo obtener respuesta del especialista.'}`
+                                        : parallelRes.formattedMarkdown;
+                                    return {
+                                        functionResponse: {
+                                            name: bc.name,
+                                            response: {
+                                                result: textOut,
+                                                ok: Boolean(matched?.ok),
+                                                specialist: matched?.agentName || bc.args?.nombre_especialista || '',
+                                                durationMs: matched?.durationMs || 0,
+                                            },
+                                        },
+                                    };
+                                });
+                                currentContents.push({ role: 'user', parts: fnResponseParts });
+
+                                try {
+                                    responseResult = await withGeminiTimeout(
+                                        geminiModel.generateContent({ contents: currentContents }),
+                                        25000,
+                                        `Tenshi Chat (${currentModel}) parallel specialists synthesis`
+                                    );
+                                    candidate = responseResult.response.candidates && responseResult.response.candidates[0];
+                                    calls = responseResult.response.functionCalls();
+                                    if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
+                                        while (queuedCalls.length > 0) {
+                                            const nextQueued = queuedCalls.shift();
+                                            const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                            if (!executedCallSigs.has(nextSig)) {
+                                                calls = [nextQueued];
+                                                candidate = null;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (synthErr) {
+                                    logger.warn(`[Tenshi Parallel Synthesis Fallback] Error sintetizando lote paralelo (${synthErr.message}). Rescatando dictamen consolidado...`);
+                                    const rescuedText = parallelRes.formattedMarkdown || '✅ Se completaron las consultas paralelas a los especialistas.';
+                                    responseResult = {
+                                        response: {
+                                            text: () => rescuedText,
+                                            candidates: [],
+                                            functionCalls: () => null,
+                                        },
+                                    };
+                                    candidate = null;
+                                    calls = null;
+                                    break;
+                                }
+                                continue;
+                            }
+
                             if (calls.length > 1) {
                                 for (let ci = 1; ci < calls.length; ci++) {
                                     const extraCall = calls[ci];
@@ -4693,6 +4873,23 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'consultar_agente_especializado') {
                                     const toolInstance = new ConsultarAgenteEspecializado({ req });
                                     toolOutput = await toolInstance._call(call.args);
+                                } else if (call.name === 'consultar_multiples_especialistas_paralelo') {
+                                    const toolInstance = new ConsultarAgenteEspecializado({ req });
+                                    const consultas = Array.isArray(call.args?.consultas) ? call.args.consultas : [];
+                                    const parallelRes = await toolInstance.executeParallelSpecialists(consultas, {
+                                        maxParallel: ConsultarAgenteEspecializado.MAX_PARALLEL_SPECIALISTS || 4,
+                                    });
+                                    if (parallelRes.ok) {
+                                        const sintesisObjetivo = String(call.args?.sintesis_objetivo || '').trim();
+                                        toolOutput = sintesisObjetivo
+                                            ? `${parallelRes.formattedMarkdown}\n\n[Objetivo de síntesis solicitado]: ${sintesisObjetivo}`
+                                            : parallelRes.formattedMarkdown;
+                                    } else {
+                                        const errDetail = parallelRes.results
+                                            .map((r) => `${r.agentName || r.requestedName}: ${r.error || 'sin respuesta'}`)
+                                            .join(' | ');
+                                        toolOutput = `❌ No se pudo obtener respuesta de los especialistas consultados en paralelo.${errDetail ? ` Detalle: ${errDetail}` : ''}`;
+                                    }
                                 } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
                                     const rawCanvasAction = String(call.args?.accion || 'crear').toLowerCase().trim();
                                     const isCreatingNewCanvas = rawCanvasAction === 'crear';
@@ -5445,9 +5642,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             });
 
                             try {
+                                const synthesisTimeoutMs =
+                                    call.name === 'consultar_multiples_especialistas_paralelo' ||
+                                    call.name === 'consultar_agente_especializado'
+                                        ? 25000
+                                        : 15000;
                                 responseResult = await withGeminiTimeout(
                                     geminiModel.generateContent({ contents: currentContents }),
-                                    15000,
+                                    synthesisTimeoutMs,
                                     `Tenshi Chat (${currentModel}) synthesis`
                                 );
                                 candidate = responseResult.response.candidates && responseResult.response.candidates[0];
@@ -5486,6 +5688,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     rescuedText = baseRes ? `${certNotice}\n\n${baseRes}` : certNotice;
                                 } else if (lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen) {
                                     rescuedText = String(lightResponse.resultado || lightResponse.mensaje || lightResponse.message || lightResponse.resumen);
+                                } else if (
+                                    (call.name === 'consultar_multiples_especialistas_paralelo' ||
+                                        call.name === 'consultar_agente_especializado') &&
+                                    typeof lightResponse.result === 'string' &&
+                                    lightResponse.result.trim()
+                                ) {
+                                    rescuedText = lightResponse.result.trim();
                                 } else if (capturedFile || capturedHtmlReport) {
                                     rescuedText = `✅ Listo, he revisado y cargado el **${capturedFile?.title || 'Informe Oficial SG-SST'}** directamente aquí en nuestro chat para tu revisión.`;
                                 } else {
