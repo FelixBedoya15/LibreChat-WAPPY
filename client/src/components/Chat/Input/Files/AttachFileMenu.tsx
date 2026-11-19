@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRecoilState } from 'recoil';
 import * as Ariakit from '@ariakit/react';
@@ -129,6 +129,42 @@ const AttachFileMenu = ({
   const isUploadDisabled = disabled ?? false;
   const inputRef = useRef<HTMLInputElement>(null);
   const [isPopoverActive, setIsPopoverActive] = useState(false);
+
+  const isTenshiHeroActive = useCallback(
+    () => typeof document !== 'undefined' && document.documentElement.dataset.tenshiHero === 'true',
+    [],
+  );
+
+  // Defensa en profundidad: el DropdownPopup (z-[100100]) jamás debe abrirse ni permanecer abierto encima de Tenshi Hero Mode
+  const handleSetPopoverActive = useCallback(
+    (next: React.SetStateAction<boolean>) => {
+      setIsPopoverActive((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        if (resolved && isTenshiHeroActive()) {
+          return false;
+        }
+        return resolved;
+      });
+    },
+    [isTenshiHeroActive],
+  );
+
+  useEffect(() => {
+    if (isTenshiHeroActive()) {
+      setIsPopoverActive(false);
+    }
+    const handleHeroStateChange = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ active?: boolean }>).detail;
+      if (detail?.active === true || isTenshiHeroActive()) {
+        setIsPopoverActive(false);
+      }
+    };
+    window.addEventListener('tenshi-hero-state-change', handleHeroStateChange);
+    return () => {
+      window.removeEventListener('tenshi-hero-state-change', handleHeroStateChange);
+    };
+  }, [isTenshiHeroActive]);
+
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [ephemeralAgent, setEphemeralAgent] = useRecoilState(
     ephemeralAgentByConvoId(conversationId),
@@ -656,7 +692,7 @@ const AttachFileMenu = ({
           menuId="attach-file-menu"
           className="overflow-visible"
           isOpen={isPopoverActive}
-          setIsOpen={setIsPopoverActive}
+          setIsOpen={handleSetPopoverActive}
           modal={true}
           unmountOnHide={true}
           trigger={menuTrigger}

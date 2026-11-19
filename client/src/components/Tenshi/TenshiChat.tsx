@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -152,6 +152,83 @@ export interface TenshiChatMessage {
   evidenceFiles?: TenshiEvidenceFile[];
   delegatedOrderId?: string;
   delegatedStatus?: 'todo' | 'done' | 'failed';
+  flowRunId?: string;
+  flowRunStatus?: 'running' | 'completed' | 'error';
+  flowRunName?: string;
+  flowRunIndicaciones?: string;
+  flowRunEmpresa?: string;
+  isFlowAck?: boolean;
+}
+
+function formatFlowAckStartedContent(flowName: string, indicaciones?: string): string {
+  const safeName = String(flowName || '').trim();
+  const safeInd = String(indicaciones || '').trim();
+  return `⚡ **Ya voy a realizar esta tarea:** **${safeName}**${safeInd ? `\n> **Indicaciones:** ${safeInd}` : ''}\n\n*Procesando en este momento… en unos segundos te entrego el resultado aquí mismo.*`;
+}
+
+function formatFlowAckCompletedContent(
+  flowName: string,
+  indicaciones?: string,
+  success = true,
+): string {
+  const safeName = String(flowName || 'Flujo automático').trim() || 'Flujo automático';
+  const safeInd = String(indicaciones || '').trim();
+  const indBlock = safeInd ? `\n> **Indicaciones:** ${safeInd}` : '';
+  return success === false
+    ? `⚠️ **Tarea finalizada con aviso:** **${safeName}**${indBlock}`
+    : `✅ **Tarea finalizada:** **${safeName}**${indBlock}`;
+}
+
+function settleRunningFlowAckMessages(
+  prev: TenshiChatMessage[],
+  opts?: {
+    runId?: string;
+    flowName?: string;
+    indicaciones?: string;
+    success?: boolean;
+    fallbackAllRunning?: boolean;
+  },
+): TenshiChatMessage[] {
+  const targetRunId = String(opts?.runId || '').trim();
+  const hasExactRunMatch =
+    Boolean(targetRunId) && prev.some((m) => Boolean(m.flowRunId && m.flowRunId === targetRunId));
+
+  let changed = false;
+  const next = prev.map((m) => {
+    const shouldSettle = hasExactRunMatch
+      ? Boolean(m.flowRunId && m.flowRunId === targetRunId)
+      : Boolean(opts?.fallbackAllRunning && m.isFlowAck && m.flowRunStatus === 'running');
+
+    if (!shouldSettle) return m;
+
+    const extractedName =
+      m.content?.match(/\*\*Ya voy a realizar esta tarea:\*\*\s*\*\*(.+?)\*\*/)?.[1] || '';
+    const resolvedName =
+      String(opts?.flowName || m.flowRunName || extractedName || '').trim() || 'Flujo automático';
+    const resolvedInd = String(
+      opts?.indicaciones !== undefined && opts.indicaciones !== ''
+        ? opts.indicaciones
+        : m.flowRunIndicaciones || '',
+    ).trim();
+    const resolvedSuccess = opts?.success !== false;
+    const nextStatus: 'completed' | 'error' = resolvedSuccess ? 'completed' : 'error';
+    const nextContent = formatFlowAckCompletedContent(resolvedName, resolvedInd, resolvedSuccess);
+
+    if (m.flowRunStatus === nextStatus && m.content === nextContent) {
+      return m;
+    }
+
+    changed = true;
+    return {
+      ...m,
+      flowRunName: resolvedName,
+      flowRunIndicaciones: resolvedInd || undefined,
+      flowRunStatus: nextStatus,
+      content: nextContent,
+    };
+  });
+
+  return changed ? next : prev;
 }
 
 function normalizeTenshiEvidenceFiles(raw: any): TenshiEvidenceFile[] | undefined {
@@ -1520,6 +1597,17 @@ export default function TenshiChat() {
   const [heroCanvasConvoId, setHeroCanvasConvoId] = useState<string | null>(null);
   const [hasOpenedHeroCanvas, setHasOpenedHeroCanvas] = useState(false);
   const [heroCanvasHasContent, setHeroCanvasHasContent] = useState(false);
+  const heroLeftPanelRef = useRef<HTMLDivElement | null>(null);
+  const heroAmbientGridRef = useRef<HTMLDivElement | null>(null);
+  const turnCompleteRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const blurElementInside = useCallback((container: HTMLElement | null) => {
+    if (typeof document === 'undefined' || !container) return;
+    const activeEl = document.activeElement as HTMLElement | null;
+    if (activeEl && container.contains(activeEl) && typeof activeEl.blur === 'function') {
+      activeEl.blur();
+    }
+  }, []);
 
   const setIsCanvasActive = useSetRecoilState(store.isCanvasActive);
   const streamingCanvas = useRecoilValue(store.streamingCanvasState);
@@ -1564,6 +1652,8 @@ export default function TenshiChat() {
   }, [heroPanelTab, hasOpenedHeroCanvas]);
 
   const exitHeroModeToWorkspace = useCallback(() => {
+    blurElementInside(heroLeftPanelRef.current);
+    blurElementInside(heroAmbientGridRef.current);
     hasExitedHeroInMountRef.current = true;
     setIsMobileHeroMode(false);
     setIsHeroChatOpen(false);
@@ -1575,12 +1665,24 @@ export default function TenshiChat() {
       safeRemoveItem('tenshi_mobile_hero_forced', window.sessionStorage);
       window.dispatchEvent(new CustomEvent('tenshi-exit-mobile-hero'));
     }
-  }, [setCanvasMaximized]);
+  }, [setCanvasMaximized, blurElementInside]);
 
-  // Sincronizar atributo global y evento reactivo para MobileBottomNav y NavToggle
+  // Sincronizar atributo global y evento reactivo para MobileBottomNav, AttachFileMenu y NavToggle
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.tenshiHero = isMobileHeroMode ? 'true' : 'false';
+      if (isMobileHeroMode) {
+        const activeEl = document.activeElement as HTMLElement | null;
+        const heroContainer = document.getElementById('tenshi-mobile-hero-container');
+        if (
+          activeEl &&
+          activeEl !== document.body &&
+          typeof activeEl.blur === 'function' &&
+          (!heroContainer || !heroContainer.contains(activeEl))
+        ) {
+          activeEl.blur();
+        }
+      }
     }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
@@ -1589,8 +1691,21 @@ export default function TenshiChat() {
     }
   }, [isMobileHeroMode]);
 
+  // Evitar warning de accesibilidad Chrome ("Blocked aria-hidden on an element because its descendant retained focus")
+  useLayoutEffect(() => {
+    if (!isHeroChatOpen) {
+      blurElementInside(heroLeftPanelRef.current);
+    } else {
+      blurElementInside(heroAmbientGridRef.current);
+    }
+  }, [isHeroChatOpen, blurElementInside]);
+
   useEffect(() => {
     return () => {
+      if (turnCompleteRefetchTimerRef.current) {
+        clearTimeout(turnCompleteRefetchTimerRef.current);
+        turnCompleteRefetchTimerRef.current = null;
+      }
       if (typeof document !== 'undefined') {
         document.documentElement.dataset.tenshiHero = 'false';
       }
@@ -1815,6 +1930,20 @@ export default function TenshiChat() {
   const [editingText, setEditingText] = useState('');
   const [tenshiStatus, setTenshiStatus] = useState<string>('');
   const [guiSteps, setGuiSteps] = useState<{ action: string; details: string; status: 'pending' | 'success' | 'failed' }[]>([]);
+  const seenFlowRunIdsRef = useRef<Set<string>>(new Set());
+  const registerSeenFlowRunId = useCallback((runId: string) => {
+    const cleanId = String(runId || '').trim();
+    if (!cleanId) return;
+    seenFlowRunIdsRef.current.add(cleanId);
+    while (seenFlowRunIdsRef.current.size > 40) {
+      const oldest = seenFlowRunIdsRef.current.values().next().value;
+      if (oldest !== undefined) {
+        seenFlowRunIdsRef.current.delete(oldest);
+      } else {
+        break;
+      }
+    }
+  }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const desktopMessagesScrollRef = useRef<HTMLDivElement>(null);
   const mobileMessagesScrollRef = useRef<HTMLDivElement>(null);
@@ -1887,6 +2016,7 @@ export default function TenshiChat() {
       }
       if (isMobileHeroMode) {
         if (isHeroChatOpen) {
+          blurElementInside(heroLeftPanelRef.current);
           setIsHeroChatOpen(false);
         } else {
           exitHeroModeToWorkspace();
@@ -1895,7 +2025,7 @@ export default function TenshiChat() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxImage, canvasMaximized, setCanvasMaximized, isMobileHeroMode, isHeroChatOpen, exitHeroModeToWorkspace]);
+  }, [lightboxImage, canvasMaximized, setCanvasMaximized, isMobileHeroMode, isHeroChatOpen, exitHeroModeToWorkspace, blurElementInside]);
   const lastActivityRef = useRef<number>(Date.now());
   const lastUserTranscriptionRef = useRef<string>('');
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -3326,6 +3456,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       initialVoice: activeAvatarProfile?.voice || 'Puck',
       voice: activeAvatarProfile?.voice || 'Puck',
       route: `${location.pathname}${location.search}`,
+      isHeroMode: isMobileHeroMode,
       companyId: localStorage.getItem('wappy_active_company_id') || undefined,
       personality: personalityMode,
       onAudioReceived: (audioData: string) => {
@@ -3731,6 +3862,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       canvasId,
                     },
                     htmlReport: fileType === 'html' ? content : undefined,
+                    _localCreatedAt: Date.now(),
                   },
                 ];
               });
@@ -3979,6 +4111,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   content: msgContent,
                   htmlReport: res.informeOriginalHtml || undefined,
                   file: fileObj,
+                  _localCreatedAt: Date.now(),
                 },
               ]);
               axios
@@ -4072,6 +4205,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   content: msgContent,
                   file: fileObj,
                   htmlReport: format === 'html' ? content : undefined,
+                  _localCreatedAt: Date.now(),
                 },
               ]);
               axios
@@ -4082,7 +4216,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   htmlReport: format === 'html' ? content : undefined,
                 })
                 .catch(() => {});
-              setIsOpen(true);
+              if (isMobileHeroModeRef.current) {
+                openCanvasInTenshi({
+                  id: fileObj.canvasId,
+                  title,
+                  fileType: format,
+                  content,
+                });
+              } else {
+                setIsOpen(true);
+              }
             }
             resultMsg = `Informe "${title}" entregado exitosamente en el chat de Tenshi.`;
           } else if (action.name === 'wappy_dictamen_especialista') {
@@ -4228,6 +4371,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     content: contenido,
                     canvasId: agCanvasId,
                   },
+                  _localCreatedAt: Date.now(),
                 },
               ]);
 
@@ -4315,6 +4459,38 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             } else if (rawRes && typeof rawRes === 'object') {
               parsedObj = rawRes;
               parsedMsg = rawRes.mensaje || rawRes.error || parsedMsg;
+            }
+            if (action.name === 'gestor_automatizaciones') {
+              const completedRunId = String(
+                parsedObj?.runId || parsedObj?.executionId || parsedObj?.logId || '',
+              ).trim();
+              const completedFlowName = String(
+                parsedObj?.flowName ||
+                  parsedObj?.nombre ||
+                  parsedObj?.titulo ||
+                  action.args?.nombre ||
+                  '',
+              ).trim();
+              const completedIndicaciones = String(
+                parsedObj?.indicaciones || action.args?.indicaciones || '',
+              ).trim();
+              const completedSuccess =
+                parsedObj?.ok !== false && parsedObj?.success !== false && !parsedObj?.error;
+
+              if (completedRunId) {
+                registerSeenFlowRunId(completedRunId);
+              }
+
+              setMessages((prev) =>
+                settleRunningFlowAckMessages(prev, {
+                  runId: completedRunId || undefined,
+                  flowName: completedFlowName || undefined,
+                  indicaciones: completedIndicaciones || undefined,
+                  success: completedSuccess,
+                  fallbackAllRunning: true,
+                }),
+              );
+              setTenshiStatus((prev) => (prev.startsWith('⚡ Ejecutando:') ? '' : prev));
             }
             if (action.name === 'gestor_automatizaciones' && parsedObj) {
               const liveEvidences = normalizeTenshiEvidenceFiles(
@@ -4594,10 +4770,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           if (!manualCapturedPhasesRef.current.has(curIdx)) {
             captureVisionSnapshotRef.current?.(undefined, curIdx);
           }
+        } else if (newStatus === 'history_synced') {
+          refetchHistoryRef.current?.();
         } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
             refetchHistoryRef.current?.();
+            if (turnCompleteRefetchTimerRef.current) {
+              clearTimeout(turnCompleteRefetchTimerRef.current);
+            }
+            turnCompleteRefetchTimerRef.current = setTimeout(() => {
+              turnCompleteRefetchTimerRef.current = null;
+              refetchHistoryRef.current?.();
+            }, 1200);
           }
           setLiveActionPill('');
           setVoiceStatusText('Tenshi te escucha...');
@@ -4649,6 +4834,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               content: msgContent,
               file: fileObj,
               htmlReport: html,
+              _localCreatedAt: Date.now(),
             },
           ]);
           axios
@@ -4726,10 +4912,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice, openCanvasInTenshi]
+    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice, openCanvasInTenshi, isMobileHeroMode]
   );
 
   const {
+    isConnected: isVoiceConnected,
     connect: connectVoice,
     disconnect: disconnectVoice,
     getInputVolume,
@@ -4756,7 +4943,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
   sendScreenContextRef.current = sendScreenContext;
 
-  // Sincronizar el contexto visual de la pantalla con la sesión de voz
+  // Sincronizar el contexto visual de la pantalla y el estado Hero Mode con la sesión de voz
   useEffect(() => {
     if (isVoiceActive && sendScreenContextRef.current) {
       const effectiveAgentId = conversation?.agent_id || activeConsultationAgentIdRef.current;
@@ -4766,9 +4953,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         agentId: effectiveAgentId,
         agentName: activeAgent?.name || activeConsultationAgentNameRef.current || conversation?.title,
         route: `${location.pathname}${location.search}`,
+        isHeroMode: isMobileHeroMode,
       });
     }
-  }, [isVoiceActive, conversation?.conversationId, conversation?.agent_id, conversation?.title, location]);
+  }, [
+    isVoiceActive,
+    isVoiceConnected,
+    voiceStatus,
+    isMobileHeroMode,
+    conversation?.conversationId,
+    conversation?.agent_id,
+    conversation?.title,
+    location,
+  ]);
 
   // Tenshi sincroniza el estado de silenciado de micrófono del usuario (Mute)
   useEffect(() => {
@@ -6267,11 +6464,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return true;
           });
 
-          if (localExtras.length === 0 && activeLiveVoiceTail.length === 0) {
+          // Conservar avisos instantáneos de flujos aún en ejecución (isFlowAck) para que el refresco de historial cada 3.5s no los borre
+          const activeFlowAcks = prev.filter(
+            (m) =>
+              m.isFlowAck &&
+              m.flowRunStatus === 'running' &&
+              (!m._localCreatedAt || nowTs - Number(m._localCreatedAt) <= 10 * 60 * 1000),
+          );
+
+          if (localExtras.length === 0 && activeLiveVoiceTail.length === 0 && activeFlowAcks.length === 0) {
             return enrichedHistory;
           }
 
-          // 4. Filtrar archivos y medios locales recién creados (< 8s) o tarjetas de certificados de voz activas que aún no hayan sido devueltos por el backend.
+          // 4. Filtrar archivos y medios locales recién creados (< 30s) o tarjetas de certificados de voz activas que aún no hayan sido devueltos por el backend.
           // NUNCA re-anexar mensajes antiguos ni órdenes de Antigravity ya procesadas para evitar que reaparezcan al final del chat cada 3.5s.
           const unpersistedExtras = localExtras.filter((lf: any) => {
             if (lf.delegatedOrderId || String(lf._id || '').startsWith('antigravity-')) {
@@ -6289,7 +6494,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               if (lf._id && historySignatures.has(String(lf._id))) return false;
               return true;
             }
-            if (!lf._localCreatedAt || nowTs - Number(lf._localCreatedAt) > 8000) {
+            if (!lf._localCreatedAt || nowTs - Number(lf._localCreatedAt) > 30000) {
               return false;
             }
             if (lf._id && historySignatures.has(String(lf._id))) return false;
@@ -6320,11 +6525,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             return true;
           });
 
-          if (unpersistedExtras.length === 0 && activeLiveVoiceTail.length === 0) {
+          if (unpersistedExtras.length === 0 && activeLiveVoiceTail.length === 0 && activeFlowAcks.length === 0) {
             return enrichedHistory;
           }
 
-          return [...enrichedHistory, ...unpersistedExtras, ...activeLiveVoiceTail];
+          return [...enrichedHistory, ...unpersistedExtras, ...activeLiveVoiceTail, ...activeFlowAcks];
         });
       } else {
         setMessages((prev) => {
@@ -6337,14 +6542,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 m.image ||
                 (Array.isArray(m.attachments) && m.attachments.length > 0)) &&
                 m._localCreatedAt &&
-                nowTs - Number(m._localCreatedAt) <= 8000) ||
+                nowTs - Number(m._localCreatedAt) <= 30000) ||
               (Array.isArray(m.evidenceFiles) &&
                 m.evidenceFiles.length > 0 &&
                 m._localCreatedAt &&
                 nowTs - Number(m._localCreatedAt) <=
-                  (m._isVoiceEvidenceBubble ? 30 * 60 * 1000 : 8000)),
+                  (m._isVoiceEvidenceBubble ? 30 * 60 * 1000 : 30000)),
           );
-          if (localExtras.length > 0) return localExtras;
+          const activeFlowAcks = prev.filter(
+            (m) =>
+              m.isFlowAck &&
+              m.flowRunStatus === 'running' &&
+              (!m._localCreatedAt || nowTs - Number(m._localCreatedAt) <= 10 * 60 * 1000),
+          );
+          if (localExtras.length > 0 || activeFlowAcks.length > 0) {
+            return [...localExtras, ...activeFlowAcks];
+          }
           return [
             {
               role: 'assistant',
@@ -6726,7 +6939,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     };
   }, [navigate, openCanvasInTenshi, setIsCanvasActive, setCanvasMaximized, setStreamingCanvas]);
 
-  // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity en tiempo real (en celular y escritorio, incluso sin voz activa)
+  const isChatVisibleRef = useRef<boolean>(false);
+  isChatVisibleRef.current = Boolean(isOpen || isHeroChatOpen) && !(isVisionActive && isVisionExpanded);
+
+  // Conexión Push SSE persistente (0 ms) para recibir entregables de Antigravity y avisos instantáneos de flujos de Tenshi en tiempo real (en celular y escritorio, incluso sin voz activa)
   useEffect(() => {
     if (!token || typeof window === 'undefined' || typeof EventSource === 'undefined') return;
     let es: EventSource | null = null;
@@ -6738,19 +6954,86 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           window.dispatchEvent(new CustomEvent('tenshi-antigravity-delivered', { detail: payload }));
         } catch (_) {}
       });
+      es.addEventListener('tenshi_flow_started', (evt: MessageEvent) => {
+        try {
+          const payload = JSON.parse(evt.data || '{}');
+          const runId = String(payload?.runId || '').trim();
+          const flowName = String(payload?.flowName || '').trim();
+          const indicaciones = String(payload?.indicaciones || '').trim();
+          const empresa = String(payload?.empresa || '').trim();
+
+          if (!flowName) return;
+          if (runId && seenFlowRunIdsRef.current.has(runId)) return;
+          if (runId) {
+            registerSeenFlowRunId(runId);
+          }
+
+          setTenshiStatus(`⚡ Ejecutando: ${flowName}...`);
+          const ackBubble: TenshiChatMessage = {
+            _id: `flow-ack-${runId || Date.now()}`,
+            role: 'assistant',
+            content: formatFlowAckStartedContent(flowName, indicaciones),
+            _localCreatedAt: Date.now(),
+            flowRunId: runId || undefined,
+            flowRunName: flowName,
+            flowRunIndicaciones: indicaciones || undefined,
+            flowRunEmpresa: empresa || undefined,
+            flowRunStatus: 'running',
+            isFlowAck: true,
+          };
+
+          setMessages((prev) => {
+            if (runId && prev.some((m) => m.flowRunId === runId)) {
+              return prev;
+            }
+            return [...prev, ackBubble];
+          });
+
+          if (isChatVisibleRef.current) {
+            requestAnimationFrame(() => {
+              scrollMessagesToBottom(true);
+            });
+          }
+        } catch (_) {}
+      });
+      es.addEventListener('tenshi_flow_completed', (evt: MessageEvent) => {
+        try {
+          const payload = JSON.parse(evt.data || '{}');
+          const runId = String(payload?.runId || '').trim();
+          const flowName = String(payload?.flowName || '').trim();
+          const indicaciones = String(payload?.indicaciones || '').trim();
+          const success = payload?.success !== false;
+
+          if (runId) {
+            registerSeenFlowRunId(runId);
+          }
+
+          setMessages((prev) =>
+            settleRunningFlowAckMessages(prev, {
+              runId: runId || undefined,
+              flowName: flowName || undefined,
+              indicaciones: indicaciones || undefined,
+              success,
+              fallbackAllRunning: !runId,
+            }),
+          );
+
+          setTenshiStatus((prev) => (prev.startsWith('⚡ Ejecutando:') ? '' : prev));
+        } catch (_) {}
+      });
     } catch (_) {}
     return () => {
       try {
         es?.close();
       } catch (_) {}
     };
-  }, [token]);
+  }, [token, registerSeenFlowRunId, scrollMessagesToBottom]);
 
   // Sincronizar siempre un resumen vivo del propio chat de Tenshi e informes generados en window.__TENSHI_OWN_CHAT_SUMMARY__
   // para que leer_pantalla / getVisibleScreenContent siempre conozca los informes propios de Tenshi
   useEffect(() => {
     try {
-      const cleanMsgs = messages.filter((m) => !m.content?.startsWith('[RESULTADO_GUI]'));
+      const cleanMsgs = messages.filter((m) => !m.content?.startsWith('[RESULTADO_GUI]') && !m.isFlowAck);
       const reports = cleanMsgs.filter((m) => Boolean(m.file?.content || m.htmlReport));
       const summaryLines: string[] = [];
       if (reports.length > 0) {
@@ -6806,7 +7089,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setIsTyping(true);
     setTenshiStatus('Capturando pantalla...');
     try {
-      const lastMessage = currentMessages.at(-1);
+      const nonFlowAckMessages = currentMessages.filter((m) => !m.isFlowAck);
+      const lastMessage = nonFlowAckMessages.at(-1);
       const isLoopFeedback = lastMessage?.content?.startsWith('[RESULTADO_GUI]');
       
       // Heurística de captura de DOM: capturar si estamos en un bucle interactivo de GUI, si el usuario pide interactuar o si estamos en páginas informativas/SGSST
@@ -6854,7 +7138,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
       // Limitar el historial a los últimos 20 mensajes para evitar saturación de tokens (429).
       // Siempre preservar el primer mensaje del usuario como ancla de la tarea original.
-      const filteredMessages = currentMessages.filter((m) => m.role !== 'system');
+      // Excluir mensajes transitorios de aviso de ejecución de flujos (isFlowAck) para no contaminar el historial LLM.
+      const filteredMessages = currentMessages.filter((m) => m.role !== 'system' && !m.isFlowAck);
       const MAX_HISTORY = 20;
       let cappedMessages = filteredMessages;
       if (filteredMessages.length > MAX_HISTORY) {
@@ -6978,6 +7263,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         qrCode: responseData.qrCode,
         file: responseData.file,
         widget: responseData.widget,
+        _localCreatedAt: Date.now(),
         ...(normalizedEvidences ? { evidenceFiles: normalizedEvidences } : {}),
         ...(delegatedOrder?.ordenId
           ? {
@@ -6989,7 +7275,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           !isLiveEptGui &&
           (!!responseData.guiAction || (responseData.guiActions && responseData.guiActions.length > 0)),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [
+        ...settleRunningFlowAckMessages(prev, { success: true, fallbackAllRunning: true }),
+        assistantMsg,
+      ]);
       window.dispatchEvent(new CustomEvent('wappy-reload-sgsst-data'));
 
       // En Modo Hero de Tenshi, si la respuesta escrita trae un documento/archivo o informe HTML, abrirlo directo en el Canvas integrado
@@ -7383,7 +7672,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       }
 
       setMessages((prev) => [
-        ...prev,
+        ...settleRunningFlowAckMessages(prev, { success: false, fallbackAllRunning: true }),
         {
           role: 'assistant',
           content: `⚠️ ${userFriendlyMsg}`,
@@ -8531,6 +8820,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             {/* 🅰️ CUADRÍCULA IZQUIERDA DE AVISOS EN PC (Imágenes 3 y 4: Píldoras en Vivo, Rich Voice Cards, Briefing Ejecutivo y Proactividad) */}
             {isDesktopPanoramic && (
               <div
+                ref={heroAmbientGridRef}
                 aria-hidden={isHeroChatOpen}
                 style={{
                   position: 'absolute',
@@ -9045,11 +9335,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   onClick={() => {
                     tenshiAudio.playBlip();
                     if (!isHeroChatOpen) {
+                      blurElementInside(heroAmbientGridRef.current);
                       setHeroPanelTab('chat');
                       setIsHeroChatOpen(true);
                     } else if (heroPanelTab === 'canvas') {
                       setHeroPanelTab('chat');
                     } else {
+                      blurElementInside(heroLeftPanelRef.current);
                       setIsHeroChatOpen(false);
                     }
                   }}
@@ -9074,6 +9366,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   onClick={() => {
                     tenshiAudio.playBlip();
                     if (!isHeroChatOpen) {
+                      blurElementInside(heroAmbientGridRef.current);
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                       setIsHeroChatOpen(true);
@@ -9081,6 +9374,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                     } else {
+                      blurElementInside(heroLeftPanelRef.current);
                       setIsHeroChatOpen(false);
                     }
                   }}
@@ -9198,6 +9492,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             {/* 4. Panel de Chat y Canvas Integrado: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
             {(isDesktopPanoramic || isHeroChatOpen) && (
               <div
+                ref={heroLeftPanelRef}
                 aria-hidden={!isHeroChatOpen}
                 onDragEnter={heroPanelTab === 'chat' ? handleComposerDragEnter : undefined}
                 onDragOver={heroPanelTab === 'chat' ? handleComposerDragOver : undefined}
@@ -9318,6 +9613,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     label="Cerrar"
                     onClick={() => {
                       tenshiAudio.playBlip();
+                      blurElementInside(heroLeftPanelRef.current);
                       setIsHeroChatOpen(false);
                       setCanvasMaximized(false);
                     }}
@@ -9785,34 +10081,109 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       >
                         {msg.content && <Markdown content={cleanRenderContent(msg.content, Boolean(msg.widget))} />}
                         {renderMessageMediaAttachments(msg)}
+                        {msg.isFlowAck && msg.flowRunStatus === 'running' && (
+                          <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5">
+                            <span className="relative flex h-2 w-2 shrink-0">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
+                            </span>
+                            <span className="text-[11px] font-bold tracking-wide text-cyan-700 dark:text-cyan-300">
+                              Ejecutando flujo en tiempo real…
+                            </span>
+                          </div>
+                        )}
                         {msg.evidenceFiles &&
                           msg.evidenceFiles.length > 0 &&
                           renderTenshiEvidenceFiles(msg.evidenceFiles)}
-                        {msg.file && (
-                          <div className="mt-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900/80 flex flex-wrap items-center justify-between gap-2">
-                            <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100 flex-1 min-w-[140px]">
-                              {msg.file.title}
-                            </span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadFile(msg.file!)}
-                                className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold flex items-center gap-1 active:scale-95"
-                                title="Descargar archivo a tu dispositivo"
-                              >
-                                <Download className="w-3.5 h-3.5" /> Descargar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenFileInCanvas(msg.file!, true)}
-                                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-bold flex items-center gap-1 active:scale-95"
-                                title="Abrir en pantalla en el editor Canvas"
-                              >
-                                <Eye className="w-3.5 h-3.5" /> Ver en pantalla
-                              </button>
+                        {msg.file && (() => {
+                          const fileObj = msg.file;
+                          const fType = String(fileObj.fileType || '').toLowerCase().trim();
+                          const fContent = typeof fileObj.content === 'string' ? fileObj.content : '';
+                          const isHtmlFile =
+                            fType === 'html' ||
+                            fContent.includes('<html') ||
+                            fContent.includes('<!DOCTYPE');
+                          const isExcelFile = fType === 'excel';
+                          const isPresentationFile = fType === 'presentation';
+                          const isImageFile = fType === 'image' || fType === 'imagen';
+                          const fileSubtitle = isExcelFile
+                            ? 'Hoja de Cálculo Excel (.xlsx)'
+                            : isHtmlFile
+                              ? 'Aplicativo / Reporte HTML'
+                              : isImageFile
+                                ? 'Imagen Digital (.png)'
+                                : isPresentationFile
+                                  ? 'Presentación de Diapositivas'
+                                  : 'Documento Word (.doc)';
+
+                          return (
+                            <div className="mt-2.5 w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/90 p-3 shadow-xs backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/90">
+                              <div className="flex min-w-0 items-start gap-2.5">
+                                <div
+                                  className={cn(
+                                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-2xs',
+                                    isExcelFile
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                      : isHtmlFile
+                                        ? 'border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400'
+                                        : isPresentationFile
+                                          ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                          : 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                                  )}
+                                >
+                                  {isExcelFile ? (
+                                    <FileSpreadsheet className="h-5 w-5" />
+                                  ) : isHtmlFile ? (
+                                    <Code2 className="h-5 w-5" />
+                                  ) : isPresentationFile ? (
+                                    <Presentation className="h-5 w-5" />
+                                  ) : (
+                                    <FileText className="h-5 w-5" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
+                                    {fileObj.title?.trim() || 'Documento SG-SST'}
+                                  </p>
+                                  <p className="truncate text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+                                    {fileSubtitle}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 pt-2.5 dark:border-zinc-800/80">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadFile(fileObj)}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold tracking-wide text-green-700 transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-1 sm:hover:scale-[1.02] active:scale-95 cursor-pointer dark:text-green-300"
+                                  title="Descargar archivo a tu dispositivo"
+                                >
+                                  <Download className="h-3.5 w-3.5 shrink-0" />
+                                  <span>Descargar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenFileInCanvas(fileObj, true)}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-bold tracking-wide text-orange-700 transition-all duration-300 ease-in-out hover:bg-orange-500/20 sm:hover:-rotate-1 sm:hover:scale-[1.02] active:scale-95 cursor-pointer dark:text-orange-300"
+                                  title="Abrir en pantalla en el editor Canvas"
+                                >
+                                  <Eye className="h-3.5 w-3.5 shrink-0" />
+                                  <span>Ver en pantalla</span>
+                                </button>
+                                {isHtmlFile && fContent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openHtmlReport(fContent)}
+                                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-bold tracking-wide text-fuchsia-700 transition-all duration-300 ease-in-out hover:bg-fuchsia-500/20 sm:hover:-rotate-1 sm:hover:scale-[1.02] active:scale-95 cursor-pointer dark:text-fuchsia-300"
+                                    title="Abrir vista de impresión y exportación a PDF"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                    <span>Imprimir / PDF</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                         {msg.htmlReport && !msg.file && (
                           <button
                             type="button"
@@ -10674,6 +11045,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 </span>
                               </div>
                             )}
+                            {msg.isFlowAck && msg.flowRunStatus === 'running' && (
+                              <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
+                                </span>
+                                <span className="text-[11px] font-bold tracking-wide text-cyan-700 dark:text-cyan-300">
+                                  Ejecutando flujo en tiempo real…
+                                </span>
+                              </div>
+                            )}
                             {msg.evidenceFiles &&
                               msg.evidenceFiles.length > 0 &&
                               renderTenshiEvidenceFiles(msg.evidenceFiles)}
@@ -10830,7 +11212,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       </div>
 
                       {/* Message action controls (Edit, Delete, Regenerate) */}
-                      {msg._id && editingMessageId !== msg._id && (
+                      {msg._id && !msg.isFlowAck && editingMessageId !== msg._id && (
                         <div
                           className={`mt-1 flex items-center gap-2 text-[10px] transition-all opacity-40 hover:opacity-100 sm:opacity-0 group-hover:opacity-100 ${
                             msg.role === 'user' ? 'justify-end pr-1 text-blue-500/70 dark:text-blue-400/70' : 'justify-start pl-1 text-gray-400 dark:text-gray-500'

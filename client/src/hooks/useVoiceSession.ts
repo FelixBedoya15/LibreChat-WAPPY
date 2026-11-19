@@ -31,6 +31,7 @@ interface UseVoiceSessionOptions {
     cargo?: string;
     actividad?: string;
     route?: string;
+    isHeroMode?: boolean;
     agentName?: string;
     personality?: string;
 }
@@ -680,9 +681,20 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             if (options.actividad) {
                 wsUrl += `&actividad=${encodeURIComponent(options.actividad)}`;
             }
-            if (options.route) {
-                wsUrl += `&route=${encodeURIComponent(options.route)}`;
+            const effectiveRoute =
+                optionsRef.current.route ||
+                options.route ||
+                (typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '');
+            if (effectiveRoute) {
+                wsUrl += `&route=${encodeURIComponent(effectiveRoute)}`;
             }
+            const effectiveHeroMode =
+                typeof optionsRef.current.isHeroMode === 'boolean'
+                    ? optionsRef.current.isHeroMode
+                    : typeof options.isHeroMode === 'boolean'
+                    ? options.isHeroMode
+                    : typeof document !== 'undefined' && document.documentElement.dataset.tenshiHero === 'true';
+            wsUrl += `&isHeroMode=${effectiveHeroMode ? 'true' : 'false'}`;
             if (options.agentName) {
                 wsUrl += `&agentName=${encodeURIComponent(options.agentName)}`;
             }
@@ -820,8 +832,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 break;
 
-            case 'status':
+            case 'status': {
                 const newStatus = message.data.status;
+                if (newStatus === 'history_synced') {
+                    // Señal de sincronización de historial en BD: notificar sin sobrescribir statusRef (preserva captura de micrófono)
+                    optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
+                    break;
+                }
                 setStatus(newStatus);
                 statusRef.current = newStatus;
                 optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
@@ -845,6 +862,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                 }
                 break;
+            }
 
             case 'interrupted':
                 setStatus('listening');
@@ -1054,9 +1072,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
-     * Send active screen context to server (conversationId, active agent, current route)
+     * Send active screen context to server (conversationId, active agent, current route, hero mode)
      */
-    const sendScreenContext = useCallback((contextData: { conversationId?: string; agentId?: string; agentName?: string; route?: string }) => {
+    const sendScreenContext = useCallback((contextData: { conversationId?: string; agentId?: string; agentName?: string; route?: string; isHeroMode?: boolean }) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: 'screen_context',

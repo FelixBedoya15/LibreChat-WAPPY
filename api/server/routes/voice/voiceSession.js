@@ -729,9 +729,12 @@ function enrichTechnicalPrompt(rawPrompt, agent) {
  * Translates application routes and active screen contexts into clear, human-readable
  * modules of the SG-SST platform so Tenshi has crystal-clear grounded context.
  */
-function formatScreenRouteHuman(route, agent) {
-    if (!route && !agent) return 'Plataforma SG-SST WAPPY';
-    const r = (route || '').toLowerCase();
+function formatScreenRouteHuman(route, agent, isHeroMode = false) {
+    if (isHeroMode) {
+        return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
+    }
+    if (!route && !agent) return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
+    const r = (route || '').toLowerCase().trim();
 
     // Si hay especialista activo en pantalla
     if (agent && agent.name) {
@@ -789,10 +792,62 @@ function formatScreenRouteHuman(route, agent) {
     if (r.includes('/sgsst')) {
         return 'Módulo: Sistema de Gestión SG-SST (Dashboard de Hitos)';
     }
-    if (r.includes('/c/') || r.includes('/chat')) {
-        return 'Pantalla: Chat de Consultas WAPPY';
+    if (r.startsWith('/c/') || r === '/' || r === '/c' || r.includes('/c/') || r.includes('/chat')) {
+        return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
     }
     return `Pantalla actual: ${route}`;
+}
+
+/**
+ * Determina de forma determinista si una solicitud de informe/reporte debe redirigirse
+ * al editor nativo de un aplicativo Somos SST (/sgsst) en lugar de generar un entregable en Canvas.
+ * NUNCA redirige por palabras genéricas aisladas como "módulo" o "pantalla", ni cuando el usuario
+ * solicita entregables Canvas/HTML/Word/Excel/interactivos o se encuentra en Modo Hero (/c/new).
+ */
+function shouldRedirectReportToSgsstApp(reqLower, toolArgs = {}, activeScreenRoute = '', isHeroMode = false) {
+    const text = String(reqLower || '').toLowerCase();
+    const route = String(activeScreenRoute || '').toLowerCase().trim();
+    const isOnSgsstApp = !Boolean(isHeroMode) && route.startsWith('/sgsst');
+
+    const mentionsExplicitAppButtonOrEditor = /\b(bot[oó]n\s+(?:de\s+)?generar(?:\s+con)?\s+ia|editor\s+del\s+aplicativo)\b/i.test(text);
+
+    // a) Entregable explícito de Canvas / archivo descargable / interactivo
+    const explicitCanvasDeliverableRegex = /\b(en\s+canvas|canvas|en\s+word|word|docx?|en\s+excel|excel|xlsx?|html|interactiv[oa]|descargable|landing|prototipo|presentaci[oó]n|diapositivas|pptx|pdf|tablero|dashboard|calculadora|simulador)\b/i;
+    const requestedFileType = String(toolArgs?.fileType || toolArgs?.formato || '').toLowerCase().trim();
+    const isExplicitCanvasDeliverable =
+        explicitCanvasDeliverableRegex.test(text) ||
+        ['html', 'excel', 'presentation'].includes(requestedFileType);
+
+    if (isExplicitCanvasDeliverable) {
+        return Boolean(isOnSgsstApp && mentionsExplicitAppButtonOrEditor);
+    }
+
+    // Aplicativos específicos de Somos SST con editor nativo de análisis IA
+    const namedSgsstAppRegex = /\b(responsable|pol[ií]tica|objetivos|matriz\s+legal|reglamento\s+interno|\brit\b|perfil\s+(?:de\s+)?cargo|diagn[oó]stico|0312|vulnerab\w*)\b/i;
+    const mentionsAplicativoOrEditor = /\b(aplicativo|editor\s+del\s+aplicativo)\b/i.test(text);
+    const hasReportIntent = /\b(informe|an[aá]lisis|reporte|generar\s+(?:con\s+)?ia)\b/i.test(text);
+
+    // b) Fuera de /sgsst o en Modo Hero: solo redirigir si nombra explícitamente un aplicativo SG-SST
+    //    junto con "aplicativo" o "editor del aplicativo" (y sin pedir HTML/Word/Excel/Canvas/interactivo).
+    if (!isOnSgsstApp) {
+        return namedSgsstAppRegex.test(text) && mentionsAplicativoOrEditor;
+    }
+
+    // c) En /sgsst (sin Modo Hero): solo redirigir si pide el botón/editor del aplicativo
+    //    o el informe del aplicativo en pantalla / aplicativo SG-SST nombrado (nunca por "módulo" o "pantalla" solas).
+    if (mentionsExplicitAppButtonOrEditor) {
+        return true;
+    }
+
+    if (
+        hasReportIntent &&
+        (/\b(del\s+aplicativo|de\s+este\s+aplicativo|en\s+el\s+aplicativo|aplicativo\s+en\s+pantalla)\b/i.test(text) ||
+            namedSgsstAppRegex.test(text))
+    ) {
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -867,8 +922,11 @@ class VoiceSession {
         this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
+        this.isHeroMode = Boolean(config.isHeroMode);
         this.activeScreenRoute = config.route || '';
-        this.activeScreenAgent = config.agentId || config.agentName ? { id: config.agentId, name: config.agentName || '' } : null;
+        this.activeScreenAgent = !this.isHeroMode && (config.agentId || config.agentName)
+            ? { id: config.agentId, name: config.agentName || '' }
+            : null;
 
         // Text accumulation for saving
         this.userTranscriptionText = '';
@@ -3323,10 +3381,24 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     }
 
                     // Inyectar contexto inmediato de pantalla y módulo activo
-                    const humanScreen = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent);
-                    companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
-- Módulo en pantalla: ${humanScreen} (Ruta: ${this.activeScreenRoute || '/sgsst'}).
+                    const currentRoute = this.activeScreenRoute || '/c/new';
+                    const isOnSgsstApp = !this.isHeroMode && currentRoute.startsWith('/sgsst');
+                    const humanScreen = formatScreenRouteHuman(
+                        currentRoute,
+                        this.isHeroMode ? null : this.activeScreenAgent,
+                        this.isHeroMode
+                    );
+                    if (isOnSgsstApp) {
+                        companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
+- Módulo en pantalla: ${humanScreen} (Ruta: ${currentRoute}).
 - FOCO DE TRABAJO INMEDIATO: El usuario tiene este módulo abierto en su pantalla ahora mismo. Cualquier petición de acción, clic en botones, generación de análisis o informe con IA, o consulta sobre datos debe entenderse y ejecutarse EXCLUSIVAMENTE sobre este módulo visible (${humanScreen}). ESTÁ TOTALMENTE PROHIBIDO desviar la conversación hacia módulos o temas tratados en el pasado.`;
+                    } else {
+                        companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
+- Pantalla activa: ${humanScreen} (Ruta: ${currentRoute}${this.isHeroMode ? ', Modo Hero de Tenshi ACTIVO' : ''}).
+- ENTORNO ACTUAL: El usuario está en **Modo Hero de Tenshi / Chat Principal** (NO está dentro de un formulario o aplicativo de \`/sgsst\`).
+- REGLA OBLIGATORIA DE ENTREGABLES: Cualquier solicitud de informe, reporte, documento, HTML interactivo, módulo interactivo, tablero, Word, Excel o presentación DEBE resolverse INVOCANDO DIRECTAMENTE \`canvas_tool\` (o \`wappy_crear_informe\`) para entregarlo con visor y botones Ver/Descargar en el chat y Canvas de Tenshi.
+- PROHIBICIÓN ABSOLUTA EN MODO HERO / CHAT PRINCIPAL: NO existe ningún botón "Generar IA" visible aquí. ESTÁ TERMINANTEMENTE PROHIBIDO invocar \`operar_interfaz_visual\` para pulsar "Generar IA" o hacer clics sobre la interfaz oculta detrás del Modo Hero. Tampoco desvíes la conversación hacia módulos o temas tratados en el pasado.`;
+                    }
 
                     if (Array.isArray(rawMemories) && rawMemories.length > 0) {
                         const uniqueMap = new Map();
@@ -4586,14 +4658,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.title || '';
                         const reqLower = `${userRequestText} ${this.lastUserTranscription || ''} ${fc.args?.title || ''}`.toLowerCase();
 
-                        // DESAMBIGUACIÓN DETERMINISTA: Si el usuario pide generar el informe/análisis de un aplicativo o módulo del SG-SST,
-                        // NO crear un archivo Canvas independiente: despachar wappy_generar_analisis_aplicativo directamente.
-                        const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(reqLower) && 
-                            /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(reqLower) &&
-                            !/\b(en canvas|en word|en excel|descargable|landing|html independiente)\b/i.test(reqLower);
+                        // DESAMBIGUACIÓN DETERMINISTA: Solo redirigir al editor nativo de un aplicativo /sgsst
+                        // cuando realmente corresponde (nunca por "módulo"/"pantalla" ni cuando piden Canvas/HTML/Word/Excel/interactivo o están en Modo Hero).
+                        const isAppReport = shouldRedirectReportToSgsstApp(
+                            reqLower,
+                            fc.args,
+                            this.activeScreenRoute,
+                            this.isHeroMode
+                        );
 
                         if (isAppReport) {
-                            logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}")`);
+                            logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode})`);
                             let app = 'actual';
                             if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
                             else if (/objetivo/i.test(reqLower)) app = 'objetivos';
@@ -4604,15 +4679,19 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             else if (/emergencia|vulnerab/i.test(reqLower)) app = 'vulnerabilidad';
                             else if (/responsable/i.test(reqLower)) app = 'responsable';
 
-                            // Disparar click real en "Generar IA" en la pantalla actual
-                            this.sendToClient({
-                                type: 'wappy_action',
-                                data: {
-                                    id: fc.id,
-                                    name: 'operar_interfaz_visual',
-                                    args: { accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }
-                                }
-                            });
+                            const isOnSgsstAppNow = !this.isHeroMode && String(this.activeScreenRoute || '').startsWith('/sgsst');
+
+                            // Disparar click real en "Generar IA" únicamente si estamos realmente dentro de /sgsst (sin Modo Hero)
+                            if (isOnSgsstAppNow) {
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'operar_interfaz_visual',
+                                        args: { accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }
+                                    }
+                                });
+                            }
 
                             if (app !== 'actual') {
                                 this.sendToClient({
@@ -4964,13 +5043,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         const userRequestText = (this.userTranscriptionText || '').trim() || this.lastUserRequest || fc.args?.titulo || '';
                         const reqLower = `${userRequestText} ${this.lastUserTranscription || ''} ${fc.args?.titulo || ''} ${fc.args?.modulo || ''}`.toLowerCase();
 
-                        // DESAMBIGUACIÓN DETERMINISTA: Si el informe solicitado corresponde a un aplicativo del SG-SST en pantalla,
-                        // NO crear documento Canvas: activar la generación nativa con IA en el aplicativo
-                        const isAppReport = /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(reqLower) && 
-                            !/\b(en canvas|en word|en excel|descargable)\b/i.test(reqLower);
+                        // DESAMBIGUACIÓN DETERMINISTA: Solo redirigir al editor nativo de un aplicativo /sgsst
+                        // cuando realmente corresponde (nunca por "módulo"/"pantalla" ni cuando piden Canvas/HTML/Word/Excel/interactivo o están en Modo Hero).
+                        const isAppReport = shouldRedirectReportToSgsstApp(
+                            reqLower,
+                            fc.args,
+                            this.activeScreenRoute,
+                            this.isHeroMode
+                        );
 
                         if (isAppReport) {
-                            logger.info(`[VoiceSession] wappy_crear_informe redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}")`);
+                            logger.info(`[VoiceSession] wappy_crear_informe redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode})`);
                             let app = fc.args?.modulo || fc.args?.aplicativo || 'responsable';
                             if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
                             else if (/objetivo/i.test(reqLower)) app = 'objetivos';
@@ -5007,35 +5090,68 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             const repRes = await executeTenshiMcpTool('wappy_crear_informe', fc.args || {}, this.userId);
                             const repInfo = repRes?.informe || {};
                             const title = repInfo.titulo || fc.args?.titulo || 'Informe Técnico SG-SST';
-                            const fileType = repInfo.formato || fc.args?.formato || 'html';
+                            const rawFileType = String(repInfo.formato || fc.args?.formato || 'html').toLowerCase();
+                            const fileType = ['text', 'excel', 'html', 'presentation'].includes(rawFileType) ? rawFileType : 'html';
                             const content = repInfo.contenido || fc.args?.contenido || 'Informe técnico oficial generado.';
 
                             // Entregar archivo en el chat de Tenshi con botones de descarga
-                            await this.executeCanvasTool({
+                            const canvasRes = await this.executeCanvasTool({
                                 accion: 'crear',
                                 fileType,
                                 title,
                                 content
-                            }, title, fc.id);
+                            }, userRequestText || title, fc.id);
 
-                            this.sendToClient({
-                                type: 'wappy_action',
-                                data: {
-                                    id: fc.id,
-                                    name: 'wappy_crear_informe',
-                                    args: fc.args,
-                                    result: repRes
-                                }
-                            });
-
-                            if (this.geminiClient) {
-                                this.sendGeminiToolResponse([{
-                                    id: fc.id,
-                                    name: fc.name,
-                                    response: {
-                                        result: `Informe "${title}" generado exitosamente y entregado en el chat de Tenshi con botones para descargar en ${fileType.toUpperCase()} y visor interactivo. Dile al usuario en una sola frase cordial que ya se lo entregaste en su chat para descargarlo o leerlo, y resúmele sus conclusiones principales.`
+                            if (canvasRes?.ok) {
+                                const finalTitle = canvasRes.finalTitle || title;
+                                const finalContent = canvasRes.generatedContent || content;
+                                this.sendToClient({
+                                    type: 'wappy_action',
+                                    data: {
+                                        id: fc.id,
+                                        name: 'wappy_crear_informe',
+                                        args: {
+                                            ...(fc.args || {}),
+                                            titulo: finalTitle,
+                                            formato: fileType,
+                                        },
+                                        title: finalTitle,
+                                        fileType,
+                                        content: finalContent,
+                                        canvasId: canvasRes.canvasId,
+                                        result: {
+                                            ...(repRes || {}),
+                                            informe: {
+                                                ...(repInfo || {}),
+                                                titulo: finalTitle,
+                                                formato: fileType,
+                                                contenido: finalContent,
+                                            }
+                                        }
                                     }
-                                }]);
+                                });
+
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            result: `[INSTRUCCIÓN ESTRICTA EN ESPAÑOL]: Informe "${finalTitle}" generado exitosamente y entregado en el chat de Tenshi con botones para descargar en ${fileType.toUpperCase()} y visor interactivo. Dile al usuario ÚNICAMENTE en español en una sola frase cordial que ya se lo entregaste en su chat para descargarlo o visualizarlo, y resúmele sus conclusiones principales. ESTÁ TERMINANTEMENTE PROHIBIDO RESPONDER EN INGLÉS.`
+                                        }
+                                    }]);
+                                }
+                            } else {
+                                const failMsg = canvasRes?.failReason || 'No se pudo compilar ni adjuntar el informe en el chat.';
+                                logger.warn(`[VoiceSession] wappy_crear_informe failed in executeCanvasTool: ${failMsg}`);
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            error: `[INSTRUCCIÓN ESTRICTA EN ESPAÑOL]: Dile al usuario honestamente en español que no se pudo generar ni entregar el informe "${title}": ${failMsg}. NO afirmes que ya se entregó.`
+                                        }
+                                    }]);
+                                }
                             }
                         } catch (repErr) {
                             logger.error('[VoiceSession] Error generating report:', repErr);
@@ -5515,16 +5631,245 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     // Manejo directo de Gestor de Automatizaciones
                     if (fc.name === 'gestor_automatizaciones') {
                         logger.info(`[VoiceSession] Gemini Live invoked tool "gestor_automatizaciones" with args:`, JSON.stringify(fc.args));
+                        const rawAct = String(fc.args?.accion || '').toLowerCase().trim().replace(/\s+/g, '_');
+                        const isTenshiFlowAction = ['ejecutar_tenshi', 'tenshi', 'flujo_tenshi', 'run_tenshi'].includes(rawAct);
+                        const isAsyncFlowExecution = [
+                            'ejecutar_tenshi',
+                            'tenshi',
+                            'flujo_tenshi',
+                            'run_tenshi',
+                            'ejecutar_ahora',
+                            'ejecutar',
+                            'correr',
+                            'run',
+                            'run_now',
+                            'disparar',
+                        ].includes(rawAct);
+
+                        if (isAsyncFlowExecution) {
+                            const runId = 'tflow_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                            toolReq.__tenshiFlowRunId = runId;
+                            toolReq.__tenshiFlowStartedEmitted = true;
+                            toolReq.__tenshiFlowVoiceManaged = true;
+                            const flowToolReq = {
+                                ...toolReq,
+                                __tenshiFlowRunId: runId,
+                                __tenshiFlowStartedEmitted: true,
+                                __tenshiFlowVoiceManaged: true,
+                            };
+
+                            const stripLeadingEmoji = (val) =>
+                                String(val || '')
+                                    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')
+                                    .trim();
+
+                            const rawAutoId = String(fc.args?.automatizacion_id || '').trim();
+                            const fallbackAutoLabel =
+                                fc.args?.nombre ||
+                                (rawAutoId && !/^[0-9a-fA-F]{24}$/.test(rawAutoId) ? rawAutoId : '') ||
+                                'Flujo Tenshi';
+                            let flowLabel = String(fallbackAutoLabel || 'Flujo Tenshi').trim();
+
+                            if (isTenshiFlowAction) {
+                                try {
+                                    const quickQuery = String(
+                                        fc.args?.automatizacion_id || fc.args?.nombre || fc.args?.instruccion_usuario || '',
+                                    ).trim();
+                                    if (quickQuery) {
+                                        const { matchTenshiFlowByQuery } = require('~/server/services/tenshiFlowService');
+                                        if (typeof matchTenshiFlowByQuery === 'function') {
+                                            const quickMatch = await Promise.race([
+                                                matchTenshiFlowByQuery(quickQuery),
+                                                new Promise((resolve) => setTimeout(() => resolve(null), 350)),
+                                            ]);
+                                            if (quickMatch?.flow?.name) {
+                                                flowLabel = String(quickMatch.flow.name).trim();
+                                            }
+                                        }
+                                    }
+                                } catch (quickMatchErr) {
+                                    logger.warn('[VoiceSession] Quick matchTenshiFlowByQuery fallback:', quickMatchErr?.message || quickMatchErr);
+                                }
+                            }
+
+                            flowLabel = stripLeadingEmoji(flowLabel) || 'Flujo Tenshi';
+                            const indicaciones = String(
+                                fc.args?.instruccion_usuario || fc.args?.nombre || fc.args?.automatizacion_id || 'según tu solicitud',
+                            )
+                                .trim()
+                                .slice(0, 260);
+
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'loading', message: '⚡ Iniciando: ' + flowLabel },
+                            });
+
+                            try {
+                                const mcpBridge = require('~/server/routes/mcpBridge');
+                                if (typeof mcpBridge?.broadcastAntigravityEvent === 'function') {
+                                    mcpBridge.broadcastAntigravityEvent(this.userId, 'tenshi_flow_started', {
+                                        runId,
+                                        flowName: flowLabel,
+                                        indicaciones,
+                                        action: rawAct,
+                                        channel: 'voice',
+                                        startedAt: new Date().toISOString(),
+                                    });
+                                }
+                            } catch (sseStartErr) {
+                                logger.warn('[VoiceSession] No se pudo emitir SSE tenshi_flow_started:', sseStartErr?.message || sseStartErr);
+                            }
+
+                            if (this.geminiClient) {
+                                this.geminiClient.sendToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        status: 'iniciado_en_curso',
+                                        flujo: flowLabel,
+                                        indicaciones,
+                                        result: `Tarea "${flowLabel}" iniciada en este instante con las indicaciones: "${indicaciones}". INSTRUCCIÓN CRÍTICA DE VOZ: Responde YA en 1 sola frase corta, cálida y natural confirmándole al usuario que ya vas a realizar esta tarea con esas indicaciones exactas y que en unos segundos le entregas el resultado apenas termine. PROHIBIDO inventar, adivinar o adelantar el resultado todavía; cuando finalice recibirás la señal automática del sistema con el resultado real.`,
+                                    },
+                                }]);
+                            }
+
+                            const toolRespondedAt = Date.now();
+                            const fcId = fc.id;
+                            const fcName = fc.name;
+                            const flowArgs = fc.args ? { ...fc.args } : {};
+
+                            (async () => {
+                                const waitBeforeVoiceInjection = async () => {
+                                    const elapsedSinceAck = Date.now() - toolRespondedAt;
+                                    if (elapsedSinceAck < 850 && this.geminiClient && this.isActive && !this.isStopped) {
+                                        await new Promise((resolve) => setTimeout(resolve, 850 - elapsedSinceAck));
+                                    }
+                                    let waitedMs = 0;
+                                    while (
+                                        this.isAiSpeaking &&
+                                        waitedMs < 4000 &&
+                                        this.geminiClient &&
+                                        this.isActive &&
+                                        !this.isStopped
+                                    ) {
+                                        await new Promise((resolve) => setTimeout(resolve, 250));
+                                        waitedMs += 250;
+                                    }
+                                };
+
+                                try {
+                                    const GestorAutomatizaciones = require('~/app/clients/tools/structured/GestorAutomatizaciones');
+                                    const toolInstance = new GestorAutomatizaciones({ req: flowToolReq });
+                                    const toolOutput = await toolInstance._call(flowArgs);
+
+                                    let parsed = null;
+                                    if (typeof toolOutput === 'string') {
+                                        try {
+                                            parsed = JSON.parse(toolOutput);
+                                        } catch (_parseErr) {
+                                            parsed = null;
+                                        }
+                                    } else if (toolOutput && typeof toolOutput === 'object') {
+                                        parsed = toolOutput;
+                                    }
+
+                                    const resolvedFlowName =
+                                        stripLeadingEmoji(parsed?.flujo || parsed?.nombre || flowLabel) || flowLabel;
+                                    const evidencias = Array.isArray(parsed?.evidencias)
+                                        ? parsed.evidencias
+                                        : Array.isArray(parsed?.evidenceFiles)
+                                            ? parsed.evidenceFiles
+                                            : [];
+                                    const rawResultText = String(
+                                        parsed?.resultado ||
+                                        parsed?.mensaje ||
+                                        parsed?.advertencia ||
+                                        parsed?.error ||
+                                        (typeof toolOutput === 'string' ? toolOutput : ''),
+                                    )
+                                        .replace(/\n{3,}/g, '\n\n')
+                                        .trim();
+                                    const resultText =
+                                        rawResultText.length > 3200
+                                            ? `${rawResultText.slice(0, 3200)}...`
+                                            : rawResultText;
+
+                                    this.sendToClient({
+                                        type: 'wappy_action',
+                                        data: { id: fcId, name: fcName, args: flowArgs, result: toolOutput },
+                                    });
+
+                                    try {
+                                        const mcpBridge = require('~/server/routes/mcpBridge');
+                                        if (typeof mcpBridge?.broadcastAntigravityEvent === 'function') {
+                                            mcpBridge.broadcastAntigravityEvent(this.userId, 'tenshi_flow_completed', {
+                                                runId,
+                                                flowName: resolvedFlowName,
+                                                indicaciones,
+                                                success: !parsed?.error,
+                                                hasEvidences: Array.isArray(evidencias) && evidencias.length > 0,
+                                                channel: 'voice',
+                                                completedAt: new Date().toISOString(),
+                                            });
+                                        }
+                                    } catch (sseEndErr) {
+                                        logger.warn('[VoiceSession] No se pudo emitir SSE tenshi_flow_completed:', sseEndErr?.message || sseEndErr);
+                                    }
+
+                                    await waitBeforeVoiceInjection();
+
+                                    if (this.geminiClient && this.isActive && !this.isStopped) {
+                                        const evCount = Array.isArray(evidencias) ? evidencias.length : 0;
+                                        const evNote =
+                                            evCount === 1
+                                                ? '\nCERTIFICADOS ADJUNTOS: Se emitió y entregó 1 certificado oficial en PDF/PNG directamente en el chat de Tenshi. Confírmale explícitamente al usuario que el certificado oficial ya quedó adjunto en su chat listo para abrir o descargar (NO leas rutas /api/... en voz alta).'
+                                                : evCount > 1
+                                                    ? `\nCERTIFICADOS ADJUNTOS: Se emitieron y entregaron ${evCount} certificados oficiales en PDF/PNG directamente en el chat de Tenshi. Confírmale explícitamente al usuario que los ${evCount} certificados oficiales ya quedaron adjuntos en su chat listos para abrir o descargar (NO leas rutas /api/... en voz alta).`
+                                                    : '';
+                                        const finalVoiceInjection = parsed?.error
+                                            ? `[SISTEMA INTERNO WAPPY - RESULTADO DE FLUJO COMPLETADO]: La tarea "${resolvedFlowName}" finalizó con novedad o error: ${resultText || String(parsed.error)}.\nINSTRUCCIÓN CRÍTICA DE VOZ (ESPAÑOL): Infórmale brevemente y con claridad en español natural lo ocurrido al usuario sin inventar datos ni hablar en inglés.`
+                                            : `[SISTEMA INTERNO WAPPY - RESULTADO DE FLUJO COMPLETADO]: La tarea "${resolvedFlowName}" (indicaciones: "${indicaciones}") acaba de finalizar con el siguiente resultado real:\n${resultText || 'Ejecución completada correctamente.'}${evNote}\nINSTRUCCIÓN CRÍTICA DE VOZ (ESPAÑOL): Narra AHORA al usuario en español natural, claro y ejecutivo el resultado real obtenido (estados, fechas, hallazgos clave y cualquier dato importante), sin leer URLs técnicas ni hablar en inglés.`;
+                                        this.geminiClient.sendText(finalVoiceInjection);
+                                    }
+                                } catch (bgErr) {
+                                    logger.error('[VoiceSession] Error executing gestor_automatizaciones in background:', bgErr);
+                                    try {
+                                        const mcpBridge = require('~/server/routes/mcpBridge');
+                                        if (typeof mcpBridge?.broadcastAntigravityEvent === 'function') {
+                                            mcpBridge.broadcastAntigravityEvent(this.userId, 'tenshi_flow_completed', {
+                                                runId,
+                                                flowName: flowLabel,
+                                                indicaciones,
+                                                success: false,
+                                                hasEvidences: false,
+                                                error: bgErr?.message || 'Error ejecutando el flujo',
+                                                channel: 'voice',
+                                                completedAt: new Date().toISOString(),
+                                            });
+                                        }
+                                    } catch (_sseErr) {}
+
+                                    await waitBeforeVoiceInjection();
+
+                                    if (this.geminiClient && this.isActive && !this.isStopped) {
+                                        this.geminiClient.sendText(
+                                            `[SISTEMA INTERNO WAPPY - ERROR EN FLUJO]: La tarea "${flowLabel}" no pudo completarse por un error técnico: ${String(bgErr?.message || 'Error inesperado').slice(0, 400)}.\nINSTRUCCIÓN CRÍTICA DE VOZ (ESPAÑOL): Avísale brevemente y con amabilidad al usuario en español que ocurrió ese inconveniente y pregúntale si desea reintentar.`,
+                                        );
+                                    }
+                                }
+                            })();
+
+                            continue;
+                        }
+
                         this.sendToClient({
                             type: 'status',
                             data: {
                                 status: 'loading',
-                                message: fc.args?.accion === 'ejecutar_tenshi'
-                                    ? '⚡ Ejecutando flujo instantáneo...'
-                                    : fc.args?.accion === 'consultar_documentacion_nodos' ||
-                                      ['documentacion_nodos', 'manual_nodos', 'guia_nodos', 'nodos', 'explicar_nodo', 'catalogo_nodos'].includes(String(fc.args?.accion || '').toLowerCase())
-                                        ? '📘 Consultando enciclopedia de nodos...'
-                                        : 'Gestionando automatizaciones...'
+                                message: fc.args?.accion === 'consultar_documentacion_nodos' ||
+                                  ['documentacion_nodos', 'manual_nodos', 'guia_nodos', 'nodos', 'explicar_nodo', 'catalogo_nodos'].includes(rawAct)
+                                    ? '📘 Consultando enciclopedia de nodos...'
+                                    : 'Gestionando automatizaciones...'
                             }
                         });
                         try {
@@ -5877,8 +6222,12 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 !rawUserContext ||
                                 /\b(antigrav\w*|anti[\s-]*grav\w*)\b/i.test(fullUserContext);
                             if (!explicitlyMentionsAntigravity) {
-                                const isAppReport = /\b(informe|an[aá]lisis|reporte)\b/i.test(rawUserContext) && 
-                                    /\b(aplicativo|m[oó]dulo|pantalla|responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico|estudio|vulnerab)\b/i.test(rawUserContext);
+                                const isAppReport = shouldRedirectReportToSgsstApp(
+                                    rawUserContext.toLowerCase(),
+                                    targetArgs,
+                                    this.activeScreenRoute,
+                                    this.isHeroMode
+                                );
                                 if (isAppReport) {
                                     logger.warn(`[VoiceSession] Gemini Live intentó delegar orden de aplicativo a Antigravity ("${rawUserContext}"). Redirigiendo a wappy_generar_analisis_aplicativo.`);
                                     let app = 'responsable';
@@ -6164,6 +6513,25 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         const accion = fc.args?.accion || 'click';
                         const detalle = fc.args?.detalle || fc.args?.campo || fc.args?.texto || 'elemento';
                         const texto = fc.args?.texto;
+                        const isBlockedGenerateAiClick =
+                            (this.isHeroMode || !String(this.activeScreenRoute || '').startsWith('/sgsst')) &&
+                            String(accion).toLowerCase() === 'click' &&
+                            /generar\s*(con\s*)?ia|generar\s*an[aá]lisis|bot[oó]n\s+de\s+generar/i.test(`${detalle} ${texto || ''}`);
+
+                        if (isBlockedGenerateAiClick) {
+                            logger.warn(`[VoiceSession] Bloqueado click ciego "${detalle}" vía operar_interfaz_visual fuera de /sgsst (isHeroMode=${this.isHeroMode}, route="${this.activeScreenRoute || '/c/new'}")`);
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: {
+                                        result: "No existe botón 'Generar IA' porque el usuario está en Modo Hero de Tenshi (no dentro de un formulario /sgsst). Invoca inmediatamente 'canvas_tool' para generar el informe o aplicativo HTML/Word/Excel en el Canvas y chat de Tenshi."
+                                    }
+                                }]);
+                            }
+                            continue;
+                        }
+
                         logger.info(`[VoiceSession] Operación de interfaz visual: accion=${accion}, detalle=${detalle}${texto ? `, texto="${texto.substring(0, 40)}..."` : ''}`);
                         this.sendToClient({
                             type: 'wappy_action',
@@ -6181,7 +6549,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             }
                         });
                         if (this.geminiClient) {
-                            this.geminiClient.sendToolResponse([{
+                            this.sendGeminiToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
                                 response: { result: `Acción visual "${accion}" ejecutada de inmediato en pantalla (${detalle}).` }
@@ -7088,20 +7456,27 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
             case 'screen_context':
                 if (data) {
+                    if (typeof data.isHeroMode === 'boolean') {
+                        this.isHeroMode = data.isHeroMode;
+                    }
                     if (data.conversationId && data.conversationId !== 'new') {
                         this.conversationId = data.conversationId;
                     }
-                    if (data.agentId || data.agentName) {
+                    if (typeof data.route === 'string' && data.route.trim()) {
+                        this.activeScreenRoute = data.route.trim();
+                    }
+                    if (data.isHeroMode === true || this.isHeroMode === true) {
+                        this.activeScreenAgent = null;
+                    } else if (data.agentId || data.agentName) {
                         this.activeScreenAgent = {
                             id: data.agentId,
                             name: data.agentName
                         };
+                    } else if (data.agentId === null || data.agentName === null) {
+                        this.activeScreenAgent = null;
                     }
-                    if (data.route) {
-                        this.activeScreenRoute = data.route;
-                    }
-                    const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent);
-                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
+                    const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent, this.isHeroMode);
+                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, isHeroMode=${this.isHeroMode}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
                 }
                 break;
 
@@ -7674,7 +8049,7 @@ Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación 
                 userRequestText: userPrompt,
                 isVoiceSession: true,
                 screenContext: this.activeScreenRoute || '',
-                agentContext: this.lastSpecialistResponse || this.activeScreenAgent?.name || '',
+                agentContext: this.lastSpecialistResponse || (this.isHeroMode ? '' : this.activeScreenAgent?.name) || '',
             }
         };
 
@@ -9514,10 +9889,13 @@ ${workerSubHeaderHtml}
         }
 
         // 2. Failsafe para clics en 'Generar IA' / 'Generar Análisis' / informe del aplicativo si Gemini omitió el tool call
+        // SOLO cuando el usuario está dentro de un formulario /sgsst (NUNCA en Modo Hero ni /c/new ni si pide entregable Canvas/HTML/Word/Excel)
+        const isOnSgsstAppNow = !this.isHeroMode && String(this.activeScreenRoute || '').startsWith('/sgsst');
+        const hasCanvasDeliverableIntent = /\b(html|interactiv[oa]|canvas|word|docx?|excel|xlsx?|presentaci[oó]n|diapositivas|pptx|pdf|descargable|landing|prototipo|tablero|dashboard|calculadora|simulador)\b/i.test(userLower);
         const clickAnalyzeMatch = /(?:dale\s+clic|haz\s+clic|pulsa|presiona|genera|generar|regenera|regenerar|haz|hacer|realiza|realizar)\s+(?:en\s+|el\s+)?(?:bot[oó]n\s+)?(?:de\s+)?(?:generar\s+)?(?:an[aá]lisis|informe|ia|aplicativo|m[oó]dulo)/i.test(userLower) ||
             /\b(informe|an[aá]lisis)\s+(del|de\s+este)\s+(aplicativo|m[oó]dulo|formulario)\b/i.test(userLower) ||
             /^(?:dale\s+clic\s+t[uú]|hazlo\s+t[uú]|dale\s+clic)$/i.test(userLower);
-        if (clickAnalyzeMatch) {
+        if (clickAnalyzeMatch && isOnSgsstAppNow && !hasCanvasDeliverableIntent) {
             logger.info(`[VoiceSession] [Tenshi Voice Failsafe] Gemini omitió toolCall! Disparando operar_interfaz_visual con click a "Generar IA"`);
             this.sendToClient({
                 type: 'wappy_action',
@@ -9703,8 +10081,15 @@ ${workerSubHeaderHtml}
         }
 
         // 2a. Detección de generación de informes o análisis dentro de un aplicativo SG-SST
-        const isAppAnalysisRequest = /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+.*(informe|an[aá]lisis|documento).*(\baplicativo\b|\bm[oó]dulo\b|responsable|pol[ií]tica|objetivos|matriz\s+legal|rit|perfil\s+cargo|diagn[oó]stico|estudio|vulnerab)/i.test(userLower) ||
-            /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+(el\s+|un\s+)?(informe|an[aá]lisis)\s+(de|del|en)\s+(responsable|pol[ií]tica|objetivos|legal|rit|perfil|diagn[oó]stico)/i.test(userLower);
+        const hasNamedSgsstApp = /\b(responsable|pol[ií]tica|objetivos|matriz\s+legal|reglamento\s+interno|\brit\b|perfil\s+(?:de\s+)?cargo|diagn[oó]stico|0312|vulnerab\w*)\b/i.test(userLower);
+        const excludesCanvasFormats = !/\b(html|interactiv[oa]|canvas|word|docx?|excel|xlsx?|presentaci[oó]n|diapositivas|pptx|descargable|landing|prototipo|tablero|dashboard|calculadora|simulador)\b/i.test(userLower);
+        const matchesAppAnalysisPattern =
+            /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+.*(informe|an[aá]lisis|documento).*(\baplicativo\b|responsable|pol[ií]tica|objetivos|matriz\s+legal|reglamento\s+interno|\brit\b|perfil\s+(?:de\s+)?cargo|diagn[oó]stico|0312|vulnerab\w*)/i.test(userLower) ||
+            /\b(genera|generar|crea|crear|haz|hazme|redacta|redactar)\s+(el\s+|un\s+)?(informe|an[aá]lisis)\s+(de|del|en)\s+(responsable|pol[ií]tica|objetivos|matriz\s+legal|legal|rit|perfil\s+(?:de\s+)?cargo|diagn[oó]stico|0312|vulnerab\w*)/i.test(userLower);
+        const isAppAnalysisRequest =
+            excludesCanvasFormats &&
+            matchesAppAnalysisPattern &&
+            (hasNamedSgsstApp || isOnSgsstAppNow);
 
         if (isAppAnalysisRequest) {
             let app = 'responsable';
@@ -10057,7 +10442,7 @@ ${workerSubHeaderHtml}
         this.currentTurnPreRollChunks = [];
         this.currentTurnSpeechDetected = false;
 
-        if (!currentUserText.trim() && !turnHadSpeechAudio && !currentAiText.trim() && currentAudioCount === 0) {
+        if (!currentUserText.trim() && !turnHadSpeechAudio && !currentAiText.trim() && currentAudioCount === 0 && !this.lastGeneratedCanvasFile) {
             return;
         }
 
@@ -10133,36 +10518,60 @@ ${workerSubHeaderHtml}
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                    let savedTenshiMessage = false;
                     if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
-                        await TenshiMessage.create({
+                        const createdUserMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
                             role: 'user',
                             content: finalUserText,
-                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi user message:', err));
+                        }).catch(err => {
+                            logger.error('[VoiceSession] Error saving Tenshi user message:', err);
+                            return null;
+                        });
+                        if (createdUserMsg) savedTenshiMessage = true;
                     }
                     const canvasFileToAttach = this.lastGeneratedCanvasFile || null;
                     this.lastGeneratedCanvasFile = null;
 
                     if (currentAiText && currentAiText.trim()) {
-                        await TenshiMessage.create({
+                        const createdAiMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
                             role: 'assistant',
                             content: currentAiText.trim(),
                             file: canvasFileToAttach || undefined,
                             htmlReport: canvasFileToAttach?.fileType === 'html' ? canvasFileToAttach.content : undefined,
-                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi assistant message:', err));
+                        }).catch(err => {
+                            logger.error('[VoiceSession] Error saving Tenshi assistant message:', err);
+                            return null;
+                        });
+                        if (createdAiMsg) savedTenshiMessage = true;
                     } else if (canvasFileToAttach) {
                         const fileLabel = canvasFileToAttach.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
-                        await TenshiMessage.create({
+                        const createdCanvasMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
                             role: 'assistant',
                             content: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*`,
                             file: canvasFileToAttach,
                             htmlReport: canvasFileToAttach.fileType === 'html' ? canvasFileToAttach.content : undefined,
-                        }).catch(err => logger.error('[VoiceSession] Error saving Tenshi canvas file message:', err));
+                        }).catch(err => {
+                            logger.error('[VoiceSession] Error saving Tenshi canvas file message:', err);
+                            return null;
+                        });
+                        if (createdCanvasMsg) savedTenshiMessage = true;
+                    }
+
+                    // Notificar al cliente DESPUÉS de persistir en MongoDB para que /api/tenshi/history ya traiga file y htmlReport
+                    if (savedTenshiMessage) {
+                        this.sendToClient({
+                            type: 'status',
+                            data: {
+                                status: 'history_synced',
+                                hasFile: Boolean(canvasFileToAttach),
+                            },
+                        });
                     }
 
                     // Sincronizar en la conversación del Agente Tenshi (Sidebar de agentes) si se generó un archivo Canvas o reporte
@@ -11068,6 +11477,8 @@ module.exports = {
     getSession,
     stopSession,
     activeSessions,
+    formatScreenRouteHuman,
+    shouldRedirectReportToSgsstApp,
     build16kMonoWavFromPcmChunks,
     calculatePcm16LeRms,
     applyDomainPhoneticCorrections,

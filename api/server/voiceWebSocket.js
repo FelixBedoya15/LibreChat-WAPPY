@@ -105,6 +105,9 @@ function setupVoiceWebSocket(server) {
             if (params.cargo) config.cargo = params.cargo;
             if (params.actividad) config.actividad = params.actividad;
             if (params.route) config.route = params.route;
+            if (params.isHeroMode !== undefined) {
+                config.isHeroMode = params.isHeroMode === 'true' || params.isHeroMode === '1';
+            }
             if (params.agentName) config.agentName = params.agentName;
             if (params.personality) config.personality = params.personality;
 

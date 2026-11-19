@@ -74,9 +74,21 @@ export function triggerTenshiGhostHalo(el: HTMLElement | null, actionLabel = 'Te
 }
 
 /**
+ * Detecta si Tenshi está operando en Modo Hero (overlay fullscreen z-[70]).
+ * Cuando está activo, los controles del workspace/ChatView clásico quedan ocultos detrás del Hero.
+ */
+export function isTenshiHeroActive(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.dataset.tenshiHero === 'true';
+}
+
+/**
  * Verifica si un elemento es visible en el viewport
  */
 function isElementVisible(el: HTMLElement): boolean {
+  if (isTenshiHeroActive() && !el.closest('#tenshi-mobile-hero-container')) {
+    return false;
+  }
+
   const rect = el.getBoundingClientRect();
 
   // Si tiene dimensiones cero, o está oculto por estilos, no es visible
@@ -217,6 +229,9 @@ function getInputLabel(el: HTMLElement): string {
 export function getDehydratedDOM(): string {
   try {
     selectorMap.clear();
+    if (isTenshiHeroActive()) {
+      return '<Modo Hero de Tenshi activo en primer plano (sin controles de aplicativo clásico visibles)>';
+    }
     let index = 0;
     let resultText = '';
 
@@ -644,6 +659,17 @@ export async function executeGUIAction(
     return { success: true, message: 'Espera de 1.5s completada.' };
   }
 
+  // En Modo Hero de Tenshi el ChatView/workspace clásico está oculto detrás del overlay z-[70]:
+  // prohibir clics, escritura o scroll fantasma sobre controles inaccesibles debajo del Hero.
+  if (isTenshiHeroActive() && (action === 'click' || action === 'escribir' || action === 'scroll')) {
+    selectorMap.clear();
+    return {
+      success: false,
+      message:
+        'El usuario está en Modo Hero de Tenshi en primer plano. No hay controles del workspace clásico accesibles aquí; usa canvas_tool o wappy_navegar.',
+    };
+  }
+
   // Asegurar que selectorMap esté poblado si está vacío
   if (selectorMap.size === 0) {
     try {
@@ -718,8 +744,14 @@ export async function executeGUIAction(
 
     // 1. Coincidencia exacta o inclusión de subcadena directa
     for (const clue of allClues) {
-      if (clue === q || clue.includes(q) || (q.length > 3 && q.includes(clue))) return true;
+      if (clue === q || clue.includes(q) || (clue.length >= 4 && q.length >= 4 && q.includes(clue))) return true;
     }
+
+    const isAttachOrMenuControl =
+      id.includes('attach') ||
+      ariaLabel.includes('attach') ||
+      title.includes('adjuntar') ||
+      ariaLabel.includes('adjuntar');
 
     // 2. Tokenización eliminando stopwords
     const stopWords = new Set([
@@ -732,21 +764,26 @@ export async function executeGUIAction(
       const allFound = qTokens.every((tok) => combined.includes(tok));
       if (allFound) return true;
 
-      // Tokens semánticos de alta prioridad en WAPPY
-      const strongTokens = [
-        'generar', 'analisis', 'analizar', 'informe', 'reintegrar', 'reactivar', 'retirar',
-        'guardar', 'exportar', 'importar', 'historial', 'descargar', 'plantilla',
-        'peligro', 'peligros', 'riesgo', 'riesgos', 'alcance', 'compromiso', 'compromisos',
-        'objetivo', 'objetivos', 'norma', 'normas', 'normatividad', 'decreto', 'responsable'
-      ];
-      for (const st of strongTokens) {
-        if (q.includes(st) && combined.includes(st)) return true;
+      // Tokens semánticos de alta prioridad en WAPPY (nunca sobre tarjetas/contenedores largos ni botones de adjuntos)
+      if (combined.length <= 140 && !isAttachOrMenuControl) {
+        const strongTokens = [
+          'generar', 'analisis', 'analizar', 'informe', 'reintegrar', 'reactivar', 'retirar',
+          'guardar', 'exportar', 'importar', 'historial', 'descargar', 'plantilla',
+          'peligro', 'peligros', 'riesgo', 'riesgos', 'alcance', 'compromiso', 'compromisos',
+          'objetivo', 'objetivos', 'norma', 'normas', 'normatividad', 'decreto', 'responsable'
+        ];
+        for (const st of strongTokens) {
+          if (q.includes(st) && combined.includes(st)) return true;
+        }
       }
     }
 
     // 3. Alias específico para botones de Generar IA / Análisis en SGSSTToolbar
     const isAiGenQuery = /generar|analiz|informe|ia\b|reporte/i.test(q);
-    const isAiGenBtn = /generar\s+con\s+ia|generar\s+ia|ai-default|sparkles/i.test(combined) || id === 'ai-default';
+    const isAiGenBtn =
+      !isAttachOrMenuControl &&
+      combined.length <= 140 &&
+      (/generar\s+con\s+ia|generar\s+ia|ai-default|sparkles/i.test(combined) || id === 'ai-default');
     if (isAiGenQuery && isAiGenBtn) return true;
 
     // 4. Mapeo específico de campos de formularios SG-SST
@@ -890,50 +927,90 @@ export async function executeGUIAction(
   // ACCIÓN 2: HACER CLIC EN BOTONES O ELEMENTOS INTERACTIVOS
   if (action === 'click') {
     const rawQuery = String(detalle || texto || direccion || '').toLowerCase().trim();
-    const isAiGenRequest = /generar|analiz|informe|ia\b|reporte/i.test(rawQuery);
-
-    // Si es una petición de generación IA, disparar también el evento global de análisis
-    if (isAiGenRequest) {
-      window.dispatchEvent(new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: 'actual' } }));
-      window.dispatchEvent(new CustomEvent('wappy-generar-analisis-actual', { detail: { aplicativo: 'actual' } }));
-    }
+    const normalizedClickQuery = rawQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const isAiGenRequest =
+      /(generar(\s+(con\s+)?(ia|analisis|informe|reporte|diagnostico))?|analizar(\s+(con\s+)?ia)?|(analisis|informe|reporte)\s+(con\s+)?ia\b|\bai-default\b)/i.test(
+        normalizedClickQuery,
+      ) && !/\b(descargar|exportar|imprimir|copiar|eliminar|borrar|cerrar|ver|abrir)\b/i.test(normalizedClickQuery);
 
     if (index !== undefined && selectorMap.has(index)) {
-      el = selectorMap.get(index)!;
-    } else if (rawQuery) {
-      // 1. Si es petición de Generar IA, priorizar los botones oficiales de IA
-      if (isAiGenRequest) {
-        const aiButtons = Array.from(document.querySelectorAll<HTMLElement>(
-          '#ai-default, [data-action="ai-default"], [data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], button[title*="Generar"], button[aria-label*="Generar"]'
-        )).filter(isElementVisible);
-
-        if (aiButtons.length > 0) {
-          el = aiButtons[0];
-        }
+      const candidateEl = selectorMap.get(index)!;
+      if (isElementVisible(candidateEl)) {
+        el = candidateEl;
       }
+    } else if (rawQuery) {
+      // 1. Si es petición de Generar IA, buscar ÚNICAMENTE botones reales de generación IA (sin fallback a tarjetas de agentes ni botones de adjuntos)
+      if (isAiGenRequest) {
+        const normalizeBtnText = (s: string) =>
+          s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-      // 2. Buscar en selectorMap con matchesInteractiveTarget
-      if (!el) {
-        for (const [idx, itemEl] of selectorMap.entries()) {
-          if (matchesInteractiveTarget(itemEl, rawQuery)) {
-            el = itemEl;
-            targetIndex = idx;
-            break;
+        const officialAiButtons = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '#ai-default, [data-action="ai-default"], [data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"]'
+          ),
+        ).filter((btn) => isElementVisible(btn) && !btn.closest('.tenshi-widget-container'));
+
+        if (officialAiButtons.length > 0) {
+          el = officialAiButtons[0];
+        } else {
+          const buttonCandidates = Array.from(
+            document.querySelectorAll<HTMLElement>(
+              'button, [role="button"], input[type="button"], input[type="submit"]'
+            ),
+          ).filter((btn) => isElementVisible(btn) && !btn.closest('.tenshi-widget-container'));
+
+          for (const btn of buttonCandidates) {
+            const btnId = normalizeBtnText(btn.id || '');
+            const btnAria = normalizeBtnText(btn.getAttribute('aria-label') || '');
+            const btnTitle = normalizeBtnText(btn.getAttribute('title') || '');
+            const btnText = normalizeBtnText(btn.innerText || '');
+            if (btnId.includes('attach') || btnAria.includes('attach') || btnTitle.includes('adjuntar')) {
+              continue;
+            }
+            const labelPool = `${btnText} ${btnTitle} ${btnAria}`.trim();
+            if (!labelPool || labelPool.length > 140) continue;
+            if (/\bgenerar\b/i.test(labelPool) && /\b(ia|analisis|informe|reporte|diagnostico)\b/i.test(labelPool)) {
+              el = btn;
+              break;
+            }
           }
         }
-      }
 
-      // 3. Buscar en todos los elementos interactivos del DOM visible (incluyendo cursos, blogs, eventos y cards clickeables)
-      if (!el) {
-        const candidates = Array.from(document.querySelectorAll<HTMLElement>(
-          'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable], [data-course-id], [data-post-id], [data-event-id], [data-title], [data-tenshi-action], .cursor-pointer'
-        )).filter(isElementVisible);
+        if (!el) {
+          return {
+            success: false,
+            message: 'No se encontró un botón de Generar IA en la pantalla actual.',
+          };
+        }
 
-        for (const cand of candidates) {
-          if (cand.closest('.tenshi-widget-container')) continue;
-          if (matchesInteractiveTarget(cand, rawQuery)) {
-            el = cand;
-            break;
+        // Disparar eventos globales de análisis únicamente cuando sí existe un botón real de Generar IA en pantalla
+        window.dispatchEvent(new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: 'actual' } }));
+        window.dispatchEvent(new CustomEvent('wappy-generar-analisis-actual', { detail: { aplicativo: 'actual' } }));
+      } else {
+        // 2. Buscar en selectorMap con matchesInteractiveTarget
+        if (!el) {
+          for (const [idx, itemEl] of selectorMap.entries()) {
+            if (!isElementVisible(itemEl)) continue;
+            if (matchesInteractiveTarget(itemEl, rawQuery)) {
+              el = itemEl;
+              targetIndex = idx;
+              break;
+            }
+          }
+        }
+
+        // 3. Buscar en todos los elementos interactivos del DOM visible (incluyendo cursos, blogs, eventos y cards clickeables)
+        if (!el) {
+          const candidates = Array.from(document.querySelectorAll<HTMLElement>(
+            'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable], [data-course-id], [data-post-id], [data-event-id], [data-title], [data-tenshi-action], .cursor-pointer'
+          )).filter(isElementVisible);
+
+          for (const cand of candidates) {
+            if (cand.closest('.tenshi-widget-container')) continue;
+            if (matchesInteractiveTarget(cand, rawQuery)) {
+              el = cand;
+              break;
+            }
           }
         }
       }

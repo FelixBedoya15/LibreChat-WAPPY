@@ -1554,7 +1554,9 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSubmitting ? 'animate-pulse bg-teal-500' : 'bg-green-500'}`}
               />
-              <span className="truncate text-[11px] sm:text-xs text-text-secondary">{title}</span>
+              <span className="truncate text-[11px] sm:text-xs text-text-secondary">
+                {hasActiveSession ? (title?.trim() || 'Documento SG-SST') : 'Nuevo espacio Canvas'}
+              </span>
               {isSaving && (
                 <span className="shrink-0 text-[10px] italic text-text-tertiary">Guardando...</span>
               )}
