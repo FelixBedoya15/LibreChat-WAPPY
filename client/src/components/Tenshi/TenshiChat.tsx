@@ -160,6 +160,181 @@ export interface TenshiChatMessage {
   isFlowAck?: boolean;
 }
 
+const TENSHI_CONFIG_CACHE_KEY = 'wappy_tenshi_config_cache';
+
+interface CachedTenshiConfig {
+  isActive: boolean;
+  name?: string;
+  location?: string;
+  defaultAvatarId?: string;
+  defaultGender?: string;
+  defaultVoice?: string;
+  defaultPersonality?: string;
+  effectiveAvatar?: {
+    avatarId?: string;
+    name?: string;
+    gender?: string;
+    voice?: string;
+    personality?: string;
+  };
+  companyId?: string;
+  cachedAt?: number;
+}
+
+function readCachedTenshiConfig(
+  companyId?: string,
+  allowHeroFallback = false,
+): CachedTenshiConfig | undefined {
+  if (typeof window === 'undefined') {
+    return allowHeroFallback
+      ? { isActive: true, name: 'Tenshi', defaultAvatarId: 'gato' }
+      : undefined;
+  }
+
+  let cachedProfile: CachedTenshiConfig['effectiveAvatar'] | undefined;
+  let cachedAvatarId = '';
+
+  try {
+    const rawProfile = safeGetItem('wappy_active_avatar_profile');
+    if (rawProfile) {
+      const parsedProfile = JSON.parse(rawProfile);
+      if (parsedProfile && typeof parsedProfile === 'object') {
+        cachedProfile = parsedProfile;
+      }
+    }
+  } catch {
+    // ignore malformed avatar profile
+  }
+
+  try {
+    cachedAvatarId = safeGetItem('wappy_active_avatar_id') || '';
+  } catch {
+    // ignore
+  }
+
+  try {
+    const rawCache = safeGetItem(TENSHI_CONFIG_CACHE_KEY);
+    if (rawCache) {
+      const parsed = JSON.parse(rawCache);
+      if (parsed && typeof parsed === 'object' && typeof parsed.isActive === 'boolean') {
+        const normalizedCompanyId = (companyId || '').trim();
+        const cachedCompanyId =
+          typeof parsed.companyId === 'string' ? parsed.companyId.trim() : '';
+        const isSameCompany =
+          !normalizedCompanyId || !cachedCompanyId || normalizedCompanyId === cachedCompanyId;
+
+        if (isSameCompany) {
+          return {
+            isActive: parsed.isActive,
+            name: typeof parsed.name === 'string' ? parsed.name : cachedProfile?.name || 'Tenshi',
+            location: typeof parsed.location === 'string' ? parsed.location : undefined,
+            defaultAvatarId:
+              typeof parsed.defaultAvatarId === 'string'
+                ? parsed.defaultAvatarId
+                : cachedProfile?.avatarId || cachedAvatarId || 'gato',
+            defaultGender:
+              typeof parsed.defaultGender === 'string'
+                ? parsed.defaultGender
+                : cachedProfile?.gender,
+            defaultVoice:
+              typeof parsed.defaultVoice === 'string' ? parsed.defaultVoice : cachedProfile?.voice,
+            defaultPersonality:
+              typeof parsed.defaultPersonality === 'string'
+                ? parsed.defaultPersonality
+                : cachedProfile?.personality,
+            effectiveAvatar:
+              parsed.effectiveAvatar && typeof parsed.effectiveAvatar === 'object'
+                ? parsed.effectiveAvatar
+                : cachedProfile,
+            companyId: cachedCompanyId,
+            cachedAt: typeof parsed.cachedAt === 'number' ? parsed.cachedAt : undefined,
+          };
+        }
+
+        return {
+          isActive: parsed.isActive,
+          name: cachedProfile?.name || (typeof parsed.name === 'string' ? parsed.name : 'Tenshi'),
+          location: typeof parsed.location === 'string' ? parsed.location : undefined,
+          defaultAvatarId:
+            cachedProfile?.avatarId ||
+            cachedAvatarId ||
+            (typeof parsed.defaultAvatarId === 'string' ? parsed.defaultAvatarId : 'gato'),
+          effectiveAvatar:
+            cachedProfile ||
+            (parsed.effectiveAvatar && typeof parsed.effectiveAvatar === 'object'
+              ? parsed.effectiveAvatar
+              : undefined),
+          companyId: normalizedCompanyId,
+        };
+      }
+    }
+  } catch {
+    // ignore malformed config cache
+  }
+
+  if (cachedProfile || cachedAvatarId) {
+    return {
+      isActive: true,
+      name: cachedProfile?.name || 'Tenshi',
+      defaultAvatarId: cachedProfile?.avatarId || cachedAvatarId || 'gato',
+      defaultGender: cachedProfile?.gender,
+      defaultVoice: cachedProfile?.voice,
+      defaultPersonality: cachedProfile?.personality,
+      effectiveAvatar: cachedProfile,
+      companyId: (companyId || '').trim(),
+    };
+  }
+
+  if (allowHeroFallback) {
+    return {
+      isActive: true,
+      name: 'Tenshi',
+      defaultAvatarId: 'gato',
+      effectiveAvatar: undefined,
+      companyId: (companyId || '').trim(),
+    };
+  }
+
+  return undefined;
+}
+
+function persistTenshiConfigSnapshot(cfg: any, companyId?: string): void {
+  if (!cfg || typeof cfg !== 'object') return;
+  try {
+    const eff =
+      cfg.effectiveAvatar && typeof cfg.effectiveAvatar === 'object'
+        ? {
+            avatarId: cfg.effectiveAvatar.avatarId || cfg.defaultAvatarId || 'gato',
+            name: cfg.effectiveAvatar.name || cfg.name || 'Tenshi',
+            gender: cfg.effectiveAvatar.gender || cfg.defaultGender || 'masculino',
+            voice: cfg.effectiveAvatar.voice || cfg.defaultVoice || 'Puck',
+            personality: cfg.effectiveAvatar.personality || cfg.defaultPersonality || '',
+          }
+        : {
+            avatarId: cfg.defaultAvatarId || 'gato',
+            name: cfg.name || 'Tenshi',
+            gender: cfg.defaultGender || 'masculino',
+            voice: cfg.defaultVoice || 'Puck',
+            personality: cfg.defaultPersonality || '',
+          };
+    const snapshot: CachedTenshiConfig = {
+      isActive: cfg.isActive !== false,
+      name: cfg.name || eff.name || 'Tenshi',
+      location: typeof cfg.location === 'string' ? cfg.location : undefined,
+      defaultAvatarId: cfg.defaultAvatarId || eff.avatarId || 'gato',
+      defaultGender: cfg.defaultGender || eff.gender || 'masculino',
+      defaultVoice: cfg.defaultVoice || eff.voice || 'Puck',
+      defaultPersonality: cfg.defaultPersonality || eff.personality || '',
+      effectiveAvatar: eff,
+      companyId: (companyId || '').trim(),
+      cachedAt: Date.now(),
+    };
+    safeSetItem(TENSHI_CONFIG_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
 function formatFlowAckStartedContent(flowName: string, indicaciones?: string): string {
   const safeName = String(flowName || '').trim();
   const safeInd = String(indicaciones || '').trim();
@@ -6225,9 +6400,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     [activeCompanyId],
   );
 
+  const cachedInitialConfig = useMemo(
+    () => readCachedTenshiConfig(activeCompanyId, isMobileHeroMode),
+    [activeCompanyId, isMobileHeroMode],
+  );
+
   const {
     data: config,
     isError: isTenshiConfigError,
+    isPlaceholderData: isTenshiConfigPlaceholder,
     refetch: refetchTenshiConfig,
   } = useQuery(
     ['tenshiConfig', token, activeCompanyId],
@@ -6240,26 +6421,43 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     {
       enabled: isAuthenticated,
       staleTime: 5 * 60 * 1000,
+      placeholderData: () => readCachedTenshiConfig(activeCompanyId, isMobileHeroMode),
     },
   );
 
+  const effectiveConfig = isTenshiConfigError ? config : (config ?? cachedInitialConfig);
+
   useEffect(() => {
-    if (config) {
-      const eff = config.effectiveAvatar || {
-        avatarId: config.defaultAvatarId || 'gato',
-        name: config.name || 'Tenshi',
-        gender: config.defaultGender || 'masculino',
-        voice: config.defaultVoice || 'Puck',
-        personality: config.defaultPersonality || '',
-      };
-      setActiveAvatarProfile(eff);
-      safeSetItem('wappy_active_avatar_id', eff.avatarId || 'gato');
-      safeSetItem('wappy_active_avatar_profile', JSON.stringify(eff));
-      try {
-        window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
-      } catch (_) {}
+    if (!config || isTenshiConfigPlaceholder) {
+      return;
     }
-  }, [config]);
+    persistTenshiConfigSnapshot(config, activeCompanyId);
+    if (config.isActive === false) {
+      if (typeof document !== 'undefined') {
+        document.documentElement.dataset.tenshiHero = 'false';
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('tenshi-hero-state-change', { detail: { active: false } }),
+        );
+        window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+      }
+      return;
+    }
+    const eff = config.effectiveAvatar || {
+      avatarId: config.defaultAvatarId || 'gato',
+      name: config.name || 'Tenshi',
+      gender: config.defaultGender || 'masculino',
+      voice: config.defaultVoice || 'Puck',
+      personality: config.defaultPersonality || '',
+    };
+    setActiveAvatarProfile(eff);
+    safeSetItem('wappy_active_avatar_id', eff.avatarId || 'gato');
+    safeSetItem('wappy_active_avatar_profile', JSON.stringify(eff));
+    try {
+      window.dispatchEvent(new CustomEvent('wappy-avatar-updated', { detail: eff }));
+    } catch (_) {}
+  }, [config, isTenshiConfigPlaceholder, activeCompanyId]);
 
   const { data: historyData, refetch: refetchHistory } = useQuery(
     ['tenshiHistory', token, activeCompanyId],
@@ -6314,6 +6512,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           if (cfgRes?.data) {
+            persistTenshiConfigSnapshot(cfgRes.data, newCompId);
             const eff = cfgRes.data.effectiveAvatar || {
               avatarId: cfgRes.data.defaultAvatarId || 'gato',
               name: cfgRes.data.name || 'Tenshi',
@@ -7217,7 +7416,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   };
 
   const floatPosition =
-    positionClasses[(config?.location as keyof typeof positionClasses) || 'bottom-right'] || 'bottom-6 right-6';
+    positionClasses[(effectiveConfig?.location as keyof typeof positionClasses) || 'bottom-right'] ||
+    'bottom-6 right-6';
 
   const runChatTurn = async (currentMessages: TenshiChatMessage[]) => {
     setIsTyping(true);
@@ -8686,7 +8886,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const showVoiceModal = useRecoilValue(store.showVoiceModal);
   const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
 
-  // Notificar a Root.tsx cuando el Modo Protagonista ya está pintado en el DOM (2 frames RAF),
+  // Notificar a Root.tsx cuando el Modo Protagonista ya está pintado en el DOM (verificando montaje + 2 frames RAF),
   // para levantar la pantalla central de sincronización sin mostrar jamás las barras laterales ni el chat de fondo.
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -8694,38 +8894,78 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
       return;
     }
-    if (!config) return;
-    if (!config.isActive || !isMobileHeroMode || showVoiceModal || showLiveAnalysisModal) {
+    if (!effectiveConfig) return;
+    if (
+      effectiveConfig.isActive === false ||
+      !isMobileHeroMode ||
+      showVoiceModal ||
+      showLiveAnalysisModal
+    ) {
+      if (effectiveConfig.isActive === false && typeof document !== 'undefined') {
+        document.documentElement.dataset.tenshiHero = 'false';
+      }
       window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
       return;
     }
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+
+    let cancelled = false;
+    let rafId = 0;
+    let mountAttempts = 0;
+    const MAX_MOUNT_ATTEMPTS = 10;
+
+    const waitForHeroDomAndPaint = () => {
+      if (cancelled) return;
+      const heroEl = document.getElementById('tenshi-mobile-hero-container');
+      if (!heroEl && mountAttempts < MAX_MOUNT_ATTEMPTS) {
+        mountAttempts += 1;
+        rafId = window.requestAnimationFrame(waitForHeroDomAndPaint);
+        return;
+      }
+      rafId = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        rafId = window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          window.dispatchEvent(new CustomEvent('tenshi-hero-boot-complete'));
+        });
       });
-    });
+    };
+
+    waitForHeroDomAndPaint();
+
     return () => {
-      window.cancelAnimationFrame(raf1);
-      if (raf2) window.cancelAnimationFrame(raf2);
+      cancelled = true;
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
     };
   }, [
     isAuthenticated,
-    config,
+    effectiveConfig,
     isTenshiConfigError,
     isMobileHeroMode,
     showVoiceModal,
     showLiveAnalysisModal,
   ]);
 
-  if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
+  if (
+    !isAuthenticated ||
+    !effectiveConfig ||
+    effectiveConfig.isActive === false ||
+    showVoiceModal ||
+    showLiveAnalysisModal
+  ) {
     return null;
   }
 
   const resolvedHeroAvatarId =
-    config?.effectiveAvatar?.avatarId || activeAvatarProfile?.avatarId || config?.defaultAvatarId;
+    effectiveConfig?.effectiveAvatar?.avatarId ||
+    activeAvatarProfile?.avatarId ||
+    effectiveConfig?.defaultAvatarId;
   const resolvedHeroAvatarName =
-    config?.effectiveAvatar?.name || activeAvatarProfile?.name || config?.name || 'Tenshi';
+    effectiveConfig?.effectiveAvatar?.name ||
+    activeAvatarProfile?.name ||
+    effectiveConfig?.name ||
+    'Tenshi';
 
   const tenshiPortalContent = (
     <>
@@ -8835,7 +9075,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-0 w-screen z-[70] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden animate-in fade-in duration-200"
+          className="fixed inset-0 w-screen z-[70] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden opacity-100"
           style={{
             paddingBottom: isDesktopPanoramic
               ? '0px'
@@ -10573,7 +10813,10 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
               <div>
                 <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 leading-none">
-                  {activeAvatarProfile?.name || config?.effectiveAvatar?.name || config?.name || 'Tenshi'}
+                  {activeAvatarProfile?.name ||
+                    effectiveConfig?.effectiveAvatar?.name ||
+                    effectiveConfig?.name ||
+                    'Tenshi'}
                 </h3>
                 <p className="mt-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400">
                   {isTenshiSpeaking

@@ -26,6 +26,12 @@ import { hasActivePlan } from '~/utils/planAccess';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 const loadTenshiChatChunk = () => import('~/components/Tenshi/TenshiChat');
+if (
+  typeof window !== 'undefined' &&
+  (window.location.pathname === '/c/new' || window.location.pathname.startsWith('/c/'))
+) {
+  loadTenshiChatChunk().catch(() => {});
+}
 const TenshiChat = lazy(loadTenshiChatChunk);
 
 const playStartupSound = () => {
@@ -221,9 +227,13 @@ export default function Root() {
           #mobile-sidepanel-mask-group {
             display: none !important;
           }
+          #wappy-classic-workspace,
+          #wappy-mobile-bottom-nav-wrapper,
           #controls-nav,
           #artifacts-panel,
-          [data-panel-resize-handle-id] {
+          [data-panel-resize-handle-id],
+          [data-testid="side-panel"],
+          nav[aria-label="Navegación principal móvil"] {
             visibility: hidden !important;
             pointer-events: none !important;
             opacity: 0 !important;
@@ -267,7 +277,7 @@ export default function Root() {
     if (!showTenshiBootCurtain) return;
     const safetyTimer = setTimeout(() => {
       setTenshiHeroBootDone(true);
-    }, 4500);
+    }, 12000);
     return () => clearTimeout(safetyTimer);
   }, [showTenshiBootCurtain]);
 
@@ -316,7 +326,12 @@ export default function Root() {
             {showTenshiBootCurtain && renderThinkingCurtain(true)}
             <PromptGroupsProvider>
               <Banner onHeightChange={setBannerHeight} />
-              <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
+              <div
+                id="wappy-classic-workspace"
+                aria-hidden={showTenshiBootCurtain || undefined}
+                className={`flex${showTenshiBootCurtain ? ' invisible opacity-0 pointer-events-none select-none' : ''}`}
+                style={{ height: `calc(100dvh - ${bannerHeight}px)` }}
+              >
                 <div className={`relative flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                   <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
                   <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
@@ -326,7 +341,12 @@ export default function Root() {
                   </div>
                 </div>
               </div>
-              <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
+              <div
+                aria-hidden={showTenshiBootCurtain || undefined}
+                className={showTenshiBootCurtain ? 'invisible opacity-0 pointer-events-none' : undefined}
+              >
+                <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
+              </div>
             </PromptGroupsProvider>
           {config?.interface?.termsOfService?.modalAcceptance === true && (
             <TermsAndConditionsModal
