@@ -8094,7 +8094,7 @@ router.post('/email/send', requireApiKeyOrJwt, async (req, res) => {
       const User = mongoose.models.User || require('~/models/User');
       const senderUser = await User.findById(targetUserId).select('email').lean().catch(() => null);
       const senderEmail = String(senderUser?.email || req.user?.email || '').toLowerCase().trim();
-      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
+      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com', 'wappyinteractivo@gmail.com']);
       if (!allowedOwnerEmails.has(senderEmail) || targetTo.toLowerCase().trim() !== 'grupowappy@gmail.com') {
         logger.warn(`[MCP Bridge Privacy Firewall] 🛑 Correo de monitoreo bloqueado por privacidad para usuario ${senderEmail || targetUserId} -> ${targetTo}`);
         return res.json({ exito: true, suppressedForPrivacy: true });
@@ -9757,14 +9757,17 @@ function countAntigravityDaemons(userId, filterEnv = null) {
 
 /**
  * Mapa en memoria de promesas pendientes para generación prioritaria de imágenes vía Antigravity.
- * Clave: String(ordenId) -> { resolve, timer, claimTimer }
+ * Clave: String(ordenId) -> { resolve, timer, claimTimer, claimed }
  */
 const pendingAntigravityImageResolvers = new Map();
 
 /**
  * Prioridad #1 para generación de imágenes cuando Google Antigravity está conectado (countAntigravityDaemons > 0).
- * Si Antigravity no tiene daemon conectado, no reclama la orden en 10s, reporta fallo local o excede 42s,
- * devuelve { ok: false, reason } para que `executeFlowImageGeneration` haga respaldo automático inmediato a Google Flow Studio.
+ * - Si Antigravity no tiene daemon conectado o no reclama la orden en 12s, devuelve { ok: false, reason }
+ *   para respaldo rápido a Google Flow Studio.
+ * - Una vez reclamada por el daemon local (status 'in_progress' / ACK en /claim), concede hasta 210s (3.5 min)
+ *   para que el subagente de imagen genere y entregue el arte sin cortes prematuros.
+ * - Nunca sobrescribe a 'dismissed' si la orden ya está 'done'.
  */
 async function tryGenerateImageViaAntigravity({
   userId,
@@ -9818,19 +9821,39 @@ async function tryGenerateImageViaAntigravity({
 
       const claimTimer = setTimeout(async () => {
         try {
+          const entry = pendingAntigravityImageResolvers.get(ordenId);
+          if (entry && entry.claimed) return;
           const check = await KanbanTask.findById(ordenId).select('status').lean();
           if (!check || check.status === 'todo') {
-            await KanbanTask.updateOne({ _id: ordenId }, { $set: { status: 'dismissed' } }).catch(() => {});
+            await KanbanTask.updateOne(
+              { _id: ordenId, status: 'todo' },
+              { $set: { status: 'dismissed' } }
+            ).catch(() => {});
             finish({
               ok: false,
-              reason: 'El puente local de Antigravity no reclamó la solicitud de imagen en 10s (respaldo a Google Flow)',
+              reason: 'El puente local de Antigravity no reclamó la solicitud de imagen en 12s (respaldo a Google Flow)',
             });
+          } else if (entry) {
+            entry.claimed = true;
           }
         } catch (_) {}
-      }, 10000);
+      }, 12000);
 
       const timer = setTimeout(async () => {
         try {
+          const currentTask = await KanbanTask.findById(ordenId).select('status deliverable').lean().catch(() => null);
+          const alreadyDoneUrl = currentTask?.deliverable?.media?.publicUrl || currentTask?.deliverable?.urlDescarga;
+          if (currentTask && currentTask.status === 'done' && alreadyDoneUrl) {
+            finish({
+              ok: true,
+              publicUrl: alreadyDoneUrl,
+              filename: currentTask.deliverable?.media?.name || alreadyDoneUrl.split('/').pop() || `antigravity_${Date.now()}.png`,
+              mimeType: currentTask.deliverable?.media?.mimeType || 'image/png',
+              buffer: null,
+              model: 'Google Antigravity Studio (Prioridad #1)',
+            });
+            return;
+          }
           await KanbanTask.updateOne(
             { _id: ordenId, status: { $ne: 'done' } },
             { $set: { status: 'dismissed' } }
@@ -9838,14 +9861,15 @@ async function tryGenerateImageViaAntigravity({
         } catch (_) {}
         finish({
           ok: false,
-          reason: 'Tiempo límite de generación en Antigravity agotado (respaldo automático a Google Flow)',
+          reason: 'Tiempo límite de generación en Antigravity agotado tras 210s (respaldo automático a Google Flow)',
         });
-      }, 75000);
+      }, 210000);
 
       pendingAntigravityImageResolvers.set(ordenId, {
         resolve: finish,
         claimTimer,
         timer,
+        claimed: false,
       });
     });
 
@@ -11011,7 +11035,10 @@ router.post('/antigravity/ordenes/:id/dispatch-log', requireApiKeyOrJwt, async (
       if (pendingImg && typeof pendingImg.resolve === 'function') {
         try {
           if (mongoose.Types.ObjectId.isValid(ordenId)) {
-            await KanbanTask.updateOne({ _id: ordenId }, { $set: { status: 'dismissed' } }).catch(() => {});
+            await KanbanTask.updateOne(
+              { _id: ordenId, status: { $ne: 'done' } },
+              { $set: { status: 'dismissed' } }
+            ).catch(() => {});
           }
         } catch (_) {}
         pendingImg.resolve({
@@ -11060,6 +11087,18 @@ router.post('/antigravity/ordenes/:id/claim', requireApiKeyOrJwt, async (req, re
 
     if (!updated) {
       return res.json({ exito: true, claimed: false, reason: 'already_claimed_or_completed' });
+    }
+
+    const pendingImg = pendingAntigravityImageResolvers.get(updated._id.toString());
+    if (pendingImg) {
+      pendingImg.claimed = true;
+      if (pendingImg.claimTimer) {
+        clearTimeout(pendingImg.claimTimer);
+        pendingImg.claimTimer = null;
+      }
+      logger.info(
+        `[MCP Bridge] 🎨 Orden prioritaria de imagen ${updated._id} reclamada por Antigravity local (ventana de espera hasta 210s).`
+      );
     }
 
     return res.json({
@@ -11367,7 +11406,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       const User = mongoose.models.User || require('~/models/User');
       const ownerDoc = await User.findById(targetUserId).select('email').lean().catch(() => null);
       const ownerEmail = String(ownerDoc?.email || req.user?.email || '').toLowerCase().trim();
-      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
+      const allowedOwnerEmails = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com', 'wappyinteractivo@gmail.com']);
       if (!allowedOwnerEmails.has(ownerEmail)) {
         logger.warn(`[MCP Bridge Privacy Firewall] 🛑 Orden ${finalSourceModule} bloqueada por privacidad para usuario ${ownerEmail || targetUserId}`);
         return res.json({
@@ -11561,7 +11600,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
     // Si se consultan órdenes pendientes sin un ID específico, expirar tareas antiguas (> 10 min) y excluir image_priority
     if ((rawStatus === 'todo' || rawStatus === 'pendiente' || rawStatus === 'pendientes' || rawStatus === 'pending') && !targetQueryId) {
       const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
       await KanbanTask.updateMany(
         {
           user: targetUserId,
@@ -11569,7 +11608,7 @@ router.get('/antigravity/ordenes', requireApiKeyOrJwt, async (req, res) => {
           status: { $in: ['todo', 'in_progress'] },
           $or: [
             { createdAt: { $lt: tenMinAgo } },
-            { sourceModule: 'image_priority', createdAt: { $lt: twoMinAgo } },
+            { sourceModule: 'image_priority', createdAt: { $lt: fiveMinAgo } },
           ],
         },
         { $set: { status: 'dismissed' } }
@@ -11699,7 +11738,17 @@ async function handleAntigravityCompletarOrder(req, res) {
         !task.deliverable?.urlDescarga &&
         (task.deliverable?.formato === 'respuesta' || !task.deliverable?.formato));
 
-    if ((task.status === 'done' || task.status === 'dismissed') && !(incomingIsRichDeliverable && prevWasOnlyTextReply) && !incomingHasOriginalFile) {
+    const isLateImagePriorityWithMedia =
+      task.sourceModule === 'image_priority' &&
+      task.status !== 'done' &&
+      (incomingHasOriginalFile || Boolean(urlDescarga || fileUrl));
+
+    if (
+      (task.status === 'done' || task.status === 'dismissed') &&
+      !(incomingIsRichDeliverable && prevWasOnlyTextReply) &&
+      !incomingHasOriginalFile &&
+      !isLateImagePriorityWithMedia
+    ) {
       logger.info(`[MCP Bridge] Orden ${targetId} ya estaba en estado '${task.status}'. Ignorando llamada tardía/duplicada a /antigravity/completar.`);
       return res.status(200).json({
         exito: true,
@@ -11708,14 +11757,24 @@ async function handleAntigravityCompletarOrder(req, res) {
       });
     }
     if (task.sourceModule === 'image_priority' && !pendingAntigravityImageResolvers.has(task._id.toString())) {
-      task.status = 'dismissed';
-      await task.save().catch(() => {});
-      logger.info(`[MCP Bridge] Orden de imagen prioritaria ${targetId} completada tardíamente tras fallback a Google Flow. Ignorando para no duplicar en Tenshi.`);
-      return res.status(200).json({
-        exito: true,
-        duplicado: true,
-        mensaje: `La solicitud de imagen "${task.title}" ya fue resuelta por respaldo automático.`,
-      });
+      if (task.status === 'done' && (task.deliverable?.media?.publicUrl || task.deliverable?.urlDescarga)) {
+        logger.info(`[MCP Bridge] Orden de imagen prioritaria ${targetId} ya había sido entregada con imagen. Ignorando duplicado.`);
+        return res.status(200).json({
+          exito: true,
+          duplicado: true,
+          mensaje: `La solicitud de imagen "${task.title}" ya había sido entregada.`,
+        });
+      }
+      if (!incomingHasOriginalFile && !urlDescarga && !fileUrl) {
+        await KanbanTask.updateOne({ _id: task._id, status: { $ne: 'done' } }, { $set: { status: 'dismissed' } }).catch(() => {});
+        logger.info(`[MCP Bridge] Orden de imagen prioritaria ${targetId} completada tardíamente sin imagen adjunta. Ignorando.`);
+        return res.status(200).json({
+          exito: true,
+          duplicado: true,
+          mensaje: `La solicitud de imagen "${task.title}" ya fue resuelta por respaldo automático.`,
+        });
+      }
+      logger.info(`[MCP Bridge] 🎨 Imagen prioritaria ${targetId} llegó tras expirar espera síncrona; persistiendo y notificando en chat para no perder la imagen generada.`);
     }
 
     const nestedDeliverable = (entregable && typeof entregable === 'object')
@@ -12051,13 +12110,20 @@ async function handleAntigravityCompletarOrder(req, res) {
         }
       : undefined;
 
+    const shouldDeliverLatePriorityImage =
+      task.sourceModule === 'image_priority' && Boolean(savedPublicUrl || finalUrl);
+
     if (
-      task.sourceModule !== 'image_priority' &&
+      (task.sourceModule !== 'image_priority' || shouldDeliverLatePriorityImage) &&
       task.sourceModule !== 'healthcheck_e2e' &&
       task.sourceModule !== 'healthcheck_report'
     ) {
       try {
-        const tenshiBubbleContent = isOriginalFileCopy && mediaPayload
+        const latePriorityImgUrl = savedPublicUrl || finalUrl;
+        const latePriorityImgName = mediaPayload?.name || task.title || 'Imagen Antigravity';
+        const tenshiBubbleContent = shouldDeliverLatePriorityImage
+          ? `🎨 **Imagen lista desde Google Antigravity (${latePriorityImgName})**\n\n${finalSummary}\n\n![${latePriorityImgName}](${latePriorityImgUrl})`
+          : isOriginalFileCopy && mediaPayload
           ? mediaPayload.type === 'image' && savedPublicUrl
             ? `📎 **Imagen desde Google Antigravity (${mediaPayload.name})**\n\n${finalSummary}\n\n![${mediaPayload.name}](${savedPublicUrl})`
             : `📎 **Copia de Archivo Original desde tu PC (${mediaPayload.name})**\n\n${finalSummary}`

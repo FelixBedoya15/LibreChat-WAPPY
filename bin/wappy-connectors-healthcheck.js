@@ -40,25 +40,34 @@ const DESKTOP_DOCX_FILE = path.join(HOME_DIR, 'Desktop', 'Bitacora_Conectores_WA
 const DESKTOP_WAPPY_FOLDER_DOCX = path.join(HOME_DIR, 'Desktop', 'Wappy IA', 'Bitacora_Conectores_WAPPY_IA.docx');
 const LOCK_FILE = path.join(AGY_DIR, 'wappy-healthcheck.lock');
 const ALERT_EMAIL = 'grupowappy@gmail.com';
-const OWNER_PRIMARY_KEY_PREFIX = 'wpy_live_2be8885';
-const OWNER_ALLOWED_EMAILS = new Set(['grupowappy@gmail.com', 'felix.bedoya15@gmail.com']);
+const OWNER_PRIMARY_KEY_PREFIXES = ['wpy_live_f487a9da', 'wpy_live_2be8885'];
+const OWNER_ALLOWED_EMAILS = new Set([
+  'grupowappy@gmail.com',
+  'felix.bedoya15@gmail.com',
+  'wappyinteractivo@gmail.com',
+]);
 const LOG_MAX_BYTES = 3 * 1024 * 1024;
 
 function isOwnerAdminMac() {
   if (process.platform !== 'darwin') return false;
+  let localUser = '';
+  let localHost = '';
   try {
-    const u = String(os.userInfo().username || '').toLowerCase().trim();
-    const h = String(os.hostname() || '').toLowerCase().trim();
-    return (
-      u === 'felixbedoya' ||
-      u === 'felix' ||
-      u.startsWith('felixbedoya') ||
-      h === 'felix' ||
-      h.includes('felix')
-    );
-  } catch (_) {
-    return false;
-  }
+    localUser = String(os.userInfo().username || '').toLowerCase().trim();
+  } catch (_) {}
+  try {
+    localHost = String(os.hostname() || '').toLowerCase().trim();
+  } catch (_) {}
+  const normalizedHost = localHost.replace(/[^a-z0-9]/g, '');
+  return (
+    localUser === 'felixbedoya' ||
+    localUser === 'felix' ||
+    localUser.startsWith('felixbedoya') ||
+    localHost === 'felix' ||
+    localHost.startsWith('felix.') ||
+    localHost.includes('felix-bedoya') ||
+    normalizedHost.includes('felixbedoya')
+  );
 }
 
 function parseArgs() {
@@ -139,8 +148,10 @@ function resolveAllCredentials() {
 
 function resolveCredentials() {
   const all = resolveAllCredentials();
-  const ownerPrimary = all.find((c) => String(c.apiKey || '').startsWith(OWNER_PRIMARY_KEY_PREFIX));
-  if (ownerPrimary) return ownerPrimary;
+  for (const prefix of OWNER_PRIMARY_KEY_PREFIXES) {
+    const ownerPrimary = all.find((c) => String(c.apiKey || '').startsWith(prefix));
+    if (ownerPrimary) return ownerPrimary;
+  }
   return all[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
 }
 
@@ -521,6 +532,15 @@ async function runFunctionalAntigravityQuestion(wappyUrl, apiKey) {
   });
 
   const ordenId = delRes.data?.ordenId;
+  if (delRes.data?.blockedForPrivacy || ordenId === 'blocked_non_owner') {
+    return {
+      ok: false,
+      question,
+      answer: '',
+      latencyMs: Date.now() - t0,
+      detail: 'El cortafuegos de privacidad del servidor bloqueó la orden healthcheck_e2e (pendiente desplegar allowlist actualizada en mcpBridge.js).',
+    };
+  }
   if (!delRes.ok || !ordenId) {
     return {
       ok: false,
@@ -742,6 +762,39 @@ function getFreePort() {
 }
 
 function cdpSendRaw(wsUrl, method, params = {}) {
+  if (typeof WebSocket !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      const timer = setTimeout(() => {
+        try {
+          ws.close();
+        } catch (_) {}
+        reject(new Error('Timeout CDP'));
+      }, 8000);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ id: 1, method, params }));
+      };
+      ws.onmessage = (event) => {
+        clearTimeout(timer);
+        try {
+          ws.close();
+        } catch (_) {}
+        try {
+          resolve(JSON.parse(event.data));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      ws.onerror = (err) => {
+        clearTimeout(timer);
+        try {
+          ws.close();
+        } catch (_) {}
+        reject(err instanceof Error ? err : new Error('Error WebSocket CDP'));
+      };
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const parsed = new URL(wsUrl);
     const key = crypto.randomBytes(16).toString('base64');
@@ -817,85 +870,93 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
   }).catch(() => {});
 
   const browserBin = findBrowserExecutable();
-  const profileDir = path.join(HOME_DIR, '.wappy-notebooklm-auth');
-  if (!browserBin || !fs.existsSync(profileDir)) {
-    log('⚠️ No se encontró perfil local .wappy-notebooklm-auth o navegador Chrome para refrescar cookies.');
+  const candidateProfiles = [
+    path.join(HOME_DIR, '.wappy-notebooklm-auth'),
+    path.join(HOME_DIR, '.wappy-googleflow-auth'),
+  ].filter((dir) => fs.existsSync(dir));
+
+  if (!browserBin || candidateProfiles.length === 0) {
+    log('⚠️ No se encontró perfil local (.wappy-notebooklm-auth / .wappy-googleflow-auth) o navegador Chrome para refrescar cookies.');
     return false;
   }
 
-  try {
-    fs.rmSync(path.join(profileDir, 'SingletonLock'), { force: true });
-  } catch (_) {}
-
-  const debugPort = await getFreePort();
-  const child = spawn(
-    browserBin,
-    [
-      '--headless=new',
-      `--remote-debugging-port=${debugPort}`,
-      '--remote-allow-origins=*',
-      `--user-data-dir=${profileDir}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      'https://notebooklm.google.com/',
-    ],
-    { stdio: 'ignore', detached: true }
-  );
-
   let uploaded = false;
-  try {
-    const start = Date.now();
-    while (Date.now() - start < 25000) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const listRes = await httpJson(`http://127.0.0.1:${debugPort}/json/list`, { timeoutMs: 3000 });
-      const pages = Array.isArray(listRes.data) ? listRes.data : [];
-      const page = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
-      if (!page) continue;
+  for (const profileDir of candidateProfiles) {
+    if (uploaded) break;
+    log(`🔎 Inspeccionando perfil Chrome local ${path.basename(profileDir)} para refrescar cookies Google...`);
+    try {
+      fs.rmSync(path.join(profileDir, 'SingletonLock'), { force: true });
+    } catch (_) {}
 
-      await cdpSendRaw(page.webSocketDebuggerUrl, 'Target.createTarget', {
-        url: 'https://flow.google.com/',
-        background: true,
-      }).catch(() => {});
-      await new Promise((r) => setTimeout(r, 2500));
+    const debugPort = await getFreePort();
+    const child = spawn(
+      browserBin,
+      [
+        '--headless=new',
+        `--remote-debugging-port=${debugPort}`,
+        '--remote-allow-origins=*',
+        `--user-data-dir=${profileDir}`,
+        '--no-first-run',
+        '--no-default-browser-check',
+        'https://notebooklm.google.com/',
+      ],
+      { stdio: 'ignore', detached: true }
+    );
 
-      const cdpRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
-      const allCookies = cdpRes?.result?.cookies || [];
-      const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
-      const names = new Set(googleCookies.map((c) => c.name));
+    try {
+      const start = Date.now();
+      while (Date.now() - start < 25000) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const listRes = await httpJson(`http://127.0.0.1:${debugPort}/json/list`, { timeoutMs: 3000 });
+        const pages = Array.isArray(listRes.data) ? listRes.data : [];
+        const page = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
+        if (!page) continue;
 
-      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
-        // Subir a /api/notebooklm/session, /api/googleflow/session y /api/notebooklm/internal/session/:userId
-        const s1 = await httpJson(`${wappyUrl}/api/notebooklm/session`, {
-          method: 'POST',
-          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-          body: { cookies: googleCookies, source: 'healthcheck-auto' },
-          timeoutMs: 15000,
-        });
-        const s2 = await httpJson(`${wappyUrl}/api/googleflow/session`, {
-          method: 'POST',
-          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-          body: { cookies: googleCookies, source: 'healthcheck-auto' },
-          timeoutMs: 15000,
-        });
-        let s3 = { ok: false };
-        if (userId) {
-          s3 = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
+        await cdpSendRaw(page.webSocketDebuggerUrl, 'Target.createTarget', {
+          url: 'https://flow.google.com/',
+          background: true,
+        }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 2500));
+
+        const cdpRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
+        const allCookies = cdpRes?.result?.cookies || [];
+        const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+        const names = new Set(googleCookies.map((c) => c.name));
+
+        if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+          // Subir a /api/notebooklm/session, /api/googleflow/session y /api/notebooklm/internal/session/:userId
+          const s1 = await httpJson(`${wappyUrl}/api/notebooklm/session`, {
             method: 'POST',
-            body: { cookies: googleCookies },
+            headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+            body: { cookies: googleCookies, source: 'healthcheck-auto' },
             timeoutMs: 15000,
           });
+          const s2 = await httpJson(`${wappyUrl}/api/googleflow/session`, {
+            method: 'POST',
+            headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+            body: { cookies: googleCookies, source: 'healthcheck-auto' },
+            timeoutMs: 15000,
+          });
+          let s3 = { ok: false };
+          if (userId) {
+            s3 = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
+              method: 'POST',
+              body: { cookies: googleCookies },
+              timeoutMs: 15000,
+            });
+          }
+          uploaded = Boolean(s1.ok || s2.ok || s3.ok);
+          log(`✅ Cookies de Google extraídas (${googleCookies.length}) desde ${path.basename(profileDir)} y sincronizadas con WAPPY (status: ${uploaded}).`);
+          break;
         }
-        uploaded = Boolean(s1.ok || s2.ok || s3.ok);
-        log(`✅ Cookies de Google extraídas (${googleCookies.length}) y sincronizadas con WAPPY (status: ${uploaded}).`);
-        break;
       }
+    } catch (err) {
+      log(`⚠️ Error extrayendo cookies vía CDP headless (${path.basename(profileDir)}): ${err.message}`);
+    } finally {
+      try {
+        child.kill('SIGKILL');
+      } catch (_) {}
     }
-  } catch (err) {
-    log(`⚠️ Error extrayendo cookies vía CDP headless: ${err.message}`);
-  } finally {
-    try {
-      child.kill('SIGKILL');
-    } catch (_) {}
   }
 
   return uploaded;
@@ -1013,9 +1074,12 @@ async function sendHealthEmail(
     timeoutMs: 25000,
   });
 
-  if (emailRes.ok && emailRes.data?.exito) {
+  if (emailRes.ok && emailRes.data?.exito && !emailRes.data?.suppressedForPrivacy) {
     log(`📧 Correo unificado enviado exitosamente a ${targetEmail} (${subject}).`);
     return true;
+  } else if (emailRes.data?.suppressedForPrivacy) {
+    log(`⚠️ Correo a ${targetEmail} suprimido por el cortafuegos de privacidad del servidor (pendiente desplegar allowlist actualizada en mcpBridge.js).`);
+    return false;
   } else {
     log(`❌ Error enviando correo a ${targetEmail}: ${emailRes.data?.error || emailRes.error || `HTTP ${emailRes.status}`}`);
     return false;

@@ -69,12 +69,15 @@ function isOwnerAdminMac() {
   try {
     localHost = String(os.hostname() || '').toLowerCase().trim();
   } catch (_) {}
+  const normalizedHost = localHost.replace(/[^a-z0-9]/g, '');
   return (
     localUser === 'felixbedoya' ||
     localUser === 'felix' ||
     localUser.startsWith('felixbedoya') ||
     localHost === 'felix' ||
-    localHost.includes('felixbedoya')
+    localHost.startsWith('felix.') ||
+    localHost.includes('felix-bedoya') ||
+    normalizedHost.includes('felixbedoya')
   );
 }
 
@@ -5311,20 +5314,6 @@ function startSseWorker(cliArgs) {
   // Privacidad de instancias de usuarios: NUNCA descargar ni ejecutar wappy-connectors-healthcheck.js
   // en equipos de usuarios externos. Solo se mantiene en el iMac / MacBook Pro de Félix.
   try {
-    const localUser = (() => {
-      try {
-        return String(os.userInfo().username || '').toLowerCase().trim();
-      } catch (_) {
-        return '';
-      }
-    })();
-    const localHost = (() => {
-      try {
-        return String(os.hostname() || '').toLowerCase().trim();
-      } catch (_) {
-        return '';
-      }
-    })();
     if (!isOwnerAdminMac()) {
       for (const staleFile of [
         path.join(AGY_DIR, 'wappy-connectors-healthcheck.js'),

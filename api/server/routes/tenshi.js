@@ -129,19 +129,502 @@ async function findMatchingBlogPost(query) {
     return null;
 }
 
-function withGeminiTimeout(promise, timeoutMs = 15000, label = 'Gemini generateContent') {
+function withGeminiTimeout(promise, timeoutMs = 19000, label = 'Gemini generateContent') {
     let timer = null;
+    const safePromise = Promise.resolve(promise);
+    // Evitar UnhandledPromiseRejection si Gemini rechaza después de vencer el timeout local
+    safePromise.catch(() => {});
     const timeoutPromise = new Promise((_, reject) => {
         timer = setTimeout(() => {
             const err = new Error(`[Tenshi Timeout] ${label} superó ${timeoutMs}ms`);
             err.status = 504;
+            err.isTimeout = true;
             reject(err);
         }, timeoutMs);
     });
     return Promise.race([
-        Promise.resolve(promise).finally(() => clearTimeout(timer)),
+        safePromise.finally(() => clearTimeout(timer)),
         timeoutPromise,
     ]);
+}
+
+function extractVisualMediaOptions(rawText = '') {
+    const text = String(rawText || '').trim();
+    let aspectRatio = null;
+    if (/\b(9\s*[:x×]\s*16|vertical|reel|stories|historia|tik\s*tok|shorts)\b/i.test(text)) {
+        aspectRatio = '9:16';
+    } else if (/\b(1\s*[:x×]\s*1|cuadrad[oa]|instagram\s+post)\b/i.test(text)) {
+        aspectRatio = '1:1';
+    } else if (/\b4\s*[:x×]\s*3\b/i.test(text)) {
+        aspectRatio = '4:3';
+    } else if (/\b3\s*[:x×]\s*4\b/i.test(text)) {
+        aspectRatio = '3:4';
+    } else if (/\b(16\s*[:x×]\s*9|horizontal|panor[aá]mic[oa]|widescreen)\b/i.test(text)) {
+        aspectRatio = '16:9';
+    }
+
+    let style = null;
+    if (/\b(afiche|p[oó]ster|poster|cartel|campa[ñn]a\s+de\s+seguridad|se[ñn]alizaci[oó]n|flyer)\b/i.test(text)) {
+        style = 'afiche_seguridad';
+    } else if (/\b(3d|render\s*3d|pixar|isom[eé]tric[oa]|voxel|chibi)\b/i.test(text)) {
+        style = '3d_render';
+    } else if (/\b(ilustraci[oó]n|ilustracion|diagrama|infograf[ií]a|vector|esquema|dibujo|caricatura|c[oó]mic)\b/i.test(text)) {
+        style = 'ilustracion_tecnica';
+    } else if (/\b(fotorrealista|realista|hiperrealista|fotograf[ií]a)\b/i.test(text)) {
+        style = 'fotorrealista';
+    }
+
+    let cameraMotion = null;
+    if (/\b(zoom\s*out|alej[aá]ndose|retroceso)\b/i.test(text)) {
+        cameraMotion = 'zoom_out';
+    } else if (/\b([oó]rbita|orbit|girando|360)\b/i.test(text)) {
+        cameraMotion = 'orbit';
+    } else if (/\b(pan\s*right|paneo\s+(?:a\s+la\s+)?derecha)\b/i.test(text)) {
+        cameraMotion = 'pan_right';
+    } else if (/\b(pan\s*left|paneo\s+(?:a\s+la\s+)?izquierda)\b/i.test(text)) {
+        cameraMotion = 'pan_left';
+    } else if (/\b(zoom\s*in|acerc[aá]ndose)\b/i.test(text)) {
+        cameraMotion = 'zoom_in';
+    }
+
+    const skipAntigravity = /\b(sin\s+antigravity|solo\s+(?:con\s+)?(?:google\s+)?flow|directo\s+(?:en|con)\s+(?:google\s+)?flow)\b/i.test(text);
+    const forceVideo = /\b(v[ií]deo|video|clip(?:\s+de\s+v[ií]deo)?|cortometraje)\b/i.test(text);
+    const forceImage = /\b(im[aá]gen(?:es)?|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|cartel|flyer|banner|infograf[ií]a|dibujo|render(?:\s*3d)?)\b/i.test(text);
+
+    return {
+        aspectRatio,
+        style,
+        cameraMotion,
+        skipAntigravity,
+        forceVideo,
+        forceImage,
+    };
+}
+
+function cleanVisualMediaPrompt(rawText = '') {
+    const trimmed = String(rawText || '').trim();
+    if (!trimmed) return '';
+
+    let cleaned = trimmed
+        .replace(/^[¿¡\s]+|[?!.\s]+$/g, '')
+        .replace(
+            /^(?:(?:por\s+favor|porfa(?:vor)?|porfis|oye|hola|tenshi|suri|me\s+puedes|puedes|podr[ií]as|quiero\s+que\s+(?:me\s+)?|necesito\s+que\s+(?:me\s+)?)\s*[,:]?\s*)+/i,
+            ''
+        )
+        .replace(
+            /^(?:(?:crea(?:me|r)?|cr[eé]ame|genera(?:me|r)?|gen[eé]rame|haz(?:me)?|h[aá]zme|hacer|dise[ñn]a(?:me|r)?|dis[eé][ñn]ame|dibuja(?:me|r)?|dib[uú]jame|ilustra(?:me|r)?|produce|renderiza(?:me|r)?|elabora(?:me|r)?|quiero|necesito|dame|reg[aá]lame)\s+(?:por\s+favor\s+|porfa\s+)?(?:(?:con|en|usando|por|v[ií]a)\s+(?:google\s+)?(?:antigravity|flow(?:\s+studio)?|imagen|veo|nano\s+banana)\s+)?)?(?:una?|un|el|la)?\s*(?:im[aá]gen(?:es)?|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|cartel|flyer|banner|infograf[ií]a|dibujo|render(?:\s*3d)?|v[ií]deo|video|clip(?:\s+de\s+v[ií]deo)?|cortometraje|animaci[oó]n(?:\s+en\s+v[ií]deo)?)\s*(?:(?:con|en|usando|por|v[ií]a)\s+(?:google\s+)?(?:antigravity|flow(?:\s+studio)?|imagen|veo|nano\s+banana)\s*)*(?:(?:de|sobre|acerca\s+de|mostrando|donde|que\s+muestre|representando)\s+)?/i,
+            ''
+        )
+        .replace(
+            /\s*(?:(?:pero\s+)?(?:con|usando|en|por|v[ií]a|desde|solo\s+con)\s+(?:google\s+)?(?:antigravity|flow(?:\s+studio)?|nano\s+banana))\s*[.!?]*$/i,
+            ''
+        )
+        .replace(/^[¿¡\s:,;-]+|[?!.\s]+$/g, '')
+        .trim();
+
+    if (cleaned.length < 4) {
+        cleaned = trimmed.replace(/^[¿¡\s]+|[?!\s]+$/g, '').trim();
+    }
+    return cleaned;
+}
+
+function isExplicitVisualMediaRetryMessage(rawText = '') {
+    const trimmed = String(rawText || '').trim();
+    if (!trimmed || trimmed.length > 120) return false;
+    if (
+        /\b(arl|sura|positiva|bol[ií]var|colmena|axa|colpatria|simit|alturas|antecedentes|incapacidad|c[eé]dula|certificado|informe|reporte|matriz|flujo|trabajador|trabajadores|empresa|correo|drive|agenda|reuni[oó]n|curso|blog)\b/i.test(
+            trimmed
+        )
+    ) {
+        return false;
+    }
+    const retryModifier =
+        '(?:nuevamente|de\\s+nuevo|otra\\s+vez|(?:pero\\s+|ahora\\s+)?(?:solo\\s+)?(?:con|usando|en|v[ií]a)\\s+(?:google\\s+)?(?:antigravity|flow(?:\\s+studio)?|vertical|horizontal|cuadrad[oa]|3d|afiche|p[oó]ster|poster|video|v[ií]deo|imagen|9\\s*:\\s*16|16\\s*:\\s*9|1\\s*:\\s*1))';
+    const retryPattern = new RegExp(
+        `^(?:(?:porfa(?:vor)?|por\\s+favor|tenshi|suri|oye)\\s*[,:]?\\s*)*(?:` +
+            `(?:int[eé]ntal[oa]|intenta|vuelve\\s+a\\s+intentar(?:lo|la)?|reintenta(?:r|lo|la)?|prueba(?:lo|la)?|pru[eé]bal[oa]|hazl[oa]|h[aá]zmel[oa]|cr[eé]al[oa]|gen[eé]ral[oa]|dale|rep[ií]te(?:lo|la)?)` +
+            `(?:\\s+(?:por\\s+favor|porfa))?(?:\\s+${retryModifier}){1,3}` +
+            `|(?:reintenta(?:r|lo|la)?|vuelve\\s+a\\s+intentar(?:lo|la)?|otra\\s+vez|de\\s+nuevo|nuevamente|int[eé]ntal[oa])` +
+            `|(?:(?:usa(?:ndo)?|con|hazl[oa]\\s+con|solo\\s+con)\\s+(?:google\\s+)?(?:antigravity|flow(?:\\s+studio)?)(?:\\s+${retryModifier}){0,2})` +
+            `|(?:(?:ahora\\s+)?en\\s+(?:vertical|horizontal|cuadrad[oa]|3d|video|v[ií]deo|9\\s*:\\s*16|16\\s*:\\s*9|1\\s*:\\s*1)(?:\\s+${retryModifier}){0,2})` +
+            `)[!.\\s,?]*$`,
+        'i'
+    );
+    return retryPattern.test(trimmed);
+}
+
+function hasAnyVisualMediaCreationCue(rawText = '') {
+    const text = String(rawText || '').trim();
+    if (!text) return false;
+    const hasActionVerb =
+        /\b(crea(?:me|r)?|cr[eé]ame|genera(?:me|r)?|gen[eé]rame|haz(?:me)?|h[aá]zme|hacer|dise[ñn]a(?:me|r)?|dis[eé][ñn]ame|dibuja(?:me|r)?|dib[uú]jame|ilustra(?:me|r)?|produce|renderiza(?:me|r)?|elabora(?:me|r)?|quiero|necesito|dame|reg[aá]lame)\b/i.test(
+            text
+        );
+    const hasMediaNoun =
+        /\b(im[aá]gen(?:es)?|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|cartel|flyer|banner|infograf[ií]a|dibujo|render(?:\s*3d)?|v[ií]deo|video|clip(?:\s+de\s+v[ií]deo)?|cortometraje|animaci[oó]n(?:\s+en\s+v[ií]deo)?)\b/i.test(
+            text
+        );
+    if (hasActionVerb && hasMediaNoun) {
+        // Excluir preguntas de análisis de archivos adjuntos o certificados
+        if (/\b(analiza|revisa|lee|transcribe|describe|audita|verifica|certificado\s+de\s+arl|certificado\s+de\s+alturas)\b/i.test(text)) {
+            return false;
+        }
+        return true;
+    }
+    return /^(?:por\s+favor\s+|porfa\s+)?(?:una?|un)\s+(?:im[aá]gen|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|v[ií]deo|video|clip)\s+(?:de|sobre|con|mostrando)\b/i.test(
+        text
+    );
+}
+
+function parseDirectVisualMediaRequest(rawText = '', { allowCompound = false, hasCurrentAttachment = false } = {}) {
+    const trimmed = String(rawText || '').trim();
+    if (!trimmed || trimmed.startsWith('[RESULTADO_GUI]')) return null;
+
+    // Excluir preguntas informativas, de navegación o de mera capacidad sin escena
+    if (
+        /^\s*¿?\s*(?:c[oó]mo\s+(?:puedo|se\s+puede|hago|crear|generar)|qu[eé]\s+es|expl[ií]came|cu[aá]l\s+es|abre|abrir|ll[eé]vame|ir\s+a|navega(?:r)?|mu[eé]strame\s+mis)\b/i.test(
+            trimmed
+        ) ||
+        /^\s*¿?\s*(?:t[uú]\s+)?(?:puedes|sabes|eres\s+capaz\s+de)\s+(?:crear|generar|hacer|dise[ñn]ar)\s+(?:im[aá]genes?|fotos?|v[ií]deos?|videos?|afiches?)\s*\??\s*$/i.test(
+            trimmed
+        )
+    ) {
+        return null;
+    }
+
+    // Excluir análisis/auditoría de archivos o fotos adjuntas en el turno actual
+    if (
+        /\b(analiza(?:r)?|revisa(?:r)?|lee(?:r)?|transcribe|transcribir|describe|describir|audita(?:r)?|verifica(?:r)?|extrae(?:r)?|qu[eé]\s+(?:dice|ves|hay))\b/i.test(
+            trimmed
+        ) &&
+        (hasCurrentAttachment || /\b(est[ae]\s+(?:im[aá]gen|foto|captura|archivo|documento|pdf)|adjunt[oa])\b/i.test(trimmed))
+    ) {
+        return null;
+    }
+
+    // Nunca interceptar solicitudes explícitas de certificados oficiales / consultas de portales
+    if (
+        /\b(certificado\s+(?:de\s+)?(?:arl|afiliaci[oó]n|alturas|sena|mintrabajo|eps)|descarg(?:a|ar)\s+(?:el\s+)?certificado)\b/i.test(
+            trimmed
+        )
+    ) {
+        return null;
+    }
+
+    // En fast-path (antes de Gemini) evitar secuestrar entregables documentales o tareas multi-paso
+    if (!allowCompound) {
+        if (
+            /\b(informe|reporte|documento|word|docx|excel|xlsx|hoja\s+de\s+c[aá]lculo|\bpdf\b|canvas|lienzo|aplicativo|dashboard|\bhtml\b|p[aá]gina\s+web|c[oó]digo\s+qr|\bqr\b|presentaci[oó]n|diapositivas|powerpoint|slides|curso\s+lms|art[ií]culo\s+de\s+blog|flujo\s+de\s+trabajo|automatizaci[oó]n|matriz\s+(?:gtc|pesv|legal|ipevr|de\s+riesgos|de\s+peligros|qu[ií]mica)|estudio\s+de\s+puesto|evaluaci[oó]n\s+ergon[oó]mica)\b/i.test(
+                trimmed
+            ) ||
+            /\by\s+(?:env[ií]a(?:lo|la|me)?|m[aá]nda(?:lo|la|me)?|guarda(?:lo|la)?|sube(?:lo|la)?|consulta|verifica|revisa|abre|crea\s+un\s+(?:informe|correo|evento|flujo))\b/i.test(
+                trimmed
+            )
+        ) {
+            return null;
+        }
+    }
+
+    const directVerbImageRe =
+        /\b(?:crea(?:me|r)?|cr[eé]ame|genera(?:me|r)?|gen[eé]rame|haz(?:me)?|h[aá]zme|hacer|dise[ñn]a(?:me|r)?|dis[eé][ñn]ame|dibuja(?:me|r)?|dib[uú]jame|ilustra(?:me|r)?|produce|renderiza(?:me|r)?|elabora(?:me|r)?|quiero|necesito|dame|reg[aá]lame)\b[\s\S]{0,42}?\b(im[aá]gen(?:es)?|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|cartel|flyer|banner|infograf[ií]a|dibujo|render(?:\s*3d)?|caricatura)\b/i;
+    const directVerbVideoRe =
+        /\b(?:crea(?:me|r)?|cr[eé]ame|genera(?:me|r)?|gen[eé]rame|haz(?:me)?|h[aá]zme|hacer|produce|graba(?:me|r)?|anima(?:me|r)?|renderiza(?:me|r)?|elabora(?:me|r)?|quiero|necesito|dame)\b[\s\S]{0,42}?\b(v[ií]deo|video|clip(?:\s+de\s+v[ií]deo)?|cortometraje|animaci[oó]n\s+en\s+v[ií]deo)\b/i;
+    const leadingImageRe =
+        /^(?:por\s+favor\s+|porfa\s+)?(?:una?|un)\s+(?:im[aá]gen|foto(?:graf[ií]a)?|ilustraci[oó]n|afiche|p[oó]ster|poster|cartel|flyer|infograf[ií]a|dibujo|render(?:\s*3d)?)\s+(?:de|sobre|con|mostrando)\s+\S+/i;
+    const leadingVideoRe =
+        /^(?:por\s+favor\s+|porfa\s+)?(?:un)\s+(?:v[ií]deo|video|clip(?:\s+de\s+v[ií]deo)?|cortometraje)\s+(?:de|sobre|con|mostrando)\s+\S+/i;
+
+    const imgMatch = trimmed.match(directVerbImageRe) || trimmed.match(leadingImageRe);
+    const vidMatch = trimmed.match(directVerbVideoRe) || trimmed.match(leadingVideoRe);
+    if (!imgMatch && !vidMatch) return null;
+
+    let isVideo = false;
+    if (vidMatch && !imgMatch) {
+        isVideo = true;
+    } else if (vidMatch && imgMatch) {
+        isVideo = (vidMatch.index ?? 9999) < (imgMatch.index ?? 9999);
+    }
+
+    const prompt = cleanVisualMediaPrompt(trimmed);
+    if (!prompt || prompt.length < 4 || /^(?:esto|eso|aquello|algo|una?\s+im[aá]gen|un\s+v[ií]deo)$/i.test(prompt)) {
+        return null;
+    }
+
+    const opts = extractVisualMediaOptions(trimmed);
+    return {
+        isVideo,
+        prompt,
+        aspectRatio: opts.aspectRatio || '16:9',
+        style: opts.style || 'fotorrealista',
+        cameraMotion: opts.cameraMotion || 'zoom_in',
+        skipAntigravity: Boolean(opts.skipAntigravity),
+        recoveredFromHistory: false,
+    };
+}
+
+function detectVisualMediaGenerationIntent(
+    lastText = '',
+    allMessages = [],
+    { allowCompound = false, hasCurrentAttachment = false } = {}
+) {
+    const direct = parseDirectVisualMediaRequest(lastText, { allowCompound, hasCurrentAttachment });
+    if (direct) return direct;
+
+    if (!isExplicitVisualMediaRetryMessage(lastText) || !Array.isArray(allMessages) || allMessages.length < 2) {
+        return null;
+    }
+
+    // Retroceder por los mensajes anteriores del usuario saltando solo reintentos consecutivos;
+    // detenerse inmediatamente en el primer mensaje real (no reintento) para evitar reutilizar contexto antiguo ajeno.
+    let retriesSkipped = 0;
+    for (let idx = allMessages.length - 2; idx >= 0; idx--) {
+        const msg = allMessages[idx];
+        if (!msg || msg.role !== 'user') continue;
+        const prevText = String(msg.content || '').trim();
+        if (!prevText || prevText.startsWith('[RESULTADO_GUI]')) continue;
+
+        if (isExplicitVisualMediaRetryMessage(prevText) && retriesSkipped < 3) {
+            retriesSkipped++;
+            continue;
+        }
+
+        const prevMedia = parseDirectVisualMediaRequest(prevText, {
+            allowCompound: true,
+            hasCurrentAttachment: false,
+        });
+        if (!prevMedia) {
+            return null;
+        }
+
+        const currentOverrides = extractVisualMediaOptions(lastText);
+        const resolvedIsVideo = currentOverrides.forceVideo
+            ? true
+            : currentOverrides.forceImage
+              ? false
+              : prevMedia.isVideo;
+
+        return {
+            isVideo: resolvedIsVideo,
+            prompt: prevMedia.prompt,
+            aspectRatio: currentOverrides.aspectRatio || prevMedia.aspectRatio || '16:9',
+            style: currentOverrides.style || prevMedia.style || 'fotorrealista',
+            cameraMotion: currentOverrides.cameraMotion || prevMedia.cameraMotion || 'zoom_in',
+            skipAntigravity: currentOverrides.skipAntigravity || prevMedia.skipAntigravity || false,
+            recoveredFromHistory: true,
+            originalPromptMessage: prevText,
+        };
+    }
+
+    return null;
+}
+
+async function executeDirectFlowMediaForTenshi({
+    isVideo = false,
+    prompt = '',
+    aspectRatio = '16:9',
+    style = 'fotorrealista',
+    cameraMotion = 'zoom_in',
+    skipAntigravity = false,
+    userId,
+    companyId = null,
+}) {
+    const {
+        executeFlowImageGeneration,
+        executeFlowVideoGeneration,
+        buildFlowStudioCanvasHtml,
+    } = require('./googleflow');
+
+    const mediaRes = isVideo
+        ? await executeFlowVideoGeneration({
+              userId,
+              companyId,
+              prompt,
+              aspectRatio,
+              cameraMotion,
+          })
+        : await executeFlowImageGeneration({
+              userId,
+              companyId,
+              prompt,
+              aspectRatio,
+              style,
+              skipAntigravity,
+          });
+
+    const studioHtml = buildFlowStudioCanvasHtml(mediaRes);
+    const usedAntigravity = /antigravity/i.test(String(mediaRes?.model || ''));
+    const engineLabel = mediaRes?.model || (usedAntigravity ? 'Google Antigravity Studio' : 'Google Flow Studio');
+    const safeAlt =
+        String(prompt || 'Imagen generada')
+            .replace(/[\r\n\[\]()]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 80) || 'Imagen Google Flow';
+    const flowMd = isVideo
+        ? `[🎬 Reproducir Video MP4](${mediaRes.publicUrl})`
+        : `![${safeAlt}](${mediaRes.publicUrl})`;
+    const fileObj = {
+        title: isVideo
+            ? 'Video Google Flow Studio'
+            : usedAntigravity
+              ? 'Imagen Google Antigravity Studio'
+              : 'Imagen Google Flow Studio',
+        fileType: 'html',
+        content: studioHtml,
+        canvasId: `tenshi-flow-${userId}-${Date.now()}`,
+    };
+    const responseText = isVideo
+        ? `¡Listo! He generado tu video con **${engineLabel}** (formato **${mediaRes.aspectRatio || aspectRatio}**):\n\n${flowMd}\n\nPuedes reproducirlo aquí mismo o abrirlo en el Canvas de Tenshi para descargarlo en MP4.`
+        : `¡Listo! He generado tu imagen con **${engineLabel}** (formato **${mediaRes.aspectRatio || aspectRatio}**):\n\n${flowMd}\n\nPuedes verla en detalle o abrirla en el Canvas de Tenshi para descargarla en alta resolución.`;
+
+    return {
+        mediaRes,
+        studioHtml,
+        fileObj,
+        flowMd,
+        publicUrl: mediaRes.publicUrl,
+        engineLabel,
+        responseText,
+    };
+}
+
+function isFlowMatchValidatedFor503Rescue({ flow, matchRes, userText = '', attachedMedia = null, attachedNames = '' }) {
+    if (!flow || !flow._id) {
+        return { allowed: false, reason: 'invalid_flow' };
+    }
+    const text = String(userText || '').trim();
+    const combinedWithAttachments = `${text} ${String(attachedNames || '').trim()}`.trim();
+
+    // 1. JAMÁS ejecutar un flujo de portales/ARL/SG-SST cuando el usuario pidió crear una imagen, afiche o video
+    if (hasAnyVisualMediaCreationCue(text)) {
+        return { allowed: false, reason: 'visual_media_intent' };
+    }
+
+    // 2. Bloquear coincidencias débiles por palabras genéricas en la descripción del flujo (causa raíz del falso positivo ARL)
+    const matchSource = String(matchRes?.matchSource || '').toLowerCase();
+    const matchScore = Number(matchRes?.score || 0);
+    if (matchSource === 'description') {
+        return { allowed: false, reason: 'weak_description_match' };
+    }
+    if ((matchSource === 'name' || matchSource === 'voice') && matchScore > 0 && matchScore < 70) {
+        return { allowed: false, reason: `low_score_${matchScore}` };
+    }
+
+    const flowKey = String(flow.key || flow.presetKey || flow.systemPresetKey || '').toLowerCase();
+    const flowName = String(flow.name || '').toLowerCase();
+    const flowInputs = Array.isArray(flow?.workflowNodes?.inputs) ? flow.workflowNodes.inputs.map(String) : [];
+
+    const textNoNormative = text.replace(/\b20223040040595\b/g, ' ');
+    const hasExplicitCedula = /(?:(?<!\d)\d{6,11}(?!\d)|\b\d{1,3}(?:\.\d{3}){2,3}\b)/.test(textNoNormative);
+    const hasVerificationIntent =
+        /\b(consultar?|consulta|verificar?|verificaci[oó]n|validar?|validaci[oó]n|revisar?|descargar?|obtener|sacar|emitir|certificado|afiliaci[oó]n|afiliado|vigencia|estado\s+de\s+afiliaci[oó]n)\b/i.test(
+            text
+        );
+
+    // 3. Evidencia textual inequívoca para Flujo ARL
+    const isArlFlow =
+        flowKey === 'tenshi_flow_verificacion_arl_cedula' ||
+        (flowInputs.length === 1 && flowInputs[0] === 'scraper_agy_arl_directo') ||
+        (/\barl\b/i.test(flowName) && !/360/i.test(flowName));
+    if (isArlFlow) {
+        const hasExplicitArlKeyword =
+            /\b(arl|certificado\s+de\s+afiliaci[oó]n|afiliaci[oó]n\s+(?:a\s+)?(?:la\s+)?arl|sura|positiva|seguros?\s+bol[ií]var|bol[ií]var|colmena|axa|colpatria)\b/i.test(
+                text
+            ) || (/\briesgos?\s+laborales?\b/i.test(text) && hasVerificationIntent);
+        const hasCedulaPlusIntent = hasExplicitCedula && hasVerificationIntent;
+        if (!hasExplicitArlKeyword && !hasCedulaPlusIntent) {
+            return { allowed: false, reason: 'missing_arl_evidence' };
+        }
+        return { allowed: true, reason: 'verified_arl_evidence' };
+    }
+
+    // 4. Evidencia textual inequívoca para Alturas / Confinados portal MinTrabajo/SENA
+    const isAlturasPortalFlow =
+        flowKey === 'tenshi_flow_verificacion_alturas_cedula' ||
+        (flowInputs.length === 1 && flowInputs[0] === 'scraper_agy_alto_riesgo');
+    if (isAlturasPortalFlow) {
+        const hasAlturasKeyword = /\b(alturas?|confinados?|mintrabajo|ministerio\s+del\s+trabajo|sena|4272|0491)\b/i.test(text);
+        if (!hasAlturasKeyword || (!hasVerificationIntent && !hasExplicitCedula && !/\b(curso|certificado|vigente|vencid)\b/i.test(text))) {
+            return { allowed: false, reason: 'missing_alturas_evidence' };
+        }
+        return { allowed: true, reason: 'verified_alturas_evidence' };
+    }
+
+    // 5. Evidencia textual inequívoca para SIMIT / Vial
+    const isSimitFlow =
+        flowKey === 'tenshi_flow_verificacion_simit_vial' ||
+        (flowInputs.length === 1 && flowInputs[0] === 'scraper_agy_vial_pesv');
+    if (isSimitFlow) {
+        const hasExplicitPlaca =
+            /\b(?!(?:res|dec|ley|art|iso|ntc|cie|emo|epp|arl|rtm|fds|lms|ccl|sga)\b)[a-z]{3}[\s-]?\d{2}[0-9a-z]\b/i.test(text);
+        const hasSimitKeyword =
+            /\b(simit|comparendos?|multas?\s+(?:de\s+)?tr[aá]nsito|infracciones?\s*(?:viales?|de\s+tr[aá]nsito|pesv)?|runt|placa)\b/i.test(
+                text
+            );
+        if (!hasSimitKeyword && !(hasExplicitPlaca && hasVerificationIntent)) {
+            return { allowed: false, reason: 'missing_simit_evidence' };
+        }
+        return { allowed: true, reason: 'verified_simit_evidence' };
+    }
+
+    // 6. Evidencia textual inequívoca para Antecedentes
+    const isAntecedentesFlow =
+        flowKey === 'tenshi_flow_verificacion_antecedentes' ||
+        (flowInputs.length === 1 && flowInputs[0] === 'scraper_agy_antecedentes');
+    if (isAntecedentesFlow) {
+        if (!/\b(antecedentes?|rama\s+judicial|procesos?\s+judiciales?|contralor[ií]a|procuradur[ií]a|pasado\s+judicial)\b/i.test(text)) {
+            return { allowed: false, reason: 'missing_antecedentes_evidence' };
+        }
+        return { allowed: true, reason: 'verified_antecedentes_evidence' };
+    }
+
+    // 7. Evidencia textual inequívoca para Investigación 360 Multi-Portal
+    const is360Flow =
+        flowKey === 'tenshi_flow_investigacion_integral_360' ||
+        flowInputs.filter((x) => x.startsWith('scraper_agy_')).length >= 2;
+    if (is360Flow) {
+        const explicit360Cue =
+            /\b(360|multi[\s-]?portal|todos\s+los\s+(?:certificados|portales)|investigaci[oó]n\s+(?:completa|integral)|verificar?\s+todo|consultar?\s+todo)\b/i.test(
+                text
+            );
+        const portalCueCount = [
+            /\b(arl|sura|positiva|bol[ií]var|colmena|axa|colpatria)\b/i.test(text),
+            /\b(alturas?|confinados?|mintrabajo|sena|4272)\b/i.test(text),
+            /\b(simit|comparendos?|multas?\s+de\s+tr[aá]nsito|runt)\b/i.test(text),
+            /\b(antecedentes?|rama\s+judicial|contralor[ií]a|procuradur[ií]a)\b/i.test(text),
+        ].filter(Boolean).length;
+        if (!explicit360Cue && portalCueCount < 2) {
+            return { allowed: false, reason: 'missing_360_evidence' };
+        }
+        return { allowed: true, reason: 'verified_360_evidence' };
+    }
+
+    // 8. Evidencia textual/adjunto inequívoca para Auditoría Forense de Incapacidad
+    const isForensicFlow =
+        flowKey === 'tenshi_flow_auditoria_forense_incapacidad' ||
+        flowInputs.includes('forensic_doc_verifier');
+    if (isForensicFlow) {
+        const hasForensicText = /\b(incapacidad(?:es)?|licencia\s+m[eé]dica|rethus|1427|forense|autenticidad|adulterad|falso)\b/i.test(text);
+        const hasForensicAttachment =
+            Boolean(attachedMedia) &&
+            /\b(incapacidad|forense|audita|auditor[ií]a|verifica|verificar|revisa|revisar|autenticidad|falso|adulterad|certificado|soporte|m[eé]dic[oa]|eps)\b/i.test(
+                combinedWithAttachments
+            );
+        if (!hasForensicText && !hasForensicAttachment) {
+            return { allowed: false, reason: 'missing_forensic_evidence' };
+        }
+        return { allowed: true, reason: 'verified_forensic_evidence' };
+    }
+
+    // 9. Para flujos internos Somos SST u otros flujos: exigir fuente de match fuerte y texto no trivial
+    if (!['id', 'presetkey', 'concept_router', 'voice', 'name', 'forensic_attachment_guard'].includes(matchSource)) {
+        return { allowed: false, reason: `untrusted_source_${matchSource || 'none'}` };
+    }
+    if (text.length < 4 && !attachedMedia) {
+        return { allowed: false, reason: 'empty_query' };
+    }
+
+    return { allowed: true, reason: `verified_${matchSource || 'flow'}` };
 }
 
 // Knowledge Retrieval System (RAG)
@@ -4660,6 +5143,66 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 );
             }
 
+            const currentTurnHasAttachments = userAttachments.length > 0 || reqBodyAttachments.length > 0;
+            const activeCompanyIdStr = companyInfo?._id ? String(companyInfo._id) : (req.companyId ? String(req.companyId) : null);
+            let directMediaAttempted = false;
+
+            // Fast-Path determinista para generación directa de imagen/video (Antigravity Local -> Google Flow Studio):
+            // Opera de forma independiente a Gemini Texto (inmune a 503/timeouts) e incluye recuperación del prompt desde historial en reintentos cortos ("inténtalo nuevamente", "hazla con antigravity").
+            const fastPathMediaIntent = !isGuiResultTurn
+                ? detectVisualMediaGenerationIntent(lastUserMsg, messages, {
+                      allowCompound: false,
+                      hasCurrentAttachment: currentTurnHasAttachments,
+                  })
+                : null;
+
+            if (fastPathMediaIntent) {
+                directMediaAttempted = true;
+                logger.info(
+                    `[Tenshi Media Fast-Path] Intención visual directa detectada (tipo=${fastPathMediaIntent.isVideo ? 'video' : 'imagen'}, recuperadoHistorial=${fastPathMediaIntent.recoveredFromHistory}, aspecto=${fastPathMediaIntent.aspectRatio}, estilo=${fastPathMediaIntent.style}, prompt="${fastPathMediaIntent.prompt.slice(0, 120)}")`
+                );
+                try {
+                    const mediaOut = await executeDirectFlowMediaForTenshi({
+                        isVideo: fastPathMediaIntent.isVideo,
+                        prompt: fastPathMediaIntent.prompt,
+                        aspectRatio: fastPathMediaIntent.aspectRatio,
+                        style: fastPathMediaIntent.style,
+                        cameraMotion: fastPathMediaIntent.cameraMotion,
+                        skipAntigravity: fastPathMediaIntent.skipAntigravity,
+                        userId: targetUserId,
+                        companyId: activeCompanyIdStr,
+                    });
+                    capturedHtmlReport = mediaOut.studioHtml;
+                    capturedFile = mediaOut.fileObj;
+                    capturedFlowMarkdown = mediaOut.flowMd;
+                    capturedFlowPublicUrl = mediaOut.publicUrl;
+                    responseText = mediaOut.responseText;
+                    lastError = null;
+                    succeeded = true;
+                    logger.info(
+                        `[Tenshi Media Fast-Path] ✅ ${fastPathMediaIntent.isVideo ? 'Video' : 'Imagen'} generado(a) con ${mediaOut.engineLabel}: ${mediaOut.publicUrl}`
+                    );
+                } catch (mediaErr) {
+                    const realCause = String(mediaErr?.message || 'Error desconocido al invocar los motores visuales.').trim();
+                    logger.warn(
+                        `[Tenshi Media Fast-Path] ❌ Fallaron Antigravity y Google Flow para ${fastPathMediaIntent.isVideo ? 'video' : 'imagen'}: ${realCause}`
+                    );
+                    responseText =
+                        `⚠️ No fue posible generar ${fastPathMediaIntent.isVideo ? 'el video' : 'la imagen'} en este momento.\n\n` +
+                        `**Motivo técnico real:** ${realCause}\n\n` +
+                        `💡 Verifica que **Google Antigravity** esté conectado o que tu sesión de **Google Flow** esté activa en **Mi Cuenta → Integraciones** (o intenta describir la escena con un enfoque técnico preventivo).`;
+                    lastError = null;
+                    succeeded = true;
+                }
+            }
+
+            const PRIMARY_TEXT_MODEL = 'gemini-3.5-flash-lite';
+            const PRIMARY_INITIAL_TIMEOUT_MS = 20000;   // Margen saludable (20s) para 69 tool declarations en gemini-3.5-flash-lite
+            const PRIMARY_RETRY_TIMEOUT_MS = 15000;     // 15s en intentos adicionales de clave/pasada sobre el modelo prioritario
+            const SECONDARY_MODEL_TIMEOUT_MS = 12500;   // Timeout corto (12.5s) para modelos secundarios (3.6 / 3.8 / 4-hydrogen) si cuelgan
+            const MAX_ROTATION_WALL_MS = 46000;         // Tope total antes de activar 503 Rescue y evitar bloqueos >60s
+            const rotationStartMs = Date.now();
+
             let pass503Index = 0;
             let saw503InPass = false;
             let sawNon503InPass = false;
@@ -4667,11 +5210,30 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
+                const isPrimaryModel = currentModel === PRIMARY_TEXT_MODEL;
+                if (mi > 0 && Date.now() - rotationStartMs >= MAX_ROTATION_WALL_MS) {
+                    logger.warn(
+                        `[Tenshi] Presupuesto de rotación (${MAX_ROTATION_WALL_MS}ms) alcanzado tras ${Date.now() - rotationStartMs}ms; omitiendo modelo secundario "${currentModel}".`
+                    );
+                    break;
+                }
+
+                let primaryTransientFailures = 0;
+                let primaryTimeoutFailures = 0;
+
                 for (let i = 0; i < apiKeys.length; i++) {
                     const keyIdx = (i + keyRotationOffset) % apiKeys.length;
                     const apiKey = apiKeys[keyIdx];
+                    const attemptStartMs = Date.now();
                     try {
-                        logger.debug(`[Tenshi] Trying Key ${keyIdx + 1}/${apiKeys.length} (pass #${pass503Index + 1}) with model "${currentModel}"`);
+                        const initialTimeoutMs = isPrimaryModel
+                            ? pass503Index === 0 && i === 0
+                                ? PRIMARY_INITIAL_TIMEOUT_MS
+                                : PRIMARY_RETRY_TIMEOUT_MS
+                            : SECONDARY_MODEL_TIMEOUT_MS;
+                        logger.debug(
+                            `[Tenshi] Trying Key ${keyIdx + 1}/${apiKeys.length} (pass #${pass503Index + 1}, timeout=${initialTimeoutMs}ms) with model "${currentModel}"`
+                        );
                         const genAI = new GoogleGenerativeAI(apiKey);
 
                         const geminiModel = genAI.getGenerativeModel({
@@ -4692,7 +5254,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         let responseResult = await withGeminiTimeout(
                             geminiModel.generateContent({ contents: currentContents }),
-                            15000,
+                            initialTimeoutMs,
                             `Tenshi Chat (${currentModel}) initial`
                         );
                         let candidate = responseResult.response.candidates && responseResult.response.candidates[0];
@@ -5380,11 +5942,6 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                      const res = await executeTenshiMcpTool(mappedTool, mappedArgs, targetUserId);
                                      toolOutput = typeof res === 'string' ? res : JSON.stringify(res);
                                  } else if (call.name === 'google_flow_generar_imagen' || call.name === 'google_flow_generar_video' || call.name === 'google_flow') {
-                                     const {
-                                         executeFlowImageGeneration,
-                                         executeFlowVideoGeneration,
-                                         buildFlowStudioCanvasHtml,
-                                     } = require('./googleflow');
                                      const isVideoCall =
                                          call.name === 'google_flow_generar_video' ||
                                          call.args?.accion === 'generar_video';
@@ -5393,43 +5950,29 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                      const flowStyle = call.args?.estilo || call.args?.style || 'fotorrealista';
                                      const flowMotion = call.args?.movimiento_camara || call.args?.cameraMotion || 'zoom_in';
 
-                                     const mediaRes = isVideoCall
-                                         ? await executeFlowVideoGeneration({
-                                               userId: targetUserId,
-                                               prompt: flowPrompt,
-                                               aspectRatio: flowAspect,
-                                               cameraMotion: flowMotion,
-                                           })
-                                         : await executeFlowImageGeneration({
-                                               userId: targetUserId,
-                                               prompt: flowPrompt,
-                                               aspectRatio: flowAspect,
-                                               style: flowStyle,
-                                               skipAntigravity: false,
-                                           });
+                                     const mediaOut = await executeDirectFlowMediaForTenshi({
+                                         isVideo: isVideoCall,
+                                         prompt: flowPrompt,
+                                         aspectRatio: flowAspect,
+                                         style: flowStyle,
+                                         cameraMotion: flowMotion,
+                                         skipAntigravity: false,
+                                         userId: targetUserId,
+                                         companyId: activeCompanyIdStr,
+                                     });
 
-                                     const studioHtml = buildFlowStudioCanvasHtml(mediaRes);
-                                     capturedHtmlReport = studioHtml;
-                                     capturedFile = {
-                                         title: isVideoCall ? 'Video Google Flow Studio' : 'Imagen Google Flow Studio',
-                                         fileType: 'html',
-                                         content: studioHtml,
-                                         canvasId: `tenshi-flow-${targetUserId}-${Date.now()}`,
-                                     };
-
-                                     const flowMd = isVideoCall
-                                         ? `[🎬 Reproducir Video MP4](${mediaRes.publicUrl})`
-                                         : `![${flowPrompt.slice(0, 80) || 'Imagen Google Flow'}](${mediaRes.publicUrl})`;
-                                     capturedFlowMarkdown = flowMd;
-                                     capturedFlowPublicUrl = mediaRes.publicUrl;
+                                     capturedHtmlReport = mediaOut.studioHtml;
+                                     capturedFile = mediaOut.fileObj;
+                                     capturedFlowMarkdown = mediaOut.flowMd;
+                                     capturedFlowPublicUrl = mediaOut.publicUrl;
 
                                      toolOutput = JSON.stringify({
                                          success: true,
-                                         tipo: mediaRes.type,
-                                         url: mediaRes.publicUrl,
-                                         modelo: mediaRes.model,
-                                         formato: mediaRes.aspectRatio,
-                                         markdown_para_incluir_en_tu_respuesta: flowMd,
+                                         tipo: mediaOut.mediaRes.type,
+                                         url: mediaOut.publicUrl,
+                                         modelo: mediaOut.mediaRes.model,
+                                         formato: mediaOut.mediaRes.aspectRatio,
+                                         markdown_para_incluir_en_tu_respuesta: mediaOut.flowMd,
                                          instruccion: 'Incluye SIEMPRE el código markdown_para_incluir_en_tu_respuesta UNA SOLA VEZ en tu respuesta. PROHIBIDO agregar un segundo enlace [⬇ Descargar] repetido hacia la misma URL, ya que la tarjeta visual de WAPPY ya incluye la vista previa y el botón de descarga.',
                                      });
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
@@ -5646,7 +6189,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     call.name === 'consultar_multiples_especialistas_paralelo' ||
                                     call.name === 'consultar_agente_especializado'
                                         ? 25000
-                                        : 15000;
+                                        : isPrimaryModel
+                                          ? PRIMARY_INITIAL_TIMEOUT_MS
+                                          : 14000;
                                 responseResult = await withGeminiTimeout(
                                     geminiModel.generateContent({ contents: currentContents }),
                                     synthesisTimeoutMs,
@@ -5818,6 +6363,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         lastError = geminiError;
                         const status = geminiError.status || (geminiError.response && geminiError.response.status) || 0;
                         const msg = (geminiError.message || '').toLowerCase();
+                        const attemptElapsedMs = Date.now() - attemptStartMs;
 
                         // Key rotation: 403 / 429 / leaked / invalid key
                         const isRateLimit = status === 429 || msg.includes('429') ||
@@ -5826,14 +6372,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         const isInvalidKey = status === 400 && (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
 
                         if (isRateLimit || isQuotaExceeded || isInvalidKey) {
-                            logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status || 'quota'}). Rotando clave...`);
-                            continue; // Try next key on same model
+                            logger.warn(`[Tenshi] Clave #${keyIdx + 1} rechazada (${status || 'quota'}) tras ${attemptElapsedMs}ms. Rotando clave de inmediato...`);
+                            continue; // Try next key on same model immediately
                         }
 
                         // Model fallback: 503 / 504 / 404 / overloaded / deadline exceeded / not found / high demand
                         const is503 =
                             status === 503 ||
                             status === 504 ||
+                            Boolean(geminiError.isTimeout) ||
                             msg.includes('503') ||
                             msg.includes('504') ||
                             msg.includes('overloaded') ||
@@ -5845,9 +6392,31 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
                         if (is503) {
                             saw503InPass = true;
-                            logger.warn(`[Tenshi] Modelo "${currentModel}" (pasada #${pass503Index + 1}, clave #${keyIdx + 1}) recibió 503 (${status || '503'} - ${geminiError.message}). Esperando 900ms antes de saltar al siguiente modelo...`);
-                            await new Promise((r) => setTimeout(r, 900));
-                            break;
+                            if (isPrimaryModel) {
+                                primaryTransientFailures++;
+                                if (geminiError.isTimeout || status === 504) {
+                                    primaryTimeoutFailures++;
+                                }
+                                const maxKeysForPrimary =
+                                    primaryTimeoutFailures > 0
+                                        ? Math.min(2, apiKeys.length)
+                                        : Math.min(3, apiKeys.length);
+                                const withinWallBudget = Date.now() - rotationStartMs < MAX_ROTATION_WALL_MS;
+                                if (
+                                    i + 1 < apiKeys.length &&
+                                    primaryTransientFailures < maxKeysForPrimary &&
+                                    withinWallBudget
+                                ) {
+                                    logger.warn(
+                                        `[Tenshi] Modelo prioritario "${currentModel}" (pasada #${pass503Index + 1}, clave #${keyIdx + 1}) falló tras ${attemptElapsedMs}ms (${status || '503'} - ${geminiError.message}). Probando otra clave del pool de inmediato antes de bajar a modelos secundarios...`
+                                    );
+                                    continue; // Failover inmediato a la siguiente clave en gemini-3.5-flash-lite sin dormir
+                                }
+                            }
+                            logger.warn(
+                                `[Tenshi] Modelo "${currentModel}" (pasada #${pass503Index + 1}, clave #${keyIdx + 1}) recibió ${geminiError.isTimeout ? 'timeout 504' : `503 (${status || '503'})`} tras ${attemptElapsedMs}ms (${geminiError.message}). Rotando de inmediato al siguiente modelo...`
+                            );
+                            break; // Failover inmediato sin sleep bloqueante de 900ms
                         }
 
                         sawNon503InPass = true;
@@ -5857,30 +6426,88 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             break;
                         }
 
-                        logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${keyIdx + 1}: ${geminiError.message}. Probando siguiente modelo...`);
+                        logger.warn(`[Tenshi] Error con modelo "${currentModel}" y clave #${keyIdx + 1} tras ${attemptElapsedMs}ms: ${geminiError.message}. Probando siguiente modelo...`);
                         break;
                     }
                 }
 
+                const totalRotationElapsedMs = Date.now() - rotationStartMs;
                 if (
                     !succeeded &&
                     mi === modelFallbacks.length - 1 &&
                     pass503Index === 0 &&
                     saw503InPass &&
-                    !sawNon503InPass
+                    !sawNon503InPass &&
+                    totalRotationElapsedMs < 30000
                 ) {
                     pass503Index = 1;
                     saw503InPass = false;
                     sawNon503InPass = false;
-                    keyRotationOffset = apiKeys.length > 1 ? 1 : 0;
+                    keyRotationOffset = apiKeys.length > 1 ? Math.min(2, apiKeys.length - 1) : 0;
                     logger.warn(
-                        `[Tenshi] Los ${modelFallbacks.length} modelos devolvieron 503 en la 1ra pasada. Esperando 1400ms para 2da pasada de reintento con otra clave del pool (#${keyRotationOffset + 1}/${apiKeys.length})...`
+                        `[Tenshi] Los ${modelFallbacks.length} modelos devolvieron 503 en la 1ra pasada (${totalRotationElapsedMs}ms). Iniciando 2da pasada rápida (400ms) con otra clave del pool (#${keyRotationOffset + 1}/${apiKeys.length})...`
                     );
-                    await new Promise((r) => setTimeout(r, 1400));
+                    await new Promise((r) => setTimeout(r, 400));
                     mi = -1;
                 }
             }
 
+            // [Tenshi 503 Rescue — Prioridad #1: Generación Determinista de Imagen/Video (Antigravity -> Google Flow)]
+            // Se ejecuta ANTES del rescate de flujos SG-SST/ARL para que un pedido visual NUNCA caiga por error a un flujo de portales.
+            const lastUserMessageTextForRescue = String(lastMsgObj?.content || userQuery || '').trim();
+            if (!succeeded && lastError && !directMediaAttempted && !isGuiResultTurn) {
+                const rescueMediaIntent = detectVisualMediaGenerationIntent(
+                    lastUserMessageTextForRescue,
+                    messages,
+                    {
+                        allowCompound: true,
+                        hasCurrentAttachment: currentTurnHasAttachments,
+                    }
+                );
+                if (rescueMediaIntent) {
+                    directMediaAttempted = true;
+                    logger.warn(
+                        `[Tenshi 503 Rescue] Ráfaga 503/timeout detectada (${lastError?.message}). Ejecutando rescate visual directo (${rescueMediaIntent.isVideo ? 'video' : 'imagen'}, recuperadoHistorial=${rescueMediaIntent.recoveredFromHistory}, prompt="${rescueMediaIntent.prompt.slice(0, 120)}")...`
+                    );
+                    try {
+                        const mediaOut = await executeDirectFlowMediaForTenshi({
+                            isVideo: rescueMediaIntent.isVideo,
+                            prompt: rescueMediaIntent.prompt,
+                            aspectRatio: rescueMediaIntent.aspectRatio,
+                            style: rescueMediaIntent.style,
+                            cameraMotion: rescueMediaIntent.cameraMotion,
+                            skipAntigravity: rescueMediaIntent.skipAntigravity,
+                            userId: targetUserId,
+                            companyId: activeCompanyIdStr,
+                        });
+                        capturedHtmlReport = mediaOut.studioHtml;
+                        capturedFile = mediaOut.fileObj;
+                        capturedFlowMarkdown = mediaOut.flowMd;
+                        capturedFlowPublicUrl = mediaOut.publicUrl;
+                        responseText = mediaOut.responseText;
+                        succeeded = true;
+                        lastError = null;
+                        logger.info(
+                            `[Tenshi 503 Rescue] ✅ Rescate visual completado con ${mediaOut.engineLabel}: ${mediaOut.publicUrl}`
+                        );
+                    } catch (mediaRescueErr) {
+                        const realCause = String(
+                            mediaRescueErr?.message || 'Error desconocido en los motores de generación visual.'
+                        ).trim();
+                        logger.warn(
+                            `[Tenshi 503 Rescue] ❌ Falló rescate visual (Antigravity y Google Flow): ${realCause}`
+                        );
+                        responseText =
+                            `⚠️ No fue posible generar ${rescueMediaIntent.isVideo ? 'el video' : 'la imagen'} en este momento.\n\n` +
+                            `**Motivo técnico real:** ${realCause}\n\n` +
+                            `💡 Verifica que **Google Antigravity** esté conectado o que tu sesión de **Google Flow** esté activa en **Mi Cuenta → Integraciones** (o reformula la escena con un enfoque técnico preventivo).`;
+                        succeeded = true;
+                        lastError = null;
+                    }
+                }
+            }
+
+            // [Tenshi 503 Rescue — Prioridad #2: Flujos Tenshi con Validación Textual Estricta Anti-Falsos Positivos]
             if (!succeeded && lastError && capturedEvidenceFiles.length === 0) {
                 try {
                     const tenshiFlowSvc = require('~/server/services/tenshiFlowService');
@@ -5891,7 +6518,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         executeTenshiFlowInstant,
                         resolveStrictExecutionContext,
                     } = tenshiFlowSvc;
-                    const lastUserMessageText = String(lastMsgObj?.content || userQuery || '').trim();
+                    const lastUserMessageText = lastUserMessageTextForRescue;
                     const attachedForRescue = req.__tenshiAttachedMedia || resolvedAttachedMedia || null;
                     const attachedNamesForRescue = Array.isArray(req.__tenshiAttachedMediaList) && req.__tenshiAttachedMediaList.length > 0
                         ? req.__tenshiAttachedMediaList.map((a) => a?.name || '').filter(Boolean).join(' ')
@@ -5905,8 +6532,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         const activeTenshiFlows = await getActiveTenshiFlows();
                         if (Array.isArray(activeTenshiFlows) && activeTenshiFlows.length > 0) {
                             let matchedFlow = null;
+                            let matchRes = null;
                             if (lastUserMessageText && typeof matchTenshiFlowByQuery === 'function') {
-                                const matchRes = await matchTenshiFlowByQuery(lastUserMessageText, activeTenshiFlows);
+                                matchRes = await matchTenshiFlowByQuery(lastUserMessageText, activeTenshiFlows);
                                 matchedFlow = matchRes?.flow || (matchRes?._id ? matchRes : null);
                             }
                             if (
@@ -5924,11 +6552,34 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                             f?.systemPresetKey === 'tenshi_flow_auditoria_forense_incapacidad' ||
                                             /forense|incapacidad/i.test(String(f?.name || ''))
                                     ) || null;
+                                if (matchedFlow) {
+                                    matchRes = {
+                                        flow: matchedFlow,
+                                        matchSource: 'forensic_attachment_guard',
+                                        score: 95,
+                                    };
+                                }
+                            }
+
+                            if (matchedFlow && matchedFlow._id) {
+                                const rescueValidation = isFlowMatchValidatedFor503Rescue({
+                                    flow: matchedFlow,
+                                    matchRes,
+                                    userText: lastUserMessageText,
+                                    attachedMedia: attachedForRescue,
+                                    attachedNames: attachedNamesForRescue,
+                                });
+                                if (!rescueValidation.allowed) {
+                                    logger.info(
+                                        `[Tenshi 503 Rescue] Descartado posible falso positivo de Flujo Tenshi "${matchedFlow.name}" (source=${matchRes?.matchSource || 'unknown'}, score=${matchRes?.score ?? 'n/a'}, motivo=${rescueValidation.reason}) para mensaje: "${lastUserMessageText.slice(0, 120)}"`
+                                    );
+                                    matchedFlow = null;
+                                }
                             }
 
                             if (matchedFlow && matchedFlow._id) {
                                 logger.warn(
-                                    `[Tenshi 503 Rescue] Ráfaga 503 detectada (${lastError?.message}). Ejecutando rescate determinista directo con Flujo Tenshi "${matchedFlow.name}"...`
+                                    `[Tenshi 503 Rescue] Ráfaga 503 detectada (${lastError?.message}). Ejecutando rescate determinista validado con Flujo Tenshi "${matchedFlow.name}" (source=${matchRes?.matchSource || 'unknown'}, score=${matchRes?.score ?? 'n/a'})...`
                                 );
                                 const strictCtx =
                                     typeof resolveStrictExecutionContext === 'function'
