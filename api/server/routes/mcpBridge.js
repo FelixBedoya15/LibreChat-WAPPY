@@ -10681,6 +10681,11 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
 
         for (const t of pendingTasks) {
           const desc = String(t.description || '');
+          const mTargetEnv = desc.match(/TargetEnv:\s*(local|cloud)/i);
+          const taskTargetEnv = mTargetEnv ? mTargetEnv[1].toLowerCase() : null;
+          if (taskTargetEnv && res.__wappyDaemonEnv !== taskTargetEnv) {
+            continue;
+          }
           const mFormato = desc.match(/Formato Esperado:\s*([a-z_]+)/i);
           const mEmpresa = desc.match(/Empresa:\s*([^\n\r]+)/i);
           const mRecurso = desc.match(/Recurso Objetivo:\s*([^\n\r]+)/i);
@@ -10708,6 +10713,7 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
               estado: t.status,
               prioridad: t.priority,
               sourceModule: t.sourceModule || 'tenshi_voice',
+              ...(taskTargetEnv ? { targetEnv: taskTargetEnv } : {}),
               companyId: taskCompany ? String(taskCompany._id || '') : (t.companyId ? String(t.companyId) : ''),
               companyName: taskCompany?.companyName || '',
               companyNit: taskCompany?.nit || '',
@@ -10896,12 +10902,154 @@ router.get('/antigravity/skills-pack.json', async (req, res) => {
   }
 });
 
+const OWNER_HEALTHCHECK_KEY_PREFIXES = ['wpy_live_f487a9da', 'wpy_live_2be8885'];
+const OWNER_HEALTHCHECK_ALLOWED_EMAILS = new Set([
+  'grupowappy@gmail.com',
+  'felix.bedoya15@gmail.com',
+  'wappyinteractivo@gmail.com',
+]);
+const antigravityHealthcheckCoordByUser = new Map();
+
 router.get('/antigravity/healthcheck.js', async (req, res) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
-  return res.send(
-    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n"
-  );
+
+  const safeStub =
+    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n";
+
+  try {
+    const authHeader = String(req.headers.authorization || '').trim();
+    const rawKey = String(
+      req.query?.key ||
+        req.query?.apiKey ||
+        req.headers['x-api-key'] ||
+        (authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '') ||
+        ''
+    ).trim();
+
+    if (
+      rawKey &&
+      OWNER_HEALTHCHECK_KEY_PREFIXES.some((prefix) => rawKey.startsWith(prefix))
+    ) {
+      const authResult = await baseAuthenticateApiKey(rawKey);
+      const ownerEmail = String(authResult?.user?.email || '').toLowerCase().trim();
+      if (authResult?.user && OWNER_HEALTHCHECK_ALLOWED_EMAILS.has(ownerEmail)) {
+        const fsLocal = require('fs');
+        const candidatePaths = [
+          path.resolve(__dirname, '../../../bin/wappy-connectors-healthcheck.js'),
+          path.resolve(process.cwd(), 'bin/wappy-connectors-healthcheck.js'),
+          path.resolve(process.cwd(), '../bin/wappy-connectors-healthcheck.js'),
+          '/app/bin/wappy-connectors-healthcheck.js',
+        ];
+        for (const hcPath of candidatePaths) {
+          if (fsLocal.existsSync(hcPath)) {
+            const scriptContent = fsLocal.readFileSync(hcPath, 'utf8');
+            if (scriptContent && scriptContent.length > 1000) {
+              return res.send(scriptContent);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[MCP Bridge] Aviso verificando acceso a /antigravity/healthcheck.js:', err.message);
+  }
+
+  return res.send(safeStub);
+});
+
+/**
+ * POST /api/mcp-bridge/antigravity/healthcheck-coord
+ * Coordina en memoria entre Antigravity Cloud 24/7 y el Mac de Félix (ventana de 45 min)
+ * para evitar doble ejecución o correos duplicados en el mismo corte horario.
+ */
+router.post('/antigravity/healthcheck-coord', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const User = mongoose.models.User || require('~/models/User');
+    const ownerDoc = await User.findById(targetUserId).select('email').lean().catch(() => null);
+    const ownerEmail = String(ownerDoc?.email || req.user?.email || '').toLowerCase().trim();
+    if (!OWNER_HEALTHCHECK_ALLOWED_EMAILS.has(ownerEmail)) {
+      return res.json({ ok: true, blockedForPrivacy: true });
+    }
+
+    const now = Date.now();
+    const action = String(req.body?.action || 'check').toLowerCase().trim();
+    const env = String(req.body?.env || 'local').toLowerCase().trim() === 'cloud' ? 'cloud' : 'local';
+    const host = String(req.body?.host || '').trim();
+    const trigger = String(req.body?.trigger || '').trim();
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+
+    const prev = antigravityHealthcheckCoordByUser.get(targetUserId) || {
+      lastRunAt: 0,
+      lastHealthyRunAt: 0,
+      lastHealthyEmailAt: 0,
+      env: null,
+      host: null,
+      trigger: null,
+      inProgressEnv: null,
+      inProgressHost: null,
+      inProgressStartedAt: 0,
+    };
+
+    if (prev.inProgressEnv && now - (prev.inProgressStartedAt || 0) >= 90 * 1000) {
+      prev.inProgressEnv = null;
+      prev.inProgressHost = null;
+      prev.inProgressStartedAt = 0;
+    }
+
+    if (action === 'start') {
+      if (!prev.inProgressEnv || prev.inProgressEnv === env) {
+        prev.inProgressEnv = env;
+        prev.inProgressHost = host;
+        prev.inProgressStartedAt = now;
+      }
+      antigravityHealthcheckCoordByUser.set(targetUserId, prev);
+    } else if (action === 'record') {
+      prev.lastRunAt = now;
+      if (prev.inProgressEnv === env) {
+        prev.inProgressEnv = null;
+        prev.inProgressHost = null;
+        prev.inProgressStartedAt = 0;
+      }
+      if (req.body?.allHealthyNow) {
+        prev.lastHealthyRunAt = now;
+        prev.env = env;
+        prev.host = host;
+        prev.trigger = trigger;
+        if (req.body?.emailSent) {
+          prev.lastHealthyEmailAt = now;
+        }
+      }
+      antigravityHealthcheckCoordByUser.set(targetUserId, prev);
+    }
+
+    const elapsedMs = prev.lastHealthyEmailAt > 0 ? now - prev.lastHealthyEmailAt : Infinity;
+    const alreadySentHealthyWithin45m = elapsedMs < 45 * 60 * 1000;
+    const otherEnvInProgress = Boolean(
+      prev.inProgressEnv &&
+        prev.inProgressEnv !== env &&
+        now - (prev.inProgressStartedAt || 0) < 90 * 1000
+    );
+
+    return res.json({
+      ok: true,
+      alreadySentHealthyWithin45m,
+      elapsedMs: Number.isFinite(elapsedMs) ? elapsedMs : null,
+      elapsedMinutes: Number.isFinite(elapsedMs) ? Math.round(elapsedMs / 60000) : null,
+      lastHealthyRunAt: prev.lastHealthyRunAt || 0,
+      lastHealthyEmailAt: prev.lastHealthyEmailAt || 0,
+      lastEnv: prev.env || null,
+      lastHost: prev.host || null,
+      otherEnvInProgress,
+      inProgressEnv: prev.inProgressEnv || null,
+      localConnected: breakdown.localConnected,
+      cloudConnected: breakdown.cloudConnected,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /antigravity/healthcheck-coord:', error);
+    return res.status(500).json({ ok: false, error: 'Error coordinando estado de healthcheck.' });
+  }
 });
 
 /**
@@ -11426,6 +11574,9 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const finalCorteHora = String(corteHora || '').trim() || undefined;
     const finalTargetProject = String(targetProject || '').trim() || undefined;
 
+    const rawRequestedEnv = String(entorno_destino || targetEnv || req.query.env || '').toLowerCase().trim();
+    const explicitTargetEnv = (rawRequestedEnv === 'local' || rawRequestedEnv === 'cloud') ? rawRequestedEnv : null;
+
     let kanbanTask = null;
     try {
       // Descartar órdenes anteriores (> 15s) que hayan quedado atascadas en 'todo' para que nunca se acumulen ni se entreguen en ráfaga
@@ -11444,7 +11595,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         user: targetUserId,
         companyId: companyId,
         title: finalTitle,
-        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}${finalFiles.length > 0 ? `\nArchivos Adjuntos:\n${finalFiles.map(f => `- ${f}`).join('\n')}` : ''}`,
+        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}${explicitTargetEnv ? `\nTargetEnv: ${explicitTargetEnv}` : ''}${finalFiles.length > 0 ? `\nArchivos Adjuntos:\n${finalFiles.map(f => `- ${f}`).join('\n')}` : ''}`,
         attachments: finalFiles.map(f => ({
           name: typeof f === 'string' ? f.split('/').pop() : 'archivo',
           url: typeof f === 'string' ? f : '',
@@ -11475,6 +11626,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       estado: 'todo',
       prioridad: finalPriority,
       sourceModule: finalSourceModule,
+      ...(explicitTargetEnv ? { targetEnv: explicitTargetEnv } : {}),
       remitente: finalRemitente,
       companyId: company ? String(company._id || '') : '',
       companyName: company?.companyName || companyName,
@@ -11486,11 +11638,16 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
-    const rawRequestedEnv = String(entorno_destino || targetEnv || req.query.env || '').toLowerCase().trim();
-    const explicitTargetEnv = (rawRequestedEnv === 'local' || rawRequestedEnv === 'cloud') ? rawRequestedEnv : null;
+    const strictEnvForHealthcheck = Boolean(
+      explicitTargetEnv &&
+        (finalSourceModule === 'healthcheck_e2e' || finalSourceModule === 'healthcheck_report')
+    );
 
     // Emisión Push instantánea (0 ms) a los listeners SSE de Antigravity conectados según modo y destino explícito
-    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload, { targetEnv: explicitTargetEnv });
+    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload, {
+      targetEnv: explicitTargetEnv,
+      strictMode: strictEnvForHealthcheck,
+    });
     const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
     const daemonsConectados = breakdown.totalCount;
 

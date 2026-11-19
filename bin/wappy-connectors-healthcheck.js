@@ -36,8 +36,12 @@ const DAEMON_SCRIPT = path.join(AGY_DIR, 'wappy-push-daemon.js');
 const LOG_FILE = path.join(AGY_DIR, 'wappy-healthcheck.log');
 const STATE_FILE = path.join(AGY_DIR, 'wappy-healthcheck-state.json');
 const BITACORA_JSON_FILE = path.join(AGY_DIR, 'wappy-healthcheck-bitacora.json');
-const DESKTOP_DOCX_FILE = path.join(HOME_DIR, 'Desktop', 'Bitacora_Conectores_WAPPY_IA.docx');
-const DESKTOP_WAPPY_FOLDER_DOCX = path.join(HOME_DIR, 'Desktop', 'Wappy IA', 'Bitacora_Conectores_WAPPY_IA.docx');
+const DESKTOP_DIR = path.join(HOME_DIR, 'Desktop');
+const UPLOAD_PERSIST_DIR = '/home/antigravity/upload';
+const CLOUD_FALLBACK_DOCX_FILE = path.join(UPLOAD_PERSIST_DIR, 'Bitacora_Conectores_WAPPY_IA.docx');
+const AGY_FALLBACK_DOCX_FILE = path.join(AGY_DIR, 'Bitacora_Conectores_WAPPY_IA.docx');
+const DESKTOP_DOCX_FILE = path.join(DESKTOP_DIR, 'Bitacora_Conectores_WAPPY_IA.docx');
+const DESKTOP_WAPPY_FOLDER_DOCX = path.join(DESKTOP_DIR, 'Wappy IA', 'Bitacora_Conectores_WAPPY_IA.docx');
 const LOCK_FILE = path.join(AGY_DIR, 'wappy-healthcheck.lock');
 const ALERT_EMAIL = 'grupowappy@gmail.com';
 const OWNER_PRIMARY_KEY_PREFIXES = ['wpy_live_f487a9da', 'wpy_live_2be8885'];
@@ -68,6 +72,39 @@ function isOwnerAdminMac() {
     localHost.includes('felix-bedoya') ||
     normalizedHost.includes('felixbedoya')
   );
+}
+
+function isCloudLinuxEnv() {
+  return (
+    process.platform === 'linux' &&
+    (os.homedir() === '/home/antigravity' ||
+      fs.existsSync('/home/antigravity') ||
+      String(process.env.WAPPY_AGY_ENV || '').toLowerCase().trim() === 'cloud')
+  );
+}
+
+function isOwnerPrimaryKey(rawKey) {
+  const clean = String(rawKey || '').trim();
+  if (!clean) return false;
+  return OWNER_PRIMARY_KEY_PREFIXES.some((prefix) => clean.startsWith(prefix));
+}
+
+function isOwnerAuthorizedEnv() {
+  if (isOwnerAdminMac()) return true;
+  if (isCloudLinuxEnv() && isOwnerPrimaryKey(resolveCredentials().apiKey)) {
+    return true;
+  }
+  return false;
+}
+
+function resolveEffectiveDocxPath() {
+  if (process.platform === 'linux' && !fs.existsSync(DESKTOP_DIR)) {
+    if (fs.existsSync('/home/antigravity')) {
+      return CLOUD_FALLBACK_DOCX_FILE;
+    }
+    return AGY_FALLBACK_DOCX_FILE;
+  }
+  return DESKTOP_DOCX_FILE;
 }
 
 function parseArgs() {
@@ -226,36 +263,72 @@ async function waitForInternetConnection(wappyUrl, maxWaitMs = 45000) {
 }
 
 function isLocalLanguageServerRunning() {
+  if (process.platform === 'linux') {
+    if (
+      fs.existsSync('/usr/local/bin/agentapi') ||
+      fs.existsSync('/usr/bin/agentapi') ||
+      fs.existsSync(path.join(AGY_DIR, 'bin', 'agentapi')) ||
+      Boolean(process.env.ANTIGRAVITY_AGENTAPI_EXE)
+    ) {
+      return true;
+    }
+  }
   if (process.platform === 'darwin' || process.platform === 'linux') {
     try {
-      const out = execFileSync('/bin/ps', ['-axww', '-o', 'command='], { encoding: 'utf8', timeout: 4000 });
+      const psBin = fs.existsSync('/bin/ps') ? '/bin/ps' : 'ps';
+      const out = execFileSync(psBin, ['-axww', '-o', 'command='], { encoding: 'utf8', timeout: 4000 });
       return out.split(/\r?\n/).some((l) => l.includes('language_server') && !l.includes('grep'));
     } catch (_) {
-      return false;
+      return process.platform === 'linux';
     }
   }
   return true;
 }
 
-function isLocalPushWorkerRunning() {
+function isLocalPushWorkerRunning(requireCloudFlag = false) {
   if (process.platform === 'darwin' || process.platform === 'linux') {
     try {
-      const out = execFileSync('/bin/ps', ['-axww', '-o', 'command='], { encoding: 'utf8', timeout: 4000 });
-      return out
+      const psBin = fs.existsSync('/bin/ps') ? '/bin/ps' : 'ps';
+      const out = execFileSync(psBin, ['-axww', '-o', 'command='], { encoding: 'utf8', timeout: 4000 });
+      const matched = out
         .split(/\r?\n/)
-        .some((l) => (l.includes('wappy-push-daemon.js') || l.includes('wappy-tenshi-listener.js')) && l.includes('--worker'));
-    } catch (_) {
-      return false;
+        .some(
+          (l) =>
+            (l.includes('wappy-push-daemon.js') || l.includes('wappy-tenshi-listener.js')) &&
+            l.includes('--worker') &&
+            (!requireCloudFlag || l.includes('--cloud') || process.env.WAPPY_AGY_ENV === 'cloud')
+        );
+      if (matched) return true;
+    } catch (_) {}
+
+    if (process.platform === 'linux' && fs.existsSync('/proc')) {
+      try {
+        for (const entry of fs.readdirSync('/proc')) {
+          if (!/^\d+$/.test(entry)) continue;
+          try {
+            const cmd = fs.readFileSync(`/proc/${entry}/cmdline`, 'utf8').replace(/\0/g, ' ');
+            if (
+              (cmd.includes('wappy-push-daemon.js') || cmd.includes('wappy-tenshi-listener.js')) &&
+              cmd.includes('--worker') &&
+              (!requireCloudFlag || cmd.includes('--cloud') || process.env.WAPPY_AGY_ENV === 'cloud')
+            ) {
+              return true;
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
     }
+    return false;
   }
   return true;
 }
 
 /**
- * 1. PRUEBA Y RECONEXIÓN DE GOOGLE ANTIGRAVITY
+ * 1. PRUEBA Y RECONEXIÓN DE GOOGLE ANTIGRAVITY (LOCAL MAC O CLOUD 24/7)
  */
 async function checkAntigravity(wappyUrl, apiKey) {
-  const workerLocal = isLocalPushWorkerRunning();
+  const isCloudEnv = process.platform === 'linux';
+  const workerLocal = isLocalPushWorkerRunning(isCloudEnv);
   const lsLocal = isLocalLanguageServerRunning();
   // Privacidad estricta: evaluar ÚNICAMENTE la cuenta administrativa principal (nunca iterar sobre claves de otros usuarios)
   const credsToCheck = [{ wappyUrl, apiKey }];
@@ -263,6 +336,8 @@ async function checkAntigravity(wappyUrl, apiKey) {
   let primaryUserId = '';
   let primaryUserEmail = '';
   let connectedCount = 0;
+  let localConnected = false;
+  let cloudConnected = false;
   const disconnectedKeys = [];
 
   for (const c of credsToCheck) {
@@ -287,11 +362,24 @@ async function checkAntigravity(wappyUrl, apiKey) {
     }
     if (!primaryUserId && uid) primaryUserId = uid;
     if (!primaryUserEmail && uEmail && !uEmail.endsWith('@wappy.internal')) primaryUserEmail = uEmail;
+
+    const bridgeObj = statusRes.data?.bridge || {};
+    localConnected = Boolean(bridgeObj.localConnected ?? statusRes.data?.localConnected);
+    cloudConnected = Boolean(bridgeObj.cloudConnected ?? statusRes.data?.cloudConnected);
+    const anyConnected = Boolean(
+      bridgeObj.connected ||
+        bridgeObj.userDaemonConnected ||
+        Number(bridgeObj.userListeners) > 0 ||
+        statusRes.data?.connected
+    );
+
     const isConn = Boolean(
       statusRes.ok &&
-        (statusRes.data?.bridge?.connected ||
-          statusRes.data?.bridge?.userDaemonConnected ||
-          Number(statusRes.data?.bridge?.userListeners) > 0)
+        (isCloudEnv
+          ? cloudConnected || (bridgeObj.cloudConnected === undefined && anyConnected)
+          : bridgeObj.localConnected !== undefined
+          ? localConnected
+          : anyConnected)
     );
     if (isConn) {
       connectedCount += 1;
@@ -307,20 +395,38 @@ async function checkAntigravity(wappyUrl, apiKey) {
       ok: true,
       userId: primaryUserId,
       userEmail: primaryUserEmail,
-      detail: `Daemon Push SSE activo (${connectedCount}/${credsToCheck.length} cuentas conectadas en vivo) y motor Antigravity local operativo.`,
+      localConnected,
+      cloudConnected,
+      detail: isCloudEnv
+        ? `Daemon Push SSE Cloud 24/7 activo (cloudConnected=true, localMac=${localConnected ? 'encendido' : 'apagado'}) y contenedor Antigravity Cloud operativo.`
+        : `Daemon Push SSE activo (${connectedCount}/${credsToCheck.length} cuentas conectadas en vivo) y motor Antigravity local operativo.`,
     };
   }
 
   const reasons = [];
-  if (!workerLocal) reasons.push('proceso local wappy-push-daemon no estaba en ejecución');
-  if (!serverConnected) reasons.push(`servidor WAPPY detectó cuenta(s) sin túnel SSE (${disconnectedKeys.join(', ')})`);
+  if (!workerLocal) {
+    reasons.push(
+      isCloudEnv
+        ? 'worker wappy-push-daemon --cloud no estaba en ejecución en el contenedor'
+        : 'proceso local wappy-push-daemon no estaba en ejecución'
+    );
+  }
+  if (!serverConnected) {
+    reasons.push(
+      isCloudEnv
+        ? `servidor WAPPY detectó túnel Cloud desconectado (${disconnectedKeys.join(', ')})`
+        : `servidor WAPPY detectó cuenta(s) sin túnel SSE (${disconnectedKeys.join(', ')})`
+    );
+  }
   if (!lsLocal) reasons.push('aplicación local Antigravity (language_server) estaba cerrada');
 
   return {
     ok: false,
     userId: primaryUserId,
     userEmail: primaryUserEmail,
-    detail: `Fallo detectado en Antigravity: ${reasons.join(', ')}.`,
+    localConnected,
+    cloudConnected,
+    detail: `Fallo detectado en Antigravity${isCloudEnv ? ' Cloud' : ''}: ${reasons.join(', ')}.`,
     workerLocal,
     serverConnected,
     lsLocal,
@@ -328,32 +434,55 @@ async function checkAntigravity(wappyUrl, apiKey) {
 }
 
 async function reconnectAntigravity(wappyUrl, apiKey) {
-  log('🔄 Ejecutando auto-reconexión de Google Antigravity...');
+  const isCloudEnv = process.platform === 'linux';
+  log(`🔄 Ejecutando auto-reconexión de Google Antigravity (${isCloudEnv ? 'Cloud 24/7' : 'Local Mac'})...`);
   try {
-    if (!isLocalLanguageServerRunning() && process.platform === 'darwin') {
-      const agApp = fs.existsSync('/Applications/Antigravity.app')
-        ? '/Applications/Antigravity.app'
-        : fs.existsSync('/Applications/Antigravity IDE.app')
-        ? '/Applications/Antigravity IDE.app'
-        : null;
-      if (agApp) {
-        log(`🚀 Abriendo ${path.basename(agApp)} en segundo plano para iniciar language_server...`);
+    if (isCloudEnv) {
+      if (!fs.existsSync(DAEMON_SCRIPT) && fs.existsSync('/home/antigravity/upload/wappy-push-daemon.js')) {
         try {
-          execFileSync('/usr/bin/open', ['-gj', '-a', agApp], { timeout: 6000 });
+          fs.mkdirSync(AGY_DIR, { recursive: true });
+          fs.copyFileSync('/home/antigravity/upload/wappy-push-daemon.js', DAEMON_SCRIPT);
+          fs.chmodSync(DAEMON_SCRIPT, 0o755);
         } catch (_) {}
+      }
+      if (fs.existsSync(DAEMON_SCRIPT)) {
+        const child = spawn(
+          process.execPath,
+          [DAEMON_SCRIPT, '--worker', '--silent', '--cloud', `--key=${apiKey}`, `--url=${wappyUrl}`],
+          {
+            stdio: 'ignore',
+            detached: true,
+            env: { ...process.env, WAPPY_AGY_ENV: 'cloud' },
+          }
+        );
+        child.unref();
+      }
+    } else {
+      if (!isLocalLanguageServerRunning() && process.platform === 'darwin') {
+        const agApp = fs.existsSync('/Applications/Antigravity.app')
+          ? '/Applications/Antigravity.app'
+          : fs.existsSync('/Applications/Antigravity IDE.app')
+          ? '/Applications/Antigravity IDE.app'
+          : null;
+        if (agApp) {
+          log(`🚀 Abriendo ${path.basename(agApp)} en segundo plano para iniciar language_server...`);
+          try {
+            execFileSync('/usr/bin/open', ['-gj', '-a', agApp], { timeout: 6000 });
+          } catch (_) {}
+        }
+      }
+
+      if (fs.existsSync(DAEMON_SCRIPT)) {
+        const child = spawn(process.execPath, [DAEMON_SCRIPT, '--install', `--key=${apiKey}`, `--url=${wappyUrl}`], {
+          stdio: 'ignore',
+          detached: true,
+          windowsHide: true,
+        });
+        child.unref();
       }
     }
 
-    if (fs.existsSync(DAEMON_SCRIPT)) {
-      const child = spawn(process.execPath, [DAEMON_SCRIPT, '--install', `--key=${apiKey}`, `--url=${wappyUrl}`], {
-        stdio: 'ignore',
-        detached: true,
-        windowsHide: true,
-      });
-      child.unref();
-    }
-
-    // Esperar hasta 25 segundos (consultando cada 2.5s) para dar tiempo a que Antigravity.app y el daemon Push SSE levanten en frío
+    // Esperar hasta 25 segundos (consultando cada 2.5s) para dar tiempo a que el daemon Push SSE (local o cloud) levante
     for (let i = 0; i < 10; i++) {
       await new Promise((r) => setTimeout(r, 2500));
       const check = await checkAntigravity(wappyUrl, apiKey);
@@ -459,8 +588,10 @@ async function checkGoogleFlow(wappyUrl, apiKey) {
  */
 async function runFunctionalAntigravityQuestion(wappyUrl, apiKey) {
   const t0 = Date.now();
+  const isCloudEnv = process.platform === 'linux';
+  const targetEnv = isCloudEnv ? 'cloud' : 'local';
   const question = '¿Qué es el SG-SST según el Decreto 1072 de 2015 en Colombia?';
-  log(`🧪 [Prueba Funcional 1/3] Enviando pregunta real a Google Antigravity ("${question}")...`);
+  log(`🧪 [Prueba Funcional 1/3] Enviando pregunta real a Google Antigravity (${targetEnv.toUpperCase()}: "${question}")...`);
 
   const delRes = await httpJson(`${wappyUrl}/api/mcp-bridge/antigravity/delegar`, {
     method: 'POST',
@@ -470,6 +601,7 @@ async function runFunctionalAntigravityQuestion(wappyUrl, apiKey) {
       instruccion: question,
       tipo_entregable: 'respuesta',
       sourceModule: 'healthcheck_e2e',
+      targetEnv,
     },
     timeoutMs: 15000,
   });
@@ -1517,9 +1649,14 @@ function updateWordBitacora({
 }) {
   try {
     let entries = [];
-    if (fs.existsSync(BITACORA_JSON_FILE)) {
+    const bitacoraReadSource = fs.existsSync(BITACORA_JSON_FILE)
+      ? BITACORA_JSON_FILE
+      : fs.existsSync('/home/antigravity/upload/wappy-healthcheck-bitacora.json')
+      ? '/home/antigravity/upload/wappy-healthcheck-bitacora.json'
+      : null;
+    if (bitacoraReadSource) {
       try {
-        entries = JSON.parse(fs.readFileSync(BITACORA_JSON_FILE, 'utf8'));
+        entries = JSON.parse(fs.readFileSync(bitacoraReadSource, 'utf8'));
       } catch (_) {
         entries = [];
       }
@@ -1629,23 +1766,38 @@ function updateWordBitacora({
     fs.writeFileSync(BITACORA_JSON_FILE, JSON.stringify(entries, null, 2), 'utf8');
 
     const docxBuf = generateBitacoraDocxBuffer(entries);
-    fs.mkdirSync(path.dirname(DESKTOP_DOCX_FILE), { recursive: true });
-    fs.writeFileSync(DESKTOP_DOCX_FILE, docxBuf);
+    let primarySavedDocxPath = AGY_FALLBACK_DOCX_FILE;
 
-    if (fs.existsSync(path.dirname(DESKTOP_WAPPY_FOLDER_DOCX))) {
-      fs.writeFileSync(DESKTOP_WAPPY_FOLDER_DOCX, docxBuf);
+    if (process.platform === 'linux' && !fs.existsSync(DESKTOP_DIR)) {
+      fs.writeFileSync(AGY_FALLBACK_DOCX_FILE, docxBuf);
+      if (fs.existsSync('/home/antigravity')) {
+        try {
+          fs.mkdirSync(UPLOAD_PERSIST_DIR, { recursive: true });
+          fs.writeFileSync(CLOUD_FALLBACK_DOCX_FILE, docxBuf);
+          fs.writeFileSync(path.join(UPLOAD_PERSIST_DIR, 'wappy-healthcheck-bitacora.json'), JSON.stringify(entries, null, 2), 'utf8');
+          primarySavedDocxPath = CLOUD_FALLBACK_DOCX_FILE;
+        } catch (_) {}
+      }
+    } else {
+      fs.mkdirSync(path.dirname(DESKTOP_DOCX_FILE), { recursive: true });
+      fs.writeFileSync(DESKTOP_DOCX_FILE, docxBuf);
+      primarySavedDocxPath = DESKTOP_DOCX_FILE;
+
+      if (fs.existsSync(path.dirname(DESKTOP_WAPPY_FOLDER_DOCX))) {
+        fs.writeFileSync(DESKTOP_WAPPY_FOLDER_DOCX, docxBuf);
+      }
+
+      if (fs.existsSync(UPLOAD_PERSIST_DIR)) {
+        try {
+          fs.writeFileSync(CLOUD_FALLBACK_DOCX_FILE, docxBuf);
+          fs.writeFileSync(path.join(UPLOAD_PERSIST_DIR, 'wappy-healthcheck-bitacora.json'), JSON.stringify(entries, null, 2), 'utf8');
+        } catch (_) {}
+      }
     }
 
-    if (fs.existsSync('/home/antigravity/upload')) {
-      try {
-        fs.writeFileSync('/home/antigravity/upload/Bitacora_Conectores_WAPPY_IA.docx', docxBuf);
-        fs.writeFileSync('/home/antigravity/upload/wappy-healthcheck-bitacora.json', JSON.stringify(entries, null, 2), 'utf8');
-      } catch (_) {}
-    }
-
-    log(`📄 Bitácora Word actualizada en el Escritorio: ${DESKTOP_DOCX_FILE} (${entries.length} registros).`);
+    log(`📄 Bitácora Word actualizada: ${primarySavedDocxPath} (${entries.length} registros).`);
   } catch (err) {
-    log(`⚠️ Error actualizando bitácora Word en el Escritorio: ${err.message}`);
+    log(`⚠️ Error actualizando bitácora Word: ${err.message}`);
   }
 }
 
@@ -1736,7 +1888,7 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
       }`,
       ``,
       `### 📁 Soportes y Notificaciones:`,
-      `- **Bitácora Word en Escritorio:** \`${DESKTOP_DOCX_FILE}\` (Actualizada)`,
+      `- **Bitácora Word:** \`${resolveEffectiveDocxPath()}\` (Actualizada)`,
       `- **Notificación por Correo (\`${ALERT_EMAIL}\`):** ${
         emailSent ? '✅ Enviado exitosamente' : 'ℹ️ No enviado en este corte'
       }`,
@@ -1816,16 +1968,32 @@ function isPidAlive(pid) {
   }
 }
 
+async function queryHealthcheckCoord(wappyUrl, apiKey, payload = {}) {
+  const res = await httpJson(`${wappyUrl}/api/mcp-bridge/antigravity/healthcheck-coord`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: payload,
+    timeoutMs: 10000,
+  }).catch(() => null);
+  return res?.ok && res?.data ? res.data : null;
+}
+
 async function main() {
-  // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente al iMac y MacBook Pro de Félix.
-  // Si por cualquier motivo existe en el computador de otro usuario, se limpia y termina sin ejecutar nada.
-  if (!isOwnerAdminMac()) {
+  // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente a las estaciones autorizadas de Félix
+  // (iMac/MacBook Pro o su contenedor oficial Antigravity Cloud con OWNER_PRIMARY_KEY_PREFIXES).
+  // Si por cualquier motivo existe en el computador/contenedor de otro usuario, se auto-elimina y sale con 0.
+  if (!isOwnerAuthorizedEnv()) {
     try {
       fs.unlinkSync(__filename);
     } catch (_) {}
     process.exit(0);
   }
 
+  const isCloudEnv = process.platform === 'linux';
+  const currentEnvName = isCloudEnv ? 'cloud' : 'local';
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
   const fromAgyAutomation = Boolean(args['from-agy-automation']);
@@ -1870,12 +2038,7 @@ async function main() {
   } catch (_) {}
 
   try {
-    // Unificación de ejecuciones automáticas (boot, wake, schedule, cron):
-    // Evitar enviar múltiples correos en la mañana cuando coinciden el encendido del Mac (boot),
-    // LaunchAgent (schedule) y crontab (cron). Ventana de 45 min para que una prueba manual al mediodía
-    // nunca bloquee el corte programado de las 2:00 p. m.
-    // Si viene desde Antigravity Automations (--from-agy-automation), NO abortar temprano: ejecutar siempre
-    // la verificación en vivo para que la corrida en Automations muestre el diagnóstico real.
+    // Unificación local de ejecuciones automáticas (boot, wake, schedule, cron):
     if (!isManualRun && !fromAgyAutomation && previousState) {
       const lastHealthyEmailAt =
         previousState.lastHealthyEmailTimestamp ||
@@ -1898,12 +2061,65 @@ async function main() {
     }
 
     log(
-      `🔍 Iniciando pruebas de conexión y funcionales E2E (trigger=${trigger}${fromAgyAutomation ? ', from-agy-automation=true' : ''}) hacia ${wappyUrl}...`
+      `🔍 Iniciando pruebas de conexión y funcionales E2E (env=${currentEnvName}, trigger=${trigger}${fromAgyAutomation ? ', from-agy-automation=true' : ''}) hacia ${wappyUrl}...`
     );
     const online = await waitForInternetConnection(wappyUrl, 45000);
     if (!online) {
       log('⚠️ Sin conexión a internet tras esperar 45s (el equipo puede estar sin red Wi-Fi).');
       return;
+    }
+
+    // Coordinación anti-duplicados Cloud 24/7 <-> Mac en ejecuciones automáticas
+    if (!isManualRun) {
+      const initCoord = await queryHealthcheckCoord(wappyUrl, apiKey, {
+        action: 'check',
+        env: currentEnvName,
+        host: os.hostname(),
+        trigger,
+      });
+
+      if (process.platform === 'darwin' && initCoord?.cloudConnected) {
+        log('☁️ Antigravity Cloud 24/7 detectado activo: esperando 25s en Mac para darle prioridad al monitor Cloud...');
+        await new Promise((r) => setTimeout(r, 25000));
+      }
+
+      let latestCoord = await queryHealthcheckCoord(wappyUrl, apiKey, {
+        action: 'check',
+        env: currentEnvName,
+        host: os.hostname(),
+        trigger,
+      });
+
+      // Si la otra instancia (ej. Cloud) ya inició su corrida E2E hace segundos y aún está generándola, esperar hasta 35s
+      if (latestCoord?.otherEnvInProgress) {
+        log(`⏳ La instancia '${latestCoord.inProgressEnv}' está ejecutando este corte en vivo; esperando su cierre para coordinar sin duplicar...`);
+        for (let w = 0; w < 7; w++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          latestCoord = await queryHealthcheckCoord(wappyUrl, apiKey, {
+            action: 'check',
+            env: currentEnvName,
+            host: os.hostname(),
+            trigger,
+          });
+          if (!latestCoord?.otherEnvInProgress || latestCoord?.alreadySentHealthyWithin45m) {
+            break;
+          }
+        }
+      }
+
+      if (latestCoord?.alreadySentHealthyWithin45m && !fromAgyAutomation) {
+        log(
+          `ℹ️ Corte ya ejecutado y reportado 3/3 OK por instancia '${latestCoord.lastEnv || 'remota'}' (${latestCoord.lastHost || 'WAPPY'}) hace ${latestCoord.elapsedMinutes ?? 0} min (< 45 min). Omitiendo duplicado (${trigger}).`
+        );
+        return;
+      }
+
+      await queryHealthcheckCoord(wappyUrl, apiKey, {
+        action: 'start',
+        env: currentEnvName,
+        host: os.hostname(),
+        trigger,
+      });
     }
 
     // Si acaba de encender el equipo (boot), dar 15s de cortesía para que Antigravity.app y el daemon Push SSE terminen de iniciar
@@ -1961,7 +2177,7 @@ async function main() {
       }
     }
 
-    if (!finalResults.notebooklm.ok && fs.existsSync(DAEMON_SCRIPT)) {
+    if (!isCloudEnv && !finalResults.notebooklm.ok && fs.existsSync(DAEMON_SCRIPT)) {
       log('🚀 Lanzando conector local de NotebookLM para recuperar sesión...');
       try {
         spawn(process.execPath, [DAEMON_SCRIPT, '--notebooklm', `--token=${apiKey}`, `--url=${wappyUrl}`], {
@@ -1973,7 +2189,7 @@ async function main() {
       } catch (_) {}
     }
 
-    if (!finalResults.googleflow.ok && fs.existsSync(DAEMON_SCRIPT)) {
+    if (!isCloudEnv && !finalResults.googleflow.ok && fs.existsSync(DAEMON_SCRIPT)) {
       log('🚀 Lanzando conector local de Google Flow para recuperar sesión...');
       try {
         spawn(process.execPath, [DAEMON_SCRIPT, '--googleflow', `--token=${apiKey}`, `--url=${wappyUrl}`], {
@@ -2130,17 +2346,32 @@ async function main() {
       (previousState?.allHealthyNow && previousState?.emailSent ? previousState.timestamp : 0) ||
       0;
     const elapsedSinceHealthyEmailMs = prevHealthyEmailAt > 0 ? Date.now() - prevHealthyEmailAt : Infinity;
+
+    let serverCoordBeforeEmail = null;
+    if (!isManualRun && !forceEmail && allHealthyNow) {
+      serverCoordBeforeEmail = await queryHealthcheckCoord(wappyUrl, apiKey, {
+        action: 'check',
+        env: currentEnvName,
+        host: os.hostname(),
+        trigger,
+      });
+    }
+
     const suppressDuplicateAutomationEmail =
-      fromAgyAutomation &&
       !forceEmail &&
       allHealthyNow &&
-      Boolean(previousState?.allHealthyNow) &&
-      elapsedSinceHealthyEmailMs < 45 * 60 * 1000;
+      ((fromAgyAutomation &&
+        Boolean(previousState?.allHealthyNow) &&
+        elapsedSinceHealthyEmailMs < 45 * 60 * 1000) ||
+        (!isManualRun && Boolean(serverCoordBeforeEmail?.alreadySentHealthyWithin45m)));
 
     let emailSent = false;
     if (suppressDuplicateAutomationEmail) {
+      const reasonMin = serverCoordBeforeEmail?.alreadySentHealthyWithin45m
+        ? `${serverCoordBeforeEmail.elapsedMinutes ?? 0} min por ${serverCoordBeforeEmail.lastEnv || 'otra instancia'}`
+        : `${Math.round(elapsedSinceHealthyEmailMs / 60000)} min`;
       log(
-        `ℹ️ Omitiendo reenvío de correo repetido en Automatización Antigravity: ya se envió un reporte 3/3 OK hace ${Math.round(elapsedSinceHealthyEmailMs / 60000)} min (< 45 min).`
+        `ℹ️ Omitiendo reenvío de correo repetido: ya se envió un reporte 3/3 OK hace ${reasonMin} (< 45 min).`
       );
     } else if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
       emailSent = await sendHealthEmail(wappyUrl, apiKey, {
@@ -2153,6 +2384,15 @@ async function main() {
         requireFunctional: runInvasiveFunctionalTests,
       });
     }
+
+    await queryHealthcheckCoord(wappyUrl, apiKey, {
+      action: 'record',
+      env: currentEnvName,
+      host: os.hostname(),
+      trigger,
+      allHealthyNow,
+      emailSent,
+    });
 
     if (runInvasiveFunctionalTests && isOwnerAdminMac() && !fromAgyAutomation) {
       await openAntigravityHealthcheckChatLog(wappyUrl, apiKey, {
