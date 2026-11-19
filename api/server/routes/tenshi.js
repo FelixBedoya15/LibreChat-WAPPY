@@ -2740,7 +2740,7 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
      2. **Descripción / Especialidad (\`description\`)**: Subtítulo breve de su especialidad en la tarjeta.
      3. **Categoría (\`category\`)**: \`sgsst\`, \`legal\`, \`medicina\` o \`general\`.
      4. **Instrucciones del Sistema / Prompt (\`instructions\`)**: Rol experto, marco normativo que domina, tono, reglas y estructura de entrega.
-     5. **Modelo de IA y Temperatura (\`model\` y \`temperature\`)**: Por defecto \`gemini-3.5-flash-lite\` (o \`gemini-3.6-flash\`, \`gemini-3.8-flash\`) y temperatura \`0.2\` (precisión técnica).
+     5. **Modelo de IA y Temperatura (\`model\` y \`temperature\`)**: Por defecto \`gemini-3.5-flash-lite\` (o \`gemini-3.6-flash\`, \`gemini-3.8-flash\`, \`gemini-4-hydrogen\`) y temperatura \`0.2\` (precisión técnica).
      6. **Herramientas Activas (\`tools\` / \`incluirTodasLasHerramientas\`)**: Atajo \`["todas"]\` (activa las **63 herramientas**: 20 de WAPPY SST + 8 de Google Workspace/Antigravity/Flow + 35 de NotebookLM) o paquetes específicos (\`["sst"]\`, \`["google"]\`, \`["notebooklm"]\`, \`["antigravity"]\`, \`["flow"]\`, \`["canvas"]\`, \`["web_search"]\`, \`["matriz_ipevar"]\`, \`["matriz_pesv"]\`, \`["matriz_compatibilidad"]\`).
      7. **Habilidades / Skills (\`skills\`)**: Conocimientos especializados en \`api/config/skills\` (o \`["todas"]\`).
      8. **Frases Iniciadoras (\`conversation_starters\`)**: 2 a 4 preguntas sugeridas (botones rápidos) al abrir el chat con el agente.
@@ -2877,8 +2877,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 .map(m => m.trim().replace('models/', ''))
                 .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('transcribe') && !m.includes('tts'));
 
-            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario), gemini-3.6-flash y gemini-3.8-flash (fallback)
-            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario), gemini-3.6-flash, gemini-3.8-flash y gemini-4-hydrogen (fallback)
+            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
             const validEnvModels = envModels.filter(m => allowedTextModels.includes(m));
 
             // Tenshi siempre prioriza gemini-3.5-flash-lite para máxima velocidad de respuesta
@@ -2886,7 +2886,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 'gemini-3.5-flash-lite',
                 ...validEnvModels.filter(m => m !== 'gemini-3.5-flash-lite'),
                 'gemini-3.6-flash',
-                'gemini-3.8-flash'
+                'gemini-3.8-flash',
+                'gemini-4-hydrogen'
             ].filter(Boolean);
             const modelFallbacks = [...new Set(candidateModels)];
 
@@ -3440,7 +3441,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         salidas: { type: 'ARRAY', items: { type: 'STRING' }, description: 'IDs de nodos de salida/acción del flujo (ej: ["email_report", "wappy_notification", "acpm_task", "canvas_doc", "google_calendar"]). Siempre se incluye "wappy_notification" para reportar de vuelta a Tenshi.' },
                         incluir_condicion_if: { type: 'BOOLEAN', description: 'Si es true (por defecto), incluye nodo condicional Sí/No (if_router) en el lienzo DAG.' },
                         condicion_if: { type: 'STRING', description: 'Etiqueta o criterio claro del nodo condicional Sí/No (ej: "¿Existen vencimientos o hallazgos críticos?").' },
-                        modelo_ia: { type: 'STRING', description: 'Modelo de IA del Agente en el flujo: "gemini-3.5-flash-lite" (por defecto), "gemini-3.6-flash" o "gemini-3.8-flash".' },
+                        modelo_ia: { type: 'STRING', description: 'Modelo de IA del Agente en el flujo: "gemini-3.5-flash-lite" (por defecto), "gemini-3.6-flash", "gemini-3.8-flash" o "gemini-4-hydrogen".' },
                         crear_como_flujo_tenshi: { type: 'BOOLEAN', description: 'Si es true y el usuario es ADMIN, crea un Flujo Global Tenshi en TENSHI_GLOBAL activo para todos los usuarios; si no es admin, crea un flujo propio de su empresa con trigger_tenshi activo.' }
                     },
                     required: ['accion']
@@ -3743,7 +3744,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         description: { type: 'STRING', description: '2. Descripción breve de su especialidad en la tarjeta del agente.' },
                         category: { type: 'STRING', description: "3. Categoría: 'sgsst', 'legal', 'medicina' o 'general'." },
                         instructions: { type: 'STRING', description: '4. Instrucciones del sistema (System Prompt): rol, normas que domina, tono, reglas y estructura de entrega.' },
-                        model: { type: 'STRING', description: "5a. Modelo de IA (por defecto 'gemini-3.5-flash-lite', o 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                        model: { type: 'STRING', description: "5a. Modelo de IA (por defecto 'gemini-3.5-flash-lite', o 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen')." },
                         temperature: { type: 'NUMBER', description: '5b. Temperatura entre 0.0 y 1.0 (por defecto 0.2 para precisión técnica).' },
                         tools: {
                             type: 'ARRAY',
@@ -3783,7 +3784,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         description: { type: 'STRING', description: 'Nueva descripción breve.' },
                         category: { type: 'STRING', description: "Nueva categoría ('sgsst', 'legal', 'medicina', 'general')." },
                         instructions: { type: 'STRING', description: 'Nuevas instrucciones del sistema (System Prompt).' },
-                        model: { type: 'STRING', description: "Nuevo modelo ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')." },
+                        model: { type: 'STRING', description: "Nuevo modelo ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen')." },
                         temperature: { type: 'NUMBER', description: 'Nueva temperatura (0.0 a 1.0).' },
                         tools: { type: 'ARRAY', items: { type: 'STRING' }, description: "Reemplaza la lista completa de herramientas (usa ['todas'] para activar todas)." },
                         agregar_herramientas: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Herramientas a añadir sin borrar las actuales.' },
@@ -4660,6 +4661,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         let calls = responseResult.response.functionCalls();
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
+                        let activeTurnCanvasConvoId = null;
                         requestedGuiAction = null;
                         requestedGuiActions = null;
                         const queuedCalls = [];
@@ -4692,35 +4694,69 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const toolInstance = new ConsultarAgenteEspecializado({ req });
                                     toolOutput = await toolInstance._call(call.args);
                                 } else if (call.name === 'canvas_tool' || call.name === 'canvas') {
-                                    const tempCanvasConvoId = req.body?.conversationId && req.body.conversationId !== 'new'
-                                        ? req.body.conversationId
-                                        : `tenshi-canvas-${targetUserId}-${Date.now()}`;
+                                    const rawCanvasAction = String(call.args?.accion || 'crear').toLowerCase().trim();
+                                    const isCreatingNewCanvas = rawCanvasAction === 'crear';
+                                    const currentReqConvoId = typeof req.body?.conversationId === 'string' ? req.body.conversationId.trim() : '';
+                                    const isSyntheticTenshiGlobalId = /^tenshi-[a-f0-9]{12,}(?:-[a-f0-9]{12,})?$/i.test(currentReqConvoId);
+
+                                    let tempCanvasConvoId;
+                                    if (isCreatingNewCanvas) {
+                                        tempCanvasConvoId = `tenshi-canvas-${targetUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                                    } else if (activeTurnCanvasConvoId) {
+                                        tempCanvasConvoId = activeTurnCanvasConvoId;
+                                    } else if (currentReqConvoId && currentReqConvoId !== 'new' && !isSyntheticTenshiGlobalId) {
+                                        tempCanvasConvoId = currentReqConvoId;
+                                    } else {
+                                        tempCanvasConvoId = currentReqConvoId && currentReqConvoId !== 'new'
+                                            ? currentReqConvoId
+                                            : `tenshi-canvas-${targetUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                                    }
+
+                                    const prevBodyConvoId = req.body?.conversationId;
+                                    const prevDisableSseEmit = req.__disableSseEmit;
+                                    const prevIsFreshTenshiCanvas = req.__isFreshTenshiCanvas;
                                     if (!req.body) req.body = {};
                                     req.body.conversationId = tempCanvasConvoId;
                                     req.__disableSseEmit = true;
-                                    const toolInstance = new CanvasTool({ req });
-                                    toolOutput = await toolInstance._call(call.args);
+                                    req.__isFreshTenshiCanvas = isCreatingNewCanvas;
                                     try {
-                                        const parsed = typeof toolOutput === 'string' ? JSON.parse(toolOutput) : toolOutput;
-                                        if (parsed?.success) {
-                                            const sessionDoc = await CanvasSession.findOne({ conversationId: tempCanvasConvoId }).lean();
-                                            const fileType = sessionDoc?.fileType || parsed?.fileType || call.args?.fileType || 'html';
-                                            const title = sessionDoc?.title || parsed?.title || call.args?.title || call.args?.titulo || 'Documento SG-SST';
-                                            const content = sessionDoc?.content ?? call.args?.content ?? '';
-                                            capturedFile = {
-                                                title,
-                                                fileType,
-                                                content: typeof content === 'string' ? content : JSON.stringify(content),
-                                                rawContent: content,
-                                                canvasId: tempCanvasConvoId
-                                            };
-                                            if (fileType === 'html' || (typeof content === 'string' && (content.includes('<html') || content.includes('<!DOCTYPE')))) {
-                                                capturedHtmlReport = content;
+                                        const toolInstance = new CanvasTool({ req });
+                                        toolOutput = await toolInstance._call(call.args);
+                                        try {
+                                            const parsed = typeof toolOutput === 'string' ? JSON.parse(toolOutput) : toolOutput;
+                                            if (parsed?.success) {
+                                                activeTurnCanvasConvoId = tempCanvasConvoId;
+                                                const sessionDoc = await CanvasSession.findOne({ conversationId: tempCanvasConvoId }).lean();
+                                                const fileType = sessionDoc?.fileType || parsed?.fileType || call.args?.fileType || 'html';
+                                                const title = sessionDoc?.title || parsed?.title || call.args?.title || call.args?.titulo || 'Documento SG-SST';
+                                                const content = sessionDoc?.content ?? call.args?.content ?? '';
+                                                capturedFile = {
+                                                    title,
+                                                    fileType,
+                                                    content: typeof content === 'string' ? content : JSON.stringify(content),
+                                                    rawContent: content,
+                                                    canvasId: tempCanvasConvoId
+                                                };
+                                                if (fileType === 'html' || (typeof content === 'string' && (content.includes('<html') || content.includes('<!DOCTYPE')))) {
+                                                    capturedHtmlReport = content;
+                                                }
+                                                logger.info(`[Tenshi Backend] Captured Canvas deliverable: "${title}" (${fileType}, ${String(capturedFile.content || '').length} chars, canvasId=${tempCanvasConvoId})`);
                                             }
-                                            logger.info(`[Tenshi Backend] Captured Canvas deliverable: "${title}" (${fileType}, ${String(capturedFile.content || '').length} chars)`);
+                                        } catch (canvasCaptureErr) {
+                                            logger.warn('[Tenshi Backend] Error capturing CanvasSession after canvas_tool:', canvasCaptureErr?.message || canvasCaptureErr);
                                         }
-                                    } catch (canvasCaptureErr) {
-                                        logger.warn('[Tenshi Backend] Error capturing CanvasSession after canvas_tool:', canvasCaptureErr?.message || canvasCaptureErr);
+                                    } finally {
+                                        req.body.conversationId = activeTurnCanvasConvoId || prevBodyConvoId;
+                                        if (prevDisableSseEmit === undefined) {
+                                            delete req.__disableSseEmit;
+                                        } else {
+                                            req.__disableSseEmit = prevDisableSseEmit;
+                                        }
+                                        if (prevIsFreshTenshiCanvas === undefined) {
+                                            delete req.__isFreshTenshiCanvas;
+                                        } else {
+                                            req.__isFreshTenshiCanvas = prevIsFreshTenshiCanvas;
+                                        }
                                     }
                                 } else if (call.name === 'matriz_ipevar') {
                                     if (call.args?.accion === 'escribir' && Array.isArray(call.args?.riesgos) && call.args.riesgos.length > 0) {
@@ -5585,12 +5621,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             continue; // Try next key on same model
                         }
 
-                        // Model fallback: 503 / 404 / overloaded / not found / high demand
+                        // Model fallback: 503 / 504 / 404 / overloaded / deadline exceeded / not found / high demand
                         const is503 =
                             status === 503 ||
+                            status === 504 ||
                             msg.includes('503') ||
+                            msg.includes('504') ||
                             msg.includes('overloaded') ||
                             msg.includes('service unavailable') ||
+                            msg.includes('deadline_exceeded') ||
+                            msg.includes('gateway timeout') ||
                             msg.includes('high demand');
                         const is404 = status === 404 || msg.includes('404') || msg.includes('not found') || msg.includes('is not found for api version');
 
@@ -5836,85 +5876,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
-        // Hook turn_finalizer (Auto-Aprendizaje de Habilidades en segundo plano con 0ms de impacto)
-        if (lastUserText && targetUserId && !lastUserText.startsWith('[RESULTADO_GUI]')) {
-            setImmediate(() => {
-                autoSynthesizeProceduralRule(
-                    lastUserText,
-                    targetUserId,
-                    companyInfo?._id || null,
-                    companyInfo?.companyName || ''
-                ).catch(() => {});
-            });
-        }
-
-        // Respaldo simultáneo en el Chat del Agente Tenshi si se generó un archivo o reporte
-        if ((capturedFile || capturedHtmlReport) && req.user?.id) {
-            try {
-                const { Conversation, Message } = require('~/db/models');
-                const { v4: uuidv4 } = require('uuid');
-                const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
-                const fileTitle = capturedFile?.title || 'Informe Técnico SG-SST';
-
-                let tenshiConvo = await Conversation.findOne({
-                    user: String(req.user.id),
-                    agent_id: TENSHI_AGENT_ID,
-                }).sort({ updatedAt: -1 });
-
-                const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
-
-                if (!tenshiConvo) {
-                    tenshiConvo = await Conversation.create({
-                        conversationId: convoId,
-                        user: String(req.user.id),
-                        title: fileTitle,
-                        endpoint: 'agents',
-                        agent_id: TENSHI_AGENT_ID,
-                        tags: ['tenshi-report', 'sgsst'],
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                } else {
-                    await Conversation.updateOne(
-                        { conversationId: convoId },
-                        { $set: { title: fileTitle, updatedAt: new Date() } }
-                    );
-                }
-
-                const fileLabel = capturedFile?.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
-                await Message.create({
-                    messageId: uuidv4(),
-                    conversationId: convoId,
-                    user: String(req.user.id),
-                    sender: 'Tenshi',
-                    text: `📁 **${fileLabel} generado**: *${fileTitle}*\n\n${responseText || ''}\n\nPuedes visualizarlo o descargarlo desde Canvas.`,
-                    isCreatedByUser: false,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                });
-
-                await CanvasSession.findOneAndUpdate(
-                    { conversationId: convoId },
-                    {
-                        $set: {
-                            user: String(req.user.id),
-                            title: fileTitle,
-                            fileType: capturedFile?.fileType || 'html',
-                            content: capturedFile?.rawContent ?? capturedFile?.content ?? capturedHtmlReport ?? '',
-                            updatedAt: new Date(),
-                        },
-                        $setOnInsert: {
-                            createdAt: new Date(),
-                            version: 1,
-                        }
-                    },
-                    { upsert: true, new: true }
-                );
-            } catch (syncErr) {
-                console.warn('[Tenshi Route] Could not sync file to Agent Tenshi conversation:', syncErr.message);
-            }
-        }
-
+        // Enviar respuesta HTTP INMEDIATAMENTE tras guardar TenshiMessage para evitar bloqueos por tareas secundarias
+        // o hooks de indexación de Conversation/Message (ej. mongoMeili post('updateOne')).
         if (!res.headersSent) {
             res.json({
                 response: responseText,
@@ -5926,6 +5889,104 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 delegatedOrder: capturedDelegatedOrder,
                 guiAction: requestedGuiAction,
                 guiActions: requestedGuiActions
+            });
+        }
+
+        // Hook turn_finalizer (Auto-Aprendizaje de Habilidades en segundo plano con 0ms de impacto)
+        if (lastUserText && targetUserId && !lastUserText.startsWith('[RESULTADO_GUI]')) {
+            setImmediate(() => {
+                autoSynthesizeProceduralRule(
+                    lastUserText,
+                    targetUserId,
+                    companyInfo?._id || null,
+                    companyInfo?.companyName || ''
+                ).catch((err) => {
+                    logger.warn('[Tenshi Route] autoSynthesizeProceduralRule background error:', err?.message || err);
+                });
+            });
+        }
+
+        // Respaldo simultáneo en el Chat del Agente Tenshi si se generó un archivo o reporte (asíncrono no-bloqueante)
+        if ((capturedFile || capturedHtmlReport) && req.user?.id) {
+            const syncUserId = String(req.user.id);
+            const syncCompanyId = companyInfo?._id || null;
+            const syncCapturedFile = capturedFile ? { ...capturedFile } : null;
+            const syncCapturedHtmlReport = capturedHtmlReport;
+            const syncResponseText = responseText || '';
+
+            setImmediate(async () => {
+                try {
+                    const { Conversation, Message } = require('~/db/models');
+                    const { v4: uuidv4 } = require('uuid');
+                    const TENSHI_AGENT_ID = '3579240c-ac93-4f4f-b0e4-95d87fc1ee27';
+                    const fileTitle = syncCapturedFile?.title || 'Informe Técnico SG-SST';
+
+                    const tenshiConvo = await Conversation.findOne({
+                        user: syncUserId,
+                        agent_id: TENSHI_AGENT_ID,
+                    })
+                        .sort({ updatedAt: -1 })
+                        .lean();
+
+                    const convoId = tenshiConvo ? tenshiConvo.conversationId : uuidv4();
+
+                    if (!tenshiConvo) {
+                        await Conversation.create({
+                            conversationId: convoId,
+                            user: syncUserId,
+                            title: fileTitle,
+                            endpoint: 'agents',
+                            agent_id: TENSHI_AGENT_ID,
+                            tags: [
+                                'tenshi-report',
+                                'sgsst',
+                                ...(syncCompanyId ? [`company-${String(syncCompanyId)}`] : []),
+                            ],
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        });
+                    } else {
+                        // Usar collection.updateOne para evitar el deadlock del hook post('updateOne') de mongoMeili
+                        // (en query middleware doc es UpdateWriteOpResult sin .postUpdateHook y nunca invoca next()).
+                        await Conversation.collection.updateOne(
+                            { conversationId: convoId },
+                            { $set: { title: fileTitle, updatedAt: new Date() } }
+                        );
+                    }
+
+                    const fileLabel = syncCapturedFile?.fileType === 'html' ? 'Aplicativo / Reporte HTML' : 'Documento SG-SST';
+                    await Message.create({
+                        messageId: uuidv4(),
+                        conversationId: convoId,
+                        user: syncUserId,
+                        sender: 'Tenshi',
+                        text: `📁 **${fileLabel} generado**: *${fileTitle}*\n\n${syncResponseText}\n\nPuedes visualizarlo o descargarlo desde Canvas.`,
+                        isCreatedByUser: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+
+                    await CanvasSession.findOneAndUpdate(
+                        { conversationId: convoId },
+                        {
+                            $set: {
+                                user: syncUserId,
+                                ...(syncCompanyId ? { companyId: syncCompanyId } : {}),
+                                title: fileTitle,
+                                fileType: syncCapturedFile?.fileType || 'html',
+                                content: syncCapturedFile?.rawContent ?? syncCapturedFile?.content ?? syncCapturedHtmlReport ?? '',
+                                updatedAt: new Date(),
+                            },
+                            $setOnInsert: {
+                                createdAt: new Date(),
+                                version: 1,
+                            }
+                        },
+                        { upsert: true, new: true }
+                    );
+                } catch (syncErr) {
+                    logger.warn('[Tenshi Route] Could not sync file to Agent Tenshi conversation:', syncErr?.message || syncErr);
+                }
             });
         }
     } catch (error) {

@@ -10601,7 +10601,8 @@ ${workerSubHeaderHtml}
                                     updatedAt: new Date(),
                                 });
                             } else {
-                                await Conversation.updateOne(
+                                // Evitar deadlock de mongoMeili post('updateOne') en Mongoose 8 cuando MEILI_HOST está activo
+                                await Conversation.collection.updateOne(
                                     { conversationId: convoId },
                                     { $set: { title: canvasFileToAttach.title, updatedAt: new Date() } }
                                 );

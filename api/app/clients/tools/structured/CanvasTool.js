@@ -2077,12 +2077,20 @@ class CanvasTool extends Tool {
 
   async _call(input, runManager) {
     try {
-      const candidateConvoIds = [
-        runManager?.configurable?.thread_id,
-        runManager?.metadata?.thread_id,
-        this.req?.resolvedConversationId,
-        this.req?.body?.conversationId,
-      ];
+      const isFreshTenshiCanvas = Boolean(this.req?.__isFreshTenshiCanvas === true);
+      const candidateConvoIds = isFreshTenshiCanvas
+        ? [
+            this.req?.body?.conversationId,
+            this.req?.resolvedConversationId,
+            runManager?.configurable?.thread_id,
+            runManager?.metadata?.thread_id,
+          ]
+        : [
+            runManager?.configurable?.thread_id,
+            runManager?.metadata?.thread_id,
+            this.req?.resolvedConversationId,
+            this.req?.body?.conversationId,
+          ];
       const conversationId = candidateConvoIds.find(
         (cid) =>
           typeof cid === 'string' &&
@@ -2160,9 +2168,49 @@ class CanvasTool extends Tool {
       }
 
       // ── CREAR / ESCRIBIR / ACTUALIZAR ───────────────────────────────────────
+      const isIsolatedTenshiCanvasId = /^tenshi-(canvas|hero|file|report)-/i.test(conversationId);
+      // Buscar estrictamente por el conversationId exacto (NUNCA hacer fallback a sesiones antiguas de otras conversaciones del usuario)
       let session = await CanvasSession.findOne({ conversationId });
       const normalizedAccion =
         accion === 'escribir' ? (session ? 'actualizar' : 'crear') : accion;
+
+      const normalizeDocTitle = (t) =>
+        String(t || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim();
+
+      const isGenericDocTitle = (t) => {
+        const norm = normalizeDocTitle(t);
+        return (
+          !norm ||
+          norm === 'archivo sin titulo' ||
+          norm === 'archivo de canvas sin titulo' ||
+          norm === 'documento de trabajo' ||
+          norm === 'documento sg sst' ||
+          norm === 'informe sg sst'
+        );
+      };
+
+      const hasDistinctExplicitNewTitle = Boolean(
+        title &&
+          session?.title &&
+          !isGenericDocTitle(title) &&
+          !isGenericDocTitle(session.title) &&
+          normalizeDocTitle(title) !== normalizeDocTitle(session.title),
+      );
+
+      // Creación de documento nuevo exenta de la guarda anti-sobrescritura < 60% (que solo protege ediciones sobre el mismo documento):
+      // 1) Sesión marcada explícitamente como creación fresca de Tenshi (`req.__isFreshTenshiCanvas === true`), o
+      // 2) `accion === 'crear'` en una sesión aislada de Tenshi (`tenshi-canvas|hero|file|report-...`), o
+      // 3) `accion === 'crear'` con un título explícito distinto al documento previo en este conversationId.
+      const isNewDocumentCreation = Boolean(
+        (isFreshTenshiCanvas && normalizedAccion === 'crear') ||
+          (accion === 'crear' && isIsolatedTenshiCanvasId) ||
+          (accion === 'crear' && hasDistinctExplicitNewTitle),
+      );
 
       const isWriteAction = [
         'crear',
@@ -2171,7 +2219,7 @@ class CanvasTool extends Tool {
         'buscar_reemplazar',
         'insertar',
       ].includes(normalizedAccion);
-      if (isWriteAction && session) {
+      if (isWriteAction && session && !isNewDocumentCreation) {
         if (!isPro && (session.aiRewriteCount || 0) >= 3) {
           return JSON.stringify({
             error:
@@ -2323,7 +2371,9 @@ class CanvasTool extends Tool {
           const isChangingFileType = Boolean(fileType && session.fileType && fileType !== session.fileType);
 
           // Safety Check: Prevent overwriting a larger text/html document with a very short one of the SAME type
+          // Solo aplica al editar/actualizar el MISMO documento existente (NUNCA al crear un documento nuevo distinto o sesión fresca de Tenshi)
           if (
+            !isNewDocumentCreation &&
             !isChangingFileType &&
             (activeFileType === 'text' || activeFileType === 'html') &&
             typeof session.content === 'string' &&
@@ -2340,7 +2390,7 @@ class CanvasTool extends Tool {
             activeFileType,
             parsedContent,
             activeTitle,
-            isChangingFileType ? null : session.content,
+            isChangingFileType || isNewDocumentCreation ? null : session.content,
           );
 
           const maxHistoryVersion = (session.history || []).reduce((max, item) => Math.max(max, item.version || 0), 0);
