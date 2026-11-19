@@ -796,13 +796,13 @@ RESPUESTA ESTRICTA: Responde ÚNICAMENTE con el documento HTML5 completo (empeza
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.6-flash (Diseño WAPPY Premium)...');
+    logger.info('[CanvasTool Camino B] Delegando generación técnica de aplicativo HTML a gemini-3.5-flash-lite (thinkingLevel=LOW, rotación rápida)...');
     const htmlPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
     const result = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
       userId,
       htmlPayload,
-      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+      { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
     );
     const response = await result?.response;
     let generatedHtml = response?.text ? response.text() : '';
@@ -1145,10 +1145,10 @@ ${stringContent ? `## BORRADOR O BASE INICIAL SUMINISTRADA:\n${stringContent}\n`
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
     const reportPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
     const result = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
       userId,
       reportPayload,
-      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } }
+      { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } }
     );
     const response = await result?.response;
     let generatedReport = response?.text ? response.text() : '';
@@ -1487,13 +1487,13 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON válido \`[ { ... }, { 
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B - Presentation] Delegando síntesis de presentación ejecutiva a gemini-3.6-flash...');
+    logger.info('[CanvasTool Camino B - Presentation] Delegando síntesis de presentación ejecutiva a gemini-3.5-flash-lite (thinkingLevel=LOW)...');
     const presentationPayload = inlineParts.length > 0 ? [{ text: prompt }, ...inlineParts] : prompt;
     const result = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
       userId,
       presentationPayload,
-      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+      { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
     );
     const response = await result?.response;
     const generatedText = response?.text ? response.text() : '';
@@ -1922,12 +1922,12 @@ RESPUESTA ESTRICTA: Devuelve ÚNICAMENTE el arreglo JSON 2D \`[[...], [...]]\`, 
 
   try {
     const { generateWithKeyRotation } = require('~/server/routes/sgsst/sgsstGemini');
-    logger.info('[CanvasTool Camino B - Excel] Delegando enriquecimiento de hoja de cálculo a gemini-3.6-flash...');
+    logger.info('[CanvasTool Camino B - Excel] Delegando enriquecimiento de hoja de cálculo a gemini-3.5-flash-lite (thinkingLevel=LOW)...');
     const result = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 32768 } },
+      { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 32768, thinkingConfig: { thinkingLevel: 'LOW' } } },
       userId,
       prompt,
-      { timeoutMs: 45000, generationConfig: { maxOutputTokens: 32768 } },
+      { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 32768, thinkingConfig: { thinkingLevel: 'LOW' } } },
     );
     const response = await result?.response;
     const generatedText = response?.text ? response.text() : '';
@@ -2956,10 +2956,10 @@ ${existingJson}
 Responde ÚNICAMENTE con el JSON actualizado válido, sin bloques markdown (\`\`\`json) ni explicaciones.`;
 
     const jsonRes = await generateWithKeyRotation(
-      { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+      { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
       userId,
       modJsonPrompt,
-      { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+      { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
     );
     const rawJsonOut = jsonRes?.response?.text ? jsonRes.response.text() : '';
     const parsedArr = extractJsonArraySafe(rawJsonOut);
@@ -3009,10 +3009,10 @@ Responde ÚNICAMENTE con el documento completo modificado, sin bloques de markdo
 
   const modPayload = inlineParts.length > 0 ? [{ text: fullModPrompt }, ...inlineParts] : fullModPrompt;
   const result = await generateWithKeyRotation(
-    { model: 'gemini-3.6-flash', generationConfig: { maxOutputTokens: 65536 } },
+    { model: 'gemini-3.5-flash-lite', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
     userId,
     modPayload,
-    { timeoutMs: 50000, generationConfig: { maxOutputTokens: 65536 } },
+    { timeoutMs: 25000, thinkingLevel: 'LOW', generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: 'LOW' } } },
   );
   const response = await result?.response;
   let updated = response?.text ? response.text() : '';

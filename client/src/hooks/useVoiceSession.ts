@@ -1072,9 +1072,23 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     }, []);
 
     /**
-     * Send active screen context to server (conversationId, active agent, current route, hero mode)
+     * Send active screen context to server (conversationId, active agent, current route, hero mode, Tenshi multi-chat & NotebookLM notebooks)
      */
-    const sendScreenContext = useCallback((contextData: { conversationId?: string; agentId?: string; agentName?: string; route?: string; isHeroMode?: boolean }) => {
+    const sendScreenContext = useCallback((contextData: {
+        conversationId?: string;
+        tenshiConversationId?: string;
+        selectedTenshiNotebooks?: Array<{
+            id: string;
+            title: string;
+            emoji?: string;
+            sources_count?: number;
+            updated_at?: string;
+        }>;
+        agentId?: string;
+        agentName?: string;
+        route?: string;
+        isHeroMode?: boolean;
+    }) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: 'screen_context',

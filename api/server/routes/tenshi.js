@@ -6,6 +6,8 @@ const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
 const TenshiUserAvatar = require('../../models/TenshiUserAvatar');
 const TenshiMessage = require('../../models/TenshiMessage');
+const TenshiConversation = require('../../models/TenshiConversation');
+const LiveDocument = require('../../models/LiveDocument');
 const { BlogPost } = require('../../models/BlogPost');
 const { Course } = require('../../models/Course');
 const Ticket = require('../../models/Ticket');
@@ -22,12 +24,28 @@ const SomosSST = require('../../app/clients/tools/structured/SomosSST');
 const GoogleDrive = require('../../app/clients/tools/structured/GoogleDrive');
 const ConsultarAgenteEspecializado = require('../../app/clients/tools/structured/ConsultarAgenteEspecializado');
 const CanvasTool = require('../../app/clients/tools/structured/CanvasTool');
+const WebScraperLive = require('../../app/clients/tools/structured/WebScraperLive');
+const BlogEditor = require('../../app/clients/tools/structured/BlogEditor');
 const CanvasSession = require('../../models/CanvasSession');
 const { getActiveSkillInstructions, getActiveSkillsData } = require('~/server/services/skillRouter');
 const { resolveApiKeys } = require('./sgsst/sgsstGemini');
 const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
 const { getLatestSystemActivity } = require('~/server/services/systemActivityService');
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
+const {
+    ALLOWED_TENSHI_MODELS,
+    sanitizeRequestedTenshiModel,
+    buildTenshiModelFallbacks,
+    buildTenshiGenerationConfig,
+    normalizeConnectorsObject,
+    selectTenshiTools,
+    resolveSelectedNotebooks,
+    buildNotebookLmPromptBlock,
+    generateSmartTenshiTitle,
+    buildCompanyScopeFilter,
+    ensureLegacyTenshiConversation,
+    evaluateSafeSstCalculator,
+} = require('./voice/tenshiSessionHelpers');
 const TenshiPendingAction = require('../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
 const {
@@ -1867,32 +1885,242 @@ function mergeSanitizedEvidenceFiles(existingList = [], incomingList = []) {
     return merged;
 }
 
+function formatTenshiMessageDto(m) {
+    return {
+        _id: m._id,
+        companyId: m.companyId || null,
+        conversationId: m.conversationId || null,
+        role: m.role,
+        content: m.content,
+        image: m.image,
+        media: m.media,
+        attachments: Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments : undefined,
+        htmlReport: m.htmlReport,
+        file: m.file,
+        qrCode: m.qrCode,
+        widget: m.widget,
+        ...(Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0
+            ? { evidenceFiles: mergeSanitizedEvidenceFiles([], m.evidenceFiles) }
+            : {}),
+        createdAt: m.createdAt,
+    };
+}
+
+function formatTenshiConversationDto(c) {
+    if (!c) return null;
+    const obj = typeof c.toObject === 'function' ? c.toObject() : c;
+    return {
+        _id: String(obj._id),
+        id: String(obj._id),
+        user: obj.user ? String(obj.user) : null,
+        companyId: obj.companyId || null,
+        title: obj.title || 'Nuevo chat',
+        lastMessageAt: obj.lastMessageAt || obj.updatedAt || obj.createdAt,
+        messageCount: Number(obj.messageCount || 0),
+        modelOverride: obj.modelOverride || null,
+        isLegacyDefault: Boolean(obj.isLegacyDefault),
+        createdAt: obj.createdAt,
+        updatedAt: obj.updatedAt,
+    };
+}
+
+function resolveTenshiUserContext(req) {
+    const targetUserId = (req.user?.isSubUser && req.user?.parentUser)
+        ? String(req.user.parentUser)
+        : String(req.user?.id || req.user?._id);
+    const reqUserId = String(req.user?.id || req.user?._id || targetUserId);
+    const userIds = [...new Set([reqUserId, targetUserId].filter(Boolean))];
+    return { reqUserId, targetUserId, userIds };
+}
+
+// =========================================================================
+// MULTI-CHAT DE TENSHI (CONVERSACIONES CRUD — 100% RETROCOMPATIBLE)
+// =========================================================================
+
+router.get('/conversations', requireJwtAuth, async (req, res) => {
+    try {
+        const { reqUserId, targetUserId, userIds } = resolveTenshiUserContext(req);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
+        const companyIdStr = activeComp?._id ? String(activeComp._id) : null;
+
+        await ensureLegacyTenshiConversation({
+            TenshiConversation,
+            TenshiMessage,
+            userIds,
+            ownerUserId: reqUserId,
+            companyIdStr,
+        });
+
+        const scope = buildCompanyScopeFilter(userIds, companyIdStr);
+        const convos = await TenshiConversation.find(scope)
+            .sort({ lastMessageAt: -1, updatedAt: -1 })
+            .limit(100)
+            .lean();
+
+        const formatted = convos.map(formatTenshiConversationDto);
+        const activeDefaultId = formatted.length > 0 ? formatted[0]._id : null;
+
+        res.json({
+            conversations: formatted,
+            activeDefaultId,
+        });
+    } catch (error) {
+        console.error('Error listing Tenshi conversations:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/conversations', requireJwtAuth, async (req, res) => {
+    try {
+        const { reqUserId, targetUserId } = resolveTenshiUserContext(req);
+        const { companyId, title, modelOverride } = req.body || {};
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, companyId);
+        const companyIdStr = activeComp?._id ? String(activeComp._id) : null;
+
+        const cleanTitle =
+            typeof title === 'string' && title.trim().length > 0
+                ? title.trim().slice(0, 120)
+                : 'Nuevo chat';
+        const validModelOverride = sanitizeRequestedTenshiModel(modelOverride);
+
+        const created = await TenshiConversation.create({
+            user: reqUserId,
+            companyId: companyIdStr,
+            title: cleanTitle,
+            lastMessageAt: new Date(),
+            messageCount: 0,
+            modelOverride: validModelOverride,
+            isLegacyDefault: false,
+        });
+
+        res.status(201).json({ conversation: formatTenshiConversationDto(created) });
+    } catch (error) {
+        console.error('Error creating Tenshi conversation:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.patch('/conversations/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const convoId = String(req.params.id || '').trim();
+        if (!mongoose.isValidObjectId(convoId)) {
+            return res.status(400).json({ error: 'Invalid conversation ID' });
+        }
+        const { userIds } = resolveTenshiUserContext(req);
+        const convo = await TenshiConversation.findOne({
+            _id: convoId,
+            user: { $in: userIds },
+        });
+        if (!convo) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        const { title, modelOverride } = req.body || {};
+        if (title !== undefined) {
+            const cleanTitle = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+            if (!cleanTitle) {
+                return res.status(400).json({ error: 'Title must be between 1 and 120 characters' });
+            }
+            convo.title = cleanTitle;
+        }
+        if (modelOverride !== undefined) {
+            convo.modelOverride = modelOverride ? sanitizeRequestedTenshiModel(modelOverride) : null;
+        }
+
+        await convo.save();
+        res.json({ conversation: formatTenshiConversationDto(convo) });
+    } catch (error) {
+        console.error('Error updating Tenshi conversation:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.delete('/conversations/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const convoId = String(req.params.id || '').trim();
+        if (!mongoose.isValidObjectId(convoId)) {
+            return res.status(400).json({ error: 'Invalid conversation ID' });
+        }
+        const { userIds } = resolveTenshiUserContext(req);
+        const convo = await TenshiConversation.findOne({
+            _id: convoId,
+            user: { $in: userIds },
+        });
+        if (!convo) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        const delMsgRes = await TenshiMessage.deleteMany({
+            user: { $in: userIds },
+            conversationId: convoId,
+        });
+        await TenshiConversation.deleteOne({ _id: convo._id });
+
+        res.json({
+            success: true,
+            deletedId: convoId,
+            deletedMessages: delMsgRes?.deletedCount || 0,
+        });
+    } catch (error) {
+        console.error('Error deleting Tenshi conversation:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 const getTenshiMessagesHistoryHandler = async (req, res) => {
     try {
-        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        const userIds = [req.user.id, targetUserId].filter(Boolean);
+        const { reqUserId, targetUserId, userIds } = resolveTenshiUserContext(req);
         const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
-        const historyFilter = activeComp?._id
-            ? { user: { $in: userIds }, companyId: String(activeComp._id) }
-            : { user: { $in: userIds }, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
-        const history = await TenshiMessage.find(historyFilter).sort({ createdAt: 1 }).lean();
-        res.json(history.map(m => ({
-            _id: m._id,
-            companyId: m.companyId || null,
-            role: m.role,
-            content: m.content,
-            image: m.image,
-            media: m.media,
-            attachments: Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments : undefined,
-            htmlReport: m.htmlReport,
-            file: m.file,
-            qrCode: m.qrCode,
-            widget: m.widget,
-            ...(Array.isArray(m.evidenceFiles) && m.evidenceFiles.length > 0
-                ? { evidenceFiles: mergeSanitizedEvidenceFiles([], m.evidenceFiles) }
-                : {}),
-            createdAt: m.createdAt,
-        })));
+        const companyIdStr = activeComp?._id ? String(activeComp._id) : null;
+        const companyScope = buildCompanyScopeFilter(userIds, companyIdStr);
+
+        await ensureLegacyTenshiConversation({
+            TenshiConversation,
+            TenshiMessage,
+            userIds,
+            ownerUserId: reqUserId,
+            companyIdStr,
+        });
+
+        const requestedConvoId =
+            typeof req.query.conversationId === 'string' ? req.query.conversationId.trim() : '';
+
+        let resolvedConvo = null;
+        let resolvedConvoId = null;
+        let resolvedConvoTitle = 'Nuevo chat';
+
+        if (requestedConvoId) {
+            if (mongoose.isValidObjectId(requestedConvoId)) {
+                resolvedConvo = await TenshiConversation.findOne({
+                    _id: requestedConvoId,
+                    user: { $in: userIds },
+                }).lean();
+            }
+            resolvedConvoId = requestedConvoId;
+            resolvedConvoTitle = resolvedConvo?.title || 'Chat de Tenshi';
+        } else {
+            resolvedConvo = await TenshiConversation.findOne(companyScope)
+                .sort({ lastMessageAt: -1, updatedAt: -1 })
+                .lean();
+            if (resolvedConvo?._id) {
+                resolvedConvoId = String(resolvedConvo._id);
+                resolvedConvoTitle = resolvedConvo.title || 'Chat Principal';
+            }
+        }
+
+        const history = resolvedConvoId
+            ? await TenshiMessage.find({
+                  $and: [companyScope, { conversationId: resolvedConvoId }],
+              })
+                  .sort({ createdAt: 1 })
+                  .lean()
+            : [];
+
+        res.json({
+            messages: history.map(formatTenshiMessageDto),
+            conversationId: resolvedConvoId,
+            conversationTitle: resolvedConvoTitle,
+        });
     } catch (error) {
         console.error('Error fetching Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -1917,14 +2145,51 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             mediaList,
             files,
             companyId,
+            conversationId,
             evidenceFiles,
             evidencias,
         } = req.body;
         if (!content || !content.trim()) {
             return res.status(400).json({ error: 'Content is required' });
         }
-        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
+        const { reqUserId, targetUserId, userIds } = resolveTenshiUserContext(req);
         const activeComp = await resolveActiveCompanyForUser(targetUserId, companyId);
+        const companyIdStr = activeComp?._id ? String(activeComp._id) : null;
+
+        let targetConvoId =
+            typeof conversationId === 'string' && conversationId.trim() ? conversationId.trim() : null;
+        let convoDoc = null;
+        if (targetConvoId && mongoose.isValidObjectId(targetConvoId)) {
+            convoDoc = await TenshiConversation.findOne({
+                _id: targetConvoId,
+                user: { $in: userIds },
+            });
+        }
+        if (!convoDoc && !targetConvoId) {
+            await ensureLegacyTenshiConversation({
+                TenshiConversation,
+                TenshiMessage,
+                userIds,
+                ownerUserId: reqUserId,
+                companyIdStr,
+            });
+            convoDoc = await TenshiConversation.findOne(buildCompanyScopeFilter(userIds, companyIdStr)).sort({
+                lastMessageAt: -1,
+                updatedAt: -1,
+            });
+            if (!convoDoc) {
+                convoDoc = await TenshiConversation.create({
+                    user: reqUserId,
+                    companyId: companyIdStr,
+                    title: role === 'user' ? generateSmartTenshiTitle(content) : 'Chat Principal',
+                    lastMessageAt: new Date(),
+                    messageCount: 0,
+                    isLegacyDefault: false,
+                });
+            }
+            targetConvoId = String(convoDoc._id);
+        }
+
         const sanitizedEvidenceFiles = mergeSanitizedEvidenceFiles(
             [],
             Array.isArray(evidenceFiles) ? evidenceFiles : evidencias
@@ -1936,7 +2201,8 @@ router.post('/message', requireJwtAuth, async (req, res) => {
         const { attachmentsForDb, mediaForDb, imageForDb } = buildMediaFieldsForDb(normalizedMediaList, image);
         const newMsg = await TenshiMessage.create({
             user: req.user.id,
-            companyId: activeComp?._id ? String(activeComp._id) : null,
+            companyId: companyIdStr,
+            conversationId: targetConvoId,
             role,
             content: content.trim(),
             image: imageForDb,
@@ -1948,6 +2214,16 @@ router.post('/message', requireJwtAuth, async (req, res) => {
             widget,
             ...(sanitizedEvidenceFiles.length > 0 ? { evidenceFiles: sanitizedEvidenceFiles } : {}),
         });
+        if (convoDoc?._id) {
+            const updateFields = { lastMessageAt: new Date() };
+            if (role === 'user' && convoDoc.title === 'Nuevo chat') {
+                updateFields.title = generateSmartTenshiTitle(content, attachmentsForDb);
+            }
+            await TenshiConversation.updateOne(
+                { _id: convoDoc._id },
+                { $set: updateFields, $inc: { messageCount: 1 } }
+            ).catch(() => {});
+        }
         res.json(newMsg);
     } catch (error) {
         console.error('Error creating Tenshi message:', error);
@@ -2539,14 +2815,30 @@ router.post('/gtc45/save-to-hito1', requireJwtAuth, async (req, res) => {
 
 router.delete('/history', requireJwtAuth, async (req, res) => {
     try {
-        const targetUserId = (req.user?.isSubUser && req.user?.parentUser) ? String(req.user.parentUser) : String(req.user?.id || req.user?._id);
-        const userIds = [req.user.id, targetUserId].filter(Boolean);
-        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId);
-        const deleteFilter = activeComp?._id
-            ? { user: { $in: userIds }, companyId: String(activeComp._id) }
-            : { user: { $in: userIds }, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
-        await TenshiMessage.deleteMany(deleteFilter);
-        res.json({ success: true });
+        const { targetUserId, userIds } = resolveTenshiUserContext(req);
+        const activeComp = await resolveActiveCompanyForUser(targetUserId, req.query.companyId || req.body?.companyId);
+        const companyIdStr = activeComp?._id ? String(activeComp._id) : null;
+        const companyScope = buildCompanyScopeFilter(userIds, companyIdStr);
+        const requestedConvoId =
+            typeof (req.query.conversationId || req.body?.conversationId) === 'string'
+                ? String(req.query.conversationId || req.body?.conversationId).trim()
+                : '';
+
+        if (requestedConvoId) {
+            await TenshiMessage.deleteMany({
+                $and: [companyScope, { conversationId: requestedConvoId }],
+            });
+            if (mongoose.isValidObjectId(requestedConvoId)) {
+                await TenshiConversation.updateOne(
+                    { _id: requestedConvoId, user: { $in: userIds } },
+                    { $set: { messageCount: 0 } }
+                ).catch(() => {});
+            }
+        } else {
+            await TenshiMessage.deleteMany(companyScope);
+            await TenshiConversation.updateMany(companyScope, { $set: { messageCount: 0 } }).catch(() => {});
+        }
+        res.json({ success: true, conversationId: requestedConvoId || null });
     } catch (error) {
         console.error('Error clearing Tenshi history:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -2556,8 +2848,9 @@ router.delete('/history', requireJwtAuth, async (req, res) => {
 router.put('/message/:id', requireJwtAuth, async (req, res) => {
     try {
         const msgId = req.params.id;
-        const { content } = req.body;
-        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: req.user.id });
+        const { content, conversationId } = req.body;
+        const { userIds } = resolveTenshiUserContext(req);
+        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: { $in: userIds } });
         if (!targetMsg) {
             return res.status(404).json({ error: 'Message not found' });
         }
@@ -2566,14 +2859,29 @@ router.put('/message/:id', requireJwtAuth, async (req, res) => {
         targetMsg.content = content;
         await targetMsg.save();
 
-        // Delete all subsequent messages in the same company
-        await TenshiMessage.deleteMany({
-            user: req.user.id,
-            companyId: targetMsg.companyId || null,
-            createdAt: { $gt: targetMsg.createdAt }
-        });
+        const scopedConvoId = targetMsg.conversationId || (typeof conversationId === 'string' ? conversationId.trim() : null);
 
-        res.json({ success: true });
+        // Delete all subsequent messages strictly in the same conversation (or company if legacy)
+        const cascadeFilter = {
+            user: { $in: userIds },
+            companyId: targetMsg.companyId || null,
+            createdAt: { $gt: targetMsg.createdAt },
+            ...(scopedConvoId ? { conversationId: scopedConvoId } : {}),
+        };
+        await TenshiMessage.deleteMany(cascadeFilter);
+
+        if (scopedConvoId && mongoose.isValidObjectId(scopedConvoId)) {
+            const remaining = await TenshiMessage.countDocuments({
+                user: { $in: userIds },
+                conversationId: scopedConvoId,
+            });
+            await TenshiConversation.updateOne(
+                { _id: scopedConvoId, user: { $in: userIds } },
+                { $set: { messageCount: remaining, lastMessageAt: targetMsg.createdAt || new Date() } }
+            ).catch(() => {});
+        }
+
+        res.json({ success: true, conversationId: scopedConvoId || null });
     } catch (error) {
         console.error('Error updating Tenshi message:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -2583,19 +2891,51 @@ router.put('/message/:id', requireJwtAuth, async (req, res) => {
 router.delete('/message/:id', requireJwtAuth, async (req, res) => {
     try {
         const msgId = req.params.id;
-        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: req.user.id });
+        const { userIds } = resolveTenshiUserContext(req);
+        const targetMsg = await TenshiMessage.findOne({ _id: msgId, user: { $in: userIds } });
         if (!targetMsg) {
             return res.status(404).json({ error: 'Message not found' });
         }
 
-        // Delete this message and all subsequent ones in the same company
-        await TenshiMessage.deleteMany({
-            user: req.user.id,
-            companyId: targetMsg.companyId || null,
-            createdAt: { $gte: targetMsg.createdAt }
-        });
+        const scopedConvoId =
+            targetMsg.conversationId ||
+            (typeof (req.query?.conversationId || req.body?.conversationId) === 'string'
+                ? String(req.query?.conversationId || req.body?.conversationId).trim()
+                : null);
 
-        res.json({ success: true });
+        // Delete this message and all subsequent ones strictly in the same conversation
+        const cascadeFilter = {
+            user: { $in: userIds },
+            companyId: targetMsg.companyId || null,
+            createdAt: { $gte: targetMsg.createdAt },
+            ...(scopedConvoId ? { conversationId: scopedConvoId } : {}),
+        };
+        await TenshiMessage.deleteMany(cascadeFilter);
+
+        if (scopedConvoId && mongoose.isValidObjectId(scopedConvoId)) {
+            const remaining = await TenshiMessage.countDocuments({
+                user: { $in: userIds },
+                conversationId: scopedConvoId,
+            });
+            const latestRemaining = await TenshiMessage.findOne({
+                user: { $in: userIds },
+                conversationId: scopedConvoId,
+            })
+                .sort({ createdAt: -1 })
+                .select('createdAt')
+                .lean();
+            await TenshiConversation.updateOne(
+                { _id: scopedConvoId, user: { $in: userIds } },
+                {
+                    $set: {
+                        messageCount: remaining,
+                        ...(latestRemaining?.createdAt ? { lastMessageAt: latestRemaining.createdAt } : {}),
+                    },
+                }
+            ).catch(() => {});
+        }
+
+        res.json({ success: true, conversationId: scopedConvoId || null });
     } catch (error) {
         console.error('Error deleting Tenshi message:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -2605,8 +2945,17 @@ router.delete('/message/:id', requireJwtAuth, async (req, res) => {
 // A simple chat endpoint for Tenshi
 router.post('/chat', requireJwtAuth, async (req, res) => {
     try {
-        const { messages, browserState } = req.body;
-        logger.info(`[Tenshi Backend] /chat request received. Messages count: ${messages?.length}, browserState length: ${browserState?.length || 0}`);
+        const {
+            messages,
+            browserState,
+            model: requestedModel,
+            enabledTools,
+            connectors: rawConnectors,
+            selectedNotebooks: bodySelectedNotebooks,
+            conversationId: requestedConversationId,
+        } = req.body;
+        const normalizedConnectors = normalizeConnectorsObject(rawConnectors);
+        logger.info(`[Tenshi Backend] /chat request received. Messages count: ${messages?.length}, browserState length: ${browserState?.length || 0}, model: ${requestedModel || 'default'}, enabledTools: ${Array.isArray(enabledTools) ? enabledTools.length : 'legacy'}`);
         const config = await TenshiConfig.findOne().lean();
 
         if (!config || !config.isActive) {
@@ -2718,20 +3067,97 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 : null;
         req.__tenshiAttachedMedia = resolvedAttachedMedia;
 
-        if (!req.body.conversationId) {
-            req.body.conversationId = 'tenshi-' + targetUserId + (companyInfo?._id ? '-' + String(companyInfo._id) : '');
+        const { reqUserId, userIds } = resolveTenshiUserContext(req);
+        const activeCompanyIdForConvo = companyInfo?._id ? String(companyInfo._id) : null;
+        const rawConvoId =
+            typeof requestedConversationId === 'string' ? requestedConversationId.trim() : '';
+
+        let activeTenshiConvo = null;
+        if (rawConvoId && rawConvoId !== 'new' && mongoose.isValidObjectId(rawConvoId)) {
+            activeTenshiConvo = await TenshiConversation.findOne({
+                _id: rawConvoId,
+                user: { $in: userIds },
+            }).catch(() => null);
         }
 
-        if ((userQuery || userAttachmentsForDb.length > 0 || userImageForDb) && !String(userQuery).startsWith('[RESULTADO_GUI]')) {
+        if (!activeTenshiConvo && rawConvoId !== 'new' && (!rawConvoId || /^tenshi-/i.test(rawConvoId))) {
+            // Retrocompatibilidad: si no viene conversationId (clientes legacy / chats en curso), usar/migrar conversación activa
+            await ensureLegacyTenshiConversation({
+                TenshiConversation,
+                TenshiMessage,
+                userIds,
+                ownerUserId: reqUserId,
+                companyIdStr: activeCompanyIdForConvo,
+            }).catch(() => null);
+            if (Array.isArray(messages) && messages.length > 1) {
+                activeTenshiConvo = await TenshiConversation.findOne(
+                    buildCompanyScopeFilter(userIds, activeCompanyIdForConvo)
+                )
+                    .sort({ lastMessageAt: -1, updatedAt: -1 })
+                    .catch(() => null);
+            }
+        }
+
+        const isNonGuiUserMsg =
+            (Boolean(userQuery) || userAttachmentsForDb.length > 0 || Boolean(userImageForDb)) &&
+            !String(userQuery).startsWith('[RESULTADO_GUI]');
+
+        if (!activeTenshiConvo) {
+            const initialTitle = isNonGuiUserMsg
+                ? generateSmartTenshiTitle(userQuery, userAttachmentsForDb)
+                : 'Nuevo chat';
+            activeTenshiConvo = await TenshiConversation.create({
+                user: reqUserId,
+                companyId: activeCompanyIdForConvo,
+                title: initialTitle,
+                lastMessageAt: new Date(),
+                messageCount: 0,
+                modelOverride: sanitizeRequestedTenshiModel(requestedModel),
+                isLegacyDefault: false,
+            });
+        } else if (
+            isNonGuiUserMsg &&
+            (!activeTenshiConvo.title || activeTenshiConvo.title.trim() === 'Nuevo chat')
+        ) {
+            const smartTitle = generateSmartTenshiTitle(userQuery, userAttachmentsForDb);
+            if (smartTitle && smartTitle !== 'Nuevo chat') {
+                activeTenshiConvo.title = smartTitle;
+                await TenshiConversation.updateOne(
+                    { _id: activeTenshiConvo._id },
+                    { $set: { title: smartTitle } }
+                ).catch(() => {});
+            }
+        }
+
+        const activeTenshiConvoId = activeTenshiConvo?._id ? String(activeTenshiConvo._id) : null;
+        const activeTenshiConvoTitle = activeTenshiConvo?.title || 'Nuevo chat';
+
+        if (!req.body.conversationId || req.body.conversationId === 'new') {
+            req.body.conversationId =
+                activeTenshiConvoId ||
+                ('tenshi-' + targetUserId + (companyInfo?._id ? '-' + String(companyInfo._id) : ''));
+        }
+
+        if (isNonGuiUserMsg) {
             TenshiMessage.create({
                 user: req.user.id,
-                companyId: companyInfo?._id ? String(companyInfo._id) : null,
+                companyId: activeCompanyIdForConvo,
+                conversationId: activeTenshiConvoId,
                 role: 'user',
                 content: userQuery || '📎 Archivo adjunto',
                 image: userImageForDb,
                 media: userMediaForDb,
                 ...(userAttachmentsForDb.length > 0 ? { attachments: userAttachmentsForDb } : {}),
-            }).catch(e => console.error('Error saving user TenshiMessage:', e));
+            })
+                .then(() => {
+                    if (activeTenshiConvoId) {
+                        TenshiConversation.updateOne(
+                            { _id: activeTenshiConvoId },
+                            { $set: { lastMessageAt: new Date() }, $inc: { messageCount: 1 } }
+                        ).catch(() => {});
+                    }
+                })
+                .catch(e => console.error('Error saving user TenshiMessage:', e));
         }
 
         const isMemoryEnabled = req.user?.personalization?.memories !== false;
@@ -2808,11 +3234,23 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             isMemoryEnabled
                 ? getProceduralMemoryPromptBlock(targetUserId, companyInfo?._id, 12).catch(() => '')
                 : Promise.resolve(''),
-            isMemoryEnabled
+            normalizedConnectors?.notebooklm !== false
                 ? (async () => {
                       try {
                           const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
-                          return await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+                          let sess = companyInfo?._id
+                              ? await NotebookSession.findOne({ user: targetUserId, companyId: companyInfo._id }).lean().catch(() => null)
+                              : null;
+                          if (!sess) {
+                              sess = await NotebookSession.findOne({
+                                  user: targetUserId,
+                                  $or: [{ companyId: null }, { companyId: { $exists: false } }],
+                              }).lean().catch(() => null);
+                          }
+                          if (!sess) {
+                              sess = await NotebookSession.findOne({ user: targetUserId }).lean().catch(() => null);
+                          }
+                          return sess;
                       } catch (_) {
                           return null;
                       }
@@ -2852,6 +3290,17 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
         const manualContent = getPlatformManual();
+
+        const effectiveSelectedNotebooks = resolveSelectedNotebooks({
+            bodySelectedNotebooks,
+            nbSess,
+            connectors: normalizedConnectors,
+        });
+        const nbPromptBlock = buildNotebookLmPromptBlock({
+            nbSess,
+            selectedNotebooks: effectiveSelectedNotebooks,
+            connectors: normalizedConnectors,
+        });
 
         let fullCompanyAndMemoryBlock = '';
         if (isMemoryEnabled) {
@@ -2913,22 +3362,14 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
                 fullCompanyAndMemoryBlock += `${proceduralBlock}\n`;
             }
 
-            if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
-                const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
-                fullCompanyAndMemoryBlock += `### 📓 [ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n`;
-                fullCompanyAndMemoryBlock += `- Como Tenshi (Orquestadora Universal), tienes acceso TOTAL e irrestricto a TODOS los cuadernos de Google NotebookLM del usuario (usando \`notebooklm_listar_cuadernos\`, \`notebooklm_consultar\` y \`notebooklm_generar_studio\`).\n`;
-                if (cachedNbs.length > 0) {
-                    fullCompanyAndMemoryBlock += `- Cuadernos disponibles en su cuenta (${cachedNbs.length}):\n` +
-                        cachedNbs.map((nb) => `  * ${nb.emoji || '📓'} "${nb.title}" (ID: \`${nb.id}\`, ${nb.sources_count || 0} fuentes)`).join('\n') + '\n\n';
-                } else {
-                    fullCompanyAndMemoryBlock += `- Cuenta vinculada activa (${nbSess.email || 'Google NotebookLM'}). Si el usuario pregunta por sus cuadernos, invoca \`notebooklm_listar_cuadernos\`.\n\n`;
-                }
-            }
-
             fullCompanyAndMemoryBlock += `### ⚡ REGLA DE ORO DE CONOCIMIENTO CORPORATIVO Y MEMORIA:
 - TIENES ACCESO PLENO E INMEDIATO a toda la información de la empresa activa y a la memoria del usuario descritas arriba.
 - Conoces de antemano la Razón Social, NIT, Representante Legal, Trabajadores, ARL, Sedes, Macroprocesos y datos de la memoria.
 - NUNCA digas "no tengo acceso a la empresa", "no sé qué empresa está activa" ni le pidas al usuario que repita datos que ya están en esta ficha o memoria. Úsalos con total familiaridad y exactitud en todas tus respuestas.`;
+        }
+
+        if (nbPromptBlock) {
+            fullCompanyAndMemoryBlock += `\n\n${nbPromptBlock}`;
         }
 
         const { effective: effectiveAvatar } = avatarProfileResult;
@@ -3357,26 +3798,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 throw new Error('No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.');
             }
 
-            // Dual-axis rotation: Candidate models with fallback
-            // Modelos de texto configurados en GOOGLE_MODELS
-            const envModels = (process.env.GOOGLE_MODELS || '')
-                .split(',')
-                .map(m => m.trim().replace('models/', ''))
-                .filter(m => m && !m.includes('live') && !m.includes('native-audio') && !m.includes('transcribe') && !m.includes('tts'));
-
-            // Modelos de texto permitidos y vigentes en WAPPY: gemini-3.5-flash-lite (ultra-rápido prioritario), gemini-3.6-flash, gemini-3.8-flash y gemini-4-hydrogen (fallback)
-            const allowedTextModels = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen'];
-            const validEnvModels = envModels.filter(m => allowedTextModels.includes(m));
-
-            // Tenshi siempre prioriza gemini-3.5-flash-lite para máxima velocidad de respuesta
-            const candidateModels = [
-                'gemini-3.5-flash-lite',
-                ...validEnvModels.filter(m => m !== 'gemini-3.5-flash-lite'),
-                'gemini-3.6-flash',
-                'gemini-3.8-flash',
-                'gemini-4-hydrogen'
-            ].filter(Boolean);
-            const modelFallbacks = [...new Set(candidateModels)];
+            // Dual-axis rotation: Candidate models with fallback (respeta modelo explícito válido seleccionado por el usuario)
+            const { explicitModel: userExplicitTenshiModel, modelFallbacks } = buildTenshiModelFallbacks(
+                requestedModel,
+                process.env.GOOGLE_MODELS || '',
+            );
+            const userSelectedModelExplicitly = Boolean(userExplicitTenshiModel);
+            if (userSelectedModelExplicitly) {
+                logger.info(`[Tenshi Backend] Modelo explícito de sesión priorizado: "${userExplicitTenshiModel}" -> fallbacks: ${modelFallbacks.join(' -> ')}`);
+            }
 
             // Build history once (reusable across all retries) con ventana deslizante de los últimos 16 mensajes
             // para evitar saturación de contexto, envenenamiento y alucinaciones en conversaciones largas
@@ -4983,6 +5413,110 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 }
             };
 
+            const webScraperLiveDeclaration = {
+                name: 'web_scraper_live',
+                description: 'Extrae contenido web en vivo desde hasta 5 URLs simultáneas (soporta páginas dinámicas SPA con Chromium/Playwright o fetch + cheerio, selectores CSS personalizados, enlaces relevantes, huella SHA-256 contentHash y evidencias PDF/PNG).',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        urls: { type: 'STRING', description: 'URL o lista de hasta 5 URLs http/https separadas por comas o saltos de línea.' },
+                        url: { type: 'STRING', description: 'URL objetivo única (alias opcional).' },
+                        scriptEngine: { type: 'STRING', description: "Motor de extracción: 'auto_chrome_dom', 'fetch_cheerio' o 'antigravity_local'." },
+                        scriptCode: { type: 'STRING', description: 'Selectores CSS opcionales (ej. "h1, article p").' },
+                        includeEvidence: { type: 'BOOLEAN', description: 'Si es true, captura evidencia visual PDF/PNG.' }
+                    }
+                }
+            };
+
+            const blogEditorDeclaration = {
+                name: 'blog_editor',
+                description: 'Crea, edita, lee, lista o elimina borradores de artículos del blog corporativo en la base de datos. Los artículos nuevos se guardan como borrador (isPublished=false) en HTML enriquecido para revisión humana.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        accion: { type: 'STRING', description: "Acción: 'crear', 'leer', 'listar', 'editar' o 'eliminar'." },
+                        title: { type: 'STRING', description: 'Título del artículo.' },
+                        description: { type: 'STRING', description: 'Subtítulo o resumen introductorio.' },
+                        content: { type: 'STRING', description: 'Contenido completo en HTML enriquecido (sin bloques markdown).' },
+                        tags: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Etiquetas del artículo (ej. ["SST", "Normatividad"]).' },
+                        postId: { type: 'STRING', description: 'ID del artículo para leer, editar o eliminar.' }
+                    },
+                    required: ['accion']
+                }
+            };
+
+            const editorLiveDeclaration = {
+                name: 'editor_live',
+                description: 'Gestiona Documentos en Vivo (LiveEditor / /documentos-vivo) de la empresa activa: listar, leer, crear, guardar/actualizar o eliminar documentos oficiales del SG-SST exportables a Word/PDF.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        accion: { type: 'STRING', description: "Acción CRUD: 'listar', 'leer', 'crear', 'guardar', 'actualizar' o 'eliminar'." },
+                        id: { type: 'STRING', description: 'ID del documento en vivo (para leer, actualizar o eliminar).' },
+                        title: { type: 'STRING', description: 'Título del documento.' },
+                        content: { type: 'STRING', description: 'Contenido HTML o texto estructurado del documento.' },
+                        busqueda: { type: 'STRING', description: 'Término opcional para filtrar al listar.' }
+                    },
+                    required: ['accion']
+                }
+            };
+
+            const wappyInvestigarTrabajador360Declaration = {
+                name: 'wappy_investigar_trabajador_360',
+                description: 'Realiza investigación OSINT 360 oficial de un trabajador colombiano por cédula/nombre/placa en portales públicos oficiales (ARL SURA, Positiva, Seguros Bolívar, Curso de Alturas MinTrabajo, SENA, ADRES/EPS, Pensiones AFP, Rama Judicial, Contraloría y SIMIT PESV) generando evidencias verificables.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        cedula: { type: 'STRING', description: 'Número de documento/cédula del trabajador.' },
+                        nombre: { type: 'STRING', description: 'Nombre completo del trabajador (opcional).' },
+                        tipo_documento: { type: 'STRING', description: "Tipo de documento: 'CC', 'CE', 'TI', 'PPT' (por defecto 'CC')." },
+                        fecha_nacimiento: { type: 'STRING', description: 'Fecha de nacimiento en formato YYYY-MM-DD o DD/MM/AAAA (requerida en ARL Bolívar/AXA).' },
+                        placa: { type: 'STRING', description: 'Placa del vehículo si se requiere verificar SIMIT/PESV.' },
+                        portales: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Portales específicos a consultar (opcional).' }
+                    }
+                }
+            };
+
+            const forensicAuditDeclaration = {
+                name: 'forensic_audit',
+                description: 'Ejecuta auditoría forense documental sobre un certificado de incapacidad médica o soporte PDF/imagen adjunto (o texto extraído): analiza metadatos binarios, detección de software de edición (Canva, Photoshop, iLovePDF), consistencia aritmética de días/fechas, dígito de verificación NIT DIAN y verificación oficial IPS REPS (MinSalud) + Contraloría sin CAPTCHA.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        instruccion: { type: 'STRING', description: 'Instrucción específica o enfoque de la auditoría forense.' },
+                        texto_documento: { type: 'STRING', description: 'Texto del documento si no hay binario adjunto en este turno.' },
+                        nombre_archivo: { type: 'STRING', description: 'Nombre del archivo a auditar (opcional).' }
+                    }
+                }
+            };
+
+            const fileSearchDeclaration = {
+                name: 'file_search',
+                description: 'Realiza búsqueda semántica RAG y documental sobre los archivos subidos por el usuario, documentos adjuntos, LiveEditor y Canvas guardados en la plataforma.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        query: { type: 'STRING', description: 'Consulta o palabras clave a buscar dentro de los documentos del usuario.' },
+                        filename: { type: 'STRING', description: 'Filtro opcional por nombre de archivo.' },
+                        limit: { type: 'NUMBER', description: 'Máximo de fragmentos relevantes a retornar (por defecto 6).' }
+                    },
+                    required: ['query']
+                }
+            };
+
+            const calculatorDeclaration = {
+                name: 'calculator',
+                description: 'Calculadora matemática y de indicadores SG-SST (evaluador seguro sin eval). Calcula expresiones aritméticas exactas y fórmulas normativas colombianas: IF, IS, ILI (NTC 3701 / Res. 0312 Art. 30), tasa_accidentalidad, porcentaje_0312, dosis_ruido (Res. 1792 / ACGIH), twa_quimico (Brief & Scala) y ausentismo.',
+                parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                        expresion: { type: 'STRING', description: 'Expresión matemática segura (ej: "(4 * 240000) / 185000", "sqrt(16) + 2^3").' },
+                        formula_sst: { type: 'STRING', description: "Fórmula predefinida SST: 'IF', 'IS', 'ILI', 'tasa_accidentalidad', 'porcentaje_0312', 'dosis_ruido', 'twa_quimico' o 'ausentismo'." },
+                        variables: { type: 'OBJECT', description: 'Variables numéricas para la fórmula SST (ej: { accidentes: 4, hht: 185000, dias_perdidos: 32, trabajadores: 50 }).' }
+                    }
+                }
+            };
+
             // Assemble base tools and dynamically triggered tools (strictly excluding Group 7)
             const baseFunctionDeclarations = [
                 wappyNavegarDeclaration,
@@ -4992,8 +5526,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 somosSSTDeclaration,
                 wappyCrearInformeDeclaration,
                 wappyGenerarQrDeclaration,
-                wappyAnaliticaPsicosocialDeclaration,
-                wappyAnaliticaActosDeclaration,
+                analiticaPsicosocialDeclaration,
+                analiticaActosCondicionesDeclaration,
                 wappyConsultarQuimicoPubchemDeclaration,
                 wappyGeocodificarEmergenciasDeclaration,
                 wappyConsultarClimaVientoDeclaration,
@@ -5017,6 +5551,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 wappyActualizarTrabajadorDeclaration,
                 wappyConsultarTrabajadoresDeclaration,
                 wappyRegistrarTrabajadorDeclaration,
+                wappyInvestigarTrabajador360Declaration,
                 wappyImportarSociodemograficoDriveDeclaration,
                 wappyImportarHito1DriveDeclaration,
                 wappyConsultarEmpresasDeclaration,
@@ -5050,7 +5585,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 gestionarMemoriaDeclaration,
                 wappyMemoriaProcedimentalDeclaration,
                 wappyRenderizarWidgetDeclaration,
-                leerPantallaDeclaration
+                leerPantallaDeclaration,
+                webScraperLiveDeclaration,
+                blogEditorDeclaration,
+                editorLiveDeclaration,
+                forensicAuditDeclaration,
+                fileSearchDeclaration,
+                calculatorDeclaration,
             ];
 
             const dynamicToolsMap = {
@@ -5066,10 +5607,31 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 onedrive: oneDriveDeclaration,
                 one_drive: oneDriveDeclaration,
                 web_search: webSearchDeclaration,
+                web_scraper_live: webScraperLiveDeclaration,
+                blog_editor: blogEditorDeclaration,
+                editor_live: editorLiveDeclaration,
                 editor_rit: editorRITDeclaration,
+                wappy_investigar_trabajador_360: wappyInvestigarTrabajador360Declaration,
+                forensic_audit: forensicAuditDeclaration,
+                file_search: fileSearchDeclaration,
+                calculator: calculatorDeclaration,
                 consultar_analitica_psicosocial: analiticaPsicosocialDeclaration,
                 consultar_analitica_actos_condiciones: analiticaActosCondicionesDeclaration,
             };
+
+            const declarationRegistry = {};
+            for (const decl of [
+                ...baseFunctionDeclarations,
+                ...Object.values(dynamicToolsMap),
+                wappyAnaliticaPsicosocialDeclaration,
+                wappyAnaliticaActosDeclaration,
+                wappyConsultarMetricasAdminDeclaration,
+                wappyAdminSistemaDeclaration,
+            ]) {
+                if (decl && decl.name && !declarationRegistry[decl.name]) {
+                    declarationRegistry[decl.name] = decl;
+                }
+            }
 
             const lastMsgObj = messages[messages.length - 1];
             const lastUserMsg = lastMsgObj?.content || 'Hola';
@@ -5086,30 +5648,26 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 (/\b(lista|listado|censo|nomina|nómina|ver|mostrar|muestrame|muéstrame|dame|cuales\s+son|cuáles\s+son|quienes\s+son|quiénes\s+son|consultar|consulta)\b[\s\S]{0,40}\b(trabajadores|colaboradores|empleados|personal)\b/i.test(lastUserLower) ||
                 /\b(trabajadores|colaboradores|empleados)\b[\s\S]{0,30}\b(activos|retirados|registrados|lista|censo|todos|empresa)\b/i.test(lastUserLower));
 
-            let toolsToAttach = [...baseFunctionDeclarations];
-            if (isAdminUser) {
-                toolsToAttach.push(wappyConsultarMetricasAdminDeclaration, wappyAdminSistemaDeclaration);
-            }
-            if (isInlineWidgetIntent && !lastUserLower.includes('canvas') && !lastUserLower.includes('lienzo')) {
-                // Evitar que Gemini gaste 15s generando HTML en canvas_tool cuando el usuario pide el widget nativo en el chat
-                toolsToAttach = toolsToAttach.filter(t => t.name !== 'canvas_tool');
-            }
-            for (const toolName of activeTools) {
-                const decl = dynamicToolsMap[toolName];
-                if (decl && !toolsToAttach.some(d => d.name === decl.name)) {
-                    toolsToAttach.push(decl);
-                }
-            }
-            if (
-                (tenshiFlowsBlock ||
+            const forceGestorAuto = Boolean(
+                tenshiFlowsBlock ||
                     workflowNodesOverviewBlock ||
                     safeCompanyAutos.length > 0 ||
-                    /\b(nodo|nodos|flujo|flujos|automatizaci|tareas|lienzo|disparador|extractor|rethus|adres|incapacidad|gu[ií]a\s+de\s+nodos)\b/i.test(lastUserLower)) &&
-                !toolsToAttach.some(d => d.name === 'gestor_automatizaciones')
-            ) {
-                toolsToAttach.push(gestorAutomatizacionesDeclaration);
-            }
-            logger.info(`[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}): ${toolsToAttach.map(t => t.name).join(', ')}`);
+                    /\b(nodo|nodos|flujo|flujos|automatizaci|tareas|lienzo|disparador|extractor|rethus|adres|incapacidad|gu[ií]a\s+de\s+nodos)\b/i.test(lastUserLower)
+            );
+
+            let toolsToAttach = selectTenshiTools({
+                declarationRegistry,
+                baseDeclarations: baseFunctionDeclarations,
+                dynamicToolsMap,
+                activeTools,
+                enabledTools,
+                connectors: normalizedConnectors,
+                isAdminUser,
+                isInlineWidgetIntent,
+                lastUserLower,
+                forceGestorAuto,
+            });
+            logger.info(`[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}, mode=${Array.isArray(enabledTools) ? 'explicit' : 'legacy'}): ${toolsToAttach.map(t => t.name).join(', ')}`);
 
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
@@ -5147,9 +5705,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             const activeCompanyIdStr = companyInfo?._id ? String(companyInfo._id) : (req.companyId ? String(req.companyId) : null);
             let directMediaAttempted = false;
 
+            const allowAntigravityMedia = !normalizedConnectors || normalizedConnectors.antigravity !== false;
+            const allowGoogleFlowMedia = !normalizedConnectors || normalizedConnectors.google_flow !== false;
+            const allowVisualMediaFastPath = allowAntigravityMedia || allowGoogleFlowMedia;
+
             // Fast-Path determinista para generación directa de imagen/video (Antigravity Local -> Google Flow Studio):
             // Opera de forma independiente a Gemini Texto (inmune a 503/timeouts) e incluye recuperación del prompt desde historial en reintentos cortos ("inténtalo nuevamente", "hazla con antigravity").
-            const fastPathMediaIntent = !isGuiResultTurn
+            const fastPathMediaIntent = !isGuiResultTurn && allowVisualMediaFastPath
                 ? detectVisualMediaGenerationIntent(lastUserMsg, messages, {
                       allowCompound: false,
                       hasCurrentAttachment: currentTurnHasAttachments,
@@ -5168,7 +5730,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         aspectRatio: fastPathMediaIntent.aspectRatio,
                         style: fastPathMediaIntent.style,
                         cameraMotion: fastPathMediaIntent.cameraMotion,
-                        skipAntigravity: fastPathMediaIntent.skipAntigravity,
+                        skipAntigravity: !allowAntigravityMedia || fastPathMediaIntent.skipAntigravity,
                         userId: targetUserId,
                         companyId: activeCompanyIdStr,
                     });
@@ -5252,7 +5814,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         model: PRIMARY_TEXT_MODEL,
                         systemInstruction: systemMessage,
                         tools: [{ functionDeclarations: toolsToAttach }],
-                        generationConfig: { temperature: 0.7, maxOutputTokens: 65536 }
+                        generationConfig: buildTenshiGenerationConfig(PRIMARY_TEXT_MODEL, {
+                            hasTools: toolsToAttach.length > 0,
+                            temperature: 0.7,
+                            maxOutputTokens: 65536,
+                        }),
                     });
                     const retryRes = await withGeminiTimeout(
                         retryModel.generateContent({ contents }),
@@ -5279,6 +5845,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
                 const currentModel = modelFallbacks[mi];
                 const isPrimaryModel = currentModel === PRIMARY_TEXT_MODEL;
+                const isExplicitSelectedFirst = userSelectedModelExplicitly && mi === 0;
                 if (mi > 0 && Date.now() - rotationStartMs >= MAX_ROTATION_WALL_MS) {
                     logger.warn(
                         `[Tenshi] Presupuesto de rotación (${MAX_ROTATION_WALL_MS}ms) alcanzado tras ${Date.now() - rotationStartMs}ms; omitiendo modelo secundario "${currentModel}".`
@@ -5294,11 +5861,13 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     const apiKey = apiKeys[keyIdx];
                     const attemptStartMs = Date.now();
                     try {
-                        const initialTimeoutMs = isPrimaryModel
-                            ? pass503Index === 0 && i === 0
-                                ? PRIMARY_INITIAL_TIMEOUT_MS
-                                : PRIMARY_RETRY_TIMEOUT_MS
-                            : SECONDARY_MODEL_TIMEOUT_MS;
+                        const initialTimeoutMs = isExplicitSelectedFirst
+                            ? 20000
+                            : isPrimaryModel
+                              ? pass503Index === 0 && i === 0
+                                  ? PRIMARY_INITIAL_TIMEOUT_MS
+                                  : PRIMARY_RETRY_TIMEOUT_MS
+                              : SECONDARY_MODEL_TIMEOUT_MS;
                         logger.debug(
                             `[Tenshi] Trying Key ${keyIdx + 1}/${apiKeys.length} (pass #${pass503Index + 1}, timeout=${initialTimeoutMs}ms) with model "${currentModel}"`
                         );
@@ -5308,7 +5877,11 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             model: currentModel,
                             systemInstruction: systemMessage,
                             tools: [{ functionDeclarations: toolsToAttach }],
-                            generationConfig: { temperature: 0.7, maxOutputTokens: 65536 }
+                            generationConfig: buildTenshiGenerationConfig(currentModel, {
+                                hasTools: toolsToAttach.length > 0,
+                                temperature: 0.7,
+                                maxOutputTokens: 65536,
+                            }),
                         });
 
                         const userParts = [...baseUserParts];
@@ -5346,8 +5919,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 const overflowCalls = calls.slice(maxBatch);
                                 for (const extraCall of overflowCalls) {
                                     const sig = `${extraCall.name}:${JSON.stringify(extraCall.args || {})}`;
-                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.name}:${JSON.stringify(q.args || {})}` === sig)) {
-                                        queuedCalls.push(extraCall);
+                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.call.name}:${JSON.stringify(q.call.args || {})}` === sig)) {
+                                        queuedCalls.push({ call: extraCall, candidateContent: candidate?.content || null });
                                     }
                                 }
                                 for (const bc of batchCalls) {
@@ -5454,10 +6027,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
                                         while (queuedCalls.length > 0) {
                                             const nextQueued = queuedCalls.shift();
-                                            const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                            const nextSig = `${nextQueued.call.name}:${JSON.stringify(nextQueued.call.args || {})}`;
                                             if (!executedCallSigs.has(nextSig)) {
-                                                calls = [nextQueued];
-                                                candidate = null;
+                                                calls = [nextQueued.call];
+                                                candidate = nextQueued.candidateContent ? { content: nextQueued.candidateContent } : null;
                                                 break;
                                             }
                                         }
@@ -5477,10 +6050,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
                                             while (queuedCalls.length > 0) {
                                                 const nextQueued = queuedCalls.shift();
-                                                const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                                const nextSig = `${nextQueued.call.name}:${JSON.stringify(nextQueued.call.args || {})}`;
                                                 if (!executedCallSigs.has(nextSig)) {
-                                                    calls = [nextQueued];
-                                                    candidate = null;
+                                                    calls = [nextQueued.call];
+                                                    candidate = nextQueued.candidateContent ? { content: nextQueued.candidateContent } : null;
                                                     break;
                                                 }
                                             }
@@ -5509,8 +6082,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 for (let ci = 1; ci < calls.length; ci++) {
                                     const extraCall = calls[ci];
                                     const sig = `${extraCall.name}:${JSON.stringify(extraCall.args || {})}`;
-                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.name}:${JSON.stringify(q.args || {})}` === sig)) {
-                                        queuedCalls.push(extraCall);
+                                    if (!executedCallSigs.has(sig) && !queuedCalls.some(q => `${q.call.name}:${JSON.stringify(q.call.args || {})}` === sig)) {
+                                        queuedCalls.push({ call: extraCall, candidateContent: candidate?.content || null });
                                     }
                                 }
                             }
@@ -5655,6 +6228,274 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 } else if (call.name === 'web_search') {
                                     const WebSearchTool = require('../../app/clients/tools/structured/WebSearch');
                                     toolOutput = await new WebSearchTool({ req })._call(call.args);
+                                } else if (call.name === 'web_scraper_live') {
+                                    const scraperTool = new WebScraperLive({
+                                        req,
+                                        userId: targetUserId,
+                                        companyId: activeCompanyIdStr,
+                                        isAgent: false,
+                                    });
+                                    const rawScraperOut = await scraperTool._call(call.args || {});
+                                    toolOutput = Array.isArray(rawScraperOut)
+                                        ? String(rawScraperOut[0] || '')
+                                        : typeof rawScraperOut === 'string'
+                                          ? rawScraperOut
+                                          : JSON.stringify(rawScraperOut);
+                                } else if (call.name === 'blog_editor') {
+                                    const blogTool = new BlogEditor({ req });
+                                    toolOutput = await blogTool._call(call.args || {});
+                                } else if (call.name === 'editor_live') {
+                                    const liveAction = String(call.args?.accion || 'listar').toLowerCase().trim();
+                                    const mcpCtx = { companyId: activeCompanyIdStr };
+                                    if (liveAction === 'eliminar' || liveAction === 'borrar' || liveAction === 'delete') {
+                                        const delId = String(call.args?.id || call.args?.docId || '').trim();
+                                        if (!delId) {
+                                            toolOutput = JSON.stringify({ error: 'Debes indicar el "id" del documento en vivo a eliminar.' });
+                                        } else {
+                                            const res = await executeTenshiMcpTool('wappy_eliminar_documento_vivo', { id: delId }, targetUserId, mcpCtx);
+                                            toolOutput = JSON.stringify(res);
+                                        }
+                                    } else if (liveAction === 'crear' || liveAction === 'guardar' || liveAction === 'actualizar' || liveAction === 'editar') {
+                                        const saveArgs = {
+                                            ...(call.args?.id ? { id: call.args.id } : {}),
+                                            title: call.args?.title || call.args?.titulo || 'Documento SG-SST',
+                                            content: call.args?.content || call.args?.contenido || '',
+                                        };
+                                        const res = await executeTenshiMcpTool('wappy_guardar_documento_vivo', saveArgs, targetUserId, mcpCtx);
+                                        if (res?.documento?.content) {
+                                            capturedFile = {
+                                                title: res.documento.title || saveArgs.title,
+                                                fileType: 'text',
+                                                content: res.documento.content,
+                                                canvasId: `live-doc-${res.documento._id || Date.now()}`,
+                                            };
+                                        }
+                                        toolOutput = JSON.stringify(res);
+                                    } else if (liveAction === 'leer' && call.args?.id && mongoose.isValidObjectId(call.args.id)) {
+                                        const doc = await LiveDocument.findOne({
+                                            _id: call.args.id,
+                                            user: { $in: userIds },
+                                            ...(activeCompanyIdStr ? { companyId: activeCompanyIdStr } : {}),
+                                        }).lean();
+                                        toolOutput = JSON.stringify(
+                                            doc
+                                                ? { success: true, documento: doc }
+                                                : { error: `No se encontró el documento en vivo con ID ${call.args.id}.` }
+                                        );
+                                    } else {
+                                        const res = await executeTenshiMcpTool('wappy_consultar_documentos_vivo', { limit: 30 }, targetUserId, mcpCtx);
+                                        if (call.args?.busqueda && Array.isArray(res?.documentos)) {
+                                            const qLower = String(call.args.busqueda).toLowerCase().trim();
+                                            res.documentos = res.documentos.filter((d) =>
+                                                String(d?.title || '').toLowerCase().includes(qLower) ||
+                                                String(d?.content || '').toLowerCase().includes(qLower)
+                                            );
+                                            res.total = res.documentos.length;
+                                        }
+                                        toolOutput = JSON.stringify(res);
+                                    }
+                                } else if (call.name === 'wappy_investigar_trabajador_360') {
+                                    const osintArgs = { ...(call.args || {}) };
+                                    if (osintArgs.documento && !osintArgs.cedula) {
+                                        osintArgs.cedula = osintArgs.documento;
+                                    }
+                                    const res = await executeTenshiMcpTool(
+                                        'wappy_investigar_trabajador_360',
+                                        osintArgs,
+                                        targetUserId,
+                                        { companyId: activeCompanyIdStr }
+                                    );
+                                    toolOutput = JSON.stringify(res);
+                                } else if (call.name === 'forensic_audit') {
+                                    const {
+                                        analyzeDisabilityCertificateForensics,
+                                        verifyColombianNitCheckDigit,
+                                    } = require('~/server/services/forensicDocumentService');
+                                    const primaryAttached =
+                                        req.__tenshiAttachedMedia ||
+                                        (Array.isArray(req.__tenshiAttachedMediaList) ? req.__tenshiAttachedMediaList[0] : null);
+                                    if (primaryAttached) {
+                                        const forensicRes = await analyzeDisabilityCertificateForensics({
+                                            attachedMedia: primaryAttached,
+                                            userInstruction: call.args?.instruccion || lastUserMsg,
+                                            companyId: activeCompanyIdStr || '',
+                                            userId: targetUserId,
+                                            modelId: currentModel,
+                                        });
+                                        toolOutput = JSON.stringify(forensicRes);
+                                    } else if (call.args?.texto_documento) {
+                                        const rawDocText = String(call.args.texto_documento || '');
+                                        const nitMatch = rawDocText.match(/\b(\d{8,10})\s*[-–]\s*(\d)\b/);
+                                        const nitCheck = nitMatch
+                                            ? verifyColombianNitCheckDigit(`${nitMatch[1]}-${nitMatch[2]}`)
+                                            : null;
+                                        const suspiciousEditors = ['canva', 'ilovepdf', 'photoshop', 'sejda', 'smallpdf', 'wps', 'pdfelement']
+                                            .filter((ed) => rawDocText.toLowerCase().includes(ed));
+                                        toolOutput = JSON.stringify({
+                                            ok: true,
+                                            mode: 'text_heuristic_only',
+                                            hasBinaryAttachment: false,
+                                            nitCheck,
+                                            suspiciousEditorsMentioned: suspiciousEditors,
+                                            note: 'Evaluación preliminar sobre texto plano. Para auditoría forense completa de metadatos PDF/EXIF, capas de edición y verificación oficial IPS REPS + Contraloría, adjunta el archivo PDF o imagen original.',
+                                        });
+                                    } else {
+                                        const emptyRes = await analyzeDisabilityCertificateForensics({
+                                            userInstruction: call.args?.instruccion || lastUserMsg,
+                                            companyId: activeCompanyIdStr || '',
+                                            userId: targetUserId,
+                                            modelId: currentModel,
+                                        });
+                                        toolOutput = JSON.stringify(emptyRes);
+                                    }
+                                } else if (call.name === 'file_search') {
+                                    const searchQuery = String(call.args?.query || '').trim();
+                                    const filenameFilter = String(call.args?.filename || '').trim().toLowerCase();
+                                    const maxResults = Math.max(1, Math.min(Number(call.args?.limit) || 6, 15));
+                                    if (!searchQuery) {
+                                        toolOutput = JSON.stringify({ error: 'Debes indicar "query" para buscar en los archivos.' });
+                                    } else {
+                                        const snippets = [];
+                                        const keywords = searchQuery
+                                            .toLowerCase()
+                                            .normalize('NFD')
+                                            .replace(/[\u0300-\u036f]/g, '')
+                                            .split(/\s+/)
+                                            .filter((w) => w.length >= 2);
+                                        const scoreText = (txt = '') => {
+                                            const norm = String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                                            if (!norm) return 0;
+                                            let hits = 0;
+                                            for (const kw of keywords) {
+                                                if (norm.includes(kw)) hits++;
+                                            }
+                                            return keywords.length > 0 ? hits / keywords.length : 0;
+                                        };
+
+                                        // 1. Buscar en archivos subidos del usuario (RAG Vector DB si está activo + texto en MongoDB File)
+                                        try {
+                                            const { getFiles } = require('~/models/File');
+                                            const userFiles = (await getFiles({ user: { $in: userIds } }, { updatedAt: -1 })) || [];
+                                            const filteredFiles = userFiles
+                                                .filter((f) => !filenameFilter || String(f?.filename || '').toLowerCase().includes(filenameFilter))
+                                                .slice(0, 15);
+
+                                            const embeddedFiles = filteredFiles.filter((f) => f?.embedded && f?.file_id);
+                                            if (process.env.RAG_API_URL && embeddedFiles.length > 0) {
+                                                const shortJwt = generateShortLivedToken(targetUserId);
+                                                if (shortJwt) {
+                                                    const ragHits = await Promise.all(
+                                                        embeddedFiles.slice(0, 8).map((f) =>
+                                                            axios
+                                                                .post(
+                                                                    `${process.env.RAG_API_URL}/query`,
+                                                                    { file_id: f.file_id, query: searchQuery, k: 4 },
+                                                                    {
+                                                                        headers: {
+                                                                            Authorization: `Bearer ${shortJwt}`,
+                                                                            'Content-Type': 'application/json',
+                                                                        },
+                                                                        timeout: 8000,
+                                                                    }
+                                                                )
+                                                                .then((r) => ({ file: f, rows: Array.isArray(r.data) ? r.data : [] }))
+                                                                .catch(() => null)
+                                                        )
+                                                    );
+                                                    for (const hit of ragHits) {
+                                                        if (!hit) continue;
+                                                        for (const row of hit.rows) {
+                                                            const [docInfo, distance] = Array.isArray(row) ? row : [row, 0.5];
+                                                            if (docInfo?.page_content) {
+                                                                snippets.push({
+                                                                    source: 'rag_vector',
+                                                                    filename: docInfo.metadata?.filename || hit.file.filename,
+                                                                    file_id: hit.file.file_id,
+                                                                    relevance: Number((1 - Number(distance || 0.4)).toFixed(4)),
+                                                                    excerpt: String(docInfo.page_content).slice(0, 900),
+                                                                });
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Fallback búsqueda textual en Mongo File.text
+                                            for (const f of filteredFiles) {
+                                                if (!f?.text) continue;
+                                                const sc = scoreText(f.text);
+                                                if (sc > 0) {
+                                                    snippets.push({
+                                                        source: 'mongo_file',
+                                                        filename: f.filename || f.file_id,
+                                                        file_id: f.file_id,
+                                                        relevance: Number(sc.toFixed(4)),
+                                                        excerpt: String(f.text).slice(0, 900),
+                                                    });
+                                                }
+                                            }
+                                        } catch (fileErr) {
+                                            logger.warn('[Tenshi file_search] Mongo/RAG lookup warning:', fileErr?.message || fileErr);
+                                        }
+
+                                        // 2. Buscar en documentos adjuntos de este turno
+                                        if (Array.isArray(activeAttachments) && activeAttachments.length > 0) {
+                                            activeAttachments.forEach((att, idx) => {
+                                                const txt = extractedTexts[idx] || '';
+                                                if (!txt) return;
+                                                if (filenameFilter && !String(att?.name || '').toLowerCase().includes(filenameFilter)) return;
+                                                const sc = scoreText(txt);
+                                                if (sc > 0 || snippets.length === 0) {
+                                                    snippets.push({
+                                                        source: 'turn_attachment',
+                                                        filename: att?.name || `adjunto_${idx + 1}`,
+                                                        relevance: Number(Math.max(sc, 0.2).toFixed(4)),
+                                                        excerpt: String(txt).slice(0, 900),
+                                                    });
+                                                }
+                                            });
+                                        }
+
+                                        // 3. Buscar en LiveDocument de la empresa activa
+                                        try {
+                                            const liveDocs = await LiveDocument.find({
+                                                user: { $in: userIds },
+                                                ...(activeCompanyIdStr ? { companyId: activeCompanyIdStr } : {}),
+                                            })
+                                                .sort({ updatedAt: -1 })
+                                                .limit(15)
+                                                .lean();
+                                            for (const ld of liveDocs) {
+                                                const plain = `${ld.title || ''} ${String(ld.content || '').replace(/<[^>]+>/g, ' ')}`;
+                                                if (filenameFilter && !String(ld.title || '').toLowerCase().includes(filenameFilter)) continue;
+                                                const sc = scoreText(plain);
+                                                if (sc > 0) {
+                                                    snippets.push({
+                                                        source: 'live_document',
+                                                        filename: ld.title || 'Documento en Vivo',
+                                                        documentId: String(ld._id),
+                                                        relevance: Number(sc.toFixed(4)),
+                                                        excerpt: plain.replace(/\s+/g, ' ').trim().slice(0, 900),
+                                                    });
+                                                }
+                                            }
+                                        } catch (_) {}
+
+                                        snippets.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
+                                        const topSnippets = snippets.slice(0, maxResults);
+                                        toolOutput = JSON.stringify({
+                                            ok: true,
+                                            query: searchQuery,
+                                            totalMatches: topSnippets.length,
+                                            results: topSnippets,
+                                            ...(topSnippets.length === 0
+                                                ? { message: 'No se encontraron fragmentos coincidentes en los archivos cargados del usuario.' }
+                                                : {}),
+                                        });
+                                    }
+                                } else if (call.name === 'calculator') {
+                                    const calcRes = evaluateSafeSstCalculator(call.args || {});
+                                    toolOutput = JSON.stringify(calcRes);
                                 } else if (call.name === 'editor_rit') {
                                     const EditorRIT = require('../../app/clients/tools/structured/EditorRIT');
                                     toolOutput = await new EditorRIT({ req })._call(call.args);
@@ -6028,12 +6869,37 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                      let mappedArgs = {};
                                      if (call.name === 'notebooklm_consultar') {
                                          mappedTool = 'chat_ask';
-                                         mappedArgs = { notebook: call.args?.cuaderno || call.args?.notebook || '', query: call.args?.pregunta || call.args?.query || '' };
+                                         mappedArgs = {
+                                             notebook:
+                                                 call.args?.cuaderno ||
+                                                 call.args?.notebook ||
+                                                 effectiveSelectedNotebooks[0]?.id ||
+                                                 effectiveSelectedNotebooks[0]?.title ||
+                                                 '',
+                                             query: call.args?.pregunta || call.args?.query || '',
+                                         };
                                      } else if (call.name === 'notebooklm_generar_studio') {
                                          mappedTool = 'studio_generate';
-                                         mappedArgs = { notebook: call.args?.cuaderno || '', artifact_type: call.args?.tipo_artefacto || call.args?.artifact_type || 'audio', instructions: call.args?.instrucciones || '' };
+                                         mappedArgs = {
+                                             notebook:
+                                                 call.args?.cuaderno ||
+                                                 call.args?.notebook ||
+                                                 effectiveSelectedNotebooks[0]?.id ||
+                                                 effectiveSelectedNotebooks[0]?.title ||
+                                                 '',
+                                             artifact_type: call.args?.tipo_artefacto || call.args?.artifact_type || 'audio',
+                                             instructions: call.args?.instrucciones || '',
+                                         };
                                      }
-                                     const res = await executeTenshiMcpTool(mappedTool, mappedArgs, targetUserId);
+                                     const res = await executeTenshiMcpTool(
+                                         mappedTool,
+                                         mappedArgs,
+                                         targetUserId,
+                                         {
+                                             companyId: activeCompanyIdStr,
+                                             selectedNotebooks: effectiveSelectedNotebooks,
+                                         }
+                                     );
                                      toolOutput = typeof res === 'string' ? res : JSON.stringify(res);
                                  } else if (call.name === 'google_flow_generar_imagen' || call.name === 'google_flow_generar_video' || call.name === 'google_flow') {
                                      const isVideoCall =
@@ -6050,7 +6916,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                          aspectRatio: flowAspect,
                                          style: flowStyle,
                                          cameraMotion: flowMotion,
-                                         skipAntigravity: false,
+                                         skipAntigravity: !allowAntigravityMedia,
                                          userId: targetUserId,
                                          companyId: activeCompanyIdStr,
                                      });
@@ -6084,7 +6950,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         capturedWidget = staged.widget;
                                         toolOutput = JSON.stringify(staged.toolResponse);
                                     } else {
-                                        const res = await executeTenshiMcpTool(targetTool, targetArgs, targetUserId);
+                                        const res = await executeTenshiMcpTool(
+                                            targetTool,
+                                            targetArgs,
+                                            targetUserId,
+                                            {
+                                                companyId: activeCompanyIdStr,
+                                                selectedNotebooks: effectiveSelectedNotebooks,
+                                            }
+                                        );
                                         if ((targetTool === 'wappy_delegar_orden_antigravity' || targetTool === 'delegar_orden_antigravity') && res?.ordenId) {
                                             capturedDelegatedOrder = {
                                                 ordenId: res.ordenId,
@@ -6162,20 +7036,30 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             const rawCandidateParts = (candidate && candidate.content && Array.isArray(candidate.content.parts))
                                 ? candidate.content.parts
                                 : [];
-                            let firstFuncTaken = false;
-                            const filteredParts = rawCandidateParts.filter((p) => {
+                            const targetArgsSig = JSON.stringify(call.args || {});
+                            let matchedPartIdx = rawCandidateParts.findIndex(
+                                (p) =>
+                                    p &&
+                                    p.functionCall &&
+                                    p.functionCall.name === call.name &&
+                                    JSON.stringify(p.functionCall.args || {}) === targetArgsSig
+                            );
+                            if (matchedPartIdx === -1) {
+                                matchedPartIdx = rawCandidateParts.findIndex(
+                                    (p) => p && p.functionCall && p.functionCall.name === call.name
+                                );
+                            }
+                            const filteredParts = rawCandidateParts.filter((p, idx) => {
                                 if (p && p.functionCall) {
-                                    if (!firstFuncTaken && p.functionCall.name === call.name) {
-                                        firstFuncTaken = true;
-                                        return true;
-                                    }
-                                    return false;
+                                    return idx === matchedPartIdx;
                                 }
                                 return true;
                             });
-                            const modelParts = filteredParts.length > 0 ? filteredParts : [{
-                                functionCall: { name: call.name, args: call.args }
-                            }];
+                            const modelParts = filteredParts.length > 0 && matchedPartIdx !== -1
+                                ? filteredParts
+                                : [{
+                                    functionCall: { name: call.name, args: call.args }
+                                }];
                             currentContents.push({ role: 'model', parts: modelParts });
 
                             let parsedResponse;
@@ -6283,7 +7167,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     call.name === 'consultar_multiples_especialistas_paralelo' ||
                                     call.name === 'consultar_agente_especializado'
                                         ? 25000
-                                        : isPrimaryModel
+                                        : isExplicitSelectedFirst || isPrimaryModel
                                           ? PRIMARY_INITIAL_TIMEOUT_MS
                                           : 14000;
                                 responseResult = await withGeminiTimeout(
@@ -6296,10 +7180,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                 if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
                                     while (queuedCalls.length > 0) {
                                         const nextQueued = queuedCalls.shift();
-                                        const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                        const nextSig = `${nextQueued.call.name}:${JSON.stringify(nextQueued.call.args || {})}`;
                                         if (!executedCallSigs.has(nextSig)) {
-                                            calls = [nextQueued];
-                                            candidate = null;
+                                            calls = [nextQueued.call];
+                                            candidate = nextQueued.candidateContent ? { content: nextQueued.candidateContent } : null;
                                             break;
                                         }
                                     }
@@ -6324,10 +7208,10 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     if ((!calls || calls.length === 0) && queuedCalls.length > 0) {
                                         while (queuedCalls.length > 0) {
                                             const nextQueued = queuedCalls.shift();
-                                            const nextSig = `${nextQueued.name}:${JSON.stringify(nextQueued.args || {})}`;
+                                            const nextSig = `${nextQueued.call.name}:${JSON.stringify(nextQueued.call.args || {})}`;
                                             if (!executedCallSigs.has(nextSig)) {
-                                                calls = [nextQueued];
-                                                candidate = null;
+                                                calls = [nextQueued.call];
+                                                candidate = nextQueued.candidateContent ? { content: nextQueued.candidateContent } : null;
                                                 break;
                                             }
                                         }
@@ -6581,7 +7465,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // [Tenshi 503 Rescue — Prioridad #1: Generación Determinista de Imagen/Video (Antigravity -> Google Flow)]
             // Se ejecuta ANTES del rescate de flujos SG-SST/ARL para que un pedido visual NUNCA caiga por error a un flujo de portales.
             const lastUserMessageTextForRescue = String(lastMsgObj?.content || userQuery || '').trim();
-            if (!succeeded && lastError && !directMediaAttempted && !isGuiResultTurn) {
+            if (!succeeded && lastError && !directMediaAttempted && !isGuiResultTurn && allowVisualMediaFastPath) {
                 const rescueMediaIntent = detectVisualMediaGenerationIntent(
                     lastUserMessageTextForRescue,
                     messages,
@@ -6602,7 +7486,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             aspectRatio: rescueMediaIntent.aspectRatio,
                             style: rescueMediaIntent.style,
                             cameraMotion: rescueMediaIntent.cameraMotion,
-                            skipAntigravity: rescueMediaIntent.skipAntigravity,
+                            skipAntigravity: !allowAntigravityMedia || rescueMediaIntent.skipAntigravity,
                             userId: targetUserId,
                             companyId: activeCompanyIdStr,
                         });
@@ -6851,7 +7735,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
         ) {
             await TenshiMessage.create({
                 user: req.user.id,
-                companyId: companyInfo?._id ? String(companyInfo._id) : null,
+                companyId: activeCompanyIdForConvo,
+                conversationId: activeTenshiConvoId,
                 role: 'assistant',
                 content: responseText,
                 htmlReport: capturedHtmlReport || undefined,
@@ -6859,7 +7744,16 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                 file: capturedFile || undefined,
                 widget: capturedWidget || undefined,
                 ...(capturedEvidenceFiles.length > 0 ? { evidenceFiles: capturedEvidenceFiles } : {}),
-            }).catch(e => console.error('Error saving assistant TenshiMessage:', e));
+            })
+                .then(() => {
+                    if (activeTenshiConvoId) {
+                        TenshiConversation.updateOne(
+                            { _id: activeTenshiConvoId },
+                            { $set: { lastMessageAt: new Date() }, $inc: { messageCount: 1 } }
+                        ).catch(() => {});
+                    }
+                })
+                .catch(e => console.error('Error saving assistant TenshiMessage:', e));
         }
 
         // Enviar respuesta HTTP INMEDIATAMENTE tras guardar TenshiMessage para evitar bloqueos por tareas secundarias
@@ -6867,6 +7761,8 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
         if (!res.headersSent) {
             res.json({
                 response: responseText,
+                conversationId: activeTenshiConvoId,
+                conversationTitle: activeTenshiConvoTitle,
                 htmlReport: capturedHtmlReport,
                 qrCode: capturedQrCode,
                 file: capturedFile,

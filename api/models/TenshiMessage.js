@@ -48,6 +48,11 @@ const tenshiMessageSchema = mongoose.Schema(
             default: null,
             index: true,
         },
+        conversationId: {
+            type: String,
+            default: null,
+            index: true,
+        },
         role: {
             type: String,
             enum: ['user', 'assistant', 'system'],
@@ -108,7 +113,9 @@ const tenshiMessageSchema = mongoose.Schema(
 );
 
 tenshiMessageSchema.index({ user: 1, companyId: 1, createdAt: 1 });
+tenshiMessageSchema.index({ user: 1, companyId: 1, conversationId: 1, createdAt: 1 });
 
-const TenshiMessage = mongoose.model('TenshiMessage', tenshiMessageSchema);
+const TenshiMessage =
+    mongoose.models.TenshiMessage || mongoose.model('TenshiMessage', tenshiMessageSchema);
 
 module.exports = TenshiMessage;

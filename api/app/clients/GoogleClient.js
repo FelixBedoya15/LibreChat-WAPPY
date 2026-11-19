@@ -188,15 +188,34 @@ class GoogleClient extends BaseClient {
       );
     }
 
-    // Add thinking configuration
-    this.modelOptions.thinkingConfig = {
-      thinkingBudget:
-        (this.modelOptions.thinking ?? googleSettings.thinking.default)
-          ? this.modelOptions.thinkingBudget
-          : 0,
-    };
+    // Add thinking configuration (Gemini 3/4 use thinkingLevel; Gemini 2.5 uses thinkingBudget)
+    const normalizedModelName = String(this.modelOptions.model || '')
+      .replace(/^models\//i, '')
+      .trim();
+    const isGemini3Or4 = /^gemini-[34]|hydrogen/i.test(normalizedModelName);
+    const isGemini25 = /^gemini-2\.5/i.test(normalizedModelName);
+    if (isGemini3Or4) {
+      const explicitLevel =
+        this.modelOptions.thinkingLevel || this.modelOptions.thinkingConfig?.thinkingLevel;
+      this.modelOptions.thinkingConfig = {
+        thinkingLevel:
+          typeof explicitLevel === 'string' && explicitLevel.trim()
+            ? explicitLevel.trim().toUpperCase()
+            : 'LOW',
+      };
+    } else if (isGemini25) {
+      this.modelOptions.thinkingConfig = {
+        thinkingBudget:
+          (this.modelOptions.thinking ?? googleSettings.thinking.default)
+            ? this.modelOptions.thinkingBudget
+            : 0,
+      };
+    } else {
+      delete this.modelOptions.thinkingConfig;
+    }
     delete this.modelOptions.thinking;
     delete this.modelOptions.thinkingBudget;
+    delete this.modelOptions.thinkingLevel;
 
     this.sender =
       this.options.sender ??
@@ -270,6 +289,10 @@ class GoogleClient extends BaseClient {
     // Apply new model and reset key rotation to retry all keys
     this.modelOptions.model = nextModel;
     this.modelOptions.modelName = nextModel;
+    if (/^gemini-[34]|hydrogen/i.test(String(nextModel || '').replace(/^models\//i, '').trim())) {
+      this.modelOptions.thinkingConfig = { thinkingLevel: 'LOW' };
+      delete this.modelOptions.thinkingBudget;
+    }
     this.currentKeyIndex = 0;
     this.apiKey = this.apiKeys[this.currentKeyIndex];
     this.initializeClient();
@@ -747,15 +770,32 @@ class GoogleClient extends BaseClient {
         if (!modelOptions.mediaResolution) {
           modelOptions.mediaResolution = 'MEDIA_RESOLUTION_LOW';
         }
-        if (/gemini-4|hydrogen/i.test(modelName) && modelOptions.thinkingConfig) {
-          delete modelOptions.thinkingConfig;
+        const cleanModelName = String(modelName || '').replace(/^models\//i, '').trim();
+        const isGemini3Or4Request = /^gemini-[34]|hydrogen/i.test(cleanModelName);
+        if (isGemini3Or4Request && modelOptions.thinkingConfig) {
+          delete modelOptions.thinkingConfig.thinkingBudget;
+        }
+
+        const parsedGenConfig = googleGenConfigSchema.parse(modelOptions) || {};
+        if (isGemini3Or4Request) {
+          const explicitLevel =
+            modelOptions.thinkingConfig?.thinkingLevel || modelOptions.thinkingLevel;
+          parsedGenConfig.thinkingConfig = {
+            thinkingLevel:
+              typeof explicitLevel === 'string' && explicitLevel.trim()
+                ? explicitLevel.trim().toUpperCase()
+                : 'LOW',
+            ...(modelOptions.thinkingConfig?.includeThoughts != null
+              ? { includeThoughts: Boolean(modelOptions.thinkingConfig.includeThoughts) }
+              : {}),
+          };
         }
 
         /** @type {GenerateContentRequest} */
         const requestOptions = {
           safetySettings,
           contents: _payload,
-          generationConfig: googleGenConfigSchema.parse(modelOptions),
+          generationConfig: parsedGenConfig,
         };
 
         const promptPrefix = (this.systemMessage ?? '').trim();

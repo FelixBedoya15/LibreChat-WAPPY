@@ -29319,7 +29319,7 @@ function getGoogleConfig(credentials, options = {}) {
     const project_id = !apiKey ? ((_c = serviceKey === null || serviceKey === void 0 ? void 0 : serviceKey.project_id) !== null && _c !== void 0 ? _c : null) : null;
     const reverseProxyUrl = options.reverseProxyUrl;
     const authHeader = options.authHeader;
-    const _h = options.modelOptions || {}, { web_search, thinking = librechatDataProvider.googleSettings.thinking.default, thinkingBudget = librechatDataProvider.googleSettings.thinkingBudget.default } = _h, modelOptions = __rest(_h, ["web_search", "thinking", "thinkingBudget"]);
+    const _h = (options.modelOptions || {}), { web_search, thinking = librechatDataProvider.googleSettings.thinking.default, thinkingBudget = librechatDataProvider.googleSettings.thinkingBudget.default, thinkingLevel: rawThinkingLevel } = _h, modelOptions = __rest(_h, ["web_search", "thinking", "thinkingBudget", "thinkingLevel"]);
     const llmConfig = librechatDataProvider.removeNullishValues(Object.assign(Object.assign({}, (modelOptions || {})), { model: (_d = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.model) !== null && _d !== void 0 ? _d : '', maxRetries: 2, topP: (_e = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topP) !== null && _e !== void 0 ? _e : undefined, topK: (_f = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.topK) !== null && _f !== void 0 ? _f : undefined, temperature: (_g = modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.temperature) !== null && _g !== void 0 ? _g : undefined, maxOutputTokens: (modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.maxOutputTokens) != null
             ? modelOptions.maxOutputTokens === 8192
                 ? 65536
@@ -29348,22 +29348,54 @@ function getGoogleConfig(credentials, options = {}) {
     else {
         throw new Error(`Invalid credentials provided. Please provide either a valid API key or service account credentials for Google Cloud.`);
     }
-    const isGemini4Model = /gemini-4|hydrogen/i.test(String(llmConfig.model || ''));
-    const shouldEnableThinking = !isGemini4Model &&
-        thinking &&
-        thinkingBudget != null &&
-        (thinkingBudget > 0 || thinkingBudget === -1);
-    if (shouldEnableThinking && provider === agents.Providers.GOOGLE) {
-        llmConfig.thinkingConfig = {
-            thinkingBudget: thinking ? thinkingBudget : librechatDataProvider.googleSettings.thinkingBudget.default,
-            includeThoughts: Boolean(thinking),
-        };
+    const normalizedModel = String(llmConfig.model || '')
+        .replace(/^models\//i, '')
+        .trim();
+    const isGemini3Or4Model = /^gemini-[34]|hydrogen/i.test(normalizedModel);
+    const isGemini25Model = /^gemini-2\.5/i.test(normalizedModel);
+    // Strip any inherited thinkingBudget/thinkingLevel keys at root
+    delete llmConfig.thinkingBudget;
+    delete llmConfig.thinkingLevel;
+    if (isGemini3Or4Model) {
+        const nestedLevel = (modelOptions === null || modelOptions === void 0 ? void 0 : modelOptions.thinkingConfig) && typeof modelOptions.thinkingConfig === 'object'
+            ? modelOptions.thinkingConfig.thinkingLevel
+            : undefined;
+        const requestedLevel = rawThinkingLevel !== null && rawThinkingLevel !== void 0 ? rawThinkingLevel : nestedLevel;
+        const resolvedThinkingLevel = typeof requestedLevel === 'string' && requestedLevel.trim()
+            ? requestedLevel.trim().toUpperCase()
+            : 'LOW';
+        if (provider === agents.Providers.GOOGLE) {
+            llmConfig.thinkingConfig = {
+                thinkingLevel: resolvedThinkingLevel,
+                includeThoughts: Boolean(thinking),
+            };
+        }
+        else if (provider === agents.Providers.VERTEXAI) {
+            delete llmConfig.thinkingConfig;
+            llmConfig.includeThoughts = Boolean(thinking);
+        }
     }
-    else if (shouldEnableThinking && provider === agents.Providers.VERTEXAI) {
-        llmConfig.thinkingBudget = thinking
-            ? thinkingBudget
-            : librechatDataProvider.googleSettings.thinkingBudget.default;
-        llmConfig.includeThoughts = Boolean(thinking);
+    else if (isGemini25Model) {
+        const budgetNum = typeof thinkingBudget === 'number' ? thinkingBudget : Number(thinkingBudget);
+        const shouldEnableThinking = Boolean(thinking) && !Number.isNaN(budgetNum) && (budgetNum > 0 || budgetNum === -1);
+        if (shouldEnableThinking && provider === agents.Providers.GOOGLE) {
+            llmConfig.thinkingConfig = {
+                thinkingBudget: thinking ? budgetNum : librechatDataProvider.googleSettings.thinkingBudget.default,
+                includeThoughts: Boolean(thinking),
+            };
+        }
+        else if (shouldEnableThinking && provider === agents.Providers.VERTEXAI) {
+            llmConfig.thinkingBudget = thinking
+                ? budgetNum
+                : librechatDataProvider.googleSettings.thinkingBudget.default;
+            llmConfig.includeThoughts = Boolean(thinking);
+        }
+        else {
+            delete llmConfig.thinkingConfig;
+        }
+    }
+    else {
+        delete llmConfig.thinkingConfig;
     }
     /*
     let legacyOptions = {};

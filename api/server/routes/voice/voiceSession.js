@@ -226,6 +226,70 @@ async function resolveActiveCompanyId(userId) {
     return activeComp?._id ? String(activeComp._id) : null;
 }
 
+function normalizeTenshiConversationId(val) {
+    if (typeof val !== 'string') return null;
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === 'new' || trimmed === 'null' || trimmed === 'undefined') {
+        return null;
+    }
+    return trimmed;
+}
+
+function extractNotebookRef(entry) {
+    if (typeof entry === 'string') {
+        const clean = entry.trim();
+        return clean ? { id: clean, title: clean, emoji: '' } : null;
+    }
+    if (entry && typeof entry === 'object') {
+        const id = String(entry.id || entry.notebookId || entry.notebook_id || entry.title || entry.name || '').trim();
+        const title = String(entry.title || entry.name || id || '').trim();
+        if (!id) return null;
+        return {
+            id,
+            title: title || id,
+            emoji: entry.emoji ? String(entry.emoji) : '',
+        };
+    }
+    return null;
+}
+
+function sanitizeSelectedNotebooks(raw) {
+    if (!Array.isArray(raw)) return [];
+    const result = [];
+    const seen = new Set();
+    for (const entry of raw) {
+        const ref = extractNotebookRef(entry);
+        if (!ref || seen.has(ref.id)) continue;
+        seen.add(ref.id);
+        if (typeof entry === 'string') {
+            result.push(ref.id);
+        } else {
+            result.push({
+                id: ref.id,
+                title: ref.title,
+                ...(ref.emoji ? { emoji: ref.emoji } : {}),
+            });
+        }
+    }
+    return result;
+}
+
+function getTenshiConversationModelSafe() {
+    if (mongoose.models && mongoose.models.TenshiConversation) {
+        return mongoose.models.TenshiConversation;
+    }
+    try {
+        const mod = require('~/models/TenshiConversation');
+        const model = mod?.TenshiConversation || mod?.default || mod;
+        if (model && typeof model.findOne === 'function') {
+            return model;
+        }
+    } catch (_err) {
+        // Modelo TenshiConversation aún no cargado o no disponible en sesiones legadas
+    }
+    return null;
+}
+
 async function findMatchingCourse(query) {
     if (!query || typeof query !== 'string') return null;
     const clean = query.trim();
@@ -959,8 +1023,10 @@ class VoiceSession {
         this.lastUserAudioAt = 0;
         this.userMeta = null;
         this.activeCompanyId = config?.companyId ? String(config.companyId) : null;
+        this.activeTenshiConversationId = normalizeTenshiConversationId(config?.tenshiConversationId);
+        this.selectedTenshiNotebooks = sanitizeSelectedNotebooks(config?.selectedNotebooks);
 
-        logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
+        logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}, tenshiConversationId: ${this.activeTenshiConversationId || 'NULL'}`);
 
         // Modo Tenshi: Asistente oficial con control de plataforma por voz
         if (this.config.mode === 'tenshi_voice') {
@@ -3085,6 +3151,55 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
     }
 
     /**
+     * Resuelve de forma 100% defensiva el ID de conversación activa de Tenshi Chat (Multi-Chat).
+     * 1) Si el cliente envió tenshiConversationId (init / screen_context / config), se usa directamente.
+     * 2) Si no viene, intenta localizar la conversación más reciente del usuario/empresa en TenshiConversation.
+     * 3) Si el modelo aún no existe o no hay conversación previa, devuelve null sin romper sesiones legadas.
+     */
+    async resolveTenshiConversationId(activeCompId = null, userIdsOverride = null) {
+        if (this.activeTenshiConversationId) {
+            return this.activeTenshiConversationId;
+        }
+        if (!this.userId) return null;
+        try {
+            const TenshiConversation = getTenshiConversationModelSafe();
+            if (!TenshiConversation) return null;
+
+            const compId = activeCompId !== undefined && activeCompId !== null
+                ? String(activeCompId)
+                : (this.activeCompanyId || (await resolveActiveCompanyId(this.userId)));
+            const userFilter = Array.isArray(userIdsOverride) && userIdsOverride.length > 0
+                ? { $in: userIdsOverride }
+                : this.userId;
+
+            const latestConvo = await TenshiConversation.findOne({
+                user: userFilter,
+                ...(compId ? { companyId: compId } : {}),
+                archived: { $ne: true },
+                isArchived: { $ne: true },
+            })
+                .sort({ lastMessageAt: -1, updatedAt: -1, createdAt: -1 })
+                .select('_id conversationId')
+                .lean()
+                .catch(() => null);
+
+            if (latestConvo) {
+                const resolvedId = normalizeTenshiConversationId(
+                    latestConvo.conversationId
+                        ? String(latestConvo.conversationId)
+                        : (latestConvo._id ? String(latestConvo._id) : null)
+                );
+                if (resolvedId) {
+                    return resolvedId;
+                }
+            }
+        } catch (_convoErr) {
+            // Fallback silencioso a null para sesiones legadas
+        }
+        return null;
+    }
+
+    /**
      * Initialize and start the session
      */
     async start() {
@@ -3234,6 +3349,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                     const startOfTomorrow = new Date(endOfToday.getTime() + 1);
                     const endOfTomorrow = new Date(endOfToday.getTime() + 24 * 3600 * 1000);
                     const needsWorkerCount = Boolean(companyInfo && (companyInfo.workerCount === undefined || companyInfo.workerCount === null));
+                    const activeTenshiConvoId = await this.resolveTenshiConversationId(activeCompId, userIds);
 
                     const [
                         fetchedMemories,
@@ -3253,6 +3369,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                 return await TenshiMessage.find({
                                     user: { $in: userIds },
                                     ...(activeCompId ? { companyId: activeCompId } : {}),
+                                    conversationId: activeTenshiConvoId || null,
                                 })
                                     .sort({ createdAt: -1 })
                                     .limit(6)
@@ -3268,6 +3385,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                                 return await TenshiMessage.find({
                                     user: { $in: userIds },
                                     ...(activeCompId ? { companyId: activeCompId } : {}),
+                                    conversationId: activeTenshiConvoId || null,
                                     $or: [
                                         { htmlReport: { $exists: true, $nin: [null, ''] } },
                                         { 'file.content': { $exists: true, $nin: [null, ''] } }
@@ -3444,6 +3562,9 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                         }
                     }
 
+                    const selectedNbRefs = Array.isArray(this.selectedTenshiNotebooks)
+                        ? this.selectedTenshiNotebooks.map(extractNotebookRef).filter(Boolean)
+                        : [];
                     if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
                         const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
                         companyAndMemoryPrompt += `\n\n[ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n` +
@@ -3452,6 +3573,20 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
                             companyAndMemoryPrompt += `- Cuadernos disponibles (${cachedNbs.length}): ` +
                                 cachedNbs.slice(0, 8).map((nb) => `${nb.emoji || '📓'} "${nb.title}" (ID: ${nb.id}, ${nb.sources_count || 0} fuentes)`).join(' | ') + `.\n`;
                         }
+                        if (selectedNbRefs.length > 0) {
+                            const cachedById = new Map(cachedNbs.map((nb) => [String(nb.id || ''), nb]));
+                            const formattedSelected = selectedNbRefs
+                                .map((ref) => {
+                                    const match = cachedById.get(ref.id);
+                                    const label = match?.title || ref.title;
+                                    return `${match?.emoji || ref.emoji || '📌'} "${label}" (ID: ${ref.id})`;
+                                })
+                                .join(' | ');
+                            companyAndMemoryPrompt += `- CUADERNOS SELECCIONADOS ACTIVOS EN ESTA SESIÓN (${selectedNbRefs.length}): ${formattedSelected}. Prioriza estos cuadernos al consultar NotebookLM salvo que el usuario indique otro cuaderno explícitamente.\n`;
+                        }
+                    } else if (selectedNbRefs.length > 0) {
+                        companyAndMemoryPrompt += `\n\n[CUADERNOS DE NOTEBOOKLM SELECCIONADOS EN ESTA SESIÓN (${selectedNbRefs.length})]: ` +
+                            selectedNbRefs.map((ref) => `"${ref.title}" (ID: ${ref.id})`).join(' | ') + `.\n`;
                     }
 
                     if (procMemBlock) {
@@ -4024,7 +4159,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     isVoiceSession: true,
                     body: {
                         companyId: resolvedCompId || undefined,
-                        conversationId: this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`
+                        conversationId: this.conversationId && this.conversationId !== 'new' ? this.conversationId : `tenshi-${this.userId}`,
+                        ...(this.activeTenshiConversationId ? { tenshiConversationId: this.activeTenshiConversationId } : {}),
+                        ...(Array.isArray(this.selectedTenshiNotebooks) && this.selectedTenshiNotebooks.length > 0
+                            ? { selectedNotebooks: [...this.selectedTenshiNotebooks] }
+                            : {}),
                     }
                 };
 
@@ -4116,9 +4255,14 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     }
 
                     if (anySucceeded) {
+                        const batchTenshiConvoId = await this.resolveTenshiConversationId(resolvedCompId);
                         this.sendToClient({
                             type: 'status',
-                            data: { status: 'history_synced', hasFile: false },
+                            data: {
+                                status: 'history_synced',
+                                hasFile: false,
+                                ...(batchTenshiConvoId ? { conversationId: batchTenshiConvoId, tenshiConversationId: batchTenshiConvoId } : {}),
+                            },
                         });
                     }
                     this.sendToClient({
@@ -4295,11 +4439,73 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 mappedTool = 'research_import';
                                 mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', task_id: fc.args?.task_id || '' };
                             }
-                            const nbResult = await executeTenshiMcpTool(mappedTool, mappedArgs, this.userId);
+
+                            const selectedNbRefs = Array.isArray(this.selectedTenshiNotebooks)
+                                ? this.selectedTenshiNotebooks.map(extractNotebookRef).filter(Boolean)
+                                : [];
+                            const toolsUsingNotebook = new Set([
+                                'chat_ask',
+                                'notebook_rename',
+                                'source_list',
+                                'source_add',
+                                'studio_generate',
+                                'studio_status',
+                                'studio_list',
+                                'studio_download',
+                                'research_start',
+                                'research_import',
+                            ]);
+
+                            let nbResult;
+                            if (
+                                mappedTool === 'chat_ask' &&
+                                !String(mappedArgs.notebook || '').trim() &&
+                                selectedNbRefs.length > 1
+                            ) {
+                                const cappedSelected = selectedNbRefs.slice(0, 4);
+                                const settled = await Promise.allSettled(
+                                    cappedSelected.map((ref) =>
+                                        executeTenshiMcpTool(
+                                            'chat_ask',
+                                            { notebook: ref.id, query: mappedArgs.query || '' },
+                                            this.userId
+                                        )
+                                    )
+                                );
+                                const sections = settled.map((out, idx) => {
+                                    const ref = cappedSelected[idx];
+                                    const label = ref.title || ref.id;
+                                    if (out.status === 'fulfilled') {
+                                        const val = typeof out.value === 'string' ? out.value : JSON.stringify(out.value);
+                                        return `[Cuaderno "${label}"]:\n${val}`;
+                                    }
+                                    return `[Cuaderno "${label}"]: Error consultando (${out.reason?.message || 'sin respuesta'})`;
+                                });
+                                nbResult = sections.join('\n\n---\n\n');
+                            } else {
+                                if (
+                                    toolsUsingNotebook.has(mappedTool) &&
+                                    !String(mappedArgs.notebook || '').trim() &&
+                                    selectedNbRefs.length > 0
+                                ) {
+                                    mappedArgs.notebook = selectedNbRefs[0].id;
+                                }
+                                nbResult = await executeTenshiMcpTool(mappedTool, mappedArgs, this.userId);
+                            }
+
                             logger.info(`[VoiceSession] NotebookLM tool "${fc.name}" executed successfully.`);
                             this.sendToClient({
                                 type: 'wappy_action',
-                                data: { id: fc.id, name: fc.name, args: fc.args, result: nbResult }
+                                data: {
+                                    id: fc.id,
+                                    name: fc.name,
+                                    args: {
+                                        ...(fc.args || {}),
+                                        ...(mappedArgs.notebook ? { notebook: mappedArgs.notebook } : {}),
+                                        ...(selectedNbRefs.length > 0 ? { selectedNotebooks: [...this.selectedTenshiNotebooks] } : {}),
+                                    },
+                                    result: nbResult,
+                                }
                             });
                             if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
@@ -4378,9 +4584,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 const mdContent = `🎬 **Video generado con Google Flow Studio (Veo 3.1 Lite)**\n\n[🎬 Reproducir Video (${vidRes.filename})](${vidRes.publicUrl}${vidRes.posterUrl ? `?poster=${encodeURIComponent(vidRes.posterUrl)}` : ''})\n\n💾 **Guardado en WAPPY (30 días):** \`${vidRes.publicUrl}\``;
                                 if (this.userId) {
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: mdContent,
                                     }).catch(() => {});
@@ -4407,9 +4615,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 const mdContent = `✨ **Imagen generada con Google Flow Studio (Nano Banana 2 Lite)**\n\n![${prompt.slice(0, 80)}](${imgRes.publicUrl})\n\n💾 **Guardado en WAPPY (30 días):** \`${imgRes.publicUrl}\``;
                                 if (this.userId) {
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: mdContent,
                                     }).catch(() => {});
@@ -4885,7 +5095,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 await CompanyInfo.updateMany({ user: targetUserId }, { isActive: false });
                                 found.isActive = true;
                                 await found.save();
+                                const prevCompId = this.activeCompanyId;
                                 this.activeCompanyId = String(found._id);
+                                if (prevCompId && prevCompId !== this.activeCompanyId) {
+                                    this.activeTenshiConversationId = null;
+                                }
                                 if (this.config) this.config.companyId = String(found._id);
                                 await syncCompanyMemory(targetUserId, found);
                                 logger.info(`[VoiceSession] Activated company "${found.companyName}" (${found._id})`);
@@ -5097,9 +5311,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             );
                             if (memRes.widget) {
                                 try {
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: `🧠 **Memoria Procedural de Hábitos Operativos**\n${memRes.mensaje || 'Hábitos actualizados.'}`,
                                         source: 'voice',
@@ -5140,9 +5356,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             if (widget) {
                                 try {
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: `✨ **${widget.title || 'Widget Interactivo'}**\n_${widget.subtitle || 'Interactúa directamente en la tarjeta inferior.'}_`,
                                         source: 'voice',
@@ -5513,9 +5731,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 try {
                                     const TenshiMessage = require('~/models/TenshiMessage');
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: `📱 **Código QR y Enlace Generado**: [${qrRes.titulo}](${qrRes.url})\n\n${qrRes.descripcion}\n\n*${qrRes.instrucciones}*`,
                                         qrCode: qrRes,
@@ -6344,7 +6564,20 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                     if (isMcpCall) {
                         const targetTool = fc.name === 'wappy_mcp_sst' ? (fc.args?.herramienta || fc.args?.tool) : fc.name;
-                        const targetArgs = fc.name === 'wappy_mcp_sst' ? (fc.args?.parametros || fc.args?.args || fc.args || {}) : (fc.args || {});
+                        const targetArgs = { ...(fc.name === 'wappy_mcp_sst' ? (fc.args?.parametros || fc.args?.args || fc.args || {}) : (fc.args || {})) };
+
+                        if (
+                            TOOL_ROUTES[targetTool]?.isNotebookLM &&
+                            !targetArgs.notebook &&
+                            !targetArgs.cuaderno &&
+                            Array.isArray(this.selectedTenshiNotebooks) &&
+                            this.selectedTenshiNotebooks.length > 0
+                        ) {
+                            const firstNbRef = extractNotebookRef(this.selectedTenshiNotebooks[0]);
+                            if (firstNbRef?.id) {
+                                targetArgs.notebook = firstNbRef.id;
+                            }
+                        }
 
                         logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
 
@@ -6398,6 +6631,12 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                             targetArgs.sourceModule = targetArgs.sourceModule || 'tenshi_voice';
                             targetArgs.remitente = targetArgs.remitente || 'Tenshi Voz en Vivo';
+                            if (this.activeTenshiConversationId && !targetArgs.tenshiConversationId) {
+                                targetArgs.tenshiConversationId = this.activeTenshiConversationId;
+                            }
+                            if (Array.isArray(this.selectedTenshiNotebooks) && this.selectedTenshiNotebooks.length > 0 && !targetArgs.selectedNotebooks) {
+                                targetArgs.selectedNotebooks = [...this.selectedTenshiNotebooks];
+                            }
                             const camMedia = this.persistLiveCameraMediaForAntigravity();
                             if (camMedia && Array.isArray(camMedia.mediaUrls) && camMedia.mediaUrls.length > 0) {
                                 const existingArchivos = Array.isArray(targetArgs.archivos) ? targetArgs.archivos : [];
@@ -6420,9 +6659,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 const staged = await stageGovernedAction(targetTool, targetArgs, this.userId, activeCompId);
                                 if (staged.widget) {
                                     try {
+                                        const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                         await TenshiMessage.create({
                                             user: this.userId,
                                             companyId: activeCompId,
+                                            conversationId: tenshiConvoId || null,
                                             role: 'assistant',
                                             content: `🛡️ **Control de Gobernanza SG-SST (Aprobación Requerida)**\nHe preparado la solicitud **${staged.widget.title}**: _${staged.widget.subtitle}_.\nPor seguridad, autoriza la operación haciendo clic en **"Autorizar y Ejecutar"** en la tarjeta inferior.`,
                                             source: 'voice',
@@ -6479,9 +6720,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             if (autoWidget) {
                                 try {
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: `📊 **${autoWidget.title}** — _${autoWidget.subtitle || 'Vista interactiva en tiempo real'}_`,
                                         source: 'voice',
@@ -6516,9 +6759,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                         `- **8. Frases Iniciadoras:**\n${startersText}\n` +
                                         `- **9. Subagentes Encadenados:** ${Array.isArray(ag.agent_ids) && ag.agent_ids.length > 0 ? ag.agent_ids.join(', ') : 'Ninguno'}`;
                                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                     await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: summaryMd,
                                         source: 'voice',
@@ -6891,11 +7136,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                             if (hasSuccess) {
                                 const activeCompId = await resolveActiveCompanyId(this.userId);
+                                const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                                 let savedDoc = null;
                                 try {
                                     savedDoc = await TenshiMessage.create({
                                         user: this.userId,
                                         companyId: activeCompId,
+                                        conversationId: tenshiConvoId || null,
                                         role: 'assistant',
                                         content: formattedMarkdown,
                                     });
@@ -6921,6 +7168,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                             totalDurationMs: parallelRes.totalDurationMs,
                                             formattedMarkdown,
                                             messageId: savedDoc?._id ? String(savedDoc._id) : undefined,
+                                            ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
                                             results: (parallelRes.results || []).map((r) => ({
                                                 ok: r.ok,
                                                 agentName: r.agentName,
@@ -6935,7 +7183,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
                                 this.sendToClient({
                                     type: 'status',
-                                    data: { status: 'history_synced', hasFile: false },
+                                    data: {
+                                        status: 'history_synced',
+                                        hasFile: false,
+                                        ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
+                                    },
                                 });
                                 this.sendToClient({
                                     type: 'status',
@@ -7069,7 +7321,15 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             data: {
                                 id: fc.id,
                                 name: 'wappy_abrir_chat_agente',
-                                args: { agente, pregunta, nuevo_chat: requestedNewChat }
+                                args: {
+                                    agente,
+                                    pregunta,
+                                    nuevo_chat: requestedNewChat,
+                                    ...(this.activeTenshiConversationId ? { tenshiConversationId: this.activeTenshiConversationId } : {}),
+                                    ...(Array.isArray(this.selectedTenshiNotebooks) && this.selectedTenshiNotebooks.length > 0
+                                        ? { selectedNotebooks: [...this.selectedTenshiNotebooks] }
+                                        : {}),
+                                }
                             }
                         });
 
@@ -7540,12 +7800,14 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             const activeCompId = activeCompIdOverride !== undefined
                 ? activeCompIdOverride
                 : (await resolveActiveCompanyId(this.userId));
+            const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
 
             let savedDoc = null;
             try {
                 savedDoc = await TenshiMessage.create({
                     user: this.userId,
                     companyId: activeCompId,
+                    conversationId: tenshiConvoId || null,
                     role: 'assistant',
                     content: formattedMsg,
                 });
@@ -7567,6 +7829,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         respuesta: cleanResponseText,
                         messageId: savedMessageId,
                         durationMs: res.durationMs,
+                        ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
                     },
                     result: {
                         ok: true,
@@ -7575,6 +7838,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         respuesta: cleanResponseText,
                         messageId: savedMessageId,
                         durationMs: res.durationMs,
+                        ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
                     },
                 },
             });
@@ -7582,7 +7846,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             if (!suppressHistorySynced) {
                 this.sendToClient({
                     type: 'status',
-                    data: { status: 'history_synced', hasFile: false },
+                    data: {
+                        status: 'history_synced',
+                        hasFile: false,
+                        ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
+                    },
                 });
             }
             if (!suppressIdle) {
@@ -8048,7 +8316,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
             case 'config':
                 // Update session configuration
-                if (data.voice) {
+                if (data && Object.prototype.hasOwnProperty.call(data, 'tenshiConversationId')) {
+                    this.activeTenshiConversationId = normalizeTenshiConversationId(data.tenshiConversationId);
+                    logger.info(`[VoiceSession] Config update: activeTenshiConversationId=${this.activeTenshiConversationId}`);
+                }
+                if (data && (Array.isArray(data.selectedNotebooks) || Array.isArray(data.selectedTenshiNotebooks))) {
+                    this.selectedTenshiNotebooks = sanitizeSelectedNotebooks(
+                        Array.isArray(data.selectedNotebooks) ? data.selectedNotebooks : data.selectedTenshiNotebooks
+                    );
+                    logger.info(`[VoiceSession] Config update: selectedTenshiNotebooks=${this.selectedTenshiNotebooks.length}`);
+                }
+                if (data && data.voice) {
                     logger.info(`[VoiceSession] Config update received. New voice: ${data.voice}`);
                     this.config.voice = data.voice;
                     // Reconnect with new voice
@@ -8104,6 +8382,14 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     if (data.conversationId && data.conversationId !== 'new') {
                         this.conversationId = data.conversationId;
                     }
+                    if (Object.prototype.hasOwnProperty.call(data, 'tenshiConversationId')) {
+                        this.activeTenshiConversationId = normalizeTenshiConversationId(data.tenshiConversationId);
+                    }
+                    if (Array.isArray(data.selectedNotebooks)) {
+                        this.selectedTenshiNotebooks = sanitizeSelectedNotebooks(data.selectedNotebooks);
+                    } else if (Array.isArray(data.selectedTenshiNotebooks)) {
+                        this.selectedTenshiNotebooks = sanitizeSelectedNotebooks(data.selectedTenshiNotebooks);
+                    }
                     if (typeof data.route === 'string' && data.route.trim()) {
                         this.activeScreenRoute = data.route.trim();
                     }
@@ -8118,7 +8404,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         this.activeScreenAgent = null;
                     }
                     const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent, this.isHeroMode);
-                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, isHeroMode=${this.isHeroMode}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
+                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, tenshiConversationId=${this.activeTenshiConversationId}, selectedNotebooks=${this.selectedTenshiNotebooks.length}, isHeroMode=${this.isHeroMode}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
                 }
                 break;
 
@@ -9187,9 +9473,11 @@ Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación 
                 try {
                     const TenshiMessage = require('~/models/TenshiMessage');
                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                     const tenshiMsgs = await TenshiMessage.find({
                         user: this.userId,
                         ...(activeCompId ? { companyId: activeCompId } : {}),
+                        conversationId: tenshiConvoId || null,
                     })
                         .sort({ createdAt: -1 })
                         .limit(20)
@@ -10219,9 +10507,11 @@ ${workerSubHeaderHtml}
                         try {
                             const TenshiMessage = require('~/models/TenshiMessage');
                             const activeCompId = await resolveActiveCompanyId(this.userId);
+                            const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                             await TenshiMessage.create({
                                 user: this.userId,
                                 companyId: activeCompId,
+                                conversationId: tenshiConvoId || null,
                                 role: 'assistant',
                                 content: tenshiReportDesc,
                                 htmlReport: reportHtml,
@@ -10715,7 +11005,11 @@ ${workerSubHeaderHtml}
                     args: {
                         agente: matchedAgent,
                         pregunta: cleanDelegatedPrompt,
-                        nuevo_chat: requestedNewChat
+                        nuevo_chat: requestedNewChat,
+                        ...(this.activeTenshiConversationId ? { tenshiConversationId: this.activeTenshiConversationId } : {}),
+                        ...(Array.isArray(this.selectedTenshiNotebooks) && this.selectedTenshiNotebooks.length > 0
+                            ? { selectedNotebooks: [...this.selectedTenshiNotebooks] }
+                            : {}),
                     }
                 }
             });
@@ -11160,11 +11454,13 @@ ${workerSubHeaderHtml}
                 const TenshiMessage = require('~/models/TenshiMessage');
                 if (this.userId) {
                     const activeCompId = await resolveActiveCompanyId(this.userId);
+                    const tenshiConvoId = await this.resolveTenshiConversationId(activeCompId);
                     let savedTenshiMessage = false;
                     if (finalUserText && !/^\[SISTEMA INTERNO WAPPY/i.test(finalUserText)) {
                         const createdUserMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
+                            conversationId: tenshiConvoId || null,
                             role: 'user',
                             content: finalUserText,
                         }).catch(err => {
@@ -11180,6 +11476,7 @@ ${workerSubHeaderHtml}
                         const createdAiMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
+                            conversationId: tenshiConvoId || null,
                             role: 'assistant',
                             content: currentAiText.trim(),
                             file: canvasFileToAttach || undefined,
@@ -11194,6 +11491,7 @@ ${workerSubHeaderHtml}
                         const createdCanvasMsg = await TenshiMessage.create({
                             user: this.userId,
                             companyId: activeCompId,
+                            conversationId: tenshiConvoId || null,
                             role: 'assistant',
                             content: `📁 **${fileLabel} generado**: *${canvasFileToAttach.title}*`,
                             file: canvasFileToAttach,
@@ -11212,6 +11510,7 @@ ${workerSubHeaderHtml}
                             data: {
                                 status: 'history_synced',
                                 hasFile: Boolean(canvasFileToAttach),
+                                ...(tenshiConvoId ? { conversationId: tenshiConvoId, tenshiConversationId: tenshiConvoId } : {}),
                             },
                         });
                     }

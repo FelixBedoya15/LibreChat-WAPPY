@@ -110,6 +110,28 @@ function setupVoiceWebSocket(server) {
             }
             if (params.agentName) config.agentName = params.agentName;
             if (params.personality) config.personality = params.personality;
+            if (typeof params.tenshiConversationId === 'string') {
+                const cleanTenshiConvoId = params.tenshiConversationId.trim();
+                if (cleanTenshiConvoId && cleanTenshiConvoId !== 'new' && cleanTenshiConvoId !== 'null' && cleanTenshiConvoId !== 'undefined') {
+                    config.tenshiConversationId = cleanTenshiConvoId;
+                }
+            }
+            if (params.selectedNotebooks) {
+                try {
+                    const rawNotebooks = Array.isArray(params.selectedNotebooks)
+                        ? params.selectedNotebooks
+                        : (typeof params.selectedNotebooks === 'string' && params.selectedNotebooks.trim().startsWith('[')
+                            ? JSON.parse(params.selectedNotebooks)
+                            : String(params.selectedNotebooks).split(','));
+                    if (Array.isArray(rawNotebooks)) {
+                        config.selectedNotebooks = rawNotebooks
+                            .map((item) => (typeof item === 'string' ? item.trim() : item))
+                            .filter(Boolean);
+                    }
+                } catch (_nbErr) {
+                    // Ignorar defensivamente si selectedNotebooks viene malformado en query string
+                }
+            }
 
             const result = await createSession(ws, user.id, conversationId, config);
 

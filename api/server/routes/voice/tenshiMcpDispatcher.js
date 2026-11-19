@@ -122,6 +122,59 @@ const TOOL_ROUTES = {
   wappy_actualizar_caso_atel: { method: 'PUT', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
   wappy_eliminar_caso_atel: { method: 'DELETE', path: (args) => `/atel/${encodeURIComponent(args.id || '')}` },
 
+  // 4.1 Módulos Avanzados SG-SST (ATS, Alturas, Vulnerabilidad, OWAS, Alta Dirección, Contexto, Oportunidades, Estadísticas ATEL, Subusuarios, LiveDocs, Plan Emergencias, Estudios de Puesto, Compatibilidad Química)
+  wappy_consultar_ats: { method: 'GET', path: '/ats' },
+  wappy_guardar_ats: { method: 'POST', path: '/ats' },
+  wappy_consultar_permisos_alturas: { method: 'GET', path: '/permisos-alturas' },
+  wappy_guardar_permiso_alturas: { method: 'POST', path: '/permisos-alturas' },
+  wappy_guardar_permisos_alturas: { method: 'POST', path: '/permisos-alturas' },
+  wappy_consultar_vulnerabilidad: { method: 'GET', path: '/vulnerabilidad' },
+  wappy_guardar_vulnerabilidad: { method: 'POST', path: '/vulnerabilidad' },
+  wappy_consultar_evaluaciones_owas: { method: 'GET', path: '/owas' },
+  wappy_guardar_evaluacion_owas: { method: 'POST', path: '/owas' },
+  wappy_consultar_owas: { method: 'GET', path: '/owas' },
+  wappy_guardar_owas: { method: 'POST', path: '/owas' },
+  wappy_consultar_revision_alta_direccion: { method: 'GET', path: '/alta-direccion' },
+  wappy_guardar_revision_alta_direccion: { method: 'POST', path: '/alta-direccion' },
+  wappy_consultar_alta_direccion: { method: 'GET', path: '/alta-direccion' },
+  wappy_guardar_alta_direccion: { method: 'POST', path: '/alta-direccion' },
+  wappy_consultar_contexto_dofa: { method: 'GET', path: '/contexto' },
+  wappy_guardar_contexto_dofa: { method: 'POST', path: '/contexto' },
+  wappy_consultar_contexto: { method: 'GET', path: '/contexto' },
+  wappy_guardar_contexto: { method: 'POST', path: '/contexto' },
+  wappy_consultar_oportunidades: { method: 'GET', path: '/oportunidades' },
+  wappy_guardar_oportunidades: { method: 'POST', path: '/oportunidades' },
+  wappy_consultar_estadisticas_atel: { method: 'GET', path: '/estadisticas-atel' },
+  wappy_guardar_estadisticas_atel: { method: 'POST', path: '/estadisticas-atel' },
+  wappy_consultar_subusuarios: { method: 'GET', path: '/subusuarios' },
+  wappy_consultar_documentos_vivo: { method: 'GET', path: '/documentos-vivo' },
+  wappy_guardar_documento_vivo: { method: 'POST', path: '/documentos-vivo' },
+  wappy_eliminar_documento_vivo: {
+    method: 'DELETE',
+    path: (args) => `/documentos-vivo/${encodeURIComponent(args.id || args.docId || '')}`,
+  },
+  wappy_consultar_plan_emergencias: { method: 'GET', path: '/plan-emergencias' },
+  wappy_guardar_plan_emergencias: { method: 'POST', path: '/plan-emergencias' },
+  wappy_consultar_estudios_puesto: { method: 'GET', path: '/estudio-puesto' },
+  wappy_registrar_estudio_puesto: { method: 'POST', path: '/estudio-puesto' },
+  wappy_actualizar_estudio_puesto: {
+    method: 'PUT',
+    path: (args) => `/estudio-puesto/${encodeURIComponent(args.id || args.estudioId || '')}`,
+  },
+  wappy_eliminar_estudio_puesto: {
+    method: 'DELETE',
+    path: (args) => `/estudio-puesto/${encodeURIComponent(args.id || args.estudioId || '')}`,
+  },
+  wappy_consultar_equipos_alturas: { method: 'GET', path: '/alturas' },
+  wappy_registrar_equipo_alturas: { method: 'POST', path: '/alturas' },
+  wappy_eliminar_equipo_alturas: {
+    method: 'DELETE',
+    path: (args) =>
+      `/alturas/${encodeURIComponent(args.workerId || '')}/${encodeURIComponent(args.equipoId || args.id || args.serial || '')}`,
+  },
+  wappy_consultar_compatibilidad_quimica: { method: 'GET', path: '/compatibilidad-quimica' },
+  wappy_guardar_compatibilidad_quimica: { method: 'POST', path: '/compatibilidad-quimica' },
+
   // 5. Cronograma, LMS, Blog & Agentes Autónomos
   wappy_consultar_cursos: { method: 'GET', path: '/courses' },
   wappy_consultar_cursos_lms: { method: 'GET', path: '/courses' },
@@ -475,7 +528,7 @@ const TOOL_ROUTES = {
   },
 };
 
-async function executeTenshiMcpTool(toolName, args = {}, userId) {
+async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
   if (!toolName) {
     return { error: 'Nombre de herramienta MCP no especificado.' };
   }
@@ -489,17 +542,41 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
     return { error: `La herramienta "${normalizedTool}" no está registrada en el catálogo de WAPPY MCP.` };
   }
 
+  const effectiveCompanyId = context?.companyId || args?.__companyId || args?.companyId || null;
+  const effectiveSelectedNotebooks = Array.isArray(context?.selectedNotebooks)
+    ? context.selectedNotebooks.filter((nb) => nb && (nb.id || nb.title))
+    : Array.isArray(args?.__selectedNotebooks)
+      ? args.__selectedNotebooks.filter((nb) => nb && (nb.id || nb.title))
+      : [];
+
   // Si es una herramienta de Google NotebookLM, despachar directamente al contenedor notebooklm-mcp
   if (routeConfig.isNotebookLM) {
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
     const targetTool = routeConfig.tool || normalizedTool;
-    logger.info(`[Tenshi MCP] Despachando llamada NotebookLM "${targetTool}" para usuario ${userId}`);
+    logger.info(
+      `[Tenshi MCP] Despachando llamada NotebookLM "${targetTool}" para usuario ${userId}${effectiveCompanyId ? ` (companyId=${effectiveCompanyId})` : ''}${effectiveSelectedNotebooks.length > 0 ? ` (selectedNotebooks=${effectiveSelectedNotebooks.length})` : ''}`,
+    );
 
     try {
       const NotebookSession = require('~/models/NotebookSession');
       let sessionDoc = null;
       if (userId) {
-        sessionDoc = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+        if (effectiveCompanyId) {
+          sessionDoc = await NotebookSession.findOne({ user: userId, companyId: effectiveCompanyId })
+            .lean()
+            .catch(() => null);
+        }
+        if (!sessionDoc) {
+          sessionDoc = await NotebookSession.findOne({
+            user: userId,
+            $or: [{ companyId: null }, { companyId: { $exists: false } }],
+          })
+            .lean()
+            .catch(() => null);
+        }
+        if (!sessionDoc) {
+          sessionDoc = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+        }
       }
       if (!sessionDoc || !Array.isArray(sessionDoc.cookies) || sessionDoc.cookies.length === 0) {
         return {
@@ -510,6 +587,8 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
 
       const cleanArgs = { ...(args || {}) };
       delete cleanArgs.dummy;
+      delete cleanArgs.__companyId;
+      delete cleanArgs.__selectedNotebooks;
       if (cleanArgs.cuaderno && !cleanArgs.notebook) {
         cleanArgs.notebook = cleanArgs.cuaderno;
         delete cleanArgs.cuaderno;
@@ -549,6 +628,38 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
         delete cleanArgs.modo;
       }
 
+      // Filtrado y autocompletado estricto según los cuadernos seleccionados (Segundo Cerebro)
+      if (effectiveSelectedNotebooks.length > 0 && targetTool !== 'notebook_list') {
+        const reqNb = String(cleanArgs.notebook || '').trim();
+        const reqNbLower = reqNb.toLowerCase();
+        if (!reqNb) {
+          cleanArgs.notebook = String(
+            effectiveSelectedNotebooks[0].id || effectiveSelectedNotebooks[0].title || '',
+          ).trim();
+        } else {
+          const exactMatch = effectiveSelectedNotebooks.find(
+            (nb) =>
+              (nb.id && String(nb.id).trim().toLowerCase() === reqNbLower) ||
+              (nb.title && String(nb.title).trim().toLowerCase() === reqNbLower),
+          );
+          const partialMatch =
+            exactMatch ||
+            effectiveSelectedNotebooks.find(
+              (nb) =>
+                (nb.title && String(nb.title).toLowerCase().includes(reqNbLower)) ||
+                (nb.title && reqNbLower.includes(String(nb.title).toLowerCase())),
+            );
+          if (partialMatch) {
+            cleanArgs.notebook = String(partialMatch.id || partialMatch.title || reqNb).trim();
+          } else {
+            // Restringir estrictamente a los cuadernos seleccionados en sesión
+            cleanArgs.notebook = String(
+              effectiveSelectedNotebooks[0].id || effectiveSelectedNotebooks[0].title || reqNb,
+            ).trim();
+          }
+        }
+      }
+
       const nbHeaders = {
         'Content-Type': 'application/json',
         'x-user-id': String(userId || ''),
@@ -576,8 +687,9 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
       }
 
       if (targetTool === 'notebook_list' && Array.isArray(data?.result) && userId) {
+        const updateQuery = sessionDoc?._id ? { _id: sessionDoc._id } : { user: userId };
         NotebookSession.updateOne(
-          { user: userId },
+          updateQuery,
           {
             $set: {
               cachedNotebooks: data.result.map((nb) => ({
@@ -591,6 +703,21 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
             },
           }
         ).catch(() => {});
+
+        if (effectiveSelectedNotebooks.length > 0) {
+          const allowedIds = new Set(
+            effectiveSelectedNotebooks.map((nb) => String(nb.id || '').trim().toLowerCase()).filter(Boolean),
+          );
+          const allowedTitles = new Set(
+            effectiveSelectedNotebooks.map((nb) => String(nb.title || '').trim().toLowerCase()).filter(Boolean),
+          );
+          const filtered = data.result.filter((nb) => {
+            const nbId = String(nb.id || nb.notebook_id || '').trim().toLowerCase();
+            const nbTitle = String(nb.title || nb.name || '').trim().toLowerCase();
+            return (nbId && allowedIds.has(nbId)) || (nbTitle && allowedTitles.has(nbTitle));
+          });
+          return filtered.length > 0 ? filtered : effectiveSelectedNotebooks;
+        }
       }
 
       return data.result !== undefined ? data.result : data;
@@ -653,14 +780,22 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
   const baseUrl = `http://localhost:${port}/api/mcp-bridge`;
   const internalSecret = process.env.JWT_SECRET || 'wappy-internal-secret';
 
-  let pathStr = typeof routeConfig.path === 'function' ? routeConfig.path(args) : routeConfig.path;
+  const dispatchArgs = { ...(args || {}) };
+  delete dispatchArgs.__companyId;
+  delete dispatchArgs.__selectedNotebooks;
+  if (effectiveCompanyId && !dispatchArgs.companyId) {
+    dispatchArgs.companyId = String(effectiveCompanyId);
+  }
+
+  let pathStr = typeof routeConfig.path === 'function' ? routeConfig.path(dispatchArgs) : routeConfig.path;
   let url = `${baseUrl}${pathStr}`;
-  const method = typeof routeConfig.method === 'function' ? routeConfig.method(args) : routeConfig.method;
+  const method = typeof routeConfig.method === 'function' ? routeConfig.method(dispatchArgs) : routeConfig.method;
 
   const headers = {
     'Content-Type': 'application/json',
     'x-internal-user-id': String(userId),
     'x-internal-secret': internalSecret,
+    ...(effectiveCompanyId ? { 'x-company-id': String(effectiveCompanyId) } : {}),
   };
 
   const fetchOptions = {
@@ -670,7 +805,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
 
   if (method === 'GET') {
     const queryParams = new URLSearchParams();
-    for (const [k, v] of Object.entries(args)) {
+    for (const [k, v] of Object.entries(dispatchArgs)) {
       if (v !== undefined && v !== null && typeof v !== 'object') {
         queryParams.set(k, String(v));
       }
@@ -680,7 +815,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId) {
       url += (url.includes('?') ? '&' : '?') + qs;
     }
   } else {
-    fetchOptions.body = JSON.stringify(args);
+    fetchOptions.body = JSON.stringify(dispatchArgs);
   }
 
   try {
