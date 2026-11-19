@@ -422,87 +422,30 @@ async function checkNotebookLM(wappyUrl, apiKey) {
 
 /**
  * 3. PRUEBA DE CONECTIVIDAD DE GOOGLE FLOW STUDIO (VEO / IMAGEN)
+ * Confía exclusivamente en el estado real verificado en el servidor WAPPY (`POST /api/googleflow/test`),
+ * nunca en pruebas locales desde la IP del Mac que puedan ocultar sesiones expiradas en el servidor.
  */
-function buildFlowCookieHeader(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return '';
-  const filtered = cookies.filter((c) => {
-    const dom = String(c.domain || '.google.com').toLowerCase();
-    return (
-      dom === '.google.com' ||
-      dom === 'google.com' ||
-      dom === 'flow.google.com' ||
-      dom === '.flow.google.com' ||
-      dom === 'accounts.google.com' ||
-      dom === '.accounts.google.com'
-    );
-  });
-  const source = filtered.length > 0 ? filtered : cookies;
-  const dedup = new Map();
-  for (const c of source) {
-    if (c && c.name && c.value && !String(c.domain || '').toLowerCase().includes('flow.google.com')) {
-      dedup.set(c.name, c.value);
-    }
-  }
-  for (const c of source) {
-    if (c && c.name && c.value && String(c.domain || '').toLowerCase().includes('flow.google.com')) {
-      dedup.set(c.name, c.value);
-    }
-  }
-  return Array.from(dedup.entries())
-    .map(([k, v]) => `${k}=${v}`)
-    .join('; ');
-}
-
-async function checkGoogleFlow(wappyUrl, apiKey, userId) {
+async function checkGoogleFlow(wappyUrl, apiKey) {
   const testRes = await httpJson(`${wappyUrl}/api/googleflow/test`, {
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
       Authorization: `Bearer ${apiKey}`,
     },
-    timeoutMs: 22000,
+    timeoutMs: 30000,
   });
 
   if (testRes.ok && testRes.data?.success) {
     return {
       ok: true,
-      detail: testRes.data.message || 'Sesión privada de Google Flow Studio verificada en vivo.',
+      detail: testRes.data.message || 'Sesión privada de Google Flow Studio verificada en vivo en el servidor WAPPY.',
     };
-  }
-
-  if (userId) {
-    const sessRes = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
-      method: 'GET',
-      timeoutMs: 12000,
-    });
-    const cookies = sessRes.data?.cookies || [];
-    if (Array.isArray(cookies) && cookies.length > 0) {
-      const cookieHeader = buildFlowCookieHeader(cookies);
-      const flowPage = await httpJson('https://flow.google.com/', {
-        method: 'GET',
-        headers: {
-          Cookie: cookieHeader,
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        timeoutMs: 14000,
-      });
-      const html = String(flowPage.raw || '');
-      const atMatch = html.match(/"SNlM0e":"([^"]+)"/);
-      const emailMatch = html.match(/"oPEP7c":"([^"]+@[^"]+)"/);
-      if (atMatch && atMatch[1]) {
-        return {
-          ok: true,
-          detail: `Sesión de Google Flow Studio activa en flow.google.com (${emailMatch ? emailMatch[1] : sessRes.data?.email || 'cuenta autenticada'}).`,
-        };
-      }
-    }
   }
 
   const errReason =
     testRes.data?.reason ||
     testRes.data?.error ||
+    testRes.error ||
     (testRes.status === 401 ? 'Sesión de Google Flow expirada o pendiente de sincronización' : `HTTP ${testRes.status}`);
 
   return {
@@ -859,107 +802,194 @@ function cdpSendRaw(wsUrl, method, params = {}) {
   });
 }
 
-async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
-  log('🔄 Intentando auto-reconectar sesión de Google (NotebookLM + Flow) desde el perfil local de Chrome...');
-
-  // Paso 1: Intentar primero sincronización cruzada en servidor (/api/googleflow/sync-from-notebooklm)
-  await httpJson(`${wappyUrl}/api/googleflow/sync-from-notebooklm`, {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-    timeoutMs: 12000,
-  }).catch(() => {});
-
-  const browserBin = findBrowserExecutable();
-  const candidateProfiles = [
-    path.join(HOME_DIR, '.wappy-notebooklm-auth'),
-    path.join(HOME_DIR, '.wappy-googleflow-auth'),
-  ].filter((dir) => fs.existsSync(dir));
-
-  if (!browserBin || candidateProfiles.length === 0) {
-    log('⚠️ No se encontró perfil local (.wappy-notebooklm-auth / .wappy-googleflow-auth) o navegador Chrome para refrescar cookies.');
-    return false;
-  }
-
-  let uploaded = false;
-  for (const profileDir of candidateProfiles) {
-    if (uploaded) break;
-    log(`🔎 Inspeccionando perfil Chrome local ${path.basename(profileDir)} para refrescar cookies Google...`);
+function cleanupChromeSingletonLocks(profileDir) {
+  for (const lockName of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
     try {
-      fs.rmSync(path.join(profileDir, 'SingletonLock'), { force: true });
+      fs.rmSync(path.join(profileDir, lockName), { force: true });
     } catch (_) {}
+  }
+}
 
-    const debugPort = await getFreePort();
-    const child = spawn(
-      browserBin,
-      [
-        '--headless=new',
-        `--remote-debugging-port=${debugPort}`,
-        '--remote-allow-origins=*',
-        `--user-data-dir=${profileDir}`,
-        '--no-first-run',
-        '--no-default-browser-check',
-        'https://notebooklm.google.com/',
-      ],
-      { stdio: 'ignore', detached: true }
-    );
+async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
+  if (!browserBin || !fs.existsSync(profileDir)) return [];
 
-    try {
-      const start = Date.now();
-      while (Date.now() - start < 25000) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const listRes = await httpJson(`http://127.0.0.1:${debugPort}/json/list`, { timeoutMs: 3000 });
-        const pages = Array.isArray(listRes.data) ? listRes.data : [];
-        const page = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
-        if (!page) continue;
+  log(`🔎 Inspeccionando perfil Chrome local ${path.basename(profileDir)} para refrescar cookies Google...`);
+  cleanupChromeSingletonLocks(profileDir);
+  const debugPort = await getFreePort();
+  const child = spawn(
+    browserBin,
+    [
+      '--headless=new',
+      `--remote-debugging-port=${debugPort}`,
+      '--remote-allow-origins=*',
+      `--user-data-dir=${profileDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      'https://notebooklm.google.com/',
+    ],
+    { stdio: 'ignore', detached: true }
+  );
 
+  let extracted = [];
+  try {
+    const start = Date.now();
+    let targetsOpened = false;
+    let emptyChecks = 0;
+
+    while (Date.now() - start < 20000) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const listRes = await httpJson(`http://127.0.0.1:${debugPort}/json/list`, { timeoutMs: 3000 });
+      const pages = Array.isArray(listRes.data) ? listRes.data : [];
+      const page = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
+      if (!page) continue;
+
+      if (!targetsOpened) {
+        targetsOpened = true;
         await cdpSendRaw(page.webSocketDebuggerUrl, 'Target.createTarget', {
           url: 'https://flow.google.com/',
           background: true,
         }).catch(() => {});
-        await new Promise((r) => setTimeout(r, 2500));
+        await cdpSendRaw(page.webSocketDebuggerUrl, 'Target.createTarget', {
+          url: 'https://labs.google/fx/tools/flow',
+          background: true,
+        }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 3000));
+      }
 
-        const cdpRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
-        const allCookies = cdpRes?.result?.cookies || [];
-        const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
-        const names = new Set(googleCookies.map((c) => c.name));
-
-        if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
-          // Subir a /api/notebooklm/session, /api/googleflow/session y /api/notebooklm/internal/session/:userId
-          const s1 = await httpJson(`${wappyUrl}/api/notebooklm/session`, {
-            method: 'POST',
-            headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-            body: { cookies: googleCookies, source: 'healthcheck-auto' },
-            timeoutMs: 15000,
-          });
-          const s2 = await httpJson(`${wappyUrl}/api/googleflow/session`, {
-            method: 'POST',
-            headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
-            body: { cookies: googleCookies, source: 'healthcheck-auto' },
-            timeoutMs: 15000,
-          });
-          let s3 = { ok: false };
-          if (userId) {
-            s3 = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
-              method: 'POST',
-              body: { cookies: googleCookies },
-              timeoutMs: 15000,
-            });
+      const stRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Storage.getCookies').catch(() => null);
+      const netRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
+      const combinedMap = new Map();
+      for (const list of [netRes?.result?.cookies || [], stRes?.result?.cookies || []]) {
+        for (const c of list) {
+          if (c && c.name && c.value && c.domain) {
+            combinedMap.set(`${c.name}@@${c.domain}@@${c.path || '/'}`, c);
           }
-          uploaded = Boolean(s1.ok || s2.ok || s3.ok);
-          log(`✅ Cookies de Google extraídas (${googleCookies.length}) desde ${path.basename(profileDir)} y sincronizadas con WAPPY (status: ${uploaded}).`);
-          break;
         }
       }
-    } catch (err) {
-      log(`⚠️ Error extrayendo cookies vía CDP headless (${path.basename(profileDir)}): ${err.message}`);
-    } finally {
-      try {
-        child.kill('SIGKILL');
-      } catch (_) {}
+
+      const allCookies = Array.from(combinedMap.values());
+      const googleCookies = allCookies.filter((c) => {
+        const dom = String(c.domain || '').toLowerCase();
+        return dom.includes('google.com') || dom.includes('labs.google');
+      });
+      const names = new Set(googleCookies.map((c) => c.name));
+
+      if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+        extracted = googleCookies;
+        break;
+      }
+
+      emptyChecks += 1;
+      if (emptyChecks >= 2 && !names.has('SID')) {
+        break;
+      }
     }
+  } catch (err) {
+    log(`⚠️ Error extrayendo cookies vía CDP headless (${path.basename(profileDir)}): ${err.message}`);
+  } finally {
+    try {
+      if (child && child.pid) {
+        process.kill(-child.pid, 'SIGKILL');
+      }
+    } catch (_) {}
+    try {
+      child.kill('SIGKILL');
+    } catch (_) {}
+    cleanupChromeSingletonLocks(profileDir);
   }
 
-  return uploaded;
+  return extracted;
+}
+
+async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
+  log('🔄 Intentando auto-reconectar sesión de Google (NotebookLM + Flow + Labs) desde perfil local y rotación en servidor...');
+
+  let uploaded = false;
+  const browserBin = findBrowserExecutable();
+  const nbProfileDir = path.join(HOME_DIR, '.wappy-notebooklm-auth');
+  const flowProfileDir = path.join(HOME_DIR, '.wappy-googleflow-auth');
+
+  if (browserBin && (fs.existsSync(nbProfileDir) || fs.existsSync(flowProfileDir))) {
+    const mergedByKey = new Map();
+    if (fs.existsSync(nbProfileDir)) {
+      const nbCookies = await extractGoogleCookiesFromLocalProfile(browserBin, nbProfileDir);
+      for (const c of nbCookies) {
+        mergedByKey.set(`${c.name}@@${c.domain}@@${c.path || '/'}`, c);
+      }
+    }
+    if (fs.existsSync(flowProfileDir)) {
+      const hasLabsCookie = Array.from(mergedByKey.values()).some((c) =>
+        String(c.domain || '').toLowerCase().includes('labs.google')
+      );
+      if (mergedByKey.size === 0 || !hasLabsCookie) {
+        const flowCookies = await extractGoogleCookiesFromLocalProfile(browserBin, flowProfileDir);
+        for (const c of flowCookies) {
+          mergedByKey.set(`${c.name}@@${c.domain}@@${c.path || '/'}`, c);
+        }
+      }
+    }
+
+    const googleCookies = Array.from(mergedByKey.values());
+    const names = new Set(googleCookies.map((c) => c.name));
+    if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+      const s1 = await httpJson(`${wappyUrl}/api/notebooklm/session`, {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+        body: { cookies: googleCookies, source: 'healthcheck-auto' },
+        timeoutMs: 15000,
+      });
+      const s2 = await httpJson(`${wappyUrl}/api/googleflow/session`, {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+        body: { cookies: googleCookies, source: 'healthcheck-auto' },
+        timeoutMs: 15000,
+      });
+      let s3 = { ok: false };
+      if (userId) {
+        s3 = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
+          method: 'POST',
+          body: { cookies: googleCookies },
+          timeoutMs: 15000,
+        });
+      }
+      uploaded = Boolean(s1.ok || s2.ok || s3.ok);
+      log(`✅ Cookies locales extraídas (${googleCookies.length}, incl. google.com + labs.google) y sincronizadas con WAPPY (status: ${uploaded}).`);
+    } else {
+      log('ℹ️ El perfil local de Chrome no contenía cookies maestras SID activas; ejecutando rotación y sincronización en servidor WAPPY...');
+    }
+  } else {
+    log('ℹ️ Sin perfil local .wappy-notebooklm-auth/.wappy-googleflow-auth; ejecutando rotación y sincronización en servidor WAPPY...');
+  }
+
+  // Rotar y sincronizar en servidor (Master Cookies -> __Secure-1PSIDTS + sync-from-notebooklm + /api/googleflow/test)
+  await httpJson(`${wappyUrl}/api/notebooklm/test`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    timeoutMs: 25000,
+  }).catch(() => {});
+
+  const syncRes = await httpJson(`${wappyUrl}/api/googleflow/sync-from-notebooklm`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    timeoutMs: 15000,
+  }).catch(() => null);
+
+  const flowTestRes = await httpJson(`${wappyUrl}/api/googleflow/test`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+    timeoutMs: 30000,
+  }).catch(() => null);
+
+  return Boolean(uploaded || syncRes?.ok || flowTestRes?.data?.success);
+}
+
+function isModuleHealthy(key, finalResults, functionalResults, requireFunctional = false) {
+  const connOk = Boolean(finalResults?.[key]?.ok);
+  if (!connOk) return false;
+  if (requireFunctional || functionalResults?.[key]) {
+    return Boolean(functionalResults?.[key]?.ok);
+  }
+  return true;
 }
 
 /**
@@ -968,7 +998,7 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 async function sendHealthEmail(
   wappyUrl,
   apiKey,
-  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow }
+  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow, requireFunctional = true }
 ) {
   // Privacidad estricta: el reporte de estado del monitor NUNCA se envía a correos de usuarios,
   // únicamente al buzón administrativo ALERT_EMAIL (grupowappy@gmail.com).
@@ -980,19 +1010,20 @@ async function sendHealthEmail(
     timeStyle: 'medium',
   });
 
-  const failedNames = Object.entries(finalResults)
-    .filter(([, v]) => !v.ok)
-    .map(([k]) => k.toUpperCase());
+  const moduleKeys = ['antigravity', 'notebooklm', 'googleflow'];
+  const failedNames = moduleKeys
+    .filter((k) => !isModuleHealthy(k, finalResults, functionalResults, requireFunctional))
+    .map((k) => k.toUpperCase());
 
   const subject = !allHealthyNow
-    ? `🚨 [WAPPY IA] Solicitud de Reconexión Manual — Fallo en ${failedNames.join(', ')}`
+    ? `🚨 [WAPPY IA] Solicitud de Reconexión Manual — Fallo en ${failedNames.join(', ') || 'PRUEBA E2E'}`
     : hadInitialErrors
     ? `✅ [WAPPY IA] Conectores Reconectados y Pruebas E2E OK (${trigger})`
     : `🟢 [WAPPY IA] Reporte Unificado E2E OK (Antigravity + NotebookLM + Flow)`;
 
-  const renderRow = (label, initRes, finRes, funcRes) => {
-    const wasOk = initRes?.ok;
-    const isOk = finRes?.ok;
+  const renderRow = (modKey, label, initRes, finRes, funcRes) => {
+    const wasOk = Boolean(initRes?.ok) && !funcRes?.recoveredAfterFailure;
+    const isOk = isModuleHealthy(modKey, finalResults, functionalResults, requireFunctional);
     const badge = isOk
       ? wasOk
         ? '<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🟢 CONECTADO Y PROBADO</span>'
@@ -1000,7 +1031,7 @@ async function sendHealthEmail(
       : '<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px;">🔴 ERROR — REQUIERE RECONEXIÓN</span>';
 
     const funcHtml = funcRes
-      ? `<div style="margin-top:6px;padding:8px 10px;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;color:#0f172a;">
+      ? `<div style="margin-top:6px;padding:8px 10px;background:${funcRes.ok ? '#ffffff' : '#fef2f2'};border:1px solid ${funcRes.ok ? '#cbd5e1' : '#fecaca'};border-radius:6px;font-size:12px;color:${funcRes.ok ? '#0f172a' : '#991b1b'};">
            <b>🧪 Prueba Funcional Real:</b> ${funcRes.detail || ''}
            ${funcRes.imageUrl ? `<br/><a href="${funcRes.imageUrl}" target="_blank" style="color:#0d9488;font-weight:700;">🔗 Ver imagen generada en Google Flow</a>` : ''}
          </div>`
@@ -1012,24 +1043,28 @@ async function sendHealthEmail(
         <td style="padding:12px;border-bottom:1px solid #e2e8f0;vertical-align:top;">${badge}</td>
         <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#334155;vertical-align:top;">
           <div><b>Conectividad:</b> ${finRes?.detail || ''}</div>
-          ${!wasOk && isOk ? `<div style="color:#64748b;font-size:12px;">Falla inicial corregida: ${initRes?.detail || ''}</div>` : ''}
+          ${!wasOk && isOk ? `<div style="color:#64748b;font-size:12px;">Falla inicial corregida: ${funcRes?.initialFailureDetail || initRes?.detail || 'Sesión auto-reparada'}</div>` : ''}
           ${funcHtml}
         </td>
       </tr>
     `;
   };
 
+  const agHealthy = isModuleHealthy('antigravity', finalResults, functionalResults, requireFunctional);
+  const nbHealthy = isModuleHealthy('notebooklm', finalResults, functionalResults, requireFunctional);
+  const flHealthy = isModuleHealthy('googleflow', finalResults, functionalResults, requireFunctional);
+
   const manualActionBlock = !allHealthyNow
     ? `
       <div style="margin-top:20px;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#7f1d1d;">
         <h3 style="margin:0 0 8px 0;font-size:15px;">⚠️ Solicitud de Reconexión Manual</h3>
         <p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;">
-          El sistema intentó reconectar automáticamente los servicios con falla, pero se requiere iniciar sesión nuevamente o autorizar la ventana en tu Mac:
+          El sistema intentó reconectar automáticamente los servicios con falla (incluyendo auto-reparación y reintento E2E), pero se requiere iniciar sesión nuevamente o autorizar la ventana en tu Mac:
         </p>
         <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.6;">
-          ${!finalResults.antigravity?.ok ? '<li><b>Google Antigravity:</b> Abre Antigravity en tu Mac o ejecuta <code>node ~/.gemini/antigravity/wappy-push-daemon.js --install</code></li>' : ''}
-          ${!finalResults.notebooklm?.ok ? '<li><b>Google NotebookLM:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm</code> o entra a WAPPY y pulsa Reconectar NotebookLM.</li>' : ''}
-          ${!finalResults.googleflow?.ok ? '<li><b>Google Flow Studio:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --googleflow</code> o entra a WAPPY Studio y pulsa Reconectar Flow.</li>' : ''}
+          ${!agHealthy ? '<li><b>Google Antigravity:</b> Abre Antigravity en tu Mac o ejecuta <code>node ~/.gemini/antigravity/wappy-push-daemon.js --install</code></li>' : ''}
+          ${!nbHealthy ? '<li><b>Google NotebookLM:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm</code> o entra a WAPPY y pulsa Reconectar NotebookLM.</li>' : ''}
+          ${!flHealthy ? '<li><b>Google Flow Studio:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --googleflow</code> o entra a WAPPY Studio y pulsa Reconectar Flow.</li>' : ''}
         </ul>
       </div>
     `
@@ -1049,9 +1084,9 @@ async function sendHealthEmail(
           </tr>
         </thead>
         <tbody>
-          ${renderRow('⚡ Google Antigravity', initialResults.antigravity, finalResults.antigravity, functionalResults.antigravity)}
-          ${renderRow('📓 Google NotebookLM', initialResults.notebooklm, finalResults.notebooklm, functionalResults.notebooklm)}
-          ${renderRow('🎬 Google Flow Studio', initialResults.googleflow, finalResults.googleflow, functionalResults.googleflow)}
+          ${renderRow('antigravity', '⚡ Google Antigravity', initialResults.antigravity, finalResults.antigravity, functionalResults.antigravity)}
+          ${renderRow('notebooklm', '📓 Google NotebookLM', initialResults.notebooklm, finalResults.notebooklm, functionalResults.notebooklm)}
+          ${renderRow('googleflow', '🎬 Google Flow Studio', initialResults.googleflow, finalResults.googleflow, functionalResults.googleflow)}
         </tbody>
       </table>
       ${manualActionBlock}
@@ -1196,6 +1231,7 @@ function triggerLabel(trigger) {
     wake: 'Despertar de Reposo (Wake)',
     schedule: 'Corte Programado (7am/2pm/6pm)',
     cron: 'Corte Programado (Cron)',
+    automation: 'Automatización Antigravity',
     manual: 'Ejecución Manual',
     'imac-live-test': 'Prueba Inicial iMac',
   };
@@ -1477,6 +1513,7 @@ function updateWordBitacora({
   functionalResults = {},
   hadInitialErrors,
   allHealthyNow,
+  requireFunctional = false,
 }) {
   try {
     let entries = [];
@@ -1491,29 +1528,37 @@ function updateWordBitacora({
       entries = seedBitacoraFromExistingLog();
     }
 
+    const agFinalOk = isModuleHealthy('antigravity', finalResults, functionalResults, requireFunctional);
+    const nbFinalOk = isModuleHealthy('notebooklm', finalResults, functionalResults, requireFunctional);
+    const flFinalOk = isModuleHealthy('googleflow', finalResults, functionalResults, requireFunctional);
+
+    const agInitOk = Boolean(initialResults.antigravity.ok) && !functionalResults.antigravity?.recoveredAfterFailure;
+    const nbInitOk = Boolean(initialResults.notebooklm.ok) && !functionalResults.notebooklm?.recoveredAfterFailure;
+    const flInitOk = Boolean(initialResults.googleflow.ok) && !functionalResults.googleflow?.recoveredAfterFailure;
+
     const notesList = [];
     if (!hadInitialErrors && allHealthyNow) {
-      notesList.push('Conectividad 3/3 OK.');
+      notesList.push('Conectividad y E2E 3/3 OK.');
     } else {
-      if (!initialResults.antigravity.ok) {
+      if (!agInitOk || !agFinalOk) {
         notesList.push(
-          finalResults.antigravity.ok
+          agFinalOk
             ? 'Antigravity reconectado automáticamente.'
-            : `Fallo Antigravity: ${finalResults.antigravity.detail}`
+            : `Fallo Antigravity: ${functionalResults.antigravity?.detail || finalResults.antigravity.detail}`
         );
       }
-      if (!initialResults.notebooklm.ok) {
+      if (!nbInitOk || !nbFinalOk) {
         notesList.push(
-          finalResults.notebooklm.ok
+          nbFinalOk
             ? 'NotebookLM reconectado automáticamente.'
-            : `Fallo NotebookLM: ${finalResults.notebooklm.detail}`
+            : `Fallo NotebookLM: ${functionalResults.notebooklm?.detail || finalResults.notebooklm.detail}`
         );
       }
-      if (!initialResults.googleflow.ok) {
+      if (!flInitOk || !flFinalOk) {
         notesList.push(
-          finalResults.googleflow.ok
+          flFinalOk
             ? 'Google Flow reconectado automáticamente.'
-            : `Fallo Google Flow: ${finalResults.googleflow.detail}`
+            : `Fallo Google Flow: ${functionalResults.googleflow?.detail || finalResults.googleflow.detail}`
         );
       }
     }
@@ -1541,20 +1586,20 @@ function updateWordBitacora({
       trigger,
       hostname: os.hostname(),
       antigravity: {
-        initialOk: Boolean(initialResults.antigravity.ok),
-        finalOk: Boolean(finalResults.antigravity.ok),
+        initialOk: agInitOk,
+        finalOk: agFinalOk,
         detail: finalResults.antigravity.detail || '',
         functional: functionalResults.antigravity || null,
       },
       notebooklm: {
-        initialOk: Boolean(initialResults.notebooklm.ok),
-        finalOk: Boolean(finalResults.notebooklm.ok),
+        initialOk: nbInitOk,
+        finalOk: nbFinalOk,
         detail: finalResults.notebooklm.detail || '',
         functional: functionalResults.notebooklm || null,
       },
       googleflow: {
-        initialOk: Boolean(initialResults.googleflow.ok),
-        finalOk: Boolean(finalResults.googleflow.ok),
+        initialOk: flInitOk,
+        finalOk: flFinalOk,
         detail: finalResults.googleflow.detail || '',
         functional: functionalResults.googleflow || null,
       },
@@ -1608,6 +1653,7 @@ function formatTriggerLabel(rawTrigger) {
   const t = String(rawTrigger || 'manual').toLowerCase().trim();
   if (t === 'boot') return 'Arranque Mac';
   if (t === 'schedule' || t === 'cron') return 'Corte Programado';
+  if (t === 'automation') return 'Automatización Antigravity';
   if (t === 'wake') return 'Despertar Reposo';
   if (t === 'manual' || t === 'cron-test') return 'Verificación Manual';
   return rawTrigger || 'Corte';
@@ -1629,7 +1675,7 @@ function formatShortColombianHour(dateInput = new Date()) {
 /**
  * 6. APERTURA Y REGISTRO EN EL CHAT DEDICADO DE ANTIGRAVITY (`🩺 [Cron Conectores · ...]`)
  * Abre visiblemente la conversación dedicada de Bitácora (`wappy-healthcheck-thread.json`) en el proyecto
- * activo del usuario dejando el acta completa de las 3 pruebas E2E o la verificación de ventana de 90 min.
+ * activo del usuario dejando el acta completa de las 3 pruebas E2E o la verificación de ventana de 45 min.
  */
 async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {}) {
   const mode = options.mode || 'full_report';
@@ -1650,20 +1696,23 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
       `🩺 **[ACTA DE VERIFICACIÓN DE CORTE PROGRAMADO — ${corteHora}]**`,
       `- **Fecha y Hora (Colombia):** ${formatColombianDate(new Date())}`,
       `- **Disparador Actual:** \`${trigger}\` (${triggerHuman})`,
-      `- **Estado de la Ventana de 90 Minutos:** El reporte E2E completo (3/3 módulos OK + Bitácora Word + Correo a \`${ALERT_EMAIL}\`) ya fue ejecutado hace **${options.elapsedMinutes || 0} minutos** durante el corte de **${prevTriggerHuman} (${prevHora})**.`,
-      `- **Acción Aplicada:** Se conserva la validación 3/3 OK del corte matutino y se omite el reenvío de correo duplicado a \`${ALERT_EMAIL}\`, dejando constancia oficial en este chat del corte de las ${horaStr}.`,
+      `- **Estado de la Ventana de 45 Minutos:** El reporte E2E completo (3/3 módulos OK + Bitácora Word + Correo a \`${ALERT_EMAIL}\`) ya fue ejecutado hace **${options.elapsedMinutes || 0} minutos** durante el corte de **${prevTriggerHuman} (${prevHora})**.`,
+      `- **Acción Aplicada:** Se conserva la validación 3/3 OK del corte reciente y se omite el reenvío de correo duplicado a \`${ALERT_EMAIL}\`, dejando constancia oficial en este chat del corte de las ${horaStr}.`,
       `- **Resumen del Corte Previo (${prevHora}):**`,
-      `  1. **Google Antigravity:** ${prev.finalResults?.antigravity?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.antigravity?.detail || prev.finalResults?.antigravity?.detail || 'Verificado'}`,
-      `  2. **Google NotebookLM:** ${prev.finalResults?.notebooklm?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.notebooklm?.detail || prev.finalResults?.notebooklm?.detail || 'Verificado'}`,
-      `  3. **Google Flow Studio:** ${prev.finalResults?.googleflow?.ok ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.googleflow?.detail || prev.finalResults?.googleflow?.detail || 'Verificado'}`,
+      `  1. **Google Antigravity:** ${isModuleHealthy('antigravity', prev.finalResults, prev.functionalResults, true) ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.antigravity?.detail || prev.finalResults?.antigravity?.detail || 'Verificado'}`,
+      `  2. **Google NotebookLM:** ${isModuleHealthy('notebooklm', prev.finalResults, prev.functionalResults, true) ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.notebooklm?.detail || prev.finalResults?.notebooklm?.detail || 'Verificado'}`,
+      `  3. **Google Flow Studio:** ${isModuleHealthy('googleflow', prev.finalResults, prev.functionalResults, true) ? '🟢 OK' : '🔴 FALLO'} — ${prev.functionalResults?.googleflow?.detail || prev.finalResults?.googleflow?.detail || 'Verificado'}`,
       ``,
-      `INSTRUCCIÓN PARA ANTIGRAVITY (MODO BITÁCORA CRON — CERO HERRAMIENTAS): Este mensaje es la constancia automática del corte programado de las ${horaStr}. NO ejecutes comandos de terminal ni herramientas MCP. Responde ÚNICAMENTE en 1 sola línea confirmando que el corte de las ${horaStr} verificó el reporte matutino ejecutado en el arranque (${prevHora}).`,
+      `INSTRUCCIÓN PARA ANTIGRAVITY (MODO BITÁCORA CRON — CERO HERRAMIENTAS): Este mensaje es la constancia automática del corte programado de las ${horaStr}. NO ejecutes comandos de terminal ni herramientas MCP. Responde ÚNICAMENTE en 1 sola línea confirmando que el corte de las ${horaStr} verificó el reporte previo ejecutado (${prevHora}).`,
     ].join('\n');
   } else {
     const finalResults = options.finalResults || {};
     const functionalResults = options.functionalResults || {};
     const allHealthyNow = Boolean(options.allHealthyNow);
     const emailSent = Boolean(options.emailSent);
+    const agOk = isModuleHealthy('antigravity', finalResults, functionalResults, true);
+    const nbOk = isModuleHealthy('notebooklm', finalResults, functionalResults, true);
+    const flOk = isModuleHealthy('googleflow', finalResults, functionalResults, true);
 
     titulo = `Reporte E2E ${allHealthyNow ? '3/3 OK' : 'Con Alertas'} (Antigravity + NotebookLM + Flow)`;
     promptText = [
@@ -1674,13 +1723,13 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
       `- **Resultado Global E2E:** ${allHealthyNow ? '🟢 **3/3 MÓDULOS OPERATIVOS Y VERIFICADOS**' : '🚨 **ALERTA DETECTADA EN REVISIÓN**'}`,
       ``,
       `### 🧪 Detalle de las 3 Pruebas Funcionales E2E:`,
-      `1. **Google Antigravity (Puente Reactivo Push SSE):** ${finalResults.antigravity?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `1. **Google Antigravity (Puente Reactivo Push SSE):** ${agOk ? '🟢 OK' : '🔴 FALLO'}`,
       `   - Conectividad: ${finalResults.antigravity?.detail || 'N/A'}`,
       `   - Prueba Funcional E2E: ${functionalResults.antigravity?.detail || 'N/A'}`,
-      `2. **Google NotebookLM (RAG & Cuadernos):** ${finalResults.notebooklm?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `2. **Google NotebookLM (RAG & Cuadernos):** ${nbOk ? '🟢 OK' : '🔴 FALLO'}`,
       `   - Conectividad: ${finalResults.notebooklm?.detail || 'N/A'}`,
       `   - Prueba Funcional E2E: ${functionalResults.notebooklm?.detail || 'N/A'}`,
-      `3. **Google Flow Studio (Imagen IA / Veo):** ${finalResults.googleflow?.ok ? '🟢 OK' : '🔴 FALLO'}`,
+      `3. **Google Flow Studio (Imagen IA / Veo):** ${flOk ? '🟢 OK' : '🔴 FALLO'}`,
       `   - Conectividad: ${finalResults.googleflow?.detail || 'N/A'}`,
       `   - Prueba Funcional E2E: ${functionalResults.googleflow?.detail || 'N/A'}${
         functionalResults.googleflow?.imageUrl ? `\n   - Imagen Generada: ${functionalResults.googleflow.imageUrl}` : ''
@@ -1756,6 +1805,17 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
   return false;
 }
 
+function isPidAlive(pid) {
+  const num = Number(pid);
+  if (!Number.isFinite(num) || num <= 0) return false;
+  try {
+    process.kill(num, 0);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function main() {
   // Candado de privacidad multi-usuario: este monitor pertenece exclusivamente al iMac y MacBook Pro de Félix.
   // Si por cualquier motivo existe en el computador de otro usuario, se limpia y termina sin ejecutar nada.
@@ -1768,17 +1828,40 @@ async function main() {
 
   const args = parseArgs();
   const trigger = String(args.trigger || 'manual');
+  const fromAgyAutomation = Boolean(args['from-agy-automation']);
   const forceEmail = Boolean(args['force-email'] || args['test-email'] || args.force);
   const simulateError = Boolean(args['simulate-error']);
   const runInvasiveFunctionalTests = args['passive-only'] ? false : true;
   const isManualRun = trigger === 'manual' || trigger === 'cron-test' || forceEmail;
 
-  // Evitar ejecuciones simultáneas (lock de 4 minutos)
+  // Dar prioridad a la Automatización nativa de Antigravity (Automations panel):
+  // si dispara cron/schedule del SO al mismo minuto exacto, esperar 20s para ceder el turno
+  // a --from-agy-automation si Antigravity está abierto, manteniendo respaldo si está cerrado.
+  if (
+    !isManualRun &&
+    !fromAgyAutomation &&
+    (trigger === 'cron' || trigger === 'schedule') &&
+    fs.existsSync(path.join(CONFIG_DIR, 'sidecars', 'wappy-connectors-monitor', 'sidecar.json'))
+  ) {
+    await new Promise((r) => setTimeout(r, 20000));
+  }
+
+  let previousState = null;
+  if (fs.existsSync(STATE_FILE)) {
+    try {
+      previousState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    } catch (_) {
+      previousState = null;
+    }
+  }
+
+  // Evitar ejecuciones simultáneas reales (lock de 4 minutos con verificación de PID activo)
   try {
     if (fs.existsSync(LOCK_FILE)) {
       const lockAge = Date.now() - fs.statSync(LOCK_FILE).mtimeMs;
-      if (lockAge < 4 * 60 * 1000 && !isManualRun) {
-        log(`⏳ Otra revisión está en curso (hace ${Math.round(lockAge / 1000)}s). Omitiendo duplicado (${trigger}).`);
+      const lockPid = fs.readFileSync(LOCK_FILE, 'utf8').trim();
+      if (lockAge < 4 * 60 * 1000 && isPidAlive(lockPid) && !isManualRun && !fromAgyAutomation) {
+        log(`⏳ Otra revisión está en curso (PID ${lockPid}, hace ${Math.round(lockAge / 1000)}s). Omitiendo duplicado (${trigger}).`);
         return;
       }
     }
@@ -1789,19 +1872,23 @@ async function main() {
   try {
     // Unificación de ejecuciones automáticas (boot, wake, schedule, cron):
     // Evitar enviar múltiples correos en la mañana cuando coinciden el encendido del Mac (boot),
-    // LaunchAgent (schedule) y crontab (cron).
-    if (!isManualRun && fs.existsSync(STATE_FILE)) {
-      try {
-        const lastState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-        const elapsedMs = Date.now() - (lastState.timestamp || 0);
-        if (lastState.allHealthyNow && lastState.emailSent && elapsedMs < 90 * 60 * 1000) {
-          const elapsedMinutes = Math.round(elapsedMs / 60000);
-          log(
-            `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${elapsedMinutes} min (trigger previo: ${lastState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
-          );
-          return;
-        }
-      } catch (_) {}
+    // LaunchAgent (schedule) y crontab (cron). Ventana de 45 min para que una prueba manual al mediodía
+    // nunca bloquee el corte programado de las 2:00 p. m.
+    // Si viene desde Antigravity Automations (--from-agy-automation), NO abortar temprano: ejecutar siempre
+    // la verificación en vivo para que la corrida en Automations muestre el diagnóstico real.
+    if (!isManualRun && !fromAgyAutomation && previousState) {
+      const lastHealthyEmailAt =
+        previousState.lastHealthyEmailTimestamp ||
+        (previousState.allHealthyNow && previousState.emailSent ? previousState.timestamp : 0) ||
+        0;
+      const elapsedMs = Date.now() - lastHealthyEmailAt;
+      if (previousState.allHealthyNow && lastHealthyEmailAt > 0 && elapsedMs < 45 * 60 * 1000) {
+        const elapsedMinutes = Math.round(elapsedMs / 60000);
+        log(
+          `ℹ️ Reporte unificado ya fue ejecutado y enviado hace ${elapsedMinutes} min (< 45 min, trigger previo: ${previousState.trigger}). Omitiendo duplicado (${trigger}) para no enviar correos repetidos.`
+        );
+        return;
+      }
     }
 
     const { wappyUrl, apiKey } = resolveCredentials();
@@ -1810,7 +1897,9 @@ async function main() {
       return;
     }
 
-    log(`🔍 Iniciando pruebas de conexión y funcionales E2E (trigger=${trigger}) hacia ${wappyUrl}...`);
+    log(
+      `🔍 Iniciando pruebas de conexión y funcionales E2E (trigger=${trigger}${fromAgyAutomation ? ', from-agy-automation=true' : ''}) hacia ${wappyUrl}...`
+    );
     const online = await waitForInternetConnection(wappyUrl, 45000);
     if (!online) {
       log('⚠️ Sin conexión a internet tras esperar 45s (el equipo puede estar sin red Wi-Fi).');
@@ -1830,7 +1919,7 @@ async function main() {
     }
     const userId = initAg.userId || '';
     const initNb = await checkNotebookLM(wappyUrl, apiKey);
-    const initFlow = await checkGoogleFlow(wappyUrl, apiKey, userId);
+    const initFlow = await checkGoogleFlow(wappyUrl, apiKey);
 
     if (simulateError) {
       initAg.ok = false;
@@ -1847,7 +1936,7 @@ async function main() {
       `📊 Estado inicial conectividad -> Antigravity: ${initAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
     );
 
-    const hadInitialErrors = !initAg.ok || !initNb.ok || !initFlow.ok;
+    let hadInitialErrors = !initAg.ok || !initNb.ok || !initFlow.ok;
     const finalResults = {
       antigravity: { ...initAg },
       notebooklm: { ...initNb },
@@ -1867,7 +1956,7 @@ async function main() {
         log(`🔄 Resultado reconexión NotebookLM: ${finalResults.notebooklm.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
       }
       if (!initFlow.ok) {
-        finalResults.googleflow = await checkGoogleFlow(wappyUrl, apiKey, userId);
+        finalResults.googleflow = await checkGoogleFlow(wappyUrl, apiKey);
         log(`🔄 Resultado reconexión Google Flow: ${finalResults.googleflow.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
       }
     }
@@ -1892,11 +1981,11 @@ async function main() {
           stdio: 'ignore',
         }).unref();
         await new Promise((r) => setTimeout(r, 12000));
-        finalResults.googleflow = await checkGoogleFlow(wappyUrl, apiKey, userId);
+        finalResults.googleflow = await checkGoogleFlow(wappyUrl, apiKey);
       } catch (_) {}
     }
 
-    // ── FASE 2: VERIFICACIÓN NO INVASIVA POR DEFECTO (CERO PROMPTS NI APERTURA DE CHATS EN INSTANCIAS) ──
+    // ── FASE 2: PRUEBAS FUNCIONALES E2E Y AUTO-REPARACIÓN REACTIVA CON 1 REINTENTO ──
     const functionalResults = {
       antigravity: {
         ok: Boolean(finalResults.antigravity.ok),
@@ -1932,12 +2021,83 @@ async function main() {
       if (finalResults.googleflow.ok) {
         functionalResults.googleflow = await runFunctionalFlowImageGeneration(wappyUrl, apiKey);
       }
+
+      // Auto-reparación en Fase 2 E2E si falló alguna prueba funcional
+      if (!functionalResults.antigravity.ok) {
+        const firstAgFailure = functionalResults.antigravity.detail || 'Fallo inicial en prueba E2E de Antigravity.';
+        hadInitialErrors = true;
+        log('🛠️ [Auto-Reparación Fase 2 E2E] Falló prueba funcional de Antigravity. Ejecutando reconexión y 1 reintento E2E...');
+        finalResults.antigravity = await reconnectAntigravity(wappyUrl, apiKey);
+        if (finalResults.antigravity.ok) {
+          const retryAg = await runFunctionalAntigravityQuestion(wappyUrl, apiKey);
+          functionalResults.antigravity = {
+            ...retryAg,
+            recoveredAfterFailure: Boolean(retryAg.ok),
+            initialFailureDetail: firstAgFailure,
+          };
+        }
+      }
+
+      const nbFailedE2E = !functionalResults.notebooklm.ok;
+      const flowFailedE2E = !functionalResults.googleflow.ok;
+      if (nbFailedE2E || flowFailedE2E) {
+        const firstNbFailure = functionalResults.notebooklm.detail || '';
+        const firstFlowFailure = functionalResults.googleflow.detail || '';
+        hadInitialErrors = true;
+        log(
+          `🛠️ [Auto-Reparación Fase 2 E2E] Falló prueba funcional en ${[
+            nbFailedE2E ? 'NotebookLM' : null,
+            flowFailedE2E ? 'Google Flow' : null,
+          ]
+            .filter(Boolean)
+            .join(' + ')}. Refrescando sesión de Google + sync-from-notebooklm y reintentando 1 vez...`
+        );
+
+        await refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId);
+        await httpJson(`${wappyUrl}/api/googleflow/sync-from-notebooklm`, {
+          method: 'POST',
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+          timeoutMs: 15000,
+        }).catch(() => {});
+
+        if (nbFailedE2E) {
+          finalResults.notebooklm = await checkNotebookLM(wappyUrl, apiKey);
+          if (finalResults.notebooklm.ok) {
+            const retryNb = await runFunctionalNotebookLMQuestion(
+              wappyUrl,
+              apiKey,
+              finalResults.notebooklm.notebooks || []
+            );
+            functionalResults.notebooklm = {
+              ...retryNb,
+              recoveredAfterFailure: Boolean(retryNb.ok),
+              initialFailureDetail: firstNbFailure,
+            };
+          }
+        }
+
+        if (flowFailedE2E) {
+          finalResults.googleflow = await checkGoogleFlow(wappyUrl, apiKey);
+          if (finalResults.googleflow.ok) {
+            const retryFlow = await runFunctionalFlowImageGeneration(wappyUrl, apiKey);
+            functionalResults.googleflow = {
+              ...retryFlow,
+              recoveredAfterFailure: Boolean(retryFlow.ok),
+              initialFailureDetail: firstFlowFailure,
+            };
+          }
+        }
+      }
     }
 
-    const allHealthyNow =
-      Boolean(finalResults.antigravity.ok) &&
-      Boolean(finalResults.notebooklm.ok) &&
-      Boolean(finalResults.googleflow.ok);
+    const agHealthy = isModuleHealthy('antigravity', finalResults, functionalResults, runInvasiveFunctionalTests);
+    const nbHealthy = isModuleHealthy('notebooklm', finalResults, functionalResults, runInvasiveFunctionalTests);
+    const flHealthy = isModuleHealthy('googleflow', finalResults, functionalResults, runInvasiveFunctionalTests);
+    const allHealthyNow = agHealthy && nbHealthy && flHealthy;
+
+    log(
+      `🏁 Resultado final honesto -> Antigravity: ${agHealthy ? 'OK' : 'FALLO'} | NotebookLM: ${nbHealthy ? 'OK' : 'FALLO'} | Google Flow: ${flHealthy ? 'OK' : 'FALLO'} | Global 3/3: ${allHealthyNow ? 'OK' : 'ALERTA'}`
+    );
 
     // ── FASE 3: ACTUALIZAR BITÁCORA WORD EN EL ESCRITORIO Y ENVIAR 1 ÚNICO CORREO A grupowappy@gmail.com ──
     updateWordBitacora({
@@ -1947,6 +2107,7 @@ async function main() {
       functionalResults,
       hadInitialErrors,
       allHealthyNow,
+      requireFunctional: runInvasiveFunctionalTests,
     });
 
     if (process.platform === 'darwin') {
@@ -1954,7 +2115,7 @@ async function main() {
         const notifTitle = allHealthyNow
           ? '🟢 WAPPY IA — Conectores 3/3 OK'
           : '🚨 WAPPY IA — Alerta en Conectores';
-        const notifMsg = `Antigravity: ${finalResults.antigravity.ok ? 'OK' : 'FALLO'} | NotebookLM: ${finalResults.notebooklm.ok ? 'OK' : 'FALLO'} | Flow: ${finalResults.googleflow.ok ? 'OK' : 'FALLO'}`;
+        const notifMsg = `Antigravity: ${agHealthy ? 'OK' : 'FALLO'} | NotebookLM: ${nbHealthy ? 'OK' : 'FALLO'} | Flow: ${flHealthy ? 'OK' : 'FALLO'}`;
         execFileSync(
           '/usr/bin/osascript',
           ['-e', `display notification "${notifMsg}" with title "${notifTitle}" sound name "Glass"`],
@@ -1963,9 +2124,25 @@ async function main() {
       } catch (_) {}
     }
 
-    const isScheduledCut = ['schedule', 'cron', 'boot', 'manual', 'cron-test'].includes(trigger);
+    const isScheduledCut = ['schedule', 'cron', 'boot', 'manual', 'cron-test', 'automation'].includes(trigger);
+    const prevHealthyEmailAt =
+      previousState?.lastHealthyEmailTimestamp ||
+      (previousState?.allHealthyNow && previousState?.emailSent ? previousState.timestamp : 0) ||
+      0;
+    const elapsedSinceHealthyEmailMs = prevHealthyEmailAt > 0 ? Date.now() - prevHealthyEmailAt : Infinity;
+    const suppressDuplicateAutomationEmail =
+      fromAgyAutomation &&
+      !forceEmail &&
+      allHealthyNow &&
+      Boolean(previousState?.allHealthyNow) &&
+      elapsedSinceHealthyEmailMs < 45 * 60 * 1000;
+
     let emailSent = false;
-    if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
+    if (suppressDuplicateAutomationEmail) {
+      log(
+        `ℹ️ Omitiendo reenvío de correo repetido en Automatización Antigravity: ya se envió un reporte 3/3 OK hace ${Math.round(elapsedSinceHealthyEmailMs / 60000)} min (< 45 min).`
+      );
+    } else if (hadInitialErrors || !allHealthyNow || forceEmail || isScheduledCut) {
       emailSent = await sendHealthEmail(wappyUrl, apiKey, {
         trigger,
         initialResults,
@@ -1973,10 +2150,11 @@ async function main() {
         functionalResults,
         hadInitialErrors,
         allHealthyNow,
+        requireFunctional: runInvasiveFunctionalTests,
       });
     }
 
-    if (runInvasiveFunctionalTests && isOwnerAdminMac()) {
+    if (runInvasiveFunctionalTests && isOwnerAdminMac() && !fromAgyAutomation) {
       await openAntigravityHealthcheckChatLog(wappyUrl, apiKey, {
         mode: 'full_report',
         trigger,
@@ -1987,9 +2165,16 @@ async function main() {
         allHealthyNow,
         emailSent,
       });
+    } else if (fromAgyAutomation) {
+      log(
+        'ℹ️ Modo --from-agy-automation activo: se omite openAntigravityHealthcheckChatLog porque Antigravity Automations registra esta ejecución directamente en su panel nativo.'
+      );
     }
 
-    // Guardar estado final (con emailSent=true para evitar correos repetidos en la misma ventana de 90 min)
+    const newHealthyEmailTimestamp =
+      emailSent && allHealthyNow ? Date.now() : prevHealthyEmailAt || 0;
+
+    // Guardar estado final (con lastHealthyEmailTimestamp para controlar ventana anti-duplicados de 45 min)
     try {
       fs.writeFileSync(
         STATE_FILE,
@@ -1998,9 +2183,11 @@ async function main() {
             timestamp: Date.now(),
             isoDate: new Date().toISOString(),
             trigger,
+            fromAgyAutomation,
             hadInitialErrors,
             allHealthyNow,
             emailSent,
+            lastHealthyEmailTimestamp: newHealthyEmailTimestamp,
             initialResults,
             finalResults,
             functionalResults,

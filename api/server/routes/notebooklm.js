@@ -1608,13 +1608,17 @@ async function uploadCookies(cookies, email = '') {
         allCookies = cdpRes?.result?.cookies || [];
       }
 
-      const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+      const googleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
         try {
           await cdpSend(nbPage.webSocketDebuggerUrl, 'Target.createTarget', {
             url: 'https://flow.google.com/',
+            background: true,
+          });
+          await cdpSend(nbPage.webSocketDebuggerUrl, 'Target.createTarget', {
+            url: 'https://labs.google/fx/tools/flow',
             background: true,
           });
           await new Promise((r) => setTimeout(r, 2500));
@@ -1625,7 +1629,7 @@ async function uploadCookies(cookies, email = '') {
           }
         } catch (_) {}
 
-        const finalGoogleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+        const finalGoogleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
         const osidCookie = finalGoogleCookies.find((c) => c.name === 'OSID');
         if (osidCookie) {
           const hasNotebookDomain = finalGoogleCookies.some(

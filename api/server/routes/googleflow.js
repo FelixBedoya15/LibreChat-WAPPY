@@ -395,9 +395,26 @@ async function fetchLabsFxSession(cookies) {
   }
 
   try {
+    const labsCookies = cookies.filter((c) => {
+      const dom = String(c.domain || '.google.com').toLowerCase();
+      return (
+        dom === '.google.com' ||
+        dom === 'google.com' ||
+        dom === 'labs.google' ||
+        dom === '.labs.google' ||
+        dom === 'accounts.google.com' ||
+        dom === '.accounts.google.com'
+      );
+    });
+    const labsHeader =
+      labsCookies.length > 0
+        ? Array.from(new Map(labsCookies.filter((c) => c?.name && c?.value).map((c) => [c.name, c.value])).entries())
+            .map(([k, v]) => `${k}=${v}`)
+            .join('; ')
+        : cookieHeader;
     const res = await axios.get('https://labs.google/fx/api/auth/session', {
       headers: {
-        Cookie: cookieHeader,
+        Cookie: labsHeader,
         'User-Agent': ua,
         Accept: 'application/json',
       },
@@ -409,7 +426,7 @@ async function fetchLabsFxSession(cookies) {
         accessToken: res.data.access_token || null,
         email: res.data.user?.email || null,
         name: res.data.user?.name || null,
-        cookieHeader,
+        cookieHeader: labsHeader,
       };
     }
   } catch (_) {}
@@ -439,8 +456,19 @@ async function resolveGoogleFlowCredentials(userId, explicitCompanyId = null) {
   const targetEmail = flowSession?.email || notebookSession?.email || '';
   if (cookies.length > 0) {
     const psidtsCookie = cookies.find((c) => c && c.name === '__Secure-1PSIDTS' && c.value);
-    if (!psidtsCookie) {
-      cookies = await refreshGoogleCookiesOnDemand(userId, cookies, targetEmail, false);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const isPsidtsExpired =
+      psidtsCookie &&
+      typeof psidtsCookie.expires === 'number' &&
+      psidtsCookie.expires > 0 &&
+      psidtsCookie.expires < nowSec + 120;
+    if (!psidtsCookie || isPsidtsExpired) {
+      cookies = await refreshGoogleCookiesOnDemand(
+        userId,
+        cookies,
+        targetEmail,
+        Boolean(isPsidtsExpired)
+      );
     }
   }
 
@@ -1180,56 +1208,69 @@ async function executeFlowImageGeneration({
       : [creds.cookies, creds.fallbackCookies].filter((cs) => Array.isArray(cs) && cs.length > 0);
   for (const activeCookieSet of cookieSetsToTry) {
     if (imageBuffer || sessionWasAuthenticated) break;
-    try {
-      logger.info('[GoogleFlow] Ejecutando generación nativa en flow.google.com (Nano Banana 2 Lite / 2.1)...');
-      const nativeRes = await executeFlowNativeStudioAction({
-        cookies: activeCookieSet,
-        actionType: 'IMAGE_GENERATION',
-        prompt: enhancedPrompt,
-        fallbackPrompt: fallbackSafePrompt,
-        aspectRatio: cleanRatio,
-      });
-
-      if (nativeRes.ok && nativeRes.signedUrl) {
-        sessionWasAuthenticated = true;
-        const dlRes = await axios.get(nativeRes.signedUrl, {
-          responseType: 'arraybuffer',
-          timeout: 35000,
-          headers: {
-            Cookie: nativeRes.cookieHeader || buildFlowCookieHeader(activeCookieSet),
-            Referer: 'https://flow.google.com/',
-            Origin: 'https://flow.google.com',
-            'User-Agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          },
+    let currentCookies = activeCookieSet;
+    for (let authAttempt = 0; authAttempt < 2; authAttempt++) {
+      if (imageBuffer || sessionWasAuthenticated) break;
+      try {
+        logger.info('[GoogleFlow] Ejecutando generación nativa en flow.google.com (Nano Banana 2 Lite / 2.1)...');
+        const nativeRes = await executeFlowNativeStudioAction({
+          cookies: currentCookies,
+          actionType: 'IMAGE_GENERATION',
+          prompt: enhancedPrompt,
+          fallbackPrompt: fallbackSafePrompt,
+          aspectRatio: cleanRatio,
         });
-        if (dlRes.data && dlRes.data.byteLength > 1024) {
-          imageBuffer = Buffer.from(dlRes.data);
-          mimeType = dlRes.headers['content-type'] || 'image/jpeg';
-          modelUsed = nativeRes.modelLabel;
+
+        if (nativeRes.ok && nativeRes.signedUrl) {
+          sessionWasAuthenticated = true;
+          const dlRes = await axios.get(nativeRes.signedUrl, {
+            responseType: 'arraybuffer',
+            timeout: 35000,
+            headers: {
+              Cookie: nativeRes.cookieHeader || buildFlowCookieHeader(currentCookies),
+              Referer: 'https://flow.google.com/',
+              Origin: 'https://flow.google.com',
+              'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            },
+          });
+          if (dlRes.data && dlRes.data.byteLength > 1024) {
+            imageBuffer = Buffer.from(dlRes.data);
+            mimeType = dlRes.headers['content-type'] || 'image/jpeg';
+            modelUsed = nativeRes.modelLabel;
+            if (userId) {
+              await GoogleFlowSession.findOneAndUpdate(
+                { user: userId, companyId: creds.activeCompId || null },
+                {
+                  companyId: creds.activeCompId || null,
+                  cookies: currentCookies,
+                  cookieCount: currentCookies.length,
+                  isValid: true,
+                  lastTestedAt: new Date(),
+                }
+              ).catch(() => {});
+            }
+          }
+        }
+      } catch (flowErr) {
+        if (flowErr?.sessionAuthenticated) {
+          sessionWasAuthenticated = true;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId, companyId: creds.activeCompId || null },
-              {
-                companyId: creds.activeCompId || null,
-                isValid: true,
-                lastTestedAt: new Date(),
-              }
+              { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
             ).catch(() => {});
           }
+          logger.warn(`[GoogleFlow] Aviso en generación nativa flow.google.com: ${flowErr.message}`);
+          break;
         }
-      }
-    } catch (flowErr) {
-      if (flowErr?.sessionAuthenticated) {
-        sessionWasAuthenticated = true;
-        if (userId) {
-          await GoogleFlowSession.findOneAndUpdate(
-            { user: userId, companyId: creds.activeCompId || null },
-            { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
-          ).catch(() => {});
+        if (authAttempt === 0 && userId) {
+          logger.info('[GoogleFlow] 🔄 Rotando __Secure-1PSIDTS bajo demanda tras fallo de autenticación en /generate...');
+          currentCookies = await refreshGoogleCookiesOnDemand(userId, currentCookies, creds.email || '', true);
+          continue;
         }
+        logger.warn(`[GoogleFlow] Aviso en generación nativa flow.google.com: ${flowErr.message}`);
       }
-      logger.warn(`[GoogleFlow] Aviso en generación nativa flow.google.com: ${flowErr.message}`);
     }
   }
 
@@ -1416,73 +1457,86 @@ async function executeFlowVideoGeneration({
       : [creds.cookies, creds.fallbackCookies].filter((cs) => Array.isArray(cs) && cs.length > 0);
   for (const activeCookieSet of vidCookieSetsToTry) {
     if (videoBuffer || vidSessionWasAuthenticated) break;
-    try {
-      logger.info('[GoogleFlow] Iniciando generación nativa de video en flow.google.com (Veo 3.1 Lite)...');
-      const nativeVid = await executeFlowNativeStudioAction({
-        cookies: activeCookieSet,
-        actionType: 'VIDEO_GENERATION',
-        prompt: enhancedPrompt,
-        fallbackPrompt: fallbackSafeVidPrompt,
-        aspectRatio: cleanRatio,
-      });
-
-      if (nativeVid.ok && nativeVid.signedVideoUrl) {
-        vidSessionWasAuthenticated = true;
-        const ua =
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-        const dlVid = await axios.get(nativeVid.signedVideoUrl, {
-          responseType: 'arraybuffer',
-          timeout: 45000,
-          headers: {
-            Cookie: nativeVid.cookieHeader,
-            Referer: 'https://flow.google.com/',
-            Origin: 'https://flow.google.com',
-            'User-Agent': ua,
-          },
+    let currentVidCookies = activeCookieSet;
+    for (let authAttempt = 0; authAttempt < 2; authAttempt++) {
+      if (videoBuffer || vidSessionWasAuthenticated) break;
+      try {
+        logger.info('[GoogleFlow] Iniciando generación nativa de video en flow.google.com (Veo 3.1 Lite)...');
+        const nativeVid = await executeFlowNativeStudioAction({
+          cookies: currentVidCookies,
+          actionType: 'VIDEO_GENERATION',
+          prompt: enhancedPrompt,
+          fallbackPrompt: fallbackSafeVidPrompt,
+          aspectRatio: cleanRatio,
         });
-        if (dlVid.data && dlVid.data.byteLength > 5000) {
-          videoBuffer = Buffer.from(dlVid.data);
-          modelUsed = nativeVid.modelLabel;
+
+        if (nativeVid.ok && nativeVid.signedVideoUrl) {
+          vidSessionWasAuthenticated = true;
+          const ua =
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+          const dlVid = await axios.get(nativeVid.signedVideoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 45000,
+            headers: {
+              Cookie: nativeVid.cookieHeader,
+              Referer: 'https://flow.google.com/',
+              Origin: 'https://flow.google.com',
+              'User-Agent': ua,
+            },
+          });
+          if (dlVid.data && dlVid.data.byteLength > 5000) {
+            videoBuffer = Buffer.from(dlVid.data);
+            modelUsed = nativeVid.modelLabel;
+            if (userId) {
+              await GoogleFlowSession.findOneAndUpdate(
+                { user: userId, companyId: creds.activeCompId || null },
+                {
+                  companyId: creds.activeCompId || null,
+                  cookies: currentVidCookies,
+                  cookieCount: currentVidCookies.length,
+                  isValid: true,
+                  lastTestedAt: new Date(),
+                }
+              ).catch(() => {});
+            }
+          }
+          if (nativeVid.signedPosterUrl) {
+            try {
+              const dlPoster = await axios.get(nativeVid.signedPosterUrl, {
+                responseType: 'arraybuffer',
+                timeout: 20000,
+                headers: {
+                  Cookie: nativeVid.cookieHeader,
+                  Referer: 'https://flow.google.com/',
+                  Origin: 'https://flow.google.com',
+                  'User-Agent': ua,
+                },
+              });
+              if (dlPoster.data && dlPoster.data.byteLength > 1000) {
+                posterBuffer = Buffer.from(dlPoster.data);
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (flowVidErr) {
+        if (flowVidErr?.sessionAuthenticated) {
+          vidSessionWasAuthenticated = true;
           if (userId) {
             await GoogleFlowSession.findOneAndUpdate(
               { user: userId, companyId: creds.activeCompId || null },
-              {
-                companyId: creds.activeCompId || null,
-                isValid: true,
-                lastTestedAt: new Date(),
-              }
+              { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
             ).catch(() => {});
           }
+          logger.warn(`[GoogleFlow] Aviso en generación de video en flow.google.com: ${flowVidErr.message}`);
+          break;
         }
-        if (nativeVid.signedPosterUrl) {
-          try {
-            const dlPoster = await axios.get(nativeVid.signedPosterUrl, {
-              responseType: 'arraybuffer',
-              timeout: 20000,
-              headers: {
-                Cookie: nativeVid.cookieHeader,
-                Referer: 'https://flow.google.com/',
-                Origin: 'https://flow.google.com',
-                'User-Agent': ua,
-              },
-            });
-            if (dlPoster.data && dlPoster.data.byteLength > 1000) {
-              posterBuffer = Buffer.from(dlPoster.data);
-            }
-          } catch (_) {}
+        if (authAttempt === 0 && userId) {
+          logger.info('[GoogleFlow] 🔄 Rotando __Secure-1PSIDTS bajo demanda tras fallo de autenticación en /generate (video)...');
+          currentVidCookies = await refreshGoogleCookiesOnDemand(userId, currentVidCookies, creds.email || '', true);
+          continue;
         }
+        logger.warn(`[GoogleFlow] Aviso en generación de video en flow.google.com: ${flowVidErr.message}`);
       }
-    } catch (flowVidErr) {
-      if (flowVidErr?.sessionAuthenticated) {
-        vidSessionWasAuthenticated = true;
-        if (userId) {
-          await GoogleFlowSession.findOneAndUpdate(
-            { user: userId, companyId: creds.activeCompId || null },
-            { companyId: creds.activeCompId || null, isValid: true, lastTestedAt: new Date() }
-          ).catch(() => {});
-        }
-      }
-      logger.warn(`[GoogleFlow] Aviso en generación de video en flow.google.com: ${flowVidErr.message}`);
     }
   }
 
@@ -1742,9 +1796,13 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
       });
     }
 
-    const fxSession = await fetchLabsFxSession(nbSession.cookies);
-    const effectiveEmail = fxSession.email || nbSession.email || req.user.email || 'Cuenta vinculada';
     let finalCookies = [...nbSession.cookies];
+    let fxSession = await fetchLabsFxSession(finalCookies);
+    if (!fxSession.ok) {
+      finalCookies = await refreshGoogleCookiesOnDemand(userId, finalCookies, nbSession.email || '', true);
+      fxSession = await fetchLabsFxSession(finalCookies);
+    }
+    const effectiveEmail = fxSession.email || nbSession.email || req.user.email || 'Cuenta vinculada';
 
     // Si en NotebookSession no viene OSID para flow.google.com, clonarla desde OSID existente para que flow.google.com autentique directo
     const hasFlowOsid = finalCookies.some(
@@ -2435,11 +2493,15 @@ async function uploadCookies(cookies, email = '') {
         } catch (_) {}
       }
 
-      const googleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+      const googleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
         try {
+          await cdpSend(flowPage.webSocketDebuggerUrl, 'Target.createTarget', {
+            url: 'https://labs.google/fx/tools/flow',
+            background: true,
+          });
           await cdpSend(flowPage.webSocketDebuggerUrl, 'Target.createTarget', {
             url: 'https://notebooklm.google.com/',
             background: true,
@@ -2452,7 +2514,7 @@ async function uploadCookies(cookies, email = '') {
           }
         } catch (_) {}
 
-        const finalGoogleCookies = allCookies.filter((c) => c.domain && c.domain.includes('google.com'));
+        const finalGoogleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
         console.log('✨ Sesión detectada. Verificando y vinculando con Google Flow en WAPPY...');
         const result = await uploadCookies(finalGoogleCookies);
         if (result.ok) {

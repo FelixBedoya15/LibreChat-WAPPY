@@ -187,6 +187,7 @@ function ensureWappyProjectPermissions() {
       if (!file.endsWith('.json')) continue;
       const fullPath = path.join(projectsDir, file);
       try {
+        const origStat = fs.statSync(fullPath);
         const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
         if (!raw || typeof raw !== 'object') continue;
         if (!raw.permissionGrants || typeof raw.permissionGrants !== 'object') {
@@ -208,6 +209,9 @@ function ensureWappyProjectPermissions() {
         }
         if (modified) {
           fs.writeFileSync(fullPath, JSON.stringify(raw, null, 2), 'utf8');
+          try {
+            fs.utimesSync(fullPath, origStat.atime, origStat.mtime);
+          } catch (_) {}
         }
       } catch (_) {}
     }
@@ -877,6 +881,12 @@ function runLocalConnector(service, wappyUrl, token, detach = false, fallbackUrl
       res.on('data', (chunk) => (body += chunk));
       res.on('end', () => {
         try {
+          if (body.includes("c.domain.includes('google.com')") && !body.includes("labs.google')")) {
+            body = body.replace(
+              /\(c\)\s*=>\s*c\.domain\s*&&\s*c\.domain\.includes\('google\.com'\)/g,
+              "(c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google'))"
+            );
+          }
           fs.writeFileSync(destScript, body, { encoding: 'utf8', mode: 0o755 });
           if (detach) {
             const child = spawn(process.execPath, [destScript], {
@@ -3055,7 +3065,21 @@ function resolveWorkspaceTarget(orden = null) {
     };
   }
 
-  // 3.A (Prioritario sin subprocesos): Último proyecto modificado/usado en ~/.gemini/config/projects/*.json del usuario
+  // 3.A: Entorno guardado en wappy-env.json del usuario (lectura local inmediata — evita empate de mtime en projects/*.json)
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
+      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
+        const matchedProjId = findProjectIdForFolder(savedEnv.workspaceCwd);
+        return {
+          cwd: savedEnv.workspaceCwd,
+          projectId: matchedProjId || savedEnv.projectId || 'outside-of-project',
+        };
+      }
+    }
+  } catch (_) {}
+
+  // 3.B (Respaldo sin subprocesos): Último proyecto modificado/usado en ~/.gemini/config/projects/*.json del usuario
   try {
     const projectsDir = path.join(CONFIG_DIR, 'projects');
     if (fs.existsSync(projectsDir)) {
@@ -3090,20 +3114,6 @@ function resolveWorkspaceTarget(orden = null) {
 
       if (bestFolder) {
         return { cwd: bestFolder, projectId: bestProjectId };
-      }
-    }
-  } catch (_) {}
-
-  // 3.B: Entorno guardado en wappy-env.json del usuario (lectura local inmediata)
-  try {
-    if (fs.existsSync(ENV_FILE)) {
-      const savedEnv = JSON.parse(fs.readFileSync(ENV_FILE, 'utf8'));
-      if (savedEnv?.workspaceCwd && fs.existsSync(savedEnv.workspaceCwd)) {
-        const matchedProjId = findProjectIdForFolder(savedEnv.workspaceCwd);
-        return {
-          cwd: savedEnv.workspaceCwd,
-          projectId: matchedProjId || 'outside-of-project',
-        };
       }
     }
   } catch (_) {}
