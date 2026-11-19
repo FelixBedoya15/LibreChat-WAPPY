@@ -2,88 +2,75 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// Import your JSON translations
+// Only bundle Spanish and English eagerly (99%+ of WAPPY users) to cut ~2.15 MB from initial load
 import translationEn from './en/translation.json';
-import translationAr from './ar/translation.json';
-import translationCa from './ca/translation.json';
-import translationCs from './cs/translation.json';
-import translationDa from './da/translation.json';
-import translationDe from './de/translation.json';
 import translationEs from './es/translation.json';
-import translationEt from './et/translation.json';
-import translationFa from './fa/translation.json';
-import translationFr from './fr/translation.json';
-import translationIt from './it/translation.json';
-import translationPl from './pl/translation.json';
-import translationPt_BR from './pt-BR/translation.json';
-import translationPt_PT from './pt-PT/translation.json';
-import translationRu from './ru/translation.json';
-import translationJa from './ja/translation.json';
-import translationKa from './ka/translation.json';
-import translationSv from './sv/translation.json';
-import translationKo from './ko/translation.json';
-import translationLv from './lv/translation.json';
-import translationTh from './th/translation.json';
-import translationTr from './tr/translation.json';
-import translationUg from './ug/translation.json';
-import translationVi from './vi/translation.json';
-import translationNl from './nl/translation.json';
-import translationId from './id/translation.json';
-import translationHe from './he/translation.json';
-import translationHu from './hu/translation.json';
-import translationHy from './hy/translation.json';
-import translationFi from './fi/translation.json';
-import translationZh_Hans from './zh-Hans/translation.json';
-import translationZh_Hant from './zh-Hant/translation.json';
-import translationBo from './bo/translation.json';
-import translationUk from './uk/translation.json';
-import translationBs from './bs/translation.json';
-import translationNb from './nb/translation.json';
-import translationSl from './sl/translation.json';
 
 export const defaultNS = 'translation';
 
 export const resources = {
   en: { translation: translationEn },
-  ar: { translation: translationAr },
-  bs: { translation: translationBs },
-  ca: { translation: translationCa },
-  cs: { translation: translationCs },
-  'zh-Hans': { translation: translationZh_Hans },
-  'zh-Hant': { translation: translationZh_Hant },
-  da: { translation: translationDa },
-  de: { translation: translationDe },
   es: { translation: translationEs },
-  et: { translation: translationEt },
-  fa: { translation: translationFa },
-  fr: { translation: translationFr },
-  it: { translation: translationIt },
-  nb: { translation: translationNb },
-  pl: { translation: translationPl },
-  'pt-BR': { translation: translationPt_BR },
-  'pt-PT': { translation: translationPt_PT },
-  ru: { translation: translationRu },
-  ja: { translation: translationJa },
-  ka: { translation: translationKa },
-  sv: { translation: translationSv },
-  ko: { translation: translationKo },
-  lv: { translation: translationLv },
-  th: { translation: translationTh },
-  tr: { translation: translationTr },
-  ug: { translation: translationUg },
-  vi: { translation: translationVi },
-  nl: { translation: translationNl },
-  id: { translation: translationId },
-  he: { translation: translationHe },
-  hu: { translation: translationHu },
-  hy: { translation: translationHy },
-  fi: { translation: translationFi },
-  bo: { translation: translationBo },
-  sl: { translation: translationSl },
-  uk: { translation: translationUk },
 } as const;
 
+// All secondary languages are code-split into tiny ~60KB chunks and loaded on demand
+const lazyLocaleLoaders: Record<string, () => Promise<{ default: Record<string, any> }>> = {
+  ar: () => import('./ar/translation.json'),
+  bo: () => import('./bo/translation.json'),
+  bs: () => import('./bs/translation.json'),
+  ca: () => import('./ca/translation.json'),
+  cs: () => import('./cs/translation.json'),
+  da: () => import('./da/translation.json'),
+  de: () => import('./de/translation.json'),
+  et: () => import('./et/translation.json'),
+  fa: () => import('./fa/translation.json'),
+  fi: () => import('./fi/translation.json'),
+  fr: () => import('./fr/translation.json'),
+  he: () => import('./he/translation.json'),
+  hu: () => import('./hu/translation.json'),
+  hy: () => import('./hy/translation.json'),
+  id: () => import('./id/translation.json'),
+  it: () => import('./it/translation.json'),
+  ja: () => import('./ja/translation.json'),
+  ka: () => import('./ka/translation.json'),
+  ko: () => import('./ko/translation.json'),
+  lv: () => import('./lv/translation.json'),
+  nb: () => import('./nb/translation.json'),
+  nl: () => import('./nl/translation.json'),
+  pl: () => import('./pl/translation.json'),
+  'pt-BR': () => import('./pt-BR/translation.json'),
+  'pt-PT': () => import('./pt-PT/translation.json'),
+  ru: () => import('./ru/translation.json'),
+  sl: () => import('./sl/translation.json'),
+  sv: () => import('./sv/translation.json'),
+  th: () => import('./th/translation.json'),
+  tr: () => import('./tr/translation.json'),
+  ug: () => import('./ug/translation.json'),
+  uk: () => import('./uk/translation.json'),
+  vi: () => import('./vi/translation.json'),
+  'zh-Hans': () => import('./zh-Hans/translation.json'),
+  'zh-Hant': () => import('./zh-Hant/translation.json'),
+};
+
+const lazyLocaleBackend = {
+  type: 'backend' as const,
+  init() {
+    /* noop */
+  },
+  read(language: string, _namespace: string, callback: (err: unknown, data?: unknown) => void) {
+    const loader = lazyLocaleLoaders[language] || lazyLocaleLoaders[language.split('-')[0]];
+    if (!loader) {
+      callback(null, {});
+      return;
+    }
+    loader()
+      .then((mod) => callback(null, mod.default || mod))
+      .catch((err) => callback(err));
+  },
+};
+
 i18n
+  .use(lazyLocaleBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -98,6 +85,7 @@ i18n
     debug: false,
     defaultNS,
     resources,
+    partialBundledLanguages: true,
     interpolation: { escapeValue: false },
   });
 

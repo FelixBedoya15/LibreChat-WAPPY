@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+const { google } = require('../utils/lazyGoogleApis');
 const { logger } = require('@librechat/data-schemas');
 const { getActiveCompany, getScopedAuthValue, updateScopedAuthValue } = require('./googleAuthHelper');
 

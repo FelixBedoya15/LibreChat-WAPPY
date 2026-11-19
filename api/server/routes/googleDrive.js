@@ -1,5 +1,5 @@
 const express = require('express');
-const { google } = require('googleapis');
+const { google } = require('../utils/lazyGoogleApis');
 const jwt = require('jsonwebtoken');
 const { logger } = require('@librechat/data-schemas');
 const { requireJwtAuth, configMiddleware } = require('~/server/middleware');

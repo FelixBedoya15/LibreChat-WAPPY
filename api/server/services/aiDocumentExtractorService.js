@@ -11,7 +11,7 @@ if (!bufferModule.SlowBuffer) {
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { google } = require('googleapis');
+const { google } = require('../utils/lazyGoogleApis');
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');

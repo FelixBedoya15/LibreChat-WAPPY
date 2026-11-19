@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect } from 'react';
+import React, { memo, lazy, Suspense, useCallback, useEffect } from 'react';
 import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil';
 import { ephemeralAgentByConvoId } from '~/store/agents';
 import { useForm } from 'react-hook-form';
@@ -19,11 +19,11 @@ import Header from './Header';
 import Footer from './Footer';
 import { cn } from '~/utils';
 import store from '~/store';
-import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
-import MatrizPESVTable from '../SGSST/MatrizPESVTable';
-import MatrizCompatibilidadTable from '../SGSST/MatrizCompatibilidadTable';
-import LiveEditorPanel from '../SGSST/LiveEditorPanel';
-import CanvasPanel from '../Canvas/CanvasPanel';
+const MatrizIPEVARTable = lazy(() => import('../SGSST/MatrizIPEVARTable'));
+const MatrizPESVTable = lazy(() => import('../SGSST/MatrizPESVTable'));
+const MatrizCompatibilidadTable = lazy(() => import('../SGSST/MatrizCompatibilidadTable'));
+const LiveEditorPanel = lazy(() => import('../SGSST/LiveEditorPanel'));
+const CanvasPanel = lazy(() => import('../Canvas/CanvasPanel'));
 const isMobileScreen = () => window.innerWidth <= 768;
 
 function LoadingSpinner() {
@@ -221,7 +221,9 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizIPEVARTable conversationId={conversation?.conversationId ?? null} />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <MatrizIPEVARTable conversationId={conversation?.conversationId ?? null} />
+                      </Suspense>
                     </div>
                   )}
                   {isPESVActive && (
@@ -233,7 +235,9 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizPESVTable conversationId={conversation?.conversationId ?? null} />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <MatrizPESVTable conversationId={conversation?.conversationId ?? null} />
+                      </Suspense>
                     </div>
                   )}
                   {isChemicalCompatibilityActive && (
@@ -245,7 +249,9 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizCompatibilidadTable conversationId={conversation?.conversationId ?? null} />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <MatrizCompatibilidadTable conversationId={conversation?.conversationId ?? null} />
+                      </Suspense>
                     </div>
                   )}
                   {isEditorLiveActive && !isIPEVARActive && !isCanvasActive && (
@@ -257,14 +263,16 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <LiveEditorPanel 
-                        conversationId={conversation?.conversationId ?? null}
-                        title={isEditorRITActive ? 'Editor RIT' : 'Editor Live'}
-                        emptyStateTitle={isEditorRITActive ? 'Editor RIT en espera' : 'Sin documento activo'}
-                        emptyStateMessage={isEditorRITActive ? (
-                          <>Pídele al agente que proceda a <span className="font-bold text-blue-600">cargar la plantilla del RIT</span> para comenzar a editarlo.</>
-                        ) : undefined}
-                      />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <LiveEditorPanel 
+                          conversationId={conversation?.conversationId ?? null}
+                          title={isEditorRITActive ? 'Editor RIT' : 'Editor Live'}
+                          emptyStateTitle={isEditorRITActive ? 'Editor RIT en espera' : 'Sin documento activo'}
+                          emptyStateMessage={isEditorRITActive ? (
+                            <>Pídele al agente que proceda a <span className="font-bold text-blue-600">cargar la plantilla del RIT</span> para comenzar a editarlo.</>
+                          ) : undefined}
+                        />
+                      </Suspense>
                     </div>
                   )}
                   {isCanvasActive && !isIPEVARActive && (
@@ -279,7 +287,9 @@ function ChatView({ index = 0 }: { index?: number }) {
                         // `fixed inset-0 z-[999999]` CSS for full-screen maximize.
                         // Using w-full here was collapsing the chat panel to 0 width.
                     )}>
-                      <CanvasPanel key={effectiveConvoId ?? 'new'} conversationId={effectiveConvoId} />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <CanvasPanel key={effectiveConvoId ?? 'new'} conversationId={effectiveConvoId} />
+                      </Suspense>
                     </div>
                   )}
                 </div>

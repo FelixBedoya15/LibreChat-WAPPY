@@ -7,7 +7,7 @@ if (!bufferModule.SlowBuffer) {
 }
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
-const { google } = require('googleapis');
+const { google } = require('../../../../server/utils/lazyGoogleApis');
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');

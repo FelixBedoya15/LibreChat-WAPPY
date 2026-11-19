@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+const { google } = require('../../server/utils/lazyGoogleApis');
 const { sleep } = require('@librechat/agents');
 const { logger } = require('@librechat/data-schemas');
 const { getModelMaxTokens } = require('@librechat/api');

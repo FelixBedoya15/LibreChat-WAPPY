@@ -1,7 +1,7 @@
 'use strict';
 
 const mongoose = require('mongoose');
-const { google } = require('googleapis');
+const { google } = require('../../utils/lazyGoogleApis');
 const xlsx = require('xlsx');
 const mammoth = require('mammoth');
 const pdfParse = require('pdf-parse');

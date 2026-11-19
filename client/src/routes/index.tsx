@@ -17,16 +17,16 @@ import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
 import dashboardRoutes from './Dashboard';
-import ShareRoute from './ShareRoute';
-import ChatRoute from './ChatRoute';
-import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 import { hasActivePlan } from '~/utils/planAccess';
-import TenshiStandaloneHost from '~/components/Tenshi/TenshiStandaloneHost';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
-// Lazy-loaded secondary dashboards and public pages for fast initial bundle load
+// Lazy-loaded heavy routes and secondary dashboards for fast initial bundle load
+const ShareRoute = lazy(() => import('./ShareRoute'));
+const ChatRoute = lazy(() => import('./ChatRoute'));
+const Search = lazy(() => import('./Search'));
+const TenshiStandaloneHost = lazy(() => import('~/components/Tenshi/TenshiStandaloneHost'));
 const SGSSTDashboard = lazy(() => import('~/components/SGSST/Dashboard'));
 const HuellaBiocentricaDashboard = lazy(() => import('~/components/SGSST/HuellaBiocentricaDashboard'));
 const VitalPublicPortalGuard = lazy(() => import('~/components/SGSST/VitalPublicPortalGuard'));
@@ -244,7 +244,7 @@ export const router = createBrowserRouter(
   [
     {
       path: 'share/:shareId',
-      element: <ShareRoute />,
+      element: withSuspense(<ShareRoute />),
       errorElement: <RouteErrorBoundary />,
     },
     {
@@ -874,7 +874,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'c/:conversationId?',
-              element: <ChatRoute />,
+              element: withSuspense(<ChatRoute />),
             },
             {
               path: 'live',
@@ -882,7 +882,7 @@ export const router = createBrowserRouter(
             },
             {
               path: 'search',
-              element: <Search />,
+              element: withSuspense(<Search />),
             },
             {
               path: 'chat-sst',

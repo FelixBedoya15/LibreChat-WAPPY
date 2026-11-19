@@ -1,6 +1,6 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
-const { google } = require('googleapis');
+const { google } = require('../../../../server/utils/lazyGoogleApis');
 const { logger } = require('@librechat/data-schemas');
 const {
   getActiveCompany,

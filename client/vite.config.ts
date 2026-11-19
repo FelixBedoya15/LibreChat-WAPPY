@@ -49,7 +49,6 @@ export default defineConfig(({ command }) => ({
         cleanupOutdatedCaches: true,
         navigateFallback: null,
         globPatterns: [
-          '**/*.{js,css}',
           'assets/favicon*.png',
           'assets/icon-*.png',
           'assets/apple-touch-icon*.png',
@@ -57,33 +56,31 @@ export default defineConfig(({ command }) => ({
           'manifest.webmanifest',
           'manifest.json',
         ],
-        globIgnores: ['images/**/*', 'videos/**/*', '**/*.map', '**/*.html'],
-        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        globIgnores: ['images/**/*', 'videos/**/*', '**/*.map', '**/*.html', '**/*.js', '**/*.css'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/oauth/, /^\/api/, /^\/download/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
               url.pathname.startsWith('/assets/') && /\.(js|css|mjs)$/i.test(url.pathname),
-            handler: 'NetworkFirst',
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'wappy-assets-v2',
-              networkTimeoutSeconds: 4,
+              cacheName: 'wappy-assets-v3',
               expiration: {
-                maxEntries: 120,
-                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days fallback offline
+                maxEntries: 150,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days for immutable hashed assets
               },
             },
           },
           {
             urlPattern: ({ url }) =>
               url.pathname.startsWith('/assets/') && !/\.(js|css|mjs)$/i.test(url.pathname),
-            handler: 'NetworkFirst',
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'wappy-assets-media-v2',
-              networkTimeoutSeconds: 4,
+              cacheName: 'wappy-assets-media-v3',
               expiration: {
                 maxEntries: 120,
-                maxAgeSeconds: 14 * 24 * 60 * 60, // 14 days
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
               },
             },
           },
@@ -255,9 +252,13 @@ export default defineConfig(({ command }) => ({
             // Everything else falls into a generic vendor chunk.
             return 'vendor';
           }
-          // Create a separate chunk for all locale files under src/locales.
-          if (normalizedId.includes('/src/locales/')) {
-            return 'locales';
+          // Only keep core es/en in locales-core; let lazy locales split per-language automatically
+          if (
+            normalizedId.includes('/src/locales/es/') ||
+            normalizedId.includes('/src/locales/en/') ||
+            normalizedId.includes('/src/locales/i18n')
+          ) {
+            return 'locales-core';
           }
           // Heavy internal application chunks to prevent massive 11MB initial bundle
           if (
