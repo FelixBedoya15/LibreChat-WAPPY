@@ -233,7 +233,9 @@ async function buildMultimodalMediaContext(req, userId, stringContent = '', user
         if (!alreadyInList) {
           try {
             const dlQs = new URLSearchParams({ notebook_id: nbId, artifact_id: artId, type: artType });
+            const compId = String(qs.get('companyId') || qs.get('company_id') || '').trim();
             if (userId) dlQs.set('user_id', String(userId));
+            if (compId) dlQs.set('company_id', compId);
             const baseCandidates = Array.from(
               new Set(
                 [
@@ -244,11 +246,14 @@ async function buildMultimodalMediaContext(req, userId, stringContent = '', user
                 ].filter(Boolean),
               ),
             );
+            const dlHeaders = {};
+            if (userId) dlHeaders['x-user-id'] = String(userId);
+            if (compId) dlHeaders['X-Company-Id'] = compId;
             let bgRes = null;
             for (const baseUrl of baseCandidates) {
               try {
                 const attempt = await fetch(`${String(baseUrl).replace(/\/+$/, '')}/api/download-artifact?${dlQs.toString()}`, {
-                  headers: userId ? { 'x-user-id': String(userId) } : {},
+                  headers: dlHeaders,
                   signal: AbortSignal.timeout(25000),
                 });
                 bgRes = attempt;

@@ -411,12 +411,14 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
       // 🧠 Enfoque de Segundo Cerebro por Agente + Blindaje Anti-Envenenamiento para Google NotebookLM
       let effectiveToolArgs = toolArguments;
       let assignedAgentNotebooks = [];
+      let resolvedNotebookCompanyId = null;
       if (serverName === 'notebooklm' && userId) {
         try {
           const reqBody = config?.configurable?.requestBody;
           const activeAgentId = reqBody?.agent_id;
           const explicitCompanyId =
             reqBody?.companyId || config?.configurable?.companyId || null;
+          resolvedNotebookCompanyId = explicitCompanyId || null;
           const sessionOverride = reqBody?.ephemeralAgent?.notebooklmNotebooks;
           const nlmRoute = require('~/server/routes/notebooklm');
 
@@ -428,14 +430,26 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
               explicitCompanyId,
             );
             nbSession = resolved?.session || null;
+            resolvedNotebookCompanyId = resolved?.companyId ?? resolvedNotebookCompanyId;
             if (resolved?.isValid && Array.isArray(resolved.cookies) && resolved.cookies.length > 0) {
               effectiveCustomUserVars = {
                 ...(effectiveCustomUserVars || {}),
                 USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+                USER_NOTEBOOKLM_COMPANY_ID: resolvedNotebookCompanyId
+                  ? String(resolvedNotebookCompanyId)
+                  : '',
               };
-            } else if (effectiveCustomUserVars && 'USER_NOTEBOOKLM_SESSION' in effectiveCustomUserVars) {
-              // Nunca enviar cookies muertas/viejas de PluginAuth en x-notebooklm-auth
-              effectiveCustomUserVars.USER_NOTEBOOKLM_SESSION = '';
+            } else {
+              if (resolvedNotebookCompanyId) {
+                effectiveCustomUserVars = {
+                  ...(effectiveCustomUserVars || {}),
+                  USER_NOTEBOOKLM_COMPANY_ID: String(resolvedNotebookCompanyId),
+                };
+              }
+              if (effectiveCustomUserVars && 'USER_NOTEBOOKLM_SESSION' in effectiveCustomUserVars) {
+                // Nunca enviar cookies muertas/viejas de PluginAuth en x-notebooklm-auth
+                effectiveCustomUserVars.USER_NOTEBOOKLM_SESSION = '';
+              }
             }
           } else {
             const mongoose = require('mongoose');
@@ -445,6 +459,7 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
               .sort({ isValid: -1, updatedAt: -1 })
               .lean()
               .catch(() => null);
+            resolvedNotebookCompanyId = nbSession?.companyId ?? resolvedNotebookCompanyId;
             if (effectiveCustomUserVars && 'USER_NOTEBOOKLM_SESSION' in effectiveCustomUserVars) {
               effectiveCustomUserVars.USER_NOTEBOOKLM_SESSION =
                 nbSession && nbSession.isValid !== false && Array.isArray(nbSession.cookies) && nbSession.cookies.length > 0
@@ -513,7 +528,12 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
             `[MCP][notebooklm] Fallback directo a /api/direct-tool para "${toolName}" (usuario ${userId})`,
           );
           const { executeTenshiMcpTool } = require('~/server/routes/voice/tenshiMcpDispatcher');
-          const directRes = await executeTenshiMcpTool(toolName, effectiveToolArgs || {}, userId);
+          const directRes = await executeTenshiMcpTool(
+            toolName,
+            effectiveToolArgs || {},
+            userId,
+            resolvedNotebookCompanyId ? { companyId: String(resolvedNotebookCompanyId) } : {},
+          );
           const textOut = typeof directRes === 'string' ? directRes : JSON.stringify(directRes, null, 2);
           return isGoogle ? [textOut, null] : textOut;
         }

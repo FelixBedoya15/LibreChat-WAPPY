@@ -434,12 +434,21 @@ async function loadAgentTools({ req, res, agent, signal, tool_resources, openAIA
           userMCPAuthMap[nbMcpKey] = {
             ...userMCPAuthMap[nbMcpKey],
             USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+            USER_NOTEBOOKLM_COMPANY_ID: resolved.companyId ? String(resolved.companyId) : '',
           };
-        } else if ('USER_NOTEBOOKLM_SESSION' in userMCPAuthMap[nbMcpKey]) {
-          userMCPAuthMap[nbMcpKey] = {
-            ...userMCPAuthMap[nbMcpKey],
-            USER_NOTEBOOKLM_SESSION: '',
-          };
+        } else {
+          if (resolved?.companyId) {
+            userMCPAuthMap[nbMcpKey] = {
+              ...userMCPAuthMap[nbMcpKey],
+              USER_NOTEBOOKLM_COMPANY_ID: String(resolved.companyId),
+            };
+          }
+          if ('USER_NOTEBOOKLM_SESSION' in userMCPAuthMap[nbMcpKey]) {
+            userMCPAuthMap[nbMcpKey] = {
+              ...userMCPAuthMap[nbMcpKey],
+              USER_NOTEBOOKLM_SESSION: '',
+            };
+          }
         }
       } catch (nbSanitizeErr) {
         logger.debug(

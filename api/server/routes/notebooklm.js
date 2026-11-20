@@ -33,7 +33,30 @@ async function resolveActiveCompanyId(userId, explicitCompanyId = null) {
 }
 
 /**
- * Busca la sesión para la empresa activa con fallback ordenado por validez y recencia
+ * Busca la sesión EXACTA para (userId, companyId) sin fallback entre empresas ni hacia companyId: null.
+ */
+async function findExactSessionForCompany(Model, userId, companyId) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return null;
+  }
+  if (companyId) {
+    return Model.findOne({ user: userId, companyId })
+      .sort({ isValid: -1, updatedAt: -1 })
+      .lean()
+      .catch(() => null);
+  }
+  return Model.findOne({
+    user: userId,
+    $or: [{ companyId: null }, { companyId: { $exists: false } }],
+  })
+    .sort({ isValid: -1, updatedAt: -1 })
+    .lean()
+    .catch(() => null);
+}
+
+/**
+ * Busca la sesión para la empresa activa con fallback seguro ordenado por validez y recencia.
+ * Jamás permite que una sesión expirada de companyId: null sobrescriba o contamine a activeCompId ni viceversa.
  */
 async function findSessionForCompany(Model, userId, companyId) {
   if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
@@ -56,19 +79,21 @@ async function findSessionForCompany(Model, userId, companyId) {
   if (legacyDoc && legacyDoc.isValid !== false && Array.isArray(legacyDoc.cookies) && legacyDoc.cookies.length > 0) {
     return legacyDoc;
   }
-  // Si no había sesión para companyId y el documento legacy (companyId: null) está muerto/ausente,
-  // buscar la sesión válida más reciente del usuario antes de devolver un documento muerto del pasado.
-  if (!companyId) {
-    const newestValid = await Model.findOne({
-      user: userId,
-      isValid: { $ne: false },
-      'cookies.0': { $exists: true },
-    })
-      .sort({ updatedAt: -1 })
-      .lean()
-      .catch(() => null);
-    if (newestValid) return newestValid;
+  // Si se consultó por una empresa específica y no tiene sesión propia, jamás devolver un doc legacy muerto/expirado
+  if (companyId) {
+    return null;
   }
+  // Si no había companyId y el documento legacy (companyId: null) está muerto/ausente,
+  // buscar la sesión válida más reciente del usuario antes de devolver un documento muerto del pasado.
+  const newestValid = await Model.findOne({
+    user: userId,
+    isValid: { $ne: false },
+    'cookies.0': { $exists: true },
+  })
+    .sort({ updatedAt: -1 })
+    .lean()
+    .catch(() => null);
+  if (newestValid) return newestValid;
   return legacyDoc;
 }
 
@@ -195,11 +220,16 @@ function isIncomingCookieSetStale(incomingCookies = [], existingCookies = [], ex
  * - Ordena por `{ isValid: -1, updatedAt: -1 }`.
  * - NUNCA devuelve cookies de una sesión marcada `isValid === false` para evitar envenenamiento.
  */
-async function resolveValidNotebookSessionForHeader(userId, explicitCompanyId = null) {
+async function resolveValidNotebookSessionForHeader(
+  userId,
+  explicitCompanyId = null,
+  options = {}
+) {
   if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
     return { session: null, cookies: [], email: '', companyId: null, isValid: false };
   }
 
+  const strictCompany = Boolean(options?.strictCompany);
   const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
   let session = null;
 
@@ -210,16 +240,30 @@ async function resolveValidNotebookSessionForHeader(userId, explicitCompanyId = 
       .catch(() => null);
   }
 
-  // Si la empresa activa no tiene documento propio, buscar la sesión VÁLIDA más reciente del usuario
+  // Si la empresa activa no tiene documento propio:
+  // - En modo estricto (explicitCompanyId), solo aceptar un doc legacy VÁLIDO (companyId: null), jamás cookies de otra empresa.
+  // - En modo abierto (sin explicitCompanyId), buscar la sesión VÁLIDA más reciente del usuario y devolver su companyId real.
   if (!session) {
-    session = await NotebookSession.findOne({
-      user: userId,
-      isValid: { $ne: false },
-      'cookies.0': { $exists: true },
-    })
-      .sort({ isValid: -1, updatedAt: -1 })
-      .lean()
-      .catch(() => null);
+    if (strictCompany && activeCompId) {
+      session = await NotebookSession.findOne({
+        user: userId,
+        $or: [{ companyId: null }, { companyId: { $exists: false } }],
+        isValid: { $ne: false },
+        'cookies.0': { $exists: true },
+      })
+        .sort({ updatedAt: -1 })
+        .lean()
+        .catch(() => null);
+    } else {
+      session = await NotebookSession.findOne({
+        user: userId,
+        isValid: { $ne: false },
+        'cookies.0': { $exists: true },
+      })
+        .sort({ isValid: -1, updatedAt: -1 })
+        .lean()
+        .catch(() => null);
+    }
   }
 
   if (!session || session.isValid === false || !Array.isArray(session.cookies) || session.cookies.length === 0) {
@@ -227,7 +271,7 @@ async function resolveValidNotebookSessionForHeader(userId, explicitCompanyId = 
       session: session || null,
       cookies: [],
       email: session?.email || '',
-      companyId: activeCompId || null,
+      companyId: session ? session.companyId ?? null : activeCompId || null,
       isValid: false,
     };
   }
@@ -236,7 +280,7 @@ async function resolveValidNotebookSessionForHeader(userId, explicitCompanyId = 
     session,
     cookies: session.cookies,
     email: session.email || '',
-    companyId: session.companyId || activeCompId || null,
+    companyId: session.companyId ?? null,
     isValid: true,
   };
 }
@@ -714,7 +758,9 @@ router.get('/internal/session/:userId', async (req, res) => {
     }
 
     const explicitCompanyId = req.query?.companyId || req.headers['x-company-id'] || null;
-    const resolved = await resolveValidNotebookSessionForHeader(userId, explicitCompanyId);
+    const resolved = await resolveValidNotebookSessionForHeader(userId, explicitCompanyId, {
+      strictCompany: Boolean(explicitCompanyId),
+    });
     if (!resolved.isValid || !resolved.session || resolved.cookies.length === 0) {
       return res.status(404).json({
         error: 'El usuario no tiene una sesión privada válida de Google NotebookLM vinculada.',
@@ -728,7 +774,8 @@ router.get('/internal/session/:userId', async (req, res) => {
     return res.json({
       success: true,
       userId,
-      companyId: companyId || null,
+      companyId: companyId ? String(companyId) : null,
+      profileName: getSafeProfileName(userId, companyId),
       email: session.email || '',
       isValid: true,
       cookies,
@@ -758,10 +805,47 @@ router.post('/internal/session/:userId', async (req, res) => {
       return res.status(400).json({ error: 'Sin cookies para actualizar' });
     }
 
-    const explicitCompanyId =
-      req.body?.companyId || req.query?.companyId || req.headers['x-company-id'] || null;
-    const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
-    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+    const hasExplicitBodyCompany = Boolean(
+      req.body && Object.prototype.hasOwnProperty.call(req.body, 'companyId')
+    );
+    const rawExplicitCompany = hasExplicitBodyCompany
+      ? req.body.companyId
+      : req.query?.companyId ?? req.headers['x-company-id'];
+
+    let activeCompId = null;
+    if (hasExplicitBodyCompany || rawExplicitCompany !== undefined) {
+      const normalizedCompStr =
+        rawExplicitCompany === null || rawExplicitCompany === undefined
+          ? ''
+          : String(rawExplicitCompany).trim();
+      if (!normalizedCompStr || ['null', 'none', 'undefined'].includes(normalizedCompStr.toLowerCase())) {
+        // Perfil explícitamente sin empresa (user_<uid>): actualizar únicamente { user, companyId: null } y JAMÁS pisar empresas activas
+        activeCompId = null;
+      } else if (mongoose.Types.ObjectId.isValid(normalizedCompStr)) {
+        const ownedComp = await CompanyInfo.findOne({ user: userId, _id: normalizedCompStr })
+          .select('_id')
+          .lean()
+          .catch(() => null);
+        if (!ownedComp?._id) {
+          logger.warn(
+            `[NotebookLM Internal] Omitiendo escritura: companyId=${normalizedCompStr} no pertenece a user=${userId}.`
+          );
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            skipped: 'company_not_found',
+          });
+        }
+        activeCompId = ownedComp._id;
+      } else {
+        return res.status(400).json({ error: 'companyId inválido' });
+      }
+    } else {
+      activeCompId = await resolveActiveCompanyId(userId, null);
+    }
+
+    // Buscar ÚNICAMENTE el documento exacto { user, companyId } (sin fallback cruzado)
+    const existingNb = await findExactSessionForCompany(NotebookSession, userId, activeCompId);
 
     const verified = req.body?.verified === true;
     const psidtsRotated = req.body?.psidtsRotated === true;
@@ -769,12 +853,14 @@ router.post('/internal/session/:userId', async (req, res) => {
     // CAPA 3A — Bloqueo estricto: si NO hubo verificación RPC real ni rotación real de PSIDTS, NO sobrescribir cookies en MongoDB
     if (!verified && !psidtsRotated) {
       logger.debug(
-        `[NotebookLM Internal] Omitiendo escritura en MongoDB para user=${userId}: verified=false y psidtsRotated=false.`
+        `[NotebookLM Internal] Omitiendo escritura en MongoDB para user=${userId} companyId=${activeCompId || 'null'}: verified=false y psidtsRotated=false.`
       );
       return res.status(200).json({
         ok: true,
         success: true,
         skipped: 'unverified_no_rotation',
+        companyId: activeCompId ? String(activeCompId) : null,
+        profileName: getSafeProfileName(userId, activeCompId),
         cookieCount: existingNb?.cookies?.length || 0,
         isValid: existingNb ? Boolean(existingNb.isValid !== false) : false,
         sessionExpired: existingNb ? existingNb.isValid === false : true,
@@ -789,13 +875,15 @@ router.post('/internal/session/:userId', async (req, res) => {
     );
     if (nbStaleCheck.stale) {
       logger.warn(
-        `[NotebookLM Internal][Anti-Poison] Rechazando cookies antiguas para user=${userId} (${nbStaleCheck.reason}, incSidExp=${nbStaleCheck.incomingSidExp ?? 'n/a'}, exSidExp=${nbStaleCheck.existingSidExp ?? 'n/a'}).`
+        `[NotebookLM Internal][Anti-Poison] Rechazando cookies antiguas para user=${userId} companyId=${activeCompId || 'null'} (${nbStaleCheck.reason}, incSidExp=${nbStaleCheck.incomingSidExp ?? 'n/a'}, exSidExp=${nbStaleCheck.existingSidExp ?? 'n/a'}).`
       );
       return res.status(200).json({
         ok: true,
         success: true,
         skipped: 'stale_cookies_rejected',
         reason: nbStaleCheck.reason,
+        companyId: activeCompId ? String(activeCompId) : null,
+        profileName: getSafeProfileName(userId, activeCompId),
         cookieCount: existingNb?.cookies?.length || 0,
         isValid: existingNb ? Boolean(existingNb.isValid !== false) : false,
         sessionExpired: existingNb ? existingNb.isValid === false : true,
@@ -829,7 +917,7 @@ router.post('/internal/session/:userId', async (req, res) => {
 
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+      const existingFlow = await findExactSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const flowStaleCheck = isIncomingCookieSetStale(
         mergedNb,
         existingFlow?.cookies || [],
@@ -837,7 +925,7 @@ router.post('/internal/session/:userId', async (req, res) => {
       );
       if (flowStaleCheck.stale) {
         logger.warn(
-          `[NotebookLM Internal][Anti-Poison] Omitiendo sobrescritura en GoogleFlowSession para user=${userId} (${flowStaleCheck.reason}).`
+          `[NotebookLM Internal][Anti-Poison] Omitiendo sobrescritura en GoogleFlowSession para user=${userId} companyId=${activeCompId || 'null'} (${flowStaleCheck.reason}).`
         );
       } else {
         const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
@@ -862,13 +950,15 @@ router.post('/internal/session/:userId', async (req, res) => {
       }
     } catch (flowSyncErr) {
       logger.warn(
-        `[NotebookLM Internal] No se pudo sincronizar GoogleFlowSession para user=${userId}: ${flowSyncErr.message}`
+        `[NotebookLM Internal] No se pudo sincronizar GoogleFlowSession para user=${userId} companyId=${activeCompId || 'null'}: ${flowSyncErr.message}`
       );
     }
 
     return res.json({
       ok: true,
       success: true,
+      companyId: activeCompId ? String(activeCompId) : null,
+      profileName: getSafeProfileName(userId, activeCompId),
       cookieCount: mergedNb.length,
       isValid: Boolean(nextNbIsValid),
       sessionExpired: !Boolean(nextNbIsValid),
@@ -881,19 +971,28 @@ router.post('/internal/session/:userId', async (req, res) => {
 });
 
 /**
- * Obtiene el nombre seguro del perfil según el ID del usuario
+ * Obtiene el nombre seguro del perfil aislado por (userId, companyId):
+ * 'user_<uid>__<cid>' cuando hay companyId, o 'user_<uid>' cuando no hay empresa.
  */
-function getSafeProfileName(userId) {
+function getSafeProfileName(userId, companyId = null) {
   if (!userId) return 'default';
   const cleanId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '');
-  return `user_${cleanId}`;
+  if (!cleanId) return 'default';
+  const rawCid = companyId ? String(companyId).trim() : '';
+  const cleanCid =
+    rawCid &&
+    !rawCid.startsWith('{{') &&
+    !['null', 'undefined', 'none'].includes(rawCid.toLowerCase())
+      ? rawCid.replace(/[^a-zA-Z0-9_-]/g, '')
+      : '';
+  return cleanCid ? `user_${cleanId}__${cleanCid}` : `user_${cleanId}`;
 }
 
 /**
- * Obtiene la ruta al archivo storage_state.json para el usuario
+ * Obtiene las rutas al archivo storage_state.json aislado por (userId, companyId)
  */
-function getStoragePaths(userId) {
-  const safeProfile = getSafeProfileName(userId);
+function getStoragePaths(userId, companyId = null) {
+  const safeProfile = getSafeProfileName(userId, companyId);
   const paths = [path.join(LOCAL_PROFILES_DIR, safeProfile, 'storage_state.json')];
 
   if (fs.existsSync(SYSTEM_PROFILES_DIR)) {
@@ -1042,7 +1141,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const activeCompId = await resolveActiveCompanyId(userId, req.query?.companyId);
     const session = await findSessionForCompany(NotebookSession, userId, activeCompId);
-    const primaryStoragePath = getStoragePaths(userId)[0];
+    const profileCompId = session ? session.companyId ?? null : activeCompId || null;
+    const primaryStoragePath = getStoragePaths(userId, profileCompId)[0];
 
     const fileExists = fs.existsSync(primaryStoragePath);
     let diskCookieCount = 0;
@@ -1068,6 +1168,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
         sessionExpired: false,
         usingDefault: false,
         dbscBound: false,
+        companyId: activeCompId ? String(activeCompId) : null,
+        profileName: getSafeProfileName(userId, activeCompId),
         message: 'Sin vincular. Conecta tu cuenta privada de Google NotebookLM.',
       });
     }
@@ -1093,7 +1195,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
       dbscBound,
       ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       lastTestedAt,
-      profileName: getSafeProfileName(userId),
+      companyId: profileCompId ? String(profileCompId) : null,
+      profileName: getSafeProfileName(userId, profileCompId),
     });
   } catch (error) {
     logger.error('[NotebookLM] Error consultando estado:', error);
@@ -1139,8 +1242,8 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       req.body?.companyId || req.query?.companyId
     );
 
-    // Fusionar con cookies existentes de la misma cuenta (para no perder OSID de flow.google.com ni __Secure-1PSIDTS rotados)
-    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+    // Fusionar únicamente con cookies existentes de la MISMA empresa (nunca arrastrar cookies expiradas de otra empresa o companyId: null)
+    const existingNb = await findExactSessionForCompany(NotebookSession, userId, activeCompId);
     let mergedCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
 
     // Detectar el correo real de Google desde las cookies entrantes (non-blocking, timeout 6s)
@@ -1169,7 +1272,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
-      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+      const existingFlow = await findExactSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const mergedFlow = mergeGoogleCookiesByDomain(mergedCookies, existingFlow?.cookies || []);
       await GoogleFlowSession.findOneAndUpdate(
         { user: userId, companyId: activeCompId || null },
@@ -1186,19 +1289,20 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       );
     } catch (_) {}
 
-    // 2. Guardar en disco
+    // 2. Guardar en disco en el perfil aislado por (userId, companyId)
     const storageData = {
       cookies: mergedCookies,
       origins: [],
       notebooklm: {
         version: 1,
+        companyId: activeCompId ? String(activeCompId) : null,
         account: {
           authuser: 0,
         },
       },
     };
 
-    const targetPaths = getStoragePaths(userId);
+    const targetPaths = getStoragePaths(userId, activeCompId);
     for (const targetPath of targetPaths) {
       try {
         const dir = path.dirname(targetPath);
@@ -1220,6 +1324,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       try {
         const mcpData = await callNotebookLmDirectTool({
           userId,
+          companyId: activeCompId,
           email: effectiveEmail,
           cookies: mergedCookies,
           toolName: 'notebook_list',
@@ -1258,7 +1363,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       await markNotebookAndLinkedFlowInvalid(userId, activeCompId, effectiveEmail);
     }
 
-    const latestNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+    const latestNb = await findExactSessionForCompany(NotebookSession, userId, activeCompId);
     const finalCookies =
       Array.isArray(latestNb?.cookies) && latestNb.cookies.length > 0 ? latestNb.cookies : mergedCookies;
     const finalCount = latestNb?.cookieCount || finalCookies.length;
@@ -1266,6 +1371,8 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
     return res.json({
       success: true,
+      companyId: activeCompId ? String(activeCompId) : null,
+      profileName: getSafeProfileName(userId, activeCompId),
       email: effectiveEmail,
       cookieCount: finalCount,
       isValid: testResult.success,
@@ -1303,18 +1410,29 @@ function normalizeNotebookList(rawList) {
 /**
  * Invoca una herramienta en notebooklm-mcp (/api/direct-tool) con fallback automático a localhost:9420 en desarrollo local
  */
-async function callNotebookLmDirectTool({ userId, email, cookies = [], toolName, toolArgs = {} }) {
+async function callNotebookLmDirectTool({
+  userId,
+  companyId = null,
+  email,
+  cookies = [],
+  toolName,
+  toolArgs = {},
+}) {
   const primaryUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
   const candidateUrls = [primaryUrl];
   if (primaryUrl.includes('notebooklm-mcp')) {
     candidateUrls.push('http://127.0.0.1:9420');
   }
 
+  const companyIdStr = companyId ? String(companyId).trim() : '';
   const headers = {
     'Content-Type': 'application/json',
     'x-user-id': String(userId || ''),
     'x-user-email': String(email || ''),
   };
+  if (companyIdStr) {
+    headers['X-Company-Id'] = companyIdStr;
+  }
   if (Array.isArray(cookies) && cookies.length > 0) {
     headers['x-notebooklm-auth'] = JSON.stringify(cookies);
   }
@@ -1330,6 +1448,7 @@ async function callNotebookLmDirectTool({ userId, email, cookies = [], toolName,
           arguments: toolArgs,
           user_id: String(userId || ''),
           user_email: String(email || ''),
+          ...(companyIdStr ? { company_id: companyIdStr } : {}),
         }),
       });
       const mcpData = await mcpRes.json().catch(() => ({}));
@@ -1358,19 +1477,21 @@ async function callNotebookLmDirectTool({ userId, email, cookies = [], toolName,
 }
 
 /**
- * Resuelve las cookies y email activos de NotebookLM para un usuario (MongoDB -> Disco -> GoogleFlowSession)
+ * Resuelve las cookies y email activos de NotebookLM para un usuario y empresa (MongoDB -> Disco -> GoogleFlowSession).
+ * Jamás sobrescribe una sesión válida de activeCompId con una sesión expirada de companyId: null ni viceversa.
  */
 async function resolveUserNotebookCredentials(userId, fallbackEmail = '', explicitCompanyId = null) {
   let cookies = [];
   let effectiveEmail = fallbackEmail || '';
   const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
   let session = await findSessionForCompany(NotebookSession, userId, activeCompId);
+  const profileCompId = session ? session.companyId ?? null : activeCompId || null;
 
   if (session && Array.isArray(session.cookies) && session.cookies.length > 0) {
     cookies = session.cookies;
     effectiveEmail = session.email || effectiveEmail;
   } else {
-    const primaryPath = getStoragePaths(userId)[0];
+    const primaryPath = getStoragePaths(userId, profileCompId)[0];
     if (fs.existsSync(primaryPath)) {
       try {
         const parsed = JSON.parse(fs.readFileSync(primaryPath, 'utf8'));
@@ -1384,29 +1505,47 @@ async function resolveUserNotebookCredentials(userId, fallbackEmail = '', explic
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
       const flowSess = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
-      if (flowSess && Array.isArray(flowSess.cookies) && flowSess.cookies.length > 0) {
-        cookies = flowSess.cookies;
-        effectiveEmail = flowSess.email || effectiveEmail;
-        session = await NotebookSession.findOneAndUpdate(
-          { user: userId, companyId: activeCompId || null },
-          {
-            $set: {
-              user: userId,
-              companyId: activeCompId || null,
-              email: effectiveEmail,
-              cookies,
-              cookieCount: cookies.length,
-              isValid: true,
-              lastTestedAt: new Date(),
+      if (
+        flowSess &&
+        flowSess.isValid !== false &&
+        Array.isArray(flowSess.cookies) &&
+        flowSess.cookies.length > 0
+      ) {
+        const existingExactNb = await findExactSessionForCompany(
+          NotebookSession,
+          userId,
+          activeCompId
+        );
+        const hasValidExactNb = Boolean(
+          existingExactNb &&
+            existingExactNb.isValid !== false &&
+            Array.isArray(existingExactNb.cookies) &&
+            existingExactNb.cookies.length > 0
+        );
+        if (!hasValidExactNb) {
+          cookies = flowSess.cookies;
+          effectiveEmail = flowSess.email || effectiveEmail;
+          session = await NotebookSession.findOneAndUpdate(
+            { user: userId, companyId: activeCompId || null },
+            {
+              $set: {
+                user: userId,
+                companyId: activeCompId || null,
+                email: effectiveEmail,
+                cookies,
+                cookieCount: cookies.length,
+                isValid: true,
+                lastTestedAt: new Date(),
+              },
             },
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        ).lean();
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          ).lean();
+        }
       }
     } catch (_) {}
   }
 
-  return { session, cookies, effectiveEmail, activeCompId };
+  return { session, cookies, effectiveEmail, activeCompId, profileCompanyId: profileCompId };
 }
 
 /**
@@ -1442,6 +1581,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       }
       const mcpRes = await callNotebookLmDirectTool({
         userId,
+        companyId: activeCompId,
         email: emailToUse,
         cookies: cookiesToSend,
         toolName: 'notebook_list',
@@ -1585,6 +1725,7 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
     if (shouldFetchLive) {
       const mcpRes = await callNotebookLmDirectTool({
         userId,
+        companyId: activeCompId,
         email: effectiveEmail,
         cookies,
         toolName: 'notebook_list',
@@ -1755,7 +1896,7 @@ router.get('/notebooks/:notebookId/sources', requireJwtAuth, async (req, res) =>
       return res.status(400).json({ error: 'ID de cuaderno inválido.' });
     }
 
-    const { cookies, effectiveEmail } = await resolveUserNotebookCredentials(
+    const { cookies, effectiveEmail, activeCompId } = await resolveUserNotebookCredentials(
       userId,
       req.user.email || '',
       req.query.companyId
@@ -1766,6 +1907,7 @@ router.get('/notebooks/:notebookId/sources', requireJwtAuth, async (req, res) =>
 
     const mcpRes = await callNotebookLmDirectTool({
       userId,
+      companyId: activeCompId,
       email: effectiveEmail,
       cookies,
       toolName: 'source_list',
@@ -1801,8 +1943,8 @@ router.delete('/session', requireJwtAuth, async (req, res) => {
       req.query?.companyId || req.body?.companyId
     );
 
-    // Eliminar de disco
-    const targetPaths = getStoragePaths(userId);
+    // Eliminar de disco únicamente el perfil aislado de esta empresa (o user_<uid> si no hay empresa)
+    const targetPaths = getStoragePaths(userId, activeCompId);
     for (const targetPath of targetPaths) {
       try {
         if (fs.existsSync(targetPath)) {
@@ -1814,13 +1956,21 @@ router.delete('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    // Eliminar de MongoDB para la empresa activa (y fallback sin empresa)
-    await NotebookSession.deleteMany({
-      user: userId,
-      ...(activeCompId
-        ? { $or: [{ companyId: activeCompId }, { companyId: null }, { companyId: { $exists: false } }] }
-        : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
-    });
+    // Eliminar de MongoDB únicamente para la empresa activa (y solo si no existía doc de empresa, limpiar fallback legacy)
+    if (activeCompId) {
+      const delRes = await NotebookSession.deleteMany({ user: userId, companyId: activeCompId });
+      if (!delRes?.deletedCount) {
+        await NotebookSession.deleteMany({
+          user: userId,
+          $or: [{ companyId: null }, { companyId: { $exists: false } }],
+        });
+      }
+    } else {
+      await NotebookSession.deleteMany({
+        user: userId,
+        $or: [{ companyId: null }, { companyId: { $exists: false } }],
+      });
+    }
 
     return res.json({
       success: true,
@@ -2342,6 +2492,13 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
     const statusOnly = String(req.query.status_only || '').trim();
     const forceDownload = String(req.query.download || '').trim();
     const userId = String(req.query.userId || req.user?.id || '').trim();
+    const rawCompanyId = String(
+      req.query.companyId || req.query.company_id || req.headers['x-company-id'] || ''
+    ).trim();
+    const activeCompId = userId
+      ? await resolveActiveCompanyId(userId, rawCompanyId || null).catch(() => rawCompanyId || null)
+      : rawCompanyId || null;
+    const companyIdStr = activeCompId ? String(activeCompId).trim() : '';
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
     const cachedFile = findCachedNotebookArtifact(artifactId, type, format);
@@ -2374,9 +2531,11 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
     if (statusOnly === '1') qs.set('status_only', '1');
     if (forceDownload === '1') qs.set('download', '1');
     if (userId) qs.set('user_id', userId);
+    if (companyIdStr) qs.set('company_id', companyIdStr);
 
     const reqHeaders = {};
     if (userId) reqHeaders['x-user-id'] = userId;
+    if (companyIdStr) reqHeaders['X-Company-Id'] = companyIdStr;
     if (req.headers.range && statusOnly !== '1') {
       reqHeaders['Range'] = req.headers.range;
     }
@@ -2400,10 +2559,15 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
           if (type) dlQs.set('type', type);
           if (format) dlQs.set('format', format);
           if (userId) dlQs.set('user_id', userId);
+          if (companyIdStr) dlQs.set('company_id', companyIdStr);
+
+          const bgHeaders = {};
+          if (userId) bgHeaders['x-user-id'] = userId;
+          if (companyIdStr) bgHeaders['X-Company-Id'] = companyIdStr;
 
           try {
             const bgRes = await fetch(`${notebooklmUrl}/api/download-artifact?${dlQs.toString()}`, {
-              headers: userId ? { 'x-user-id': userId } : {},
+              headers: bgHeaders,
             });
             if (bgRes.ok && bgRes.status === 200) {
               const ct = bgRes.headers.get('content-type') || '';
@@ -2528,7 +2692,9 @@ router.get('/download/:notebookId/:artifactId', async (req, res) => {
 
 router.OUTPUT_MEDIA_DIR = OUTPUT_MEDIA_DIR;
 router.resolveActiveCompanyId = resolveActiveCompanyId;
+router.findExactSessionForCompany = findExactSessionForCompany;
 router.findSessionForCompany = findSessionForCompany;
+router.getSafeProfileName = getSafeProfileName;
 router.resolveNotebookArtifactFileMeta = resolveNotebookArtifactFileMeta;
 router.findCachedNotebookArtifact = findCachedNotebookArtifact;
 router.normalizeNotebookList = normalizeNotebookList;

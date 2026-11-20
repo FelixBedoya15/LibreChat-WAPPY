@@ -6,6 +6,7 @@ WAPPY IA - Servidor FastMCP Multi-Usuario para Google NotebookLM
 Este servidor gestiona solicitudes MCP enrutando dinámicamente cada petición
 al perfil de NotebookLM correspondiente según las cabeceras HTTP:
   - x-user-id: ID del usuario en LibreChat.
+  - x-company-id: ID de la empresa activa (aísla perfiles en user_<uid>__<cid>).
   - x-user-email: Correo del usuario en LibreChat.
   - x-notebooklm-auth: Cookies privadas proporcionadas opcionalmente por el usuario.
 
@@ -33,6 +34,8 @@ from notebooklm import NotebookLMClient
 
 # ContextVar para propagar cabeceras o usuario en llamadas directas HTTP
 _CURRENT_USER_CONTEXT: contextvars.ContextVar[Dict[str, str]] = contextvars.ContextVar("_CURRENT_USER_CONTEXT", default={})
+# ContextVar para propagar el perfil (user_id, company_id, profile_name) resuelto en la petición activa
+_RESOLVED_ACTIVE_PROFILE: contextvars.ContextVar[Dict[str, str]] = contextvars.ContextVar("_RESOLVED_ACTIVE_PROFILE", default={})
 
 # Parche de compatibilidad con la actualización reciente de Google NotebookLM:
 # Google migró el campo del token CSRF en WIZ_global_data de 'SNlM0e' a 'WZsZ1e'.
@@ -134,6 +137,38 @@ def _get_profile_lock(profile_name: str) -> asyncio.Lock:
         lock = asyncio.Lock()
         _PROFILE_LOCKS[profile_name] = lock
     return lock
+
+
+def _sanitize_profile_segment(raw: Any) -> str:
+    """Sanitiza un identificador (user_id o company_id) dejando únicamente [a-zA-Z0-9_-]."""
+    val = str(raw or "").strip()
+    if not val or val.startswith("{{") or val.lower() in ("null", "none", "undefined"):
+        return ""
+    return "".join(c for c in val if c.isalnum() or c in ("_", "-"))
+
+
+def _build_profile_name(user_id: str, company_id: str = "") -> str:
+    """Construye el nombre de perfil aislado por (user_id, company_id):
+    'user_<uid>__<cid>' cuando hay company_id, o 'user_<uid>' para compatibilidad hacia atrás."""
+    clean_uid = _sanitize_profile_segment(user_id)
+    if not clean_uid:
+        return "default"
+    clean_cid = _sanitize_profile_segment(company_id)
+    if clean_cid:
+        return f"user_{clean_uid}__{clean_cid}"
+    return f"user_{clean_uid}"
+
+
+def _parse_profile_name(profile_name: str) -> Tuple[str, str]:
+    """Extrae (user_id, company_id) desde 'user_<uid>__<cid>' o 'user_<uid>'."""
+    name = str(profile_name or "").strip()
+    if not name.startswith("user_"):
+        return "", ""
+    rest = name[len("user_"):]
+    if "__" in rest:
+        uid_part, cid_part = rest.split("__", 1)
+        return _sanitize_profile_segment(uid_part), _sanitize_profile_segment(cid_part)
+    return _sanitize_profile_segment(rest), ""
 
 
 def _atomic_write_json_file(target_path: Path, serialized: str) -> None:
@@ -442,6 +477,7 @@ def _should_reject_incoming_cookies(
     disk_meta: Optional[Dict[str, Any]] = None,
     user_id: str = "",
     source: str = "x-notebooklm-auth",
+    profile_name: str = "",
 ) -> Tuple[bool, str]:
     """Guarda Anti-Envenenamiento: rechaza sobrescribir storage_state.json si las cookies entrantes son más viejas o DBSC downgrade."""
     if not disk_cookies:
@@ -452,9 +488,11 @@ def _should_reject_incoming_cookies(
     inc = _extract_auth_freshness(incoming_cookies)
     disk = _extract_auth_freshness(disk_cookies)
     meta = disk_meta if isinstance(disk_meta, dict) else {}
+    profile_key = profile_name or _build_profile_name(user_id)
     last_verified_at = float(meta.get("lastVerifiedAt", 0) or 0)
     recently_verified = (
-        (user_id and user_id in _LAST_VERIFIED_SYNC_AT)
+        (profile_key in _LAST_VERIFIED_SYNC_AT)
+        or (user_id and user_id in _LAST_VERIFIED_SYNC_AT)
         or (last_verified_at > 0 and (time.time() - last_verified_at) < 86400)
     )
 
@@ -464,7 +502,7 @@ def _should_reject_incoming_cookies(
     ):
         logger.warning(
             f"[Anti-Poison] Ignorando header {source} con cookies DBSC sobre sesión limpia "
-            f"(incoming_sid_exp={inc['sid_expires']} <= disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+            f"(incoming_sid_exp={inc['sid_expires']} <= disk_sid_exp={disk['sid_expires']}, profile='{profile_key}')."
         )
         return True, "dbsc_downgrade_rejected"
 
@@ -472,7 +510,7 @@ def _should_reject_incoming_cookies(
     if disk["sid_expires"] > 0 and inc["sid_expires"] > 0 and inc["sid_expires"] < disk["sid_expires"] - 60:
         logger.warning(
             f"[Anti-Poison] Ignorando header {source} con cookies más antiguas "
-            f"(incoming_sid_exp={inc['sid_expires']} < disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+            f"(incoming_sid_exp={inc['sid_expires']} < disk_sid_exp={disk['sid_expires']}, profile='{profile_key}')."
         )
         return True, "older_sid_expires"
 
@@ -487,7 +525,7 @@ def _should_reject_incoming_cookies(
     ):
         logger.warning(
             f"[Anti-Poison] Ignorando header {source} con SID distinto sin expires frente a sesión verificada en disco "
-            f"(incoming_sid_exp=0 < disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+            f"(incoming_sid_exp=0 < disk_sid_exp={disk['sid_expires']}, profile='{profile_key}')."
         )
         return True, "missing_sid_expires_over_verified_disk"
 
@@ -502,7 +540,7 @@ def _should_reject_incoming_cookies(
     ):
         logger.warning(
             f"[Anti-Poison] Ignorando header {source} con __Secure-1PSIDTS más antiguo "
-            f"(incoming_psidts_exp={inc['psidts_expires']} < disk_psidts_exp={disk['psidts_expires']}, user='{user_id}')."
+            f"(incoming_psidts_exp={inc['psidts_expires']} < disk_psidts_exp={disk['psidts_expires']}, profile='{profile_key}')."
         )
         return True, "older_psidts_expires"
 
@@ -514,7 +552,7 @@ def _should_reject_incoming_cookies(
     ):
         logger.warning(
             f"[Anti-Poison] Ignorando header {source} con auth expires más antiguo "
-            f"(incoming_max_exp={inc['max_auth_expires']} < disk_max_exp={disk['max_auth_expires']}, user='{user_id}')."
+            f"(incoming_max_exp={inc['max_auth_expires']} < disk_max_exp={disk['max_auth_expires']}, profile='{profile_key}')."
         )
         return True, "older_max_auth_expires"
 
@@ -527,14 +565,22 @@ def _sync_disk_cookies_to_mongo(
     storage_file: Path,
     psidts_rotated: bool = False,
     verified: bool = False,
+    company_id: str = "",
 ) -> None:
     """Sincroniza de vuelta hacia MongoDB (NotebookSession y GoogleFlowSession) las cookies rotadas o verificadas en disco.
-    PROHIBIDO sincronizar sin rotación real de PSIDTS ni verificación RPC real (evita envenenar MongoDB)."""
-    if not user_id or not storage_file.exists() or storage_file.stat().st_size == 0:
+    PROHIBIDO sincronizar sin rotación real de PSIDTS ni verificación RPC real (evita envenenar MongoDB).
+    Incluye siempre companyId (extraído del argumento o del perfil user_<uid>__<cid>) para no pisar otra empresa."""
+    if not storage_file.exists() or storage_file.stat().st_size == 0:
+        return
+    profile_name = storage_file.parent.name
+    parsed_uid, parsed_cid = _parse_profile_name(profile_name)
+    effective_uid = _sanitize_profile_segment(user_id) or parsed_uid
+    effective_cid = _sanitize_profile_segment(company_id) or parsed_cid
+    if not effective_uid:
         return
     if not psidts_rotated and not verified:
         logger.debug(
-            f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para '{user_id}': psidts_rotated=False y verified=False."
+            f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para profile='{profile_name}': psidts_rotated=False y verified=False."
         )
         return
     try:
@@ -546,33 +592,40 @@ def _sync_disk_cookies_to_mongo(
         # Evitar llamadas repetitivas a MongoDB en sesiones DBSC cuando solo cambió SIDCC y NO se renovó __Secure-1PSIDTS
         if dbsc_bound and not psidts_rotated and not verified:
             logger.debug(
-                f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para '{user_id}': sesión con bloqueo DBSC (PSIDRTS) sin rotación real de __Secure-1PSIDTS."
+                f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para profile='{profile_name}': sesión con bloqueo DBSC (PSIDRTS) sin rotación real de __Secure-1PSIDTS."
             )
             return
         email = user_email or ""
         payload = json.dumps({
             "cookies": cookies,
             "email": email,
+            "companyId": effective_cid if effective_cid else None,
             "psidtsRotated": bool(psidts_rotated),
             "verified": bool(verified),
             "dbscBound": dbsc_bound,
         }).encode("utf-8")
+        req_headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "NotebookLM-MCP/1.0",
+        }
+        if effective_cid:
+            req_headers["X-Company-Id"] = effective_cid
         import urllib.request
         synced = False
         last_err: Optional[Exception] = None
         for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
             try:
-                url = f"{base_host}/api/notebooklm/internal/session/{user_id}"
+                url = f"{base_host}/api/notebooklm/internal/session/{effective_uid}"
                 req = urllib.request.Request(
                     url,
                     data=payload,
-                    headers={"Content-Type": "application/json", "User-Agent": "NotebookLM-MCP/1.0"},
+                    headers=req_headers,
                     method="POST",
                 )
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     if resp.status == 200:
                         logger.info(
-                            f"[PSIDTS Sync] Cookies sincronizadas en MongoDB para '{user_id}' ({len(cookies)} cookies, psidtsRotated={bool(psidts_rotated)}, verified={bool(verified)})."
+                            f"[PSIDTS Sync] Cookies sincronizadas en MongoDB para profile='{profile_name}' (user='{effective_uid}', companyId='{effective_cid or 'null'}', {len(cookies)} cookies, psidtsRotated={bool(psidts_rotated)}, verified={bool(verified)})."
                         )
                         synced = True
                         break
@@ -580,9 +633,9 @@ def _sync_disk_cookies_to_mongo(
                 last_err = host_err
                 continue
         if not synced and last_err is not None:
-            logger.warning(f"[PSIDTS Sync] No se pudo sincronizar '{user_id}' hacia LibreChat: {last_err}")
+            logger.warning(f"[PSIDTS Sync] No se pudo sincronizar profile='{profile_name}' hacia LibreChat: {last_err}")
     except Exception as e:
-        logger.warning(f"[PSIDTS Sync] Error preparando sincronización hacia MongoDB para '{user_id}': {e}")
+        logger.warning(f"[PSIDTS Sync] Error preparando sincronización hacia MongoDB para profile='{profile_name}': {e}")
 
 
 def _rotate_profile_cookies_soft(
@@ -745,7 +798,7 @@ async def _background_keepalive_worker() -> None:
             logger.info(f"[Keepalive Worker] Iniciando ciclo de revisión sobre {len(profile_files)} perfil(es).")
             for storage_file in profile_files:
                 profile_name = storage_file.parent.name
-                user_id = profile_name[len("user_"):] if profile_name.startswith("user_") else ""
+                user_id, company_id = _parse_profile_name(profile_name)
                 if not user_id:
                     continue
                 try:
@@ -760,7 +813,7 @@ async def _background_keepalive_worker() -> None:
                         )
                         if rotated:
                             await _evict_cached_client(profile_name)
-                            _PENDING_VERIFIED_SYNC_USERS.add(user_id)
+                            _PENDING_VERIFIED_SYNC_USERS.add(profile_name)
                             await asyncio.to_thread(
                                 _sync_disk_cookies_to_mongo,
                                 user_id,
@@ -768,6 +821,7 @@ async def _background_keepalive_worker() -> None:
                                 storage_file,
                                 True,
                                 False,
+                                company_id,
                             )
                 except asyncio.CancelledError:
                     raise
@@ -782,8 +836,8 @@ async def _background_keepalive_worker() -> None:
         raise
 
 
-def _extract_request_user_identity() -> Tuple[str, str]:
-    """Obtiene (user_id, user_email) combinando cabeceras HTTP de FastMCP y ContextVar de direct_tool."""
+def _extract_request_user_identity() -> Tuple[str, str, str]:
+    """Obtiene (user_id, user_email, company_id) combinando cabeceras HTTP de FastMCP, ContextVar de direct_tool y el perfil resuelto activo."""
     headers: Dict[str, str] = {}
     try:
         from fastmcp.server.dependencies import get_http_headers
@@ -798,23 +852,31 @@ def _extract_request_user_identity() -> Tuple[str, str]:
     for ck, cv in ctx_headers.items():
         if cv and ck.lower() not in headers:
             headers[ck.lower()] = cv
-    user_id = headers.get("x-user-id") or headers.get("x_user_id") or ""
-    if user_id.startswith("{{"):
-        user_id = ""
+    user_id = _sanitize_profile_segment(headers.get("x-user-id") or headers.get("x_user_id") or "")
     user_email = headers.get("x-user-email") or headers.get("x_user_email") or ""
     if user_email.startswith("{{"):
         user_email = ""
-    return user_id.strip(), user_email.strip()
+    company_id = _sanitize_profile_segment(
+        headers.get("x-company-id")
+        or headers.get("x_company_id")
+        or headers.get("x-wappy-company-id")
+        or ""
+    )
+    if not company_id and user_id:
+        resolved = _RESOLVED_ACTIVE_PROFILE.get() or {}
+        if resolved.get("user_id") == user_id and resolved.get("company_id"):
+            company_id = _sanitize_profile_segment(resolved.get("company_id"))
+    return user_id, user_email.strip(), company_id
 
 
 async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -> None:
-    """Emite verified=True hacia MongoDB ÚNICAMENTE después de un RPC real exitoso, con throttle de 5 min."""
+    """Emite verified=True hacia MongoDB ÚNICAMENTE después de un RPC real exitoso, con throttle de 5 min por perfil (userId, companyId)."""
     if isinstance(result, dict) and result.get("status") == "confirmation_required":
         return
-    user_id, user_email = _extract_request_user_identity()
+    user_id, user_email, company_id = _extract_request_user_identity()
     if not user_id:
         return
-    safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}"
+    safe_profile = _build_profile_name(user_id, company_id)
     storage_file = PROFILES_DIR / safe_profile / "storage_state.json"
     if not storage_file.exists() or storage_file.stat().st_size == 0:
         return
@@ -830,8 +892,8 @@ async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -
     psidts = _get_cookie_value(disk_cookies, "__Secure-1PSIDTS")
     session_sig = f"{sid[:16]}:{psidts[:24]}"
     now_mono = time.monotonic()
-    is_pending = user_id in _PENDING_VERIFIED_SYNC_USERS
-    prev_entry = _LAST_VERIFIED_SYNC_AT.get(user_id)
+    is_pending = safe_profile in _PENDING_VERIFIED_SYNC_USERS
+    prev_entry = _LAST_VERIFIED_SYNC_AT.get(safe_profile)
 
     if (
         not is_pending
@@ -841,8 +903,8 @@ async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -
     ):
         return
 
-    _LAST_VERIFIED_SYNC_AT[user_id] = (now_mono, session_sig)
-    _PENDING_VERIFIED_SYNC_USERS.discard(user_id)
+    _LAST_VERIFIED_SYNC_AT[safe_profile] = (now_mono, session_sig)
+    _PENDING_VERIFIED_SYNC_USERS.discard(safe_profile)
 
     # Registrar lastVerifiedAt en disco para que el guarda Anti-Poison conozca que este perfil está verificado en vivo
     try:
@@ -854,9 +916,9 @@ async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -
                 disk_doc["notebooklm"]["lastVerifiedAt"] = time.time()
                 _atomic_write_json_file(storage_file, json.dumps(disk_doc, indent=2))
     except Exception as ver_write_err:
-        logger.debug(f"[RPC Verified] Aviso guardando lastVerifiedAt en disco para '{user_id}': {ver_write_err}")
+        logger.debug(f"[RPC Verified] Aviso guardando lastVerifiedAt en disco para profile='{safe_profile}': {ver_write_err}")
 
-    logger.debug(f"[RPC Verified] Sincronizando verified=True tras '{tool_name}' para '{user_id}'.")
+    logger.debug(f"[RPC Verified] Sincronizando verified=True tras '{tool_name}' para profile='{safe_profile}'.")
     await asyncio.to_thread(
         _sync_disk_cookies_to_mongo,
         user_id,
@@ -864,6 +926,7 @@ async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -
         storage_file,
         False,
         True,
+        company_id,
     )
 
 
@@ -1040,8 +1103,39 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
         return False
 
 
+def _fetch_internal_session_from_node(
+    user_id: str,
+    company_id: str = "",
+) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """Consulta GET /api/notebooklm/internal/session/{user_id} (con ?companyId y X-Company-Id si aplica)."""
+    clean_uid = _sanitize_profile_segment(user_id)
+    if not clean_uid:
+        return None
+    clean_cid = _sanitize_profile_segment(company_id)
+    import urllib.request
+    req_headers = {"User-Agent": "NotebookLM-MCP/1.0"}
+    if clean_cid:
+        req_headers["X-Company-Id"] = clean_cid
+    for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
+        try:
+            fetch_url = f"{base_host}/api/notebooklm/internal/session/{clean_uid}"
+            if clean_cid:
+                fetch_url += f"?companyId={clean_cid}"
+            req = urllib.request.Request(fetch_url, headers=req_headers)
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                if resp.status == 200:
+                    session_json = json.loads(resp.read().decode("utf-8"))
+                    if isinstance(session_json, dict):
+                        return base_host, session_json
+        except Exception as ex:
+            logger.debug(
+                f"No se pudo consultar {base_host} para sesión de user='{clean_uid}' companyId='{clean_cid or 'null'}': {ex}"
+            )
+    return None
+
+
 async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient:
-    """Resuelve o crea el cliente de NotebookLM adecuado para la petición en curso."""
+    """Resuelve o crea el cliente de NotebookLM adecuado para la petición en curso, aislado por (user_id, company_id)."""
     _ensure_keepalive_worker_started()
 
     headers: Dict[str, str] = {}
@@ -1063,18 +1157,40 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
 
     logger.info(f"[NotebookLM MCP] Cabeceras HTTP activas: {list(headers.keys())}")
 
-    user_id = headers.get("x-user-id") or headers.get("x_user_id") or ""
-    if user_id.startswith("{{"):
-        user_id = ""
+    user_id = _sanitize_profile_segment(headers.get("x-user-id") or headers.get("x_user_id") or "")
     user_email = headers.get("x-user-email") or headers.get("x_user_email") or ""
     if user_email.startswith("{{"):
         user_email = ""
     user_auth = headers.get("x-notebooklm-auth") or headers.get("x_notebooklm_auth") or ""
     if user_auth.startswith("{{"):
         user_auth = ""
+    company_id = _sanitize_profile_segment(
+        headers.get("x-company-id")
+        or headers.get("x_company_id")
+        or headers.get("x-wappy-company-id")
+        or ""
+    )
 
-    # Limpiar user_id para usarlo como nombre de carpeta seguro
-    safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}" if user_id else "default"
+    # Si llegó una llamada sin X-Company-Id y sin x-notebooklm-auth (ej. /mcp Streamable HTTP),
+    # consultar la sesión activa en Node para descubrir la empresa activa y usar su perfil aislado user_<uid>__<cid>.
+    prefetched_internal: Optional[Tuple[str, Dict[str, Any]]] = None
+    if user_id and not company_id and not user_auth:
+        prefetched_internal = await asyncio.to_thread(_fetch_internal_session_from_node, user_id, "")
+        if prefetched_internal is not None:
+            _, pre_json = prefetched_internal
+            resolved_cid = _sanitize_profile_segment(pre_json.get("companyId"))
+            if resolved_cid:
+                company_id = resolved_cid
+
+    # Perfil aislado por (user_id, company_id): 'user_<uid>__<cid>' o 'user_<uid>' si no hay empresa
+    safe_profile = _build_profile_name(user_id, company_id)
+
+    if user_id:
+        _RESOLVED_ACTIVE_PROFILE.set({
+            "user_id": user_id,
+            "company_id": company_id,
+            "profile_name": safe_profile,
+        })
 
     target_profile_dir = PROFILES_DIR / safe_profile
     # Asegurar que el directorio de este perfil siempre exista físicamente
@@ -1098,15 +1214,19 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                         existing_json = json.loads(user_storage_file.read_text(encoding="utf-8"))
                         existing_cookies = existing_json.get("cookies", [])
                         existing_nb_meta = existing_json.get("notebooklm", {}) if isinstance(existing_json.get("notebooklm"), dict) else {}
-                        reject_poison, _poison_reason = _should_reject_incoming_cookies(
+                        reject_poison, poison_reason = _should_reject_incoming_cookies(
                             cookies,
                             existing_cookies,
                             disk_meta=existing_nb_meta,
                             user_id=user_id,
                             source="x-notebooklm-auth",
+                            profile_name=safe_profile,
                         )
                         if reject_poison:
                             cookies_changed = False
+                            logger.info(
+                                f"[Hydrate Guard] Conservando perfil en disco '{safe_profile}' ({len(existing_cookies)} cookies) frente a x-notebooklm-auth ({poison_reason})."
+                            )
                         else:
                             ex_sid = _extract_sid(existing_cookies)
                             new_sid = _extract_sid(cookies)
@@ -1124,16 +1244,20 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                     merged_cookies = _merge_preserving_rotated_cookies(cookies, existing_cookies)
                     from datetime import datetime, timezone
                     now_iso = datetime.now(timezone.utc).isoformat()
+                    nb_meta_out: Dict[str, Any] = {
+                        "version": 1,
+                        "updatedAt": now_iso,
+                        "companyId": company_id or None,
+                        "account": {
+                            "authuser": 0,
+                        },
+                    }
+                    if existing_nb_meta.get("lastVerifiedAt") and _extract_sid(merged_cookies) == _extract_sid(existing_cookies):
+                        nb_meta_out["lastVerifiedAt"] = existing_nb_meta.get("lastVerifiedAt")
                     storage_data = {
                         "cookies": merged_cookies,
                         "origins": [],
-                        "notebooklm": {
-                            "version": 1,
-                            "updatedAt": now_iso,
-                            "account": {
-                                "authuser": 0,
-                            },
-                        },
+                        "notebooklm": nb_meta_out,
                     }
                     serialized = json.dumps(storage_data, indent=2)
                     _atomic_write_json_file(user_storage_file, serialized)
@@ -1143,14 +1267,15 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                         _atomic_write_json_file(persist_file, serialized)
                     except Exception as persist_err:
                         logger.debug(f"Aviso espejando perfil '{safe_profile}' en home: {persist_err}")
-                    logger.info(f"Perfil guardado para '{safe_profile}' con {len(merged_cookies)} cookies en {user_storage_file}.")
+                    logger.info(
+                        f"Perfil guardado para '{safe_profile}' (companyId='{company_id or 'null'}') con {len(merged_cookies)} cookies en {user_storage_file}."
+                    )
                     if user_id:
-                        _PENDING_VERIFIED_SYNC_USERS.add(user_id)
+                        _PENDING_VERIFIED_SYNC_USERS.add(safe_profile)
                     await _evict_cached_client(safe_profile)
 
-        # Si el archivo del usuario no existe en disco, intentar sincronizarlo dinámicamente desde LibreChat API
+        # Si el archivo del perfil exacto no existe en disco, buscar SOLO en ubicaciones alternativas del MISMO safe_profile
         if user_id and (not user_storage_file.exists() or user_storage_file.stat().st_size == 0):
-            # Primero buscar si existe en ubicaciones alternativas del contenedor
             for alt_path in [
                 Path.home() / ".notebooklm" / "profiles" / safe_profile / "storage_state.json",
                 Path("/app/profiles") / safe_profile / "storage_state.json",
@@ -1166,86 +1291,87 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
 
         # Sincronizar desde la API interna de LibreChat si hay user_id y no vino x-notebooklm-auth directo
         if user_id and not user_auth:
-            for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
-                try:
-                    import urllib.request
-                    fetch_url = f"{base_host}/api/notebooklm/internal/session/{user_id}"
-                    req = urllib.request.Request(fetch_url, headers={"User-Agent": "NotebookLM-MCP/1.0"})
-                    with urllib.request.urlopen(req, timeout=3) as resp:
-                        if resp.status == 200:
-                            session_json = json.loads(resp.read().decode("utf-8"))
-                            fetched_cookies = session_json.get("cookies", [])
-                            remote_updated_at = str(session_json.get("updatedAt") or "")
-                            if fetched_cookies:
-                                # Comprobar si el archivo en disco no existe o si el usuario vinculó una sesión NUEVA en MongoDB
-                                needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
-                                existing_cookies_disk: List[Dict[str, Any]] = []
-                                existing_disk_meta: Dict[str, Any] = {}
-                                if not needs_write:
-                                    try:
-                                        existing_data = json.loads(user_storage_file.read_text(encoding="utf-8"))
-                                        existing_cookies_disk = existing_data.get("cookies", [])
-                                        existing_disk_meta = existing_data.get("notebooklm", {}) if isinstance(existing_data.get("notebooklm"), dict) else {}
-                                        existing_updated_at = str(existing_disk_meta.get("updatedAt") or "")
-                                        if len(existing_cookies_disk) == 0:
+            fetched_tuple = prefetched_internal
+            if fetched_tuple is None:
+                fetched_tuple = await asyncio.to_thread(_fetch_internal_session_from_node, user_id, company_id)
+            if fetched_tuple is not None:
+                base_host, session_json = fetched_tuple
+                fetched_cookies = session_json.get("cookies", [])
+                remote_updated_at = str(session_json.get("updatedAt") or "")
+                if fetched_cookies:
+                    # Comprobar si el archivo en disco no existe o si el usuario vinculó una sesión NUEVA en MongoDB
+                    needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
+                    existing_cookies_disk: List[Dict[str, Any]] = []
+                    existing_disk_meta: Dict[str, Any] = {}
+                    if not needs_write:
+                        try:
+                            existing_data = json.loads(user_storage_file.read_text(encoding="utf-8"))
+                            existing_cookies_disk = existing_data.get("cookies", [])
+                            existing_disk_meta = existing_data.get("notebooklm", {}) if isinstance(existing_data.get("notebooklm"), dict) else {}
+                            existing_updated_at = str(existing_disk_meta.get("updatedAt") or "")
+                            if len(existing_cookies_disk) == 0:
+                                needs_write = True
+                            else:
+                                reject_sync_poison, sync_poison_reason = _should_reject_incoming_cookies(
+                                    fetched_cookies,
+                                    existing_cookies_disk,
+                                    disk_meta=existing_disk_meta,
+                                    user_id=user_id,
+                                    source="internal/session",
+                                    profile_name=safe_profile,
+                                )
+                                if reject_sync_poison:
+                                    needs_write = False
+                                    logger.info(
+                                        f"[Hydrate Guard] Conservando perfil en disco '{safe_profile}' ({len(existing_cookies_disk)} cookies) frente a internal/session ({sync_poison_reason})."
+                                    )
+                                else:
+                                    ex_sid = _extract_sid(existing_cookies_disk)
+                                    rem_sid = _extract_sid(fetched_cookies)
+                                    # Si es la misma sesión (mismo SID o mismo updatedAt) y en disco ya tenemos __Secure-1PSIDTS rotado, NO sobrescribir
+                                    if ex_sid and ex_sid == rem_sid and (
+                                        _has_psidts(existing_cookies_disk) or existing_updated_at == remote_updated_at
+                                    ):
+                                        needs_write = False
+                                    elif remote_updated_at and existing_updated_at == remote_updated_at:
+                                        needs_write = False
+                                    else:
+                                        old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies_disk if isinstance(c, dict)}
+                                        new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
+                                        if old_pairs != new_pairs:
                                             needs_write = True
-                                        else:
-                                            reject_sync_poison, _ = _should_reject_incoming_cookies(
-                                                fetched_cookies,
-                                                existing_cookies_disk,
-                                                disk_meta=existing_disk_meta,
-                                                user_id=user_id,
-                                                source="internal/session",
-                                            )
-                                            if reject_sync_poison:
-                                                needs_write = False
-                                            else:
-                                                ex_sid = _extract_sid(existing_cookies_disk)
-                                                rem_sid = _extract_sid(fetched_cookies)
-                                                # Si es la misma sesión (mismo SID o mismo updatedAt) y en disco ya tenemos __Secure-1PSIDTS rotado, NO sobrescribir
-                                                if ex_sid and ex_sid == rem_sid and (
-                                                    _has_psidts(existing_cookies_disk) or existing_updated_at == remote_updated_at
-                                                ):
-                                                    needs_write = False
-                                                elif remote_updated_at and existing_updated_at == remote_updated_at:
-                                                    needs_write = False
-                                                else:
-                                                    old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies_disk if isinstance(c, dict)}
-                                                    new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
-                                                    if old_pairs != new_pairs:
-                                                        needs_write = True
-                                    except Exception:
-                                        needs_write = True
+                        except Exception:
+                            needs_write = True
 
-                                if needs_write:
-                                    merged_sync_cookies = _merge_preserving_rotated_cookies(fetched_cookies, existing_cookies_disk)
-                                    sync_data = {
-                                        "cookies": merged_sync_cookies,
-                                        "origins": [],
-                                        "notebooklm": {
-                                            "version": 1,
-                                            "updatedAt": remote_updated_at,
-                                            "account": {
-                                                "authuser": 0,
-                                            },
-                                        },
-                                    }
-                                    serialized_sync = json.dumps(sync_data, indent=2)
-                                    _atomic_write_json_file(user_storage_file, serialized_sync)
-                                    try:
-                                        persist_file = Path.home() / ".notebooklm" / "profiles" / safe_profile / "storage_state.json"
-                                        _atomic_write_json_file(persist_file, serialized_sync)
-                                    except Exception as persist_err:
-                                        logger.debug(f"Aviso espejando perfil sincronizado '{safe_profile}': {persist_err}")
-                                    logger.info(f"Sesión sincronizada dinámicamente para '{safe_profile}' desde {base_host} ({len(merged_sync_cookies)} cookies).")
-                                    if user_id:
-                                        _PENDING_VERIFIED_SYNC_USERS.add(user_id)
-                                    await _evict_cached_client(safe_profile)
-                            break
-                except Exception as ex:
-                    logger.debug(f"No se pudo consultar {base_host} para sesión de usuario: {ex}")
+                    if needs_write:
+                        merged_sync_cookies = _merge_preserving_rotated_cookies(fetched_cookies, existing_cookies_disk)
+                        sync_data = {
+                            "cookies": merged_sync_cookies,
+                            "origins": [],
+                            "notebooklm": {
+                                "version": 1,
+                                "updatedAt": remote_updated_at,
+                                "companyId": company_id or None,
+                                "account": {
+                                    "authuser": 0,
+                                },
+                            },
+                        }
+                        serialized_sync = json.dumps(sync_data, indent=2)
+                        _atomic_write_json_file(user_storage_file, serialized_sync)
+                        try:
+                            persist_file = Path.home() / ".notebooklm" / "profiles" / safe_profile / "storage_state.json"
+                            _atomic_write_json_file(persist_file, serialized_sync)
+                        except Exception as persist_err:
+                            logger.debug(f"Aviso espejando perfil sincronizado '{safe_profile}': {persist_err}")
+                        logger.info(
+                            f"Sesión sincronizada dinámicamente para '{safe_profile}' (companyId='{company_id or 'null'}') desde {base_host} ({len(merged_sync_cookies)} cookies)."
+                        )
+                        if user_id:
+                            _PENDING_VERIFIED_SYNC_USERS.add(safe_profile)
+                        await _evict_cached_client(safe_profile)
 
-        # Aislamiento 100% privado por usuario: nunca hacer fallback a un perfil central compartido
+        # Aislamiento 100% privado por usuario y empresa: nunca hacer fallback a un perfil central compartido
         if not active_storage_file.exists() or active_storage_file.stat().st_size == 0:
             raise RuntimeError(
                 "Aún no has vinculado tu cuenta privada de Google NotebookLM. "
@@ -1258,7 +1384,7 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
         if psidts_rotated:
             await _evict_cached_client(selected_profile)
             if user_id:
-                _PENDING_VERIFIED_SYNC_USERS.add(user_id)
+                _PENDING_VERIFIED_SYNC_USERS.add(selected_profile)
                 await asyncio.to_thread(
                     _sync_disk_cookies_to_mongo,
                     user_id,
@@ -1266,10 +1392,11 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                     active_storage_file,
                     True,
                     False,
+                    company_id,
                 )
         elif force_reinit:
             if user_id:
-                _PENDING_VERIFIED_SYNC_USERS.add(user_id)
+                _PENDING_VERIFIED_SYNC_USERS.add(selected_profile)
             await _evict_cached_client(selected_profile)
 
     active_sid = ""
@@ -1582,21 +1709,13 @@ async def chat_ask(
 
 
 def _get_active_user_id() -> str:
-    try:
-        from fastmcp.server.dependencies import get_http_headers
-        try:
-            raw_headers = get_http_headers(include_all=True) or {}
-        except TypeError:
-            raw_headers = get_http_headers() or {}
-        headers = {str(k).lower(): str(v) for k, v in raw_headers.items()}
-    except Exception:
-        headers = {}
-    ctx_headers = _CURRENT_USER_CONTEXT.get() or {}
-    for ck, cv in ctx_headers.items():
-        if cv and ck.lower() not in headers:
-            headers[ck.lower()] = cv
-    uid = headers.get("x-user-id") or headers.get("x_user_id") or ""
-    return "" if uid.startswith("{{") else uid
+    uid, _, _ = _extract_request_user_identity()
+    return uid
+
+
+def _get_active_company_id() -> str:
+    _, _, cid = _extract_request_user_identity()
+    return cid
 
 
 async def _download_artifact_by_kind(
@@ -1701,9 +1820,12 @@ async def _download_artifact_by_kind(
             pass
 
     uid = _get_active_user_id()
+    cid = _get_active_company_id()
     wappy_download_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{artifact_id}?type={t or 'report'}"
     if uid:
         wappy_download_url += f"&userId={uid}"
+    if cid:
+        wappy_download_url += f"&companyId={cid}"
 
     # Sincronizar automáticamente en segundo plano hacia /images/ de LibreChat para que Canvas 2.0 y la Biblioteca lo tengan al instante
     async def _notify_librechat_media_cache():
@@ -1713,7 +1835,12 @@ async def _download_artifact_by_kind(
                 sync_url = f"{base_host}/api/notebooklm/download/{nb_id}/{artifact_id}?type={t or 'report'}&status_only=1"
                 if uid:
                     sync_url += f"&userId={uid}"
-                req = urllib.request.Request(sync_url, headers={"User-Agent": "WappyNotebookLMSync/1.0"})
+                if cid:
+                    sync_url += f"&companyId={cid}"
+                sync_headers = {"User-Agent": "WappyNotebookLMSync/1.0"}
+                if cid:
+                    sync_headers["X-Company-Id"] = cid
+                req = urllib.request.Request(sync_url, headers=sync_headers)
                 await asyncio.to_thread(urllib.request.urlopen, req, timeout=15)
                 break
             except Exception:
@@ -1875,9 +2002,12 @@ async def studio_generate(
         if norm_type == "mind_map":
             note_id = getattr(res, "note_id", None)
             mind_map_data = getattr(res, "mind_map", res)
+            cid = _get_active_company_id()
             dl_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{note_id or 'latest'}?type=mind_map"
             if uid:
                 dl_url += f"&userId={uid}"
+            if cid:
+                dl_url += f"&companyId={cid}"
             result = {
                 "status": "completed",
                 "notebook_id": nb_id,
@@ -1892,9 +2022,12 @@ async def studio_generate(
             return result
 
         task_id = getattr(res, "task_id", getattr(res, "id", str(res)))
+        cid = _get_active_company_id()
         wappy_download_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{task_id}?type={norm_type}"
         if uid:
             wappy_download_url += f"&userId={uid}"
+        if cid:
+            wappy_download_url += f"&companyId={cid}"
 
         # Esperar hasta 65s para infografías/slides/reportes y 20s para audio/video (que toman 3-8 min y el visor del chat monitorea en vivo)
         wait_secs = 65.0 if norm_type not in ("audio", "video") else 20.0
@@ -1964,6 +2097,7 @@ async def studio_status(
         notebook = input.get("notebook") or notebook
 
     uid = _get_active_user_id()
+    cid = _get_active_company_id()
     target_nb_id = None
     if notebook:
         target_nb_id = await _resolve_notebook_id(client, notebook)
@@ -1977,8 +2111,13 @@ async def studio_status(
             if res and getattr(res, "status", "") not in ("not_found", ""):
                 is_done = bool(getattr(res, "is_complete", False) or str(getattr(res, "status", "")).lower() in ("completed", "ready", "done"))
                 dl_url = f"https://wappy.club/api/notebooklm/download/{nb_id}/{task_id}"
+                qp_parts = []
                 if uid:
-                    dl_url += f"?userId={uid}"
+                    qp_parts.append(f"userId={uid}")
+                if cid:
+                    qp_parts.append(f"companyId={cid}")
+                if qp_parts:
+                    dl_url += "?" + "&".join(qp_parts)
                 result = {
                     "status": getattr(res, "status", "completed" if is_done else "in_progress"),
                     "task_id": task_id,
@@ -2877,11 +3016,18 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
     """
     try:
         body = await request.json()
-        user_id = str(body.get("user_id") or request.headers.get("x-user-id") or "").strip()
+        user_id = _sanitize_profile_segment(body.get("user_id") or request.headers.get("x-user-id") or "")
+        company_id = _sanitize_profile_segment(
+            body.get("company_id")
+            or body.get("companyId")
+            or request.headers.get("x-company-id")
+            or request.headers.get("x-wappy-company-id")
+            or ""
+        )
         user_email = str(body.get("email") or request.headers.get("x-user-email") or "").strip()
         incoming_cookies = body.get("cookies") or []
 
-        safe_profile = f"user_{''.join(c for c in user_id if c.isalnum() or c in ('_', '-'))}" if user_id else "default"
+        safe_profile = _build_profile_name(user_id, company_id)
         target_profile_dir = PROFILES_DIR / safe_profile
         target_profile_dir.mkdir(parents=True, exist_ok=True)
         user_storage_file = target_profile_dir / "storage_state.json"
@@ -2906,30 +3052,38 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
                     disk_meta=existing_nb_meta,
                     user_id=user_id,
                     source="/api/refresh-cookies",
+                    profile_name=safe_profile,
                 )
                 if not reject_refresh_poison:
                     merged = _merge_preserving_rotated_cookies(normalized_inc, existing_cookies)
                     from datetime import datetime, timezone
+                    nb_meta_refresh: Dict[str, Any] = {
+                        "version": 1,
+                        "updatedAt": datetime.now(timezone.utc).isoformat(),
+                        "lastRotatedAt": prev_last_rotated,
+                        "companyId": company_id or None,
+                        "account": {
+                            "authuser": 0,
+                        },
+                    }
+                    if existing_nb_meta.get("lastVerifiedAt") and _extract_sid(merged) == _extract_sid(existing_cookies):
+                        nb_meta_refresh["lastVerifiedAt"] = existing_nb_meta.get("lastVerifiedAt")
                     storage_data = {
                         "cookies": merged,
                         "origins": [],
-                        "notebooklm": {
-                            "version": 1,
-                            "updatedAt": datetime.now(timezone.utc).isoformat(),
-                            "lastRotatedAt": prev_last_rotated,
-                            "account": {
-                                "authuser": 0,
-                            },
-                        },
+                        "notebooklm": nb_meta_refresh,
                     }
                     _atomic_write_json_file(user_storage_file, json.dumps(storage_data, indent=2))
+                    logger.info(
+                        f"[Refresh Cookies] Perfil guardado para '{safe_profile}' (companyId='{company_id or 'null'}') con {len(merged)} cookies."
+                    )
 
             force_flag = bool(body.get("force", False))
             psidts_rotated = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)
             if psidts_rotated:
                 await _evict_cached_client(safe_profile)
                 if user_id:
-                    _PENDING_VERIFIED_SYNC_USERS.add(user_id)
+                    _PENDING_VERIFIED_SYNC_USERS.add(safe_profile)
                     await asyncio.to_thread(
                         _sync_disk_cookies_to_mongo,
                         user_id,
@@ -2937,6 +3091,7 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
                         user_storage_file,
                         True,
                         False,
+                        company_id,
                     )
 
             final_cookies: List[Dict[str, Any]] = []
@@ -2948,6 +3103,8 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
 
         return JSONResponse({
             "success": True,
+            "profileName": safe_profile,
+            "companyId": company_id or None,
             "healed": psidts_rotated,
             "psidtsRotated": psidts_rotated,
             "dbscBound": _has_dbsc_cookies(final_cookies),
@@ -3044,7 +3201,7 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
         if not accepts_var_kw:
             tool_args = {k: v for k, v in tool_args.items() if k in sig.parameters}
 
-        # Propagar cabeceras y user_id mediante ContextVar para get_client_for_request()
+        # Propagar cabeceras, user_id y company_id mediante ContextVar para get_client_for_request()
         ctx_dict = {}
         for k, v in request.headers.items():
             ctx_dict[k.lower()] = v
@@ -3052,9 +3209,13 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
             ctx_dict["x-user-id"] = str(body["user_id"])
         if body.get("user_email"):
             ctx_dict["x-user-email"] = str(body["user_email"])
+        body_company_id = _sanitize_profile_segment(body.get("company_id") or body.get("companyId") or "")
+        if body_company_id:
+            ctx_dict["x-company-id"] = body_company_id
 
         _ensure_keepalive_worker_started()
         token = _CURRENT_USER_CONTEXT.set(ctx_dict)
+        profile_token = _RESOLVED_ACTIVE_PROFILE.set({})
         try:
             try:
                 result = await func(**tool_args)
@@ -3069,6 +3230,7 @@ async def direct_tool_handler(request: Request) -> JSONResponse:
             await _mark_session_verified_after_rpc(tool_name, result)
             return JSONResponse({"success": True, "result": result})
         finally:
+            _RESOLVED_ACTIVE_PROFILE.reset(profile_token)
             _CURRENT_USER_CONTEXT.reset(token)
     except Exception as e:
         logger.error(f"[Direct Tool] Error ejecutando '{tool_name}': {e}", exc_info=True)
@@ -3087,6 +3249,13 @@ async def download_artifact_route(request: Request):
         status_only = request.query_params.get("status_only") == "1"
         force_download = request.query_params.get("download") == "1"
         user_id = request.query_params.get("user_id") or request.headers.get("x-user-id") or ""
+        company_id = _sanitize_profile_segment(
+            request.query_params.get("company_id")
+            or request.query_params.get("companyId")
+            or request.headers.get("x-company-id")
+            or request.headers.get("x-wappy-company-id")
+            or ""
+        )
 
         if not nb_id or not artifact_id:
             return JSONResponse({"error": "notebook_id y artifact_id son obligatorios"}, status_code=400)
@@ -3094,8 +3263,11 @@ async def download_artifact_route(request: Request):
         ctx_dict = {k.lower(): v for k, v in request.headers.items()}
         if user_id:
             ctx_dict["x-user-id"] = str(user_id)
+        if company_id:
+            ctx_dict["x-company-id"] = company_id
 
         token = _CURRENT_USER_CONTEXT.set(ctx_dict)
+        profile_token = _RESOLVED_ACTIVE_PROFILE.set({})
         try:
             # Si es solo consulta de estado, verificar primero si ya existe en caché en disco
             if status_only:
@@ -3170,6 +3342,7 @@ async def download_artifact_route(request: Request):
                 content_disposition_type="attachment" if force_download else "inline",
             )
         finally:
+            _RESOLVED_ACTIVE_PROFILE.reset(profile_token)
             _CURRENT_USER_CONTEXT.reset(token)
     except Exception as e:
         logger.error(f"[Download Artifact] Error descargando artefacto: {e}", exc_info=True)

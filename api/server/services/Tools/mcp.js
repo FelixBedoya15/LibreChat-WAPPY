@@ -48,10 +48,19 @@ async function reinitMCPServer({
             customUserVars = {
               ...(customUserVars || {}),
               USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+              USER_NOTEBOOKLM_COMPANY_ID: resolved.companyId ? String(resolved.companyId) : '',
             };
-          } else if (customUserVars && 'USER_NOTEBOOKLM_SESSION' in customUserVars) {
-            // Bloquear inyección de cookies viejas/muertas almacenadas en PluginAuth
-            customUserVars.USER_NOTEBOOKLM_SESSION = '';
+          } else {
+            if (resolved?.companyId) {
+              customUserVars = {
+                ...(customUserVars || {}),
+                USER_NOTEBOOKLM_COMPANY_ID: String(resolved.companyId),
+              };
+            }
+            if (customUserVars && 'USER_NOTEBOOKLM_SESSION' in customUserVars) {
+              // Bloquear inyección de cookies viejas/muertas almacenadas en PluginAuth
+              customUserVars.USER_NOTEBOOKLM_SESSION = '';
+            }
           }
         }
       } catch (nlmAuthErr) {

@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import {
+    SileroVadProcessor,
+    SILERO_FRAME_SAMPLES,
+    SILERO_SAMPLE_RATE,
+} from '~/utils/sileroVad';
 
 interface VoiceMessage {
     type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched' | 'tenshi_report_delivered' | 'canvas_file_generated' | 'notebooklm_auth_expired';
@@ -72,10 +77,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const recentWindowStartAtRef = useRef<number>(0);
     const bargeInIgnoreAudioUntilRef = useRef<number>(0);
     const lastVoiceTimeRef = useRef<number>(0);
+    const silenceDurationMsRef = useRef<number>(0);
     const speechStartTimeRef = useRef<number>(0);
     const preRollChunksRef = useRef<Float32Array[]>([]);
     // true mientras el noise gate está transmitiendo una locución; al cerrarse se emite speech_end una sola vez
     const isTransmittingSpeechRef = useRef(false);
+    // Silero VAD v5 neuronal en navegador (carga lazy al iniciar captura, fallback automático calibrado si falla)
+    const sileroVadRef = useRef<SileroVadProcessor | null>(null);
+    const captureGenerationRef = useRef<number>(0);
     const statusRef = useRef(status);
     useEffect(() => {
         statusRef.current = status;
@@ -157,71 +166,94 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             }
             console.log('[VoiceSession] AudioContext 16kHz listo, estado:', audioContext.state, '| sampleRate:', audioContext.sampleRate);
 
-            // 3. Helper: codificar y enviar PCM int16 a 16kHz al servidor via WebSocket
+            // 3. Pipeline 16kHz compartido (anti-aliasing → frames exactos de 512 muestras = 32ms → Silero VAD v5 / fallback → Int16 WS)
+            const captureGeneration = ++captureGenerationRef.current;
+
+            // Carga lazy de Silero VAD v5 neuronal (sin bloquear la apertura del micrófono; fallback automático mientras carga o si falla)
+            if (!sileroVadRef.current) {
+                sileroVadRef.current = new SileroVadProcessor();
+            } else {
+                sileroVadRef.current.reset();
+            }
+            const sileroVad = sileroVadRef.current;
+            sileroVad.init().then((ok) => {
+                if (captureGeneration !== captureGenerationRef.current) return;
+                if (ok) {
+                    console.log('[VoiceSession] 🧠 Silero VAD v5 neuronal activo (16kHz / 512 muestras = 32ms)');
+                } else {
+                    console.log('[VoiceSession] Silero VAD no disponible → usando detector adaptativo calibrado (fallback)');
+                }
+            });
+
             let sendCount = 0;
             let resamplePhase = 0;
+            let frame16kPending = new Float32Array(0);
+            const queuedFrames16k: Float32Array[] = [];
+            let isDrainingFrames = false;
 
-            const encodeAndSend = (float32Array: Float32Array) => {
-                const currentSampleRate = audioContext?.sampleRate || 16000;
-                let dataToEncode = float32Array;
+            const resampleTo16k = (float32Array: Float32Array): Float32Array => {
+                const currentSampleRate = audioContext?.sampleRate || SILERO_SAMPLE_RATE;
+                if (currentSampleRate === SILERO_SAMPLE_RATE || currentSampleRate <= 0) {
+                    resamplePhase = 0;
+                    return float32Array;
+                }
 
                 // Re-muestreo continuo anti-aliasing con ventana promediada (evita distorsión Nyquist de consonantes s/c/t/d/b a 44.1kHz o 48kHz)
-                if (currentSampleRate !== 16000 && currentSampleRate > 0) {
-                    const ratio = currentSampleRate / 16000;
-                    const availableSamples = float32Array.length - resamplePhase;
-                    const newLength = Math.max(0, Math.floor(availableSamples / ratio));
-                    const resampled = new Float32Array(newLength);
-                    let srcIdx = resamplePhase;
-                    for (let i = 0; i < newLength; i++) {
-                        if (ratio > 1.05) {
-                            // Filtro anti-aliasing de diezmado (promediado ponderado en la ventana [srcIdx, srcIdx + ratio])
-                            const start = srcIdx;
-                            const end = Math.min(float32Array.length, srcIdx + ratio);
-                            const iStart = Math.floor(start);
-                            const iEnd = Math.floor(end);
-                            let sum = 0;
-                            let weightSum = 0;
-                            for (let k = iStart; k <= iEnd && k < float32Array.length; k++) {
-                                const segStart = Math.max(start, k);
-                                const segEnd = Math.min(end, k + 1);
-                                const w = Math.max(0, segEnd - segStart);
-                                if (w > 0) {
-                                    sum += float32Array[k] * w;
-                                    weightSum += w;
-                                }
+                const ratio = currentSampleRate / SILERO_SAMPLE_RATE;
+                const availableSamples = float32Array.length - resamplePhase;
+                const newLength = Math.max(0, Math.floor(availableSamples / ratio));
+                const resampled = new Float32Array(newLength);
+                let srcIdx = resamplePhase;
+                for (let i = 0; i < newLength; i++) {
+                    if (ratio > 1.05) {
+                        // Filtro anti-aliasing de diezmado (promediado ponderado en la ventana [srcIdx, srcIdx + ratio])
+                        const start = srcIdx;
+                        const end = Math.min(float32Array.length, srcIdx + ratio);
+                        const iStart = Math.floor(start);
+                        const iEnd = Math.floor(end);
+                        let sum = 0;
+                        let weightSum = 0;
+                        for (let k = iStart; k <= iEnd && k < float32Array.length; k++) {
+                            const segStart = Math.max(start, k);
+                            const segEnd = Math.min(end, k + 1);
+                            const w = Math.max(0, segEnd - segStart);
+                            if (w > 0) {
+                                sum += float32Array[k] * w;
+                                weightSum += w;
                             }
-                            resampled[i] = weightSum > 0 ? (sum / weightSum) : (float32Array[iStart] || 0);
-                        } else {
-                            const idx = Math.floor(srcIdx);
-                            const frac = srcIdx - idx;
-                            const s0 = float32Array[idx] || 0;
-                            const s1 = (idx + 1 < float32Array.length) ? float32Array[idx + 1] : s0;
-                            resampled[i] = s0 + frac * (s1 - s0);
                         }
-                        srcIdx += ratio;
+                        resampled[i] = weightSum > 0 ? (sum / weightSum) : (float32Array[iStart] || 0);
+                    } else {
+                        const idx = Math.floor(srcIdx);
+                        const frac = srcIdx - idx;
+                        const s0 = float32Array[idx] || 0;
+                        const s1 = (idx + 1 < float32Array.length) ? float32Array[idx + 1] : s0;
+                        resampled[i] = s0 + frac * (s1 - s0);
                     }
-                    resamplePhase = Math.max(0, srcIdx - float32Array.length);
-                    dataToEncode = resampled;
-                } else {
-                    resamplePhase = 0;
+                    srcIdx += ratio;
                 }
+                resamplePhase = Math.max(0, srcIdx - float32Array.length);
+                return resampled;
+            };
 
-                if (dataToEncode.length === 0) return;
+            const encodeAndSend16k = (pcm16k: Float32Array) => {
+                if (pcm16k.length === 0) return;
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                // Normalización suave de presencia vocal SOLO sobre voz real (jamás amplificar ruido ambiente/piso)
+                // Normalización suave de presencia vocal SOLO sobre voz real (jamás amplificar ruido ambiente/silencio digital)
                 let chunkSumSq = 0;
-                for (let j = 0; j < dataToEncode.length; j++) {
-                    chunkSumSq += dataToEncode[j] * dataToEncode[j];
+                for (let j = 0; j < pcm16k.length; j++) {
+                    chunkSumSq += pcm16k[j] * pcm16k[j];
                 }
-                const chunkRms = Math.sqrt(chunkSumSq / dataToEncode.length);
-                const agcMinVoiceRms = Math.max(0.020, noiseFloorRef.current * 2.0);
+                const chunkRms = Math.sqrt(chunkSumSq / pcm16k.length);
+                const agcMinVoiceRms = Math.max(0.018, noiseFloorRef.current * 2.0);
                 const gain = (chunkRms > agcMinVoiceRms && chunkRms < 0.09)
                     ? Math.min(1.65, 0.09 / chunkRms)
                     : 1.0;
 
-                const int16Data = new Int16Array(dataToEncode.length);
-                for (let j = 0; j < dataToEncode.length; j++) {
-                    const raw = dataToEncode[j] * gain;
+                const int16Data = new Int16Array(pcm16k.length);
+                for (let j = 0; j < pcm16k.length; j++) {
+                    const raw = pcm16k[j] * gain;
                     const s = Math.abs(raw) > 0.85 ? Math.tanh(raw) : Math.max(-1, Math.min(1, raw));
                     int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
@@ -231,21 +263,282 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     binary += String.fromCharCode(bytes[i]);
                 }
                 const base64 = btoa(binary);
-                wsRef.current?.send(JSON.stringify({ type: 'audio', data: { audioData: base64 } }));
+                wsRef.current.send(JSON.stringify({ type: 'audio', data: { audioData: base64 } }));
 
                 sendCount++;
-                if (sendCount === 1 || sendCount % 50 === 0) {
-                    console.log(`[VoiceSession] Voz humana 16kHz enviada al servidor (chunk #${sendCount}, ${base64.length} chars, inRate: ${currentSampleRate})`);
+                if (sendCount === 1 || sendCount % 100 === 0) {
+                    const currentSampleRate = audioContext?.sampleRate || SILERO_SAMPLE_RATE;
+                    console.log(
+                        `[VoiceSession] Voz humana 16kHz enviada al servidor (frame #${sendCount}, ${base64.length} chars, inRate: ${currentSampleRate}, vad: ${sileroVad.isReady ? 'silero-v5' : 'fallback'})`
+                    );
+                }
+            };
+
+            const processFrame16k = (frame512: Float32Array, speechProb: number | null) => {
+                if (captureGeneration !== captureGenerationRef.current) return;
+                if (
+                    statusRef.current !== 'listening' &&
+                    statusRef.current !== 'ready' &&
+                    statusRef.current !== 'speaking'
+                ) {
+                    return;
+                }
+                if (isHardwareMutedRef.current) return;
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+                const frameDurationMs = (frame512.length / SILERO_SAMPLE_RATE) * 1000; // 32ms exactos
+                const maxPreRollChunks = Math.max(8, Math.ceil(320 / frameDurationMs)); // 320ms pre-roll (10 frames)
+                const useSilero = speechProb !== null && Number.isFinite(speechProb);
+                const prob = useSilero ? speechProb : 0;
+
+                // Energía RMS del frame 16kHz (usada para rechazar eco lejano en barge-in, pico vocal y fallback)
+                let sumSquare = 0;
+                for (let k = 0; k < frame512.length; k++) {
+                    const sample = frame512[k];
+                    sumSquare += sample * sample;
+                }
+                const rms = Math.sqrt(sumSquare / frame512.length);
+                const now = Date.now();
+
+                // ── 1. Barge-In natural y responsivo mientras Tenshi habla ──
+                if (isPlayingAudioRef.current || isAutoMutedRef.current) {
+                    const maxBargeInPreRoll = Math.max(10, Math.ceil(384 / frameDurationMs));
+                    const isBargeInFrame = useSilero
+                        ? (prob >= 0.68 && rms >= 0.022)
+                        : (rms >= Math.max(0.035, noiseFloorRef.current * 2.8));
+                    const requiredBargeInMs = useSilero ? 220 : 240;
+
+                    if (isBargeInFrame) {
+                        bargeInDurationMsRef.current += frameDurationMs;
+                    } else {
+                        bargeInDurationMsRef.current = Math.max(0, bargeInDurationMsRef.current - frameDurationMs * 1.5);
+                    }
+
+                    if (bargeInDurationMsRef.current < requiredBargeInMs) {
+                        preRollChunksRef.current.push(new Float32Array(frame512));
+                        if (preRollChunksRef.current.length > maxBargeInPreRoll) {
+                            preRollChunksRef.current.shift();
+                        }
+                        return;
+                    }
+
+                    // 🗣️ Barge-In confirmado: callar a Tenshi y abrir canal inmediatamente con pre-roll completo
+                    console.log(
+                        `[VoiceSession] 🗣️ Barge-in confirmado (${Math.round(bargeInDurationMsRef.current)}ms, ` +
+                        `${useSilero ? `Silero prob=${prob.toFixed(2)}, ` : ''}RMS=${rms.toFixed(4)}) → deteniendo voz de Tenshi`
+                    );
+                    const confirmedMs = bargeInDurationMsRef.current;
+                    bargeInDurationMsRef.current = 0;
+                    serverFinishedRef.current = true;
+                    isPlayingAudioRef.current = false;
+                    isAutoMutedRef.current = false;
+                    bargeInIgnoreAudioUntilRef.current = now + 280;
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                        autoMuteTimeoutRef.current = null;
+                    }
+                    statusRef.current = 'listening';
+                    setStatus('listening');
+                    // Pre-confirmar onset para que la frase de interrupción entre sin demora
+                    onsetSpeechMsRef.current = Math.max(128, confirmedMs);
+                    activeSpeechDurationMsRef.current = Math.max(128, confirmedMs);
+                    lastVoiceTimeRef.current = now;
+                    silenceDurationMsRef.current = 0;
+                    try {
+                        wsRef.current.send(JSON.stringify({ type: 'barge_in' }));
+                    } catch (_) {}
+                    optionsRef.current.onStatusChange?.('interrupted');
+                } else {
+                    bargeInDurationMsRef.current = 0;
+                }
+
+                // ── 2. Piso de ruido adaptativo calibrado (TOPE ESTRICTO <= 0.016, jamás 0.032) ──
+                if (rms < noiseFloorRef.current) {
+                    noiseFloorRef.current = noiseFloorRef.current * 0.88 + rms * 0.12;
+                } else if (!isTransmittingSpeechRef.current && (useSilero ? prob < 0.20 : rms < 0.024)) {
+                    noiseFloorRef.current = noiseFloorRef.current * 0.96 + rms * 0.04;
+                } else if (!useSilero) {
+                    noiseFloorRef.current = noiseFloorRef.current * 0.998 + rms * 0.002;
+                }
+                noiseFloorRef.current = Math.min(0.016, Math.max(0.003, noiseFloorRef.current));
+
+                // ── 3. Detección híbrida estilo Gemini Live (Silero neuronal v5 + fallback calibrado) ──
+                const openThreshold = Math.max(0.012, noiseFloorRef.current * 1.85);
+                const holdThreshold = Math.max(0.008, noiseFloorRef.current * 1.35);
+                const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
+                    ? (now - speechStartTimeRef.current)
+                    : 0;
+
+                if (!useSilero && isTransmittingSpeechRef.current) {
+                    if (!recentWindowStartAtRef.current || now - recentWindowStartAtRef.current > 2500) {
+                        recentWindowStartAtRef.current = now;
+                        recentWindowPeakRmsRef.current = rms;
+                    } else if (rms > recentWindowPeakRmsRef.current) {
+                        recentWindowPeakRmsRef.current = rms;
+                    }
+                }
+
+                // Protección contra ruido plano SOLO en fallback (Silero neuronal ya rechaza ventiladores/AC/teclado)
+                const isSteadyBackgroundNoise =
+                    !useSilero &&
+                    isTransmittingSpeechRef.current &&
+                    continuousSpeechMs > 6000 &&
+                    rms < 0.025 &&
+                    recentWindowPeakRmsRef.current < 0.028;
+
+                if (isSteadyBackgroundNoise) {
+                    noiseFloorRef.current = Math.min(0.016, Math.max(noiseFloorRef.current, rms * 1.05));
+                }
+
+                // Compuerta cerrada: evaluar apertura de voz
+                if (!isTransmittingSpeechRef.current) {
+                    const requiredOnsetMs = useSilero ? 64 : 96; // Silero: 2 frames (64ms); Fallback: 3 frames (96ms)
+                    const isClearVocalPeak = useSilero && rms >= 0.045 && prob >= 0.30;
+                    const isOpenFrame = useSilero ? (prob >= 0.48 || isClearVocalPeak) : (rms >= openThreshold);
+
+                    if (isClearVocalPeak) {
+                        // Pico vocal claro confirmado con probabilidad neuronal: abrir sin espera extra
+                        onsetSpeechMsRef.current = Math.max(onsetSpeechMsRef.current + frameDurationMs, requiredOnsetMs);
+                        lastVoiceTimeRef.current = now;
+                    } else if (isOpenFrame) {
+                        onsetSpeechMsRef.current += frameDurationMs;
+                        lastVoiceTimeRef.current = now;
+                    } else {
+                        onsetSpeechMsRef.current = Math.max(0, onsetSpeechMsRef.current - frameDurationMs * 1.5);
+                    }
+
+                    if (onsetSpeechMsRef.current < requiredOnsetMs) {
+                        preRollChunksRef.current.push(new Float32Array(frame512));
+                        if (preRollChunksRef.current.length > maxPreRollChunks) {
+                            preRollChunksRef.current.shift();
+                        }
+                        return;
+                    }
+
+                    // Compuerta abierta: voz humana confirmada → vaciar pre-roll de 320ms + frame actual
+                    isTransmittingSpeechRef.current = true;
+                    speechStartTimeRef.current = now - onsetSpeechMsRef.current;
+                    activeSpeechDurationMsRef.current = onsetSpeechMsRef.current;
+                    lastVoiceTimeRef.current = now;
+                    silenceDurationMsRef.current = 0;
+                    recentWindowStartAtRef.current = now;
+                    recentWindowPeakRmsRef.current = rms;
+
+                    if (preRollChunksRef.current.length > 0) {
+                        const flushed = [...preRollChunksRef.current];
+                        preRollChunksRef.current = [];
+                        for (const pastFrame of flushed) {
+                            encodeAndSend16k(pastFrame);
+                        }
+                    }
+                    encodeAndSend16k(frame512);
+                    return;
+                }
+
+                // Compuerta abierta: mantener voz con histéresis suave (prob >= 0.30 en Silero, holdThreshold en fallback)
+                const isSpeechNow = useSilero
+                    ? (prob >= 0.30)
+                    : (!isSteadyBackgroundNoise && rms >= holdThreshold);
+
+                if (isSpeechNow) {
+                    lastVoiceTimeRef.current = now;
+                    silenceDurationMsRef.current = 0;
+                    activeSpeechDurationMsRef.current += frameDurationMs;
+                    if (preRollChunksRef.current.length > 0) {
+                        preRollChunksRef.current = [];
+                    }
+                } else {
+                    silenceDurationMsRef.current += frameDurationMs;
+                }
+
+                // Cierre rápido estilo Gemini Live:
+                // - Cola natural de 380ms (conserva pausas breves entre palabras y consonantes finales)
+                // - Ventana de silencio digital limpio de 220ms (380ms–600ms) enviando ceros PCM (coincide con silenceDurationMs: 500 de Google)
+                const timeSinceLastVoice = Math.max(
+                    silenceDurationMsRef.current,
+                    lastVoiceTimeRef.current ? (now - lastVoiceTimeRef.current) : 0
+                );
+                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 380;
+                const isInSilenceFlushWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 380 && timeSinceLastVoice < 600;
+                const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
+
+                if (!shouldTransmitAudio) {
+                    preRollChunksRef.current.push(new Float32Array(frame512));
+                    if (preRollChunksRef.current.length > maxPreRollChunks) {
+                        preRollChunksRef.current.shift();
+                    }
+
+                    // Ventana de cierre (380ms – 600ms): enviar ceros PCM puros para disparar VAD de Google al instante
+                    if (isInSilenceFlushWindow) {
+                        encodeAndSend16k(new Float32Array(frame512.length));
+                        return;
+                    }
+
+                    const speechDurationMs = Math.round(activeSpeechDurationMsRef.current);
+                    const hadRealSpeech = !isSteadyBackgroundNoise && activeSpeechDurationMsRef.current >= 160;
+                    isTransmittingSpeechRef.current = false;
+                    speechStartTimeRef.current = 0;
+                    activeSpeechDurationMsRef.current = 0;
+                    onsetSpeechMsRef.current = 0;
+                    silenceDurationMsRef.current = 0;
+                    recentWindowPeakRmsRef.current = 0;
+                    recentWindowStartAtRef.current = 0;
+                    bargeInIgnoreAudioUntilRef.current = 0;
+                    if (hadRealSpeech) {
+                        try {
+                            wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
+                            console.log(
+                                `[VoiceSession] Fin de voz detectado (${speechDurationMs}ms, ${useSilero ? 'Silero-v5' : 'Fallback'}) → speech_end enviado`
+                            );
+                        } catch (e) {
+                            console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
+                        }
+                    } else if (isSteadyBackgroundNoise) {
+                        console.log(`[VoiceSession] Ruido ambiente constante detectado → compuerta cerrada (noiseFloor=${noiseFloorRef.current.toFixed(4)})`);
+                    }
+                    return;
+                }
+
+                encodeAndSend16k(frame512);
+            };
+
+            const drainFrameQueue = async () => {
+                if (isDrainingFrames) return;
+                isDrainingFrames = true;
+                try {
+                    while (queuedFrames16k.length > 0) {
+                        if (captureGeneration !== captureGenerationRef.current) {
+                            queuedFrames16k.length = 0;
+                            break;
+                        }
+                        const frame512 = queuedFrames16k.shift()!;
+                        let speechProb: number | null = null;
+                        if (sileroVad.isReady) {
+                            speechProb = await sileroVad.processChunk16k(frame512);
+                            if (captureGeneration !== captureGenerationRef.current) {
+                                queuedFrames16k.length = 0;
+                                break;
+                            }
+                            if (speechProb === null && sileroVad.isReady) {
+                                speechProb = sileroVad.lastSpeechProb;
+                            }
+                        }
+                        processFrame16k(frame512, speechProb);
+                    }
+                } finally {
+                    isDrainingFrames = false;
                 }
             };
 
             const sendPCMChunk = (float32Array: Float32Array) => {
+                if (captureGeneration !== captureGenerationRef.current) return;
                 // Permitir ejecución en 'listening', 'ready' y también en 'speaking' para detectar interrupción natural (Barge-In)
                 if (
                     statusRef.current !== 'listening' &&
                     statusRef.current !== 'ready' &&
                     statusRef.current !== 'speaking'
                 ) {
+                    frame16kPending = new Float32Array(0);
                     return;
                 }
                 // Grace period: descartar primeros 200ms de captura para abrir el canal de audio con silencio limpio sin pops
@@ -256,197 +549,45 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     bargeInDurationMsRef.current = 0;
                     onsetSpeechMsRef.current = 0;
                     activeSpeechDurationMsRef.current = 0;
+                    silenceDurationMsRef.current = 0;
+                    frame16kPending = new Float32Array(0);
+                    queuedFrames16k.length = 0;
                     return;
                 }
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                const effectiveSampleRate = audioContext?.sampleRate || 16000;
-                const chunkDurationMs = (float32Array.length / effectiveSampleRate) * 1000;
-                const maxPreRollChunks = Math.max(5, Math.ceil(360 / chunkDurationMs));
+                // Re-muestrear a 16kHz una sola vez y segmentar en frames exactos de 512 muestras (32ms)
+                const pcm16k = resampleTo16k(float32Array);
+                if (pcm16k.length === 0) return;
 
-                // ── Voice Activity Detection (VAD) con Barge-In Anti-Suspiro (>=380ms) y Piso Adaptativo Anti-Ruido ──
-                // Calcular energía RMS (Root Mean Square) del chunk de audio
-                let sumSquare = 0;
-                for (let k = 0; k < float32Array.length; k++) {
-                    const sample = float32Array[k];
-                    sumSquare += sample * sample;
-                }
-                const rms = Math.sqrt(sumSquare / float32Array.length);
-
-                // Si Suri/Tenshi está hablando actualmente, evaluar Barge-In (interrupción natural por voz humana sostenida)
-                if (isPlayingAudioRef.current || isAutoMutedRef.current) {
-                    const maxBargeInPreRoll = Math.max(6, Math.ceil(420 / chunkDurationMs));
-                    preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > maxBargeInPreRoll) {
-                        preRollChunksRef.current.shift();
-                    }
-
-                    // Umbral anti-eco / anti-suspiro: exige habla humana sostenida >= 380ms (bloquea suspiros/ruidos < 350ms independientemente del sampleRate)
-                    const bargeInThreshold = Math.max(0.045, noiseFloorRef.current * 3.6);
-                    if (rms >= bargeInThreshold) {
-                        bargeInDurationMsRef.current += chunkDurationMs;
-                    } else {
-                        bargeInDurationMsRef.current = Math.max(0, bargeInDurationMsRef.current - chunkDurationMs * 1.5);
-                    }
-
-                    if (bargeInDurationMsRef.current < 380) {
-                        return;
-                    }
-
-                    // 🗣️ Barge-In confirmado (>= 380ms de voz humana clara): callar a Suri y abrir canal con pre-roll completo
-                    console.log(`[VoiceSession] 🗣️ Barge-in confirmado (${Math.round(bargeInDurationMsRef.current)}ms, RMS=${rms.toFixed(4)}) → deteniendo voz de Suri`);
-                    const confirmedMs = bargeInDurationMsRef.current;
-                    bargeInDurationMsRef.current = 0;
-                    serverFinishedRef.current = true;
-                    isPlayingAudioRef.current = false;
-                    isAutoMutedRef.current = false;
-                    bargeInIgnoreAudioUntilRef.current = Date.now() + 280;
-                    if (autoMuteTimeoutRef.current) {
-                        clearTimeout(autoMuteTimeoutRef.current);
-                        autoMuteTimeoutRef.current = null;
-                    }
-                    statusRef.current = 'listening';
-                    setStatus('listening');
-                    // Pre-confirmar onset para que la frase de interrupción entre sin demora
-                    onsetSpeechMsRef.current = Math.max(160, confirmedMs);
-                    activeSpeechDurationMsRef.current = Math.max(160, confirmedMs);
-                    try {
-                        wsRef.current.send(JSON.stringify({ type: 'barge_in' }));
-                    } catch (_) {}
-                    optionsRef.current.onStatusChange?.('interrupted');
+                let combined: Float32Array;
+                if (frame16kPending.length === 0) {
+                    combined = pcm16k;
                 } else {
-                    bargeInDurationMsRef.current = 0;
+                    combined = new Float32Array(frame16kPending.length + pcm16k.length);
+                    combined.set(frame16kPending, 0);
+                    combined.set(pcm16k, frame16kPending.length);
                 }
 
-                // Umbrales con histéresis sobre piso adaptativo (permite aprender ruido ambiente constante hasta 0.032 sin bloquear habla humana)
-                const openThreshold = Math.max(0.012, noiseFloorRef.current * 2.15);
-                const holdThreshold = Math.max(0.0085, noiseFloorRef.current * 1.55);
-                const now = Date.now();
-                const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
-                    ? (now - speechStartTimeRef.current)
-                    : 0;
+                let offset = 0;
+                while (offset + SILERO_FRAME_SAMPLES <= combined.length) {
+                    const frame512 = combined.slice(offset, offset + SILERO_FRAME_SAMPLES);
+                    offset += SILERO_FRAME_SAMPLES;
 
-                // Rastrear picos de envolvente cada 2.5s para detectar ruido de fondo plano constante (ej. ventilador/AC en 0.025-0.035)
-                if (isTransmittingSpeechRef.current) {
-                    if (!recentWindowStartAtRef.current || now - recentWindowStartAtRef.current > 2500) {
-                        recentWindowStartAtRef.current = now;
-                        recentWindowPeakRmsRef.current = rms;
-                    } else if (rms > recentWindowPeakRmsRef.current) {
-                        recentWindowPeakRmsRef.current = rms;
-                    }
-                }
-
-                const isSteadyBackgroundNoise =
-                    isTransmittingSpeechRef.current &&
-                    continuousSpeechMs > 5500 &&
-                    rms < Math.max(0.038, noiseFloorRef.current * 2.4) &&
-                    recentWindowPeakRmsRef.current < Math.max(0.042, noiseFloorRef.current * 2.6);
-
-                if (isSteadyBackgroundNoise) {
-                    // Recalibrar el piso de ruido al nivel real del ambiente para impedir bucles de 30s de ruido
-                    noiseFloorRef.current = Math.min(0.032, Math.max(noiseFloorRef.current, rms * 1.08));
-                }
-
-                const activeThreshold = isTransmittingSpeechRef.current ? holdThreshold : openThreshold;
-                const isSpeechNow = !isSteadyBackgroundNoise && rms >= activeThreshold;
-
-                // Adaptación asimétrica del piso de ruido (0.003 – 0.032):
-                if (rms < noiseFloorRef.current) {
-                    // Baja rápido hacia el silencio real
-                    noiseFloorRef.current = noiseFloorRef.current * 0.88 + rms * 0.12;
-                } else if (!isTransmittingSpeechRef.current && rms < 0.038) {
-                    // Con compuerta cerrada: aprender ruido ambiente sostenido (AC, ventilador, oficina) en ~1.5s
-                    noiseFloorRef.current = noiseFloorRef.current * 0.95 + rms * 0.05;
-                } else if (!isSteadyBackgroundNoise) {
-                    // Durante voz humana activa: casi fijo para NO elevar el umbral mientras el usuario habla
-                    noiseFloorRef.current = noiseFloorRef.current * 0.997 + rms * 0.003;
-                }
-                noiseFloorRef.current = Math.min(0.032, Math.max(0.003, noiseFloorRef.current));
-
-                // Con compuerta cerrada: confirmar al menos 160ms sostenidos de voz antes de abrir y vaciar pre-roll (~360ms).
-                // Evita que clics de teclado, golpes o suspiros breves abran el canal hacia Gemini Live sin recortar consonantes iniciales.
-                if (!isTransmittingSpeechRef.current) {
-                    if (isSpeechNow) {
-                        onsetSpeechMsRef.current += chunkDurationMs;
-                        lastVoiceTimeRef.current = now;
+                    if (sileroVad.isReady || isDrainingFrames) {
+                        if (queuedFrames16k.length >= 12) {
+                            queuedFrames16k.shift();
+                        }
+                        queuedFrames16k.push(frame512);
                     } else {
-                        onsetSpeechMsRef.current = Math.max(0, onsetSpeechMsRef.current - chunkDurationMs * 1.5);
+                        processFrame16k(frame512, null);
                     }
-
-                    if (onsetSpeechMsRef.current < 160) {
-                        preRollChunksRef.current.push(new Float32Array(float32Array));
-                        if (preRollChunksRef.current.length > maxPreRollChunks) {
-                            preRollChunksRef.current.shift();
-                        }
-                        return;
-                    }
-
-                    // Compuerta abierta: voz humana confirmada
-                    isTransmittingSpeechRef.current = true;
-                    speechStartTimeRef.current = now - onsetSpeechMsRef.current;
-                    activeSpeechDurationMsRef.current = onsetSpeechMsRef.current;
-                    recentWindowStartAtRef.current = now;
-                    recentWindowPeakRmsRef.current = rms;
-
-                    if (preRollChunksRef.current.length > 0) {
-                        const flushed = [...preRollChunksRef.current];
-                        preRollChunksRef.current = [];
-                        for (const pastChunk of flushed) {
-                            encodeAndSend(pastChunk);
-                        }
-                    }
-                    encodeAndSend(float32Array);
-                    return;
                 }
+                frame16kPending = offset < combined.length ? combined.slice(offset) : new Float32Array(0);
 
-                // Compuerta abierta: acumular tiempo de voz real
-                if (isSpeechNow) {
-                    lastVoiceTimeRef.current = now;
-                    activeSpeechDurationMsRef.current += chunkDurationMs;
+                if (queuedFrames16k.length > 0 && !isDrainingFrames) {
+                    void drainFrameQueue();
                 }
-
-                // Cola acústica continua de 550ms para NO cortar pausas entre palabras dentro de una misma oración,
-                // seguida de 250ms de silencio digital limpio (550–800ms) para que el VAD nativo de Google cierre el turno rápido sin recortar sílabas.
-                const timeSinceLastVoice = now - lastVoiceTimeRef.current;
-                const isInNaturalTail = !isSteadyBackgroundNoise && timeSinceLastVoice < 550;
-                const isInSilenceFlushWindow = !isSteadyBackgroundNoise && timeSinceLastVoice >= 550 && timeSinceLastVoice < 800;
-                const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
-
-                if (!shouldTransmitAudio) {
-                    preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > maxPreRollChunks) {
-                        preRollChunksRef.current.shift();
-                    }
-
-                    // Mientras estamos en la ventana de cierre (550ms - 800ms tras hablar), enviar silencio digital limpio
-                    // al VAD de Gemini Live para cerrar el turno con fluidez
-                    if (isInSilenceFlushWindow) {
-                        encodeAndSend(new Float32Array(float32Array.length));
-                        return;
-                    }
-
-                    const hadRealSpeech = !isSteadyBackgroundNoise && activeSpeechDurationMsRef.current >= 320;
-                    isTransmittingSpeechRef.current = false;
-                    speechStartTimeRef.current = 0;
-                    activeSpeechDurationMsRef.current = 0;
-                    onsetSpeechMsRef.current = 0;
-                    recentWindowPeakRmsRef.current = 0;
-                    recentWindowStartAtRef.current = 0;
-                    bargeInIgnoreAudioUntilRef.current = 0;
-                    if (hadRealSpeech) {
-                        try {
-                            wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
-                            console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
-                        } catch (e) {
-                            console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
-                        }
-                    } else if (isSteadyBackgroundNoise) {
-                        console.log(`[VoiceSession] Ruido ambiente constante detectado → compuerta cerrada (noiseFloor=${noiseFloorRef.current.toFixed(4)})`);
-                    }
-                    return;
-                }
-
-                encodeAndSend(float32Array);
             };
 
             // 4. Crear grafo de audio con filtrado de banda de voz (85Hz - 7000Hz)
@@ -600,9 +741,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Stop Audio Capture
      */
     const stopAudioCapture = () => {
+        captureGenerationRef.current += 1;
         isStartingAudioRef.current = false;
         listeningStartTimeRef.current = 0;
         lastVoiceTimeRef.current = 0;
+        silenceDurationMsRef.current = 0;
         preRollChunksRef.current = [];
         isTransmittingSpeechRef.current = false;
         noiseFloorRef.current = 0.005;
@@ -611,6 +754,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         bargeInDurationMsRef.current = 0;
         recentWindowPeakRmsRef.current = 0;
         recentWindowStartAtRef.current = 0;
+        if (sileroVadRef.current) {
+            sileroVadRef.current.reset();
+        }
         // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -618,6 +764,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         }
         // Desconectar el nodo worklet
         if (workletNodeRef.current) {
+            try {
+                if ('port' in workletNodeRef.current && workletNodeRef.current.port) {
+                    workletNodeRef.current.port.onmessage = null;
+                }
+            } catch (_) {}
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
@@ -832,6 +983,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     isTransmittingSpeechRef.current = false;
                     activeSpeechDurationMsRef.current = 0;
                     onsetSpeechMsRef.current = 0;
+                    silenceDurationMsRef.current = 0;
                     recentWindowPeakRmsRef.current = 0;
                     recentWindowStartAtRef.current = 0;
                     statusRef.current = 'speaking';
@@ -906,6 +1058,42 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
                     break;
                 }
+                if (newStatus === 'generation_complete') {
+                    // Fin real de generación del modelo (llega mucho antes que turn_complete en gemini-3.1-flash-live-preview):
+                    // marcar serverFinishedRef = true y liberar el micrófono sin propagar textos raros a la UI.
+                    serverFinishedRef.current = true;
+                    if (!isPlayingAudioRef.current) {
+                        isAutoMutedRef.current = false;
+                        if (autoMuteTimeoutRef.current) {
+                            clearTimeout(autoMuteTimeoutRef.current);
+                            autoMuteTimeoutRef.current = null;
+                        }
+                        if (
+                            (statusRef.current as string) !== 'loading' &&
+                            (statusRef.current as string) !== 'generating_report' &&
+                            statusRef.current !== 'idle'
+                        ) {
+                            statusRef.current = 'listening';
+                            setStatus('listening');
+                            optionsRef.current.onStatusChange?.('listening');
+                        }
+                    }
+                    break;
+                }
+                if (newStatus === 'turn_complete') {
+                    serverFinishedRef.current = true;
+                    optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
+                    if (!isPlayingAudioRef.current) {
+                        isAutoMutedRef.current = false;
+                        statusRef.current = 'listening';
+                        setStatus('listening');
+                        if (autoMuteTimeoutRef.current) {
+                            clearTimeout(autoMuteTimeoutRef.current);
+                            autoMuteTimeoutRef.current = null;
+                        }
+                    }
+                    break;
+                }
                 setStatus(newStatus);
                 statusRef.current = newStatus;
                 optionsRef.current.onStatusChange?.(newStatus, message.data?.message);
@@ -914,9 +1102,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     if (!listeningStartTimeRef.current) {
                         listeningStartTimeRef.current = Date.now();
                     }
-                }
-
-                if (newStatus === 'listening' || newStatus === 'turn_complete') {
                     serverFinishedRef.current = true;
                     if (!isPlayingAudioRef.current) {
                         isAutoMutedRef.current = false;
@@ -1061,6 +1246,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     useEffect(() => {
         return () => {
             stopAudioCapture();
+            if (autoMuteTimeoutRef.current) {
+                clearTimeout(autoMuteTimeoutRef.current);
+                autoMuteTimeoutRef.current = null;
+            }
+            if (sileroVadRef.current) {
+                sileroVadRef.current.dispose().catch(() => {});
+                sileroVadRef.current = null;
+            }
             if (wsRef.current) wsRef.current.close();
         };
     }, []);
@@ -1122,32 +1315,59 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const setIsPlayingAudio = useCallback((isPlaying: boolean) => {
         isPlayingAudioRef.current = isPlaying;
         console.log('[VoiceSession] setIsPlayingAudio:', isPlaying, 'serverFinished:', serverFinishedRef.current);
-        if (!isPlaying) {
-            if (serverFinishedRef.current) {
-                console.log('[VoiceSession] Playback finished & server turn complete - unmuting microphone immediately');
-                isAutoMutedRef.current = false;
+
+        if (isPlaying) {
+            if (autoMuteTimeoutRef.current) {
+                clearTimeout(autoMuteTimeoutRef.current);
+                autoMuteTimeoutRef.current = null;
+            }
+            return;
+        }
+
+        // Notificar de inmediato al backend que terminó la reproducción local para liberar isAiSpeaking = false al instante
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            try {
+                wsRef.current.send(JSON.stringify({ type: 'playback_ended' }));
+            } catch (_) {}
+        }
+
+        if (autoMuteTimeoutRef.current) {
+            clearTimeout(autoMuteTimeoutRef.current);
+            autoMuteTimeoutRef.current = null;
+        }
+
+        // Si el micrófono ya está desmuteado y escuchando (ej. barge-in o cierre limpio), no reprogramar transición redundante
+        if (!isAutoMutedRef.current && statusRef.current === 'listening') {
+            return;
+        }
+
+        const unmuteDelayMs = serverFinishedRef.current ? 120 : 700;
+        if (serverFinishedRef.current) {
+            console.log('[VoiceSession] Playback finished & server finished → unmuting mic in 120ms (acoustic echo drain)');
+        } else {
+            console.log('[VoiceSession] Playback finished awaiting generation_complete → safety unmute in 700ms');
+        }
+
+        autoMuteTimeoutRef.current = setTimeout(() => {
+            autoMuteTimeoutRef.current = null;
+            if (
+                isPlayingAudioRef.current ||
+                !wsRef.current ||
+                wsRef.current.readyState !== WebSocket.OPEN ||
+                statusRef.current === 'idle'
+            ) {
+                return;
+            }
+            isAutoMutedRef.current = false;
+            if (
+                (statusRef.current as string) !== 'loading' &&
+                (statusRef.current as string) !== 'generating_report'
+            ) {
                 statusRef.current = 'listening';
                 setStatus('listening');
                 optionsRef.current.onStatusChange?.('listening');
-                if (autoMuteTimeoutRef.current) {
-                    clearTimeout(autoMuteTimeoutRef.current);
-                    autoMuteTimeoutRef.current = null;
-                }
-            } else {
-                // El servidor sigue procesando el resto del turno (ej: pausa breve tras "Comprendo perfectamente.")
-                // Mantener micrófono auto-muteado hasta recibir turn_complete (o máximo 3.5s) para que el ruido ambiente no corte a Tenshi
-                if (autoMuteTimeoutRef.current) {
-                    clearTimeout(autoMuteTimeoutRef.current);
-                }
-                autoMuteTimeoutRef.current = setTimeout(() => {
-                    isAutoMutedRef.current = false;
-                    statusRef.current = 'listening';
-                    setStatus('listening');
-                    optionsRef.current.onStatusChange?.('listening');
-                    autoMuteTimeoutRef.current = null;
-                }, 3500);
             }
-        }
+        }, unmuteDelayMs);
     }, []);
 
     /**

@@ -127,7 +127,9 @@ class GeminiLiveClient extends EventEmitter {
                     if (!this.setupCompleted) {
                         // Socket closed BEFORE setup was completed (e.g. Quota Exceeded, Leaked Key, Invalid Model)
                         cleanup();
-                        reject(new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reasonStr}`));
+                        const closeErr = new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reasonStr}`);
+                        closeErr.code = code;
+                        reject(closeErr);
                     } else {
                         // Socket closed normally after being active
                         this.emit('close', code, reasonStr);
@@ -182,13 +184,19 @@ class GeminiLiveClient extends EventEmitter {
                                 }
                             }
 
-                            // 4. Handle TURN COMPLETE
+                            // 4. Handle GENERATION COMPLETE (model finished generating audio, often 20-25s before turnComplete)
+                            if (response.serverContent.generationComplete) {
+                                logger.info('[GeminiLive] ===== GENERATION COMPLETE =====');
+                                this.emit('generationComplete');
+                            }
+
+                            // 5. Handle TURN COMPLETE
                             if (response.serverContent.turnComplete) {
                                 logger.info('[GeminiLive] ===== TURN COMPLETE =====');
                                 this.emit('turnComplete');
                             }
 
-                            // 5. Handle INTERRUPTED (when user speaks while AI was generating)
+                            // 6. Handle INTERRUPTED (when user speaks while AI was generating)
                             if (response.serverContent.interrupted) {
                                 logger.info('[GeminiLive] ===== INTERRUPTED BY USER =====');
                                 this.emit('interrupted');
@@ -297,16 +305,21 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                 // REGLA INQUEBRANTABLE: DEBEN ser objetos vacíos {} (agregar languageCodes provoca Error 1011).
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                // VAD del servidor (spec oficial RealtimeInputConfig.AutomaticActivityDetection):
-                // START_SENSITIVITY_LOW evita que suspiros, respiraciones o ruido ambiente disparen turnos fantasma / barge-in;
-                // prefixPaddingMs=250 preserva consonantes iniciales y silenceDurationMs=650 mantiene fluidez natural en español.
+                // Compresión de ventana de contexto deslizante (mantiene latencia estable y evita cortes en sesiones largas)
+                ...(!this.config.disableContextCompression
+                    ? { contextWindowCompression: { slidingWindow: {} } }
+                    : {}),
+                // VAD del servidor estilo Gemini Live Nativo (spec oficial RealtimeInputConfig):
+                // START_SENSITIVITY_HIGH + END_SENSITIVITY_HIGH + silenceDurationMs=500 + START_OF_ACTIVITY_INTERRUPTS
+                // eliminan ventanas muertas y permiten respuestas en ~0.6s-1.2s e interrupciones instantáneas.
                 realtimeInputConfig: {
                     automaticActivityDetection: {
-                        startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
+                        startOfSpeechSensitivity: 'START_SENSITIVITY_HIGH',
                         endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
-                        silenceDurationMs: 650,
+                        silenceDurationMs: 500,
                         prefixPaddingMs: 250,
                     },
+                    activityHandling: 'START_OF_ACTIVITY_INTERRUPTS',
                 },
                 // Standard Tools support
                 tools: this.config.tools || [{ googleSearch: {} }],
@@ -318,7 +331,7 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
             : 0;
         const sysChars = String(setupMessage.setup?.systemInstruction?.parts?.[0]?.text || '').length;
         this.send(setupMessage);
-        logger.info(`[GeminiLive] Sent setup message (model=${setupMessage.setup?.model}, tools=${toolsCount}, systemInstructionChars=${sysChars})`);
+        logger.info(`[GeminiLive] Sent setup message (model=${setupMessage.setup?.model}, tools=${toolsCount}, systemInstructionChars=${sysChars}, contextCompression=${!this.config.disableContextCompression})`);
     }
 
     /**

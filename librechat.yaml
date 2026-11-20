@@ -556,4 +556,5 @@ mcpServers:
     headers:
       x-user-id: "{{LIBRECHAT_USER_ID}}"
       x-user-email: "{{LIBRECHAT_USER_EMAIL}}"
+      x-company-id: "{{USER_NOTEBOOKLM_COMPANY_ID}}"
 

@@ -5308,6 +5308,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           }
         } else if (newStatus === 'history_synced') {
           refetchHistoryRef.current?.();
+        } else if (newStatus === 'generation_complete') {
+          // Fin de generación del modelo manejado silenciosamente por useVoiceSession (sin mostrar texto extraño en UI)
         } else if (newStatus === 'ready' || newStatus === 'connected' || newStatus === 'listening' || newStatus === 'turn_complete') {
           if (newStatus === 'turn_complete') {
             setMessages((prev) => prev.map((m) => ({ ...m, isLiveVoice: false })));
@@ -5319,6 +5321,16 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               turnCompleteRefetchTimerRef.current = null;
               refetchHistoryRef.current?.();
             }, 1200);
+          } else if (newStatus === 'listening') {
+            // Si Tenshi ya terminó de hablar y volvió a escuchar antes de que llegue un turn_complete tardío,
+            // sellar isLiveVoice en el turno finalizado para que el próximo turno del usuario abra nueva burbuja.
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'assistant' && last.isLiveVoice) {
+                return prev.map((m) => (m.isLiveVoice ? { ...m, isLiveVoice: false } : m));
+              }
+              return prev;
+            });
           }
           setLiveActionPill('');
           setVoiceStatusText('Tenshi te escucha...');
