@@ -392,6 +392,135 @@ def _get_cookie_value(cookies: List[Dict[str, Any]], cookie_name: str) -> str:
     return ""
 
 
+def _extract_auth_freshness(cookies: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Extrae SID, expires máximo de SID/PSID y PSIDTS, y flag DBSC para comparar frescura de cookies."""
+    sid = ""
+    sid_expires = 0.0
+    psidts = ""
+    psidts_expires = 0.0
+    has_dbsc = False
+    for c in cookies or []:
+        if not isinstance(c, dict):
+            continue
+        name = str(c.get("name", "")).strip()
+        val = str(c.get("value", "")).strip()
+        if not name or not val:
+            continue
+        raw_exp = c.get("expires", c.get("expirationDate", 0))
+        try:
+            exp_val = float(raw_exp) if raw_exp is not None else 0.0
+        except (TypeError, ValueError):
+            exp_val = 0.0
+        if exp_val < 0:
+            exp_val = 0.0
+        if "PSIDRTS" in name.upper():
+            has_dbsc = True
+        if name in ("SID", "__Secure-1PSID", "__Secure-3PSID"):
+            if name == "SID" or not sid:
+                sid = val
+            if exp_val > sid_expires:
+                sid_expires = exp_val
+        if name in ("__Secure-1PSIDTS", "__Secure-3PSIDTS"):
+            if name == "__Secure-1PSIDTS" or not psidts:
+                psidts = val
+            if exp_val > psidts_expires:
+                psidts_expires = exp_val
+    return {
+        "sid": sid,
+        "sid_expires": sid_expires,
+        "psidts": psidts,
+        "psidts_expires": psidts_expires,
+        "max_auth_expires": max(sid_expires, psidts_expires),
+        "has_dbsc": has_dbsc,
+        "count": len(cookies or []),
+    }
+
+
+def _should_reject_incoming_cookies(
+    incoming_cookies: List[Dict[str, Any]],
+    disk_cookies: List[Dict[str, Any]],
+    disk_meta: Optional[Dict[str, Any]] = None,
+    user_id: str = "",
+    source: str = "x-notebooklm-auth",
+) -> Tuple[bool, str]:
+    """Guarda Anti-Envenenamiento: rechaza sobrescribir storage_state.json si las cookies entrantes son más viejas o DBSC downgrade."""
+    if not disk_cookies:
+        return False, "no_disk_cookies"
+    if not incoming_cookies:
+        return True, "empty_incoming_cookies"
+
+    inc = _extract_auth_freshness(incoming_cookies)
+    disk = _extract_auth_freshness(disk_cookies)
+    meta = disk_meta if isinstance(disk_meta, dict) else {}
+    last_verified_at = float(meta.get("lastVerifiedAt", 0) or 0)
+    recently_verified = (
+        (user_id and user_id in _LAST_VERIFIED_SYNC_AT)
+        or (last_verified_at > 0 and (time.time() - last_verified_at) < 86400)
+    )
+
+    # 1. Prohibir downgrade de sesión limpia (sin DBSC) a sesión con bloqueo DBSC más vieja o sin expires
+    if (not disk["has_dbsc"]) and inc["has_dbsc"] and (
+        inc["sid_expires"] <= disk["sid_expires"] or inc["sid_expires"] == 0.0
+    ):
+        logger.warning(
+            f"[Anti-Poison] Ignorando header {source} con cookies DBSC sobre sesión limpia "
+            f"(incoming_sid_exp={inc['sid_expires']} <= disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+        )
+        return True, "dbsc_downgrade_rejected"
+
+    # 2. Rechazar si el SID entrante tiene expires estrictamente más antiguo (>60s) que el de disco
+    if disk["sid_expires"] > 0 and inc["sid_expires"] > 0 and inc["sid_expires"] < disk["sid_expires"] - 60:
+        logger.warning(
+            f"[Anti-Poison] Ignorando header {source} con cookies más antiguas "
+            f"(incoming_sid_exp={inc['sid_expires']} < disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+        )
+        return True, "older_sid_expires"
+
+    # 3. Rechazar si el archivo en disco está verificado con SID expires real y el entrante trae otro SID sin expires
+    if (
+        recently_verified
+        and disk["sid"]
+        and inc["sid"]
+        and inc["sid"] != disk["sid"]
+        and disk["sid_expires"] > 0
+        and inc["sid_expires"] == 0
+    ):
+        logger.warning(
+            f"[Anti-Poison] Ignorando header {source} con SID distinto sin expires frente a sesión verificada en disco "
+            f"(incoming_sid_exp=0 < disk_sid_exp={disk['sid_expires']}, user='{user_id}')."
+        )
+        return True, "missing_sid_expires_over_verified_disk"
+
+    # 4. Si es el mismo SID pero __Secure-1PSIDTS entrante es más antiguo que el de disco
+    if (
+        disk["sid"]
+        and inc["sid"]
+        and disk["sid"] == inc["sid"]
+        and disk["psidts_expires"] > 0
+        and inc["psidts_expires"] > 0
+        and inc["psidts_expires"] < disk["psidts_expires"] - 60
+    ):
+        logger.warning(
+            f"[Anti-Poison] Ignorando header {source} con __Secure-1PSIDTS más antiguo "
+            f"(incoming_psidts_exp={inc['psidts_expires']} < disk_psidts_exp={disk['psidts_expires']}, user='{user_id}')."
+        )
+        return True, "older_psidts_expires"
+
+    # 5. Rechazar si el expires máximo de auth (SID/PSID/PSIDTS) es más antiguo que disco
+    if (
+        disk["max_auth_expires"] > 0
+        and inc["max_auth_expires"] > 0
+        and inc["max_auth_expires"] < disk["max_auth_expires"] - 60
+    ):
+        logger.warning(
+            f"[Anti-Poison] Ignorando header {source} con auth expires más antiguo "
+            f"(incoming_max_exp={inc['max_auth_expires']} < disk_max_exp={disk['max_auth_expires']}, user='{user_id}')."
+        )
+        return True, "older_max_auth_expires"
+
+    return False, "ok"
+
+
 def _sync_disk_cookies_to_mongo(
     user_id: str,
     user_email: str,
@@ -399,8 +528,14 @@ def _sync_disk_cookies_to_mongo(
     psidts_rotated: bool = False,
     verified: bool = False,
 ) -> None:
-    """Sincroniza de vuelta hacia MongoDB (NotebookSession y GoogleFlowSession) las cookies rotadas en disco."""
+    """Sincroniza de vuelta hacia MongoDB (NotebookSession y GoogleFlowSession) las cookies rotadas o verificadas en disco.
+    PROHIBIDO sincronizar sin rotación real de PSIDTS ni verificación RPC real (evita envenenar MongoDB)."""
     if not user_id or not storage_file.exists() or storage_file.stat().st_size == 0:
+        return
+    if not psidts_rotated and not verified:
+        logger.debug(
+            f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para '{user_id}': psidts_rotated=False y verified=False."
+        )
         return
     try:
         data = json.loads(storage_file.read_text(encoding="utf-8"))
@@ -708,6 +843,19 @@ async def _mark_session_verified_after_rpc(tool_name: str, result: Any = None) -
 
     _LAST_VERIFIED_SYNC_AT[user_id] = (now_mono, session_sig)
     _PENDING_VERIFIED_SYNC_USERS.discard(user_id)
+
+    # Registrar lastVerifiedAt en disco para que el guarda Anti-Poison conozca que este perfil está verificado en vivo
+    try:
+        async with _get_profile_lock(safe_profile):
+            if storage_file.exists() and storage_file.stat().st_size > 0:
+                disk_doc = json.loads(storage_file.read_text(encoding="utf-8"))
+                if not isinstance(disk_doc.get("notebooklm"), dict):
+                    disk_doc["notebooklm"] = {}
+                disk_doc["notebooklm"]["lastVerifiedAt"] = time.time()
+                _atomic_write_json_file(storage_file, json.dumps(disk_doc, indent=2))
+    except Exception as ver_write_err:
+        logger.debug(f"[RPC Verified] Aviso guardando lastVerifiedAt en disco para '{user_id}': {ver_write_err}")
+
     logger.debug(f"[RPC Verified] Sincronizando verified=True tras '{tool_name}' para '{user_id}'.")
     await asyncio.to_thread(
         _sync_disk_cookies_to_mongo,
@@ -938,25 +1086,37 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
     psidts_rotated = False
 
     async with _get_profile_lock(safe_profile):
-        # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil solo si la sesión cambió
+        # Si el usuario suministró credenciales privadas en la cabecera, actualizamos su perfil solo si la sesión cambió y NO es más antigua
         if user_auth:
             cookies = _safe_parse_cookies(user_auth)
             if cookies:
                 cookies_changed = True
                 existing_cookies: List[Dict[str, Any]] = []
+                existing_nb_meta: Dict[str, Any] = {}
                 if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
                     try:
                         existing_json = json.loads(user_storage_file.read_text(encoding="utf-8"))
                         existing_cookies = existing_json.get("cookies", [])
-                        ex_sid = _extract_sid(existing_cookies)
-                        new_sid = _extract_sid(cookies)
-                        if ex_sid and ex_sid == new_sid and _has_psidts(existing_cookies):
+                        existing_nb_meta = existing_json.get("notebooklm", {}) if isinstance(existing_json.get("notebooklm"), dict) else {}
+                        reject_poison, _poison_reason = _should_reject_incoming_cookies(
+                            cookies,
+                            existing_cookies,
+                            disk_meta=existing_nb_meta,
+                            user_id=user_id,
+                            source="x-notebooklm-auth",
+                        )
+                        if reject_poison:
                             cookies_changed = False
                         else:
-                            old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
-                            new_pairs = {(c.get("name"), c.get("value")) for c in cookies if isinstance(c, dict)}
-                            if old_pairs and old_pairs == new_pairs:
+                            ex_sid = _extract_sid(existing_cookies)
+                            new_sid = _extract_sid(cookies)
+                            if ex_sid and ex_sid == new_sid and _has_psidts(existing_cookies):
                                 cookies_changed = False
+                            else:
+                                old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies if isinstance(c, dict)}
+                                new_pairs = {(c.get("name"), c.get("value")) for c in cookies if isinstance(c, dict)}
+                                if old_pairs and old_pairs == new_pairs:
+                                    cookies_changed = False
                     except Exception:
                         cookies_changed = True
 
@@ -1020,28 +1180,40 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
                                 # Comprobar si el archivo en disco no existe o si el usuario vinculó una sesión NUEVA en MongoDB
                                 needs_write = not user_storage_file.exists() or user_storage_file.stat().st_size == 0
                                 existing_cookies_disk: List[Dict[str, Any]] = []
+                                existing_disk_meta: Dict[str, Any] = {}
                                 if not needs_write:
                                     try:
                                         existing_data = json.loads(user_storage_file.read_text(encoding="utf-8"))
                                         existing_cookies_disk = existing_data.get("cookies", [])
-                                        existing_updated_at = str(existing_data.get("notebooklm", {}).get("updatedAt") or "")
+                                        existing_disk_meta = existing_data.get("notebooklm", {}) if isinstance(existing_data.get("notebooklm"), dict) else {}
+                                        existing_updated_at = str(existing_disk_meta.get("updatedAt") or "")
                                         if len(existing_cookies_disk) == 0:
                                             needs_write = True
                                         else:
-                                            ex_sid = _extract_sid(existing_cookies_disk)
-                                            rem_sid = _extract_sid(fetched_cookies)
-                                            # Si es la misma sesión (mismo SID o mismo updatedAt) y en disco ya tenemos __Secure-1PSIDTS rotado, NO sobrescribir
-                                            if ex_sid and ex_sid == rem_sid and (
-                                                _has_psidts(existing_cookies_disk) or existing_updated_at == remote_updated_at
-                                            ):
-                                                needs_write = False
-                                            elif remote_updated_at and existing_updated_at == remote_updated_at:
+                                            reject_sync_poison, _ = _should_reject_incoming_cookies(
+                                                fetched_cookies,
+                                                existing_cookies_disk,
+                                                disk_meta=existing_disk_meta,
+                                                user_id=user_id,
+                                                source="internal/session",
+                                            )
+                                            if reject_sync_poison:
                                                 needs_write = False
                                             else:
-                                                old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies_disk if isinstance(c, dict)}
-                                                new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
-                                                if old_pairs != new_pairs:
-                                                    needs_write = True
+                                                ex_sid = _extract_sid(existing_cookies_disk)
+                                                rem_sid = _extract_sid(fetched_cookies)
+                                                # Si es la misma sesión (mismo SID o mismo updatedAt) y en disco ya tenemos __Secure-1PSIDTS rotado, NO sobrescribir
+                                                if ex_sid and ex_sid == rem_sid and (
+                                                    _has_psidts(existing_cookies_disk) or existing_updated_at == remote_updated_at
+                                                ):
+                                                    needs_write = False
+                                                elif remote_updated_at and existing_updated_at == remote_updated_at:
+                                                    needs_write = False
+                                                else:
+                                                    old_pairs = {(c.get("name"), c.get("value")) for c in existing_cookies_disk if isinstance(c, dict)}
+                                                    new_pairs = {(c.get("name"), c.get("value")) for c in fetched_cookies if isinstance(c, dict)}
+                                                    if old_pairs != new_pairs:
+                                                        needs_write = True
                                     except Exception:
                                         needs_write = True
 
@@ -1101,7 +1273,6 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
             await _evict_cached_client(selected_profile)
 
     active_sid = ""
-    active_disk_cookies: List[Dict[str, Any]] = []
     try:
         active_disk_cookies = json.loads(active_storage_file.read_text(encoding="utf-8")).get("cookies", [])
         active_sid = _extract_sid(active_disk_cookies)
@@ -1131,18 +1302,8 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
         client_instance = await ctx.__aenter__()
         _CLIENT_CACHE[selected_profile] = (client_instance, ctx, active_sid)
 
-    # NUNCA emitir verified=True en get_client_for_request() porque __aenter__() solo hace GET notebook.google.com
-    # y devuelve 200 incluso en sesiones muertas. verified=True solo se emite tras un RPC real exitoso.
-    if user_id and not psidts_rotated and not _has_dbsc_cookies(active_disk_cookies):
-        await asyncio.to_thread(
-            _sync_disk_cookies_to_mongo,
-            user_id,
-            user_email,
-            active_storage_file,
-            False,
-            False,
-        )
-
+    # CAPA 2 (Anti-Poison): NUNCA sincronizar hacia MongoDB desde get_client_for_request() cuando
+    # psidts_rotated=False y verified=False. Solo se sincroniza tras rotación real de PSIDTS o tras RPC real exitoso.
     return client_instance
 
 
@@ -2729,29 +2890,39 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
             if incoming_cookies and isinstance(incoming_cookies, list):
                 normalized_inc = [_normalize_cookie(c) for c in incoming_cookies if isinstance(c, dict) and c.get("name") and c.get("value")]
                 existing_cookies: List[Dict[str, Any]] = []
+                existing_nb_meta: Dict[str, Any] = {}
                 prev_last_rotated = 0.0
                 if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
                     try:
                         existing_doc = json.loads(user_storage_file.read_text(encoding="utf-8"))
                         existing_cookies = existing_doc.get("cookies", [])
-                        prev_last_rotated = float(existing_doc.get("notebooklm", {}).get("lastRotatedAt", 0) or 0)
+                        existing_nb_meta = existing_doc.get("notebooklm", {}) if isinstance(existing_doc.get("notebooklm"), dict) else {}
+                        prev_last_rotated = float(existing_nb_meta.get("lastRotatedAt", 0) or 0)
                     except Exception:
                         pass
-                merged = _merge_preserving_rotated_cookies(normalized_inc, existing_cookies)
-                from datetime import datetime, timezone
-                storage_data = {
-                    "cookies": merged,
-                    "origins": [],
-                    "notebooklm": {
-                        "version": 1,
-                        "updatedAt": datetime.now(timezone.utc).isoformat(),
-                        "lastRotatedAt": prev_last_rotated,
-                        "account": {
-                            "authuser": 0,
+                reject_refresh_poison, _ = _should_reject_incoming_cookies(
+                    normalized_inc,
+                    existing_cookies,
+                    disk_meta=existing_nb_meta,
+                    user_id=user_id,
+                    source="/api/refresh-cookies",
+                )
+                if not reject_refresh_poison:
+                    merged = _merge_preserving_rotated_cookies(normalized_inc, existing_cookies)
+                    from datetime import datetime, timezone
+                    storage_data = {
+                        "cookies": merged,
+                        "origins": [],
+                        "notebooklm": {
+                            "version": 1,
+                            "updatedAt": datetime.now(timezone.utc).isoformat(),
+                            "lastRotatedAt": prev_last_rotated,
+                            "account": {
+                                "authuser": 0,
+                            },
                         },
-                    },
-                }
-                _atomic_write_json_file(user_storage_file, json.dumps(storage_data, indent=2))
+                    }
+                    _atomic_write_json_file(user_storage_file, json.dumps(storage_data, indent=2))
 
             force_flag = bool(body.get("force", False))
             psidts_rotated = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)

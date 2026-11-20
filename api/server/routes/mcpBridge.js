@@ -13577,23 +13577,38 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
     if (!tool) {
       return res.status(400).json({ error: 'El parámetro "tool" es obligatorio.' });
     }
-    const NotebookSession = require('~/models/NotebookSession');
     companyId = await resolveTargetCompanyId(
       req.user.id,
       req.body?.companyId || req.query?.companyId
     );
-    session = companyId
-      ? await NotebookSession.findOne({ user: req.user.id, companyId }).lean().catch(() => null)
-      : null;
-    if (!session) {
-      session = await NotebookSession.findOne({
-        user: req.user.id,
-        $or: [{ companyId: null }, { companyId: { $exists: false } }],
-      })
-        .lean()
-        .catch(() => null);
+    let cookies = [];
+    if (typeof nlmRoute?.resolveValidNotebookSessionForHeader === 'function') {
+      const resolved = await nlmRoute.resolveValidNotebookSessionForHeader(req.user.id, companyId);
+      session = resolved.session;
+      cookies = resolved.isValid ? resolved.cookies : [];
+      if (resolved.companyId && !companyId) {
+        companyId = resolved.companyId;
+      }
+    } else {
+      const NotebookSession = require('~/models/NotebookSession');
+      session = companyId
+        ? await NotebookSession.findOne({ user: req.user.id, companyId })
+            .sort({ isValid: -1, updatedAt: -1 })
+            .lean()
+            .catch(() => null)
+        : null;
+      if (!session) {
+        session = await NotebookSession.findOne({
+          user: req.user.id,
+          isValid: { $ne: false },
+          'cookies.0': { $exists: true },
+        })
+          .sort({ updatedAt: -1 })
+          .lean()
+          .catch(() => null);
+      }
+      cookies = session && session.isValid !== false && Array.isArray(session.cookies) ? session.cookies : [];
     }
-    const cookies = session?.cookies || [];
     effectiveEmail = session?.email || req.user.email || '';
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';

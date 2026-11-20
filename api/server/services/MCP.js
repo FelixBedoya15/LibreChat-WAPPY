@@ -404,21 +404,55 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
         derivedSignal.addEventListener('abort', abortHandler, { once: true });
       }
 
-      const customUserVars =
+      const rawCustomUserVars =
         config?.configurable?.userMCPAuthMap?.[`${Constants.mcp_prefix}${serverName}`];
+      let effectiveCustomUserVars = rawCustomUserVars ? { ...rawCustomUserVars } : undefined;
 
-      // 🧠 Enfoque de Segundo Cerebro por Agente para Google NotebookLM
+      // 🧠 Enfoque de Segundo Cerebro por Agente + Blindaje Anti-Envenenamiento para Google NotebookLM
       let effectiveToolArgs = toolArguments;
       let assignedAgentNotebooks = [];
       if (serverName === 'notebooklm' && userId) {
         try {
           const reqBody = config?.configurable?.requestBody;
           const activeAgentId = reqBody?.agent_id;
+          const explicitCompanyId =
+            reqBody?.companyId || config?.configurable?.companyId || null;
           const sessionOverride = reqBody?.ephemeralAgent?.notebooklmNotebooks;
-          const mongoose = require('mongoose');
-          const NotebookSession =
-            mongoose.models.NotebookSession || require('~/models/NotebookSession');
-          const nbSession = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+          const nlmRoute = require('~/server/routes/notebooklm');
+
+          // SIEMPRE resolver la sesión VÁLIDA más reciente de la empresa activa (NUNCA PluginAuth viejo ni doc legacy muerto)
+          let nbSession = null;
+          if (typeof nlmRoute?.resolveValidNotebookSessionForHeader === 'function') {
+            const resolved = await nlmRoute.resolveValidNotebookSessionForHeader(
+              userId,
+              explicitCompanyId,
+            );
+            nbSession = resolved?.session || null;
+            if (resolved?.isValid && Array.isArray(resolved.cookies) && resolved.cookies.length > 0) {
+              effectiveCustomUserVars = {
+                ...(effectiveCustomUserVars || {}),
+                USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+              };
+            } else if (effectiveCustomUserVars && 'USER_NOTEBOOKLM_SESSION' in effectiveCustomUserVars) {
+              // Nunca enviar cookies muertas/viejas de PluginAuth en x-notebooklm-auth
+              effectiveCustomUserVars.USER_NOTEBOOKLM_SESSION = '';
+            }
+          } else {
+            const mongoose = require('mongoose');
+            const NotebookSession =
+              mongoose.models.NotebookSession || require('~/models/NotebookSession');
+            nbSession = await NotebookSession.findOne({ user: userId })
+              .sort({ isValid: -1, updatedAt: -1 })
+              .lean()
+              .catch(() => null);
+            if (effectiveCustomUserVars && 'USER_NOTEBOOKLM_SESSION' in effectiveCustomUserVars) {
+              effectiveCustomUserVars.USER_NOTEBOOKLM_SESSION =
+                nbSession && nbSession.isValid !== false && Array.isArray(nbSession.cookies) && nbSession.cookies.length > 0
+                  ? JSON.stringify(nbSession.cookies)
+                  : '';
+            }
+          }
+
           const dbAssigned =
             activeAgentId && nbSession?.agentNotebooks && typeof nbSession.agentNotebooks === 'object'
               ? nbSession.agentNotebooks[activeAgentId]
@@ -463,7 +497,7 @@ function createToolInstance({ res, toolName, serverName, toolDefinition, provide
           },
           user: config?.configurable?.user,
           requestBody: config?.configurable?.requestBody,
-          customUserVars,
+          customUserVars: effectiveCustomUserVars,
           flowManager,
           tokenMethods: {
             findToken,

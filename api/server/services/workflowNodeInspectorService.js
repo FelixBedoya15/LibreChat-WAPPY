@@ -5671,13 +5671,21 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
 
     const notebooks = [];
     const seenNbDocIds = new Set();
-    for (const s of [...notebooksScoped, ...(primaryNotebookSession ? [primaryNotebookSession] : [])]) {
+    for (const s of [...(primaryNotebookSession ? [primaryNotebookSession] : []), ...notebooksScoped]) {
       if (!s) continue;
       const sid = String(s._id || s.email || notebooks.length);
       if (seenNbDocIds.has(sid)) continue;
       seenNbDocIds.add(sid);
       notebooks.push(s);
     }
+    notebooks.sort((a, b) => {
+      const aValid = a?.isValid !== false ? 1 : 0;
+      const bValid = b?.isValid !== false ? 1 : 0;
+      if (bValid !== aValid) return bValid - aValid;
+      const aTime = a?.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b?.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime;
+    });
 
     const nodeCfg = ctx?.nodeConfig && typeof ctx.nodeConfig === 'object' ? ctx.nodeConfig : {};
     const configuredNotebookId = String(nodeCfg.notebookId || ctx?.options?.notebookId || '').trim();

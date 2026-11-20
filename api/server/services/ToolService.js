@@ -418,6 +418,41 @@ async function loadAgentTools({ req, res, agent, signal, tool_resources, openAIA
       userId: req.user.id,
       findPluginAuthsByKeys,
     });
+    // Anti-envenenamiento NotebookLM: jamás propagar USER_NOTEBOOKLM_SESSION obsoleto de PluginAuth
+    const nbMcpKey = `${Constants.mcp_prefix}notebooklm`;
+    if (userMCPAuthMap && userMCPAuthMap[nbMcpKey] && req.user?.id) {
+      try {
+        const nlmRoute = require('~/server/routes/notebooklm');
+        const resolved =
+          typeof nlmRoute?.resolveValidNotebookSessionForHeader === 'function'
+            ? await nlmRoute.resolveValidNotebookSessionForHeader(
+                req.user.id,
+                req.companyId || req.body?.companyId || null,
+              )
+            : null;
+        if (resolved?.isValid && Array.isArray(resolved.cookies) && resolved.cookies.length > 0) {
+          userMCPAuthMap[nbMcpKey] = {
+            ...userMCPAuthMap[nbMcpKey],
+            USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+          };
+        } else if ('USER_NOTEBOOKLM_SESSION' in userMCPAuthMap[nbMcpKey]) {
+          userMCPAuthMap[nbMcpKey] = {
+            ...userMCPAuthMap[nbMcpKey],
+            USER_NOTEBOOKLM_SESSION: '',
+          };
+        }
+      } catch (nbSanitizeErr) {
+        logger.debug(
+          `[ToolService] Aviso sanitizando USER_NOTEBOOKLM_SESSION para ${req.user.id}: ${nbSanitizeErr.message}`,
+        );
+        if ('USER_NOTEBOOKLM_SESSION' in userMCPAuthMap[nbMcpKey]) {
+          userMCPAuthMap[nbMcpKey] = {
+            ...userMCPAuthMap[nbMcpKey],
+            USER_NOTEBOOKLM_SESSION: '',
+          };
+        }
+      }
+    }
   }
 
   const { loadedTools, toolContextMap } = await loadTools({

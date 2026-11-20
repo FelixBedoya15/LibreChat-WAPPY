@@ -144,6 +144,20 @@ class WappyNotebookLM extends Tool {
       };
     }
 
+    if (typeof nlmHelpers.resolveValidNotebookSessionForHeader === 'function') {
+      const resolved = await nlmHelpers
+        .resolveValidNotebookSessionForHeader(this.userId, this.companyId)
+        .catch(() => null);
+      if (resolved) {
+        return {
+          nlmHelpers,
+          effectiveCompanyId: resolved.companyId || this.companyId || null,
+          session: resolved.session,
+          cookies: resolved.isValid ? resolved.cookies : [],
+        };
+      }
+    }
+
     const effectiveCompanyId =
       typeof nlmHelpers.resolveActiveCompanyId === 'function'
         ? await nlmHelpers
@@ -162,11 +176,13 @@ class WappyNotebookLM extends Tool {
               ? { $or: [{ companyId: effectiveCompanyId }, { companyId: null }] }
               : { $or: [{ companyId: null }, { companyId: { $exists: false } }] }),
           })
-            .sort({ companyId: -1, updatedAt: -1 })
+            .sort({ isValid: -1, updatedAt: -1 })
             .lean()
             .catch(() => null);
 
-    const cookies = Array.isArray(session?.cookies) ? session.cookies : [];
+    // NUNCA enviar cookies de una sesión marcada isValid === false en x-notebooklm-auth
+    const cookies =
+      session && session.isValid !== false && Array.isArray(session.cookies) ? session.cookies : [];
     return {
       nlmHelpers,
       effectiveCompanyId,

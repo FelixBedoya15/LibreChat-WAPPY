@@ -33,22 +33,212 @@ async function resolveActiveCompanyId(userId, explicitCompanyId = null) {
 }
 
 /**
- * Busca la sesión para la empresa activa con fallback de lectura a sesiones sin companyId
+ * Busca la sesión para la empresa activa con fallback ordenado por validez y recencia
  */
 async function findSessionForCompany(Model, userId, companyId) {
   if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
     return null;
   }
   if (companyId) {
-    const doc = await Model.findOne({ user: userId, companyId }).lean().catch(() => null);
+    const doc = await Model.findOne({ user: userId, companyId })
+      .sort({ isValid: -1, updatedAt: -1 })
+      .lean()
+      .catch(() => null);
     if (doc) return doc;
   }
-  return Model.findOne({
+  const legacyDoc = await Model.findOne({
     user: userId,
     $or: [{ companyId: null }, { companyId: { $exists: false } }],
   })
+    .sort({ isValid: -1, updatedAt: -1 })
     .lean()
     .catch(() => null);
+  if (legacyDoc && legacyDoc.isValid !== false && Array.isArray(legacyDoc.cookies) && legacyDoc.cookies.length > 0) {
+    return legacyDoc;
+  }
+  // Si no había sesión para companyId y el documento legacy (companyId: null) está muerto/ausente,
+  // buscar la sesión válida más reciente del usuario antes de devolver un documento muerto del pasado.
+  if (!companyId) {
+    const newestValid = await Model.findOne({
+      user: userId,
+      isValid: { $ne: false },
+      'cookies.0': { $exists: true },
+    })
+      .sort({ updatedAt: -1 })
+      .lean()
+      .catch(() => null);
+    if (newestValid) return newestValid;
+  }
+  return legacyDoc;
+}
+
+/**
+ * Extrae metadatos de frescura (SID, expires máximo de SID/PSID y PSIDTS, flag DBSC) de un conjunto de cookies.
+ */
+function getCookieAuthFreshness(cookies = []) {
+  const list = Array.isArray(cookies) ? cookies : [];
+  let sid = '';
+  let sidExpires = 0;
+  let psidts = '';
+  let psidtsExpires = 0;
+  let hasDbsc = false;
+
+  for (const c of list) {
+    if (!c || typeof c !== 'object') continue;
+    const name = String(c.name || '').trim();
+    const val = String(c.value || '').trim();
+    if (!name || !val) continue;
+    const exp = Number(c.expires ?? c.expirationDate ?? 0);
+    const validExp = Number.isFinite(exp) && exp > 0 ? exp : 0;
+
+    if (/PSIDRTS/i.test(name)) {
+      hasDbsc = true;
+    }
+    if (name === 'SID' || name === '__Secure-1PSID' || name === '__Secure-3PSID') {
+      if (name === 'SID' || !sid) {
+        sid = val;
+      }
+      if (validExp > sidExpires) {
+        sidExpires = validExp;
+      }
+    }
+    if (name === '__Secure-1PSIDTS' || name === '__Secure-3PSIDTS') {
+      if (name === '__Secure-1PSIDTS' || !psidts) {
+        psidts = val;
+      }
+      if (validExp > psidtsExpires) {
+        psidtsExpires = validExp;
+      }
+    }
+  }
+
+  return {
+    sid,
+    sidExpires,
+    psidts,
+    psidtsExpires,
+    maxAuthExpires: Math.max(sidExpires, psidtsExpires),
+    hasDbsc,
+    count: list.length,
+  };
+}
+
+/**
+ * Guarda Anti-Regresión: determina si un conjunto entrante de cookies es más antiguo o inferior (DBSC downgrade)
+ * que las cookies ya guardadas. Retorna { stale: boolean, reason?: string, ... }.
+ */
+function isIncomingCookieSetStale(incomingCookies = [], existingCookies = [], existingIsValid = true) {
+  if (!Array.isArray(existingCookies) || existingCookies.length === 0) {
+    return { stale: false };
+  }
+  if (!Array.isArray(incomingCookies) || incomingCookies.length === 0) {
+    return { stale: true, reason: 'empty_incoming_cookies' };
+  }
+
+  const inc = getCookieAuthFreshness(incomingCookies);
+  const ex = getCookieAuthFreshness(existingCookies);
+
+  // 1. Nunca sobrescribir una sesión limpia (sin DBSC) con cookies DBSC más antiguas o sin expires
+  if (!ex.hasDbsc && inc.hasDbsc && (inc.sidExpires <= ex.sidExpires || inc.sidExpires === 0)) {
+    return {
+      stale: true,
+      reason: 'dbsc_downgrade_rejected',
+      incomingSidExp: inc.sidExpires,
+      existingSidExp: ex.sidExpires,
+    };
+  }
+
+  // 2. Si ambos tienen SID expires, rechazar si el entrante es estrictamente más antiguo (>60s margen)
+  if (ex.sidExpires > 0 && inc.sidExpires > 0 && inc.sidExpires < ex.sidExpires - 60) {
+    return {
+      stale: true,
+      reason: 'older_sid_expires',
+      incomingSidExp: inc.sidExpires,
+      existingSidExp: ex.sidExpires,
+    };
+  }
+
+  // 3. Si la sesión existente está válida con SID expires real, rechazar un SID distinto que no trae expires
+  if (existingIsValid && ex.sid && inc.sid && ex.sid !== inc.sid && ex.sidExpires > 0 && inc.sidExpires === 0) {
+    return {
+      stale: true,
+      reason: 'missing_sid_expires_over_valid_session',
+      incomingSidExp: 0,
+      existingSidExp: ex.sidExpires,
+    };
+  }
+
+  // 4. Si es el mismo SID pero el __Secure-1PSIDTS entrante tiene expires más viejo que el guardado
+  if (
+    ex.sid &&
+    inc.sid &&
+    ex.sid === inc.sid &&
+    ex.psidtsExpires > 0 &&
+    inc.psidtsExpires > 0 &&
+    inc.psidtsExpires < ex.psidtsExpires - 60
+  ) {
+    return {
+      stale: true,
+      reason: 'older_psidts_expires',
+      incomingPsidtsExp: inc.psidtsExpires,
+      existingPsidtsExp: ex.psidtsExpires,
+    };
+  }
+
+  return { stale: false };
+}
+
+/**
+ * Resuelve la sesión válida más reciente de Google NotebookLM para inyectar en headers (x-notebooklm-auth)
+ * o entregar a notebooklm-mcp.
+ * - Siempre prioriza la empresa activa (`CompanyInfo.isActive === true`).
+ * - Ordena por `{ isValid: -1, updatedAt: -1 }`.
+ * - NUNCA devuelve cookies de una sesión marcada `isValid === false` para evitar envenenamiento.
+ */
+async function resolveValidNotebookSessionForHeader(userId, explicitCompanyId = null) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return { session: null, cookies: [], email: '', companyId: null, isValid: false };
+  }
+
+  const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
+  let session = null;
+
+  if (activeCompId) {
+    session = await NotebookSession.findOne({ user: userId, companyId: activeCompId })
+      .sort({ isValid: -1, updatedAt: -1 })
+      .lean()
+      .catch(() => null);
+  }
+
+  // Si la empresa activa no tiene documento propio, buscar la sesión VÁLIDA más reciente del usuario
+  if (!session) {
+    session = await NotebookSession.findOne({
+      user: userId,
+      isValid: { $ne: false },
+      'cookies.0': { $exists: true },
+    })
+      .sort({ isValid: -1, updatedAt: -1 })
+      .lean()
+      .catch(() => null);
+  }
+
+  if (!session || session.isValid === false || !Array.isArray(session.cookies) || session.cookies.length === 0) {
+    return {
+      session: session || null,
+      cookies: [],
+      email: session?.email || '',
+      companyId: activeCompId || null,
+      isValid: false,
+    };
+  }
+
+  return {
+    session,
+    cookies: session.cookies,
+    email: session.email || '',
+    companyId: session.companyId || activeCompId || null,
+    isValid: true,
+  };
 }
 
 // Directorio base de perfiles de NotebookLM
@@ -524,21 +714,26 @@ router.get('/internal/session/:userId', async (req, res) => {
     }
 
     const explicitCompanyId = req.query?.companyId || req.headers['x-company-id'] || null;
-    const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
-    const session = await findSessionForCompany(NotebookSession, userId, activeCompId);
-    if (!session || !session.cookies || session.cookies.length === 0) {
+    const resolved = await resolveValidNotebookSessionForHeader(userId, explicitCompanyId);
+    if (!resolved.isValid || !resolved.session || resolved.cookies.length === 0) {
       return res.status(404).json({
-        error: 'El usuario no tiene una sesión privada de Google NotebookLM vinculada.',
+        error: 'El usuario no tiene una sesión privada válida de Google NotebookLM vinculada.',
+        sessionExpired: Boolean(resolved.session && resolved.session.isValid === false),
       });
     }
+
+    const { session, cookies, companyId } = resolved;
+    const freshness = getCookieAuthFreshness(cookies);
 
     return res.json({
       success: true,
       userId,
-      companyId: activeCompId || null,
+      companyId: companyId || null,
       email: session.email || '',
-      cookies: session.cookies,
-      cookieCount: session.cookieCount || session.cookies.length,
+      isValid: true,
+      cookies,
+      cookieCount: cookies.length,
+      sidExpires: freshness.sidExpires,
       updatedAt: session.updatedAt ? new Date(session.updatedAt).toISOString() : null,
     });
   } catch (err) {
@@ -550,7 +745,7 @@ router.get('/internal/session/:userId', async (req, res) => {
 /**
  * POST /api/notebooklm/internal/session/:userId
  * Endpoint interno para que notebooklm-mcp persista de vuelta en MongoDB
- * las cookies rotadas (__Secure-1PSIDTS, SIDCC, OSID) tras ejecutar RotateCookies.
+ * las cookies rotadas (__Secure-1PSIDTS, SIDCC, OSID) tras ejecutar RotateCookies o tras verificar RPC real.
  */
 router.post('/internal/session/:userId', async (req, res) => {
   try {
@@ -567,13 +762,52 @@ router.post('/internal/session/:userId', async (req, res) => {
       req.body?.companyId || req.query?.companyId || req.headers['x-company-id'] || null;
     const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
     const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+
+    const verified = req.body?.verified === true;
+    const psidtsRotated = req.body?.psidtsRotated === true;
+
+    // CAPA 3A — Bloqueo estricto: si NO hubo verificación RPC real ni rotación real de PSIDTS, NO sobrescribir cookies en MongoDB
+    if (!verified && !psidtsRotated) {
+      logger.debug(
+        `[NotebookLM Internal] Omitiendo escritura en MongoDB para user=${userId}: verified=false y psidtsRotated=false.`
+      );
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        skipped: 'unverified_no_rotation',
+        cookieCount: existingNb?.cookies?.length || 0,
+        isValid: existingNb ? Boolean(existingNb.isValid !== false) : false,
+        sessionExpired: existingNb ? existingNb.isValid === false : true,
+      });
+    }
+
+    // CAPA 3B — Guarda Anti-Regresión: rechazar cookies entrantes con SID más antiguo (o downgrade DBSC) que el existente en MongoDB
+    const nbStaleCheck = isIncomingCookieSetStale(
+      incomingCookies,
+      existingNb?.cookies || [],
+      existingNb?.isValid !== false
+    );
+    if (nbStaleCheck.stale) {
+      logger.warn(
+        `[NotebookLM Internal][Anti-Poison] Rechazando cookies antiguas para user=${userId} (${nbStaleCheck.reason}, incSidExp=${nbStaleCheck.incomingSidExp ?? 'n/a'}, exSidExp=${nbStaleCheck.existingSidExp ?? 'n/a'}).`
+      );
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        skipped: 'stale_cookies_rejected',
+        reason: nbStaleCheck.reason,
+        cookieCount: existingNb?.cookies?.length || 0,
+        isValid: existingNb ? Boolean(existingNb.isValid !== false) : false,
+        sessionExpired: existingNb ? existingNb.isValid === false : true,
+      });
+    }
+
     const mergedNb = mergeGoogleCookiesByDomain(incomingCookies, existingNb?.cookies || []);
     const effectiveEmail =
       cleanGoogleEmailCandidate(existingNb?.email) ||
       cleanGoogleEmailCandidate(req.body?.email) ||
       `${userId}@wappy.internal`;
 
-    const verified = req.body?.verified === true;
     const nextNbIsValid = computeInternalSessionNextValidity(existingNb, verified);
 
     const nbUpdateDoc = {
@@ -596,25 +830,36 @@ router.post('/internal/session/:userId', async (req, res) => {
     try {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
       const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
-      const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
-      const nextFlowIsValid = computeInternalSessionNextValidity(existingFlow, verified);
-
-      const flowUpdateDoc = {
-        companyId: activeCompId || null,
-        email: cleanGoogleEmailCandidate(existingFlow?.email) || effectiveEmail,
-        cookies: mergedFlow,
-        cookieCount: mergedFlow.length,
-        isValid: nextFlowIsValid,
-      };
-      if (verified) {
-        flowUpdateDoc.lastTestedAt = new Date();
-      }
-
-      await GoogleFlowSession.findOneAndUpdate(
-        { user: userId, companyId: activeCompId || null },
-        flowUpdateDoc,
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+      const flowStaleCheck = isIncomingCookieSetStale(
+        mergedNb,
+        existingFlow?.cookies || [],
+        existingFlow?.isValid !== false
       );
+      if (flowStaleCheck.stale) {
+        logger.warn(
+          `[NotebookLM Internal][Anti-Poison] Omitiendo sobrescritura en GoogleFlowSession para user=${userId} (${flowStaleCheck.reason}).`
+        );
+      } else {
+        const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
+        const nextFlowIsValid = computeInternalSessionNextValidity(existingFlow, verified);
+
+        const flowUpdateDoc = {
+          companyId: activeCompId || null,
+          email: cleanGoogleEmailCandidate(existingFlow?.email) || effectiveEmail,
+          cookies: mergedFlow,
+          cookieCount: mergedFlow.length,
+          isValid: nextFlowIsValid,
+        };
+        if (verified) {
+          flowUpdateDoc.lastTestedAt = new Date();
+        }
+
+        await GoogleFlowSession.findOneAndUpdate(
+          { user: userId, companyId: activeCompId || null },
+          flowUpdateDoc,
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      }
     } catch (flowSyncErr) {
       logger.warn(
         `[NotebookLM Internal] No se pudo sincronizar GoogleFlowSession para user=${userId}: ${flowSyncErr.message}`
@@ -622,6 +867,7 @@ router.post('/internal/session/:userId', async (req, res) => {
     }
 
     return res.json({
+      ok: true,
       success: true,
       cookieCount: mergedNb.length,
       isValid: Boolean(nextNbIsValid),
@@ -2294,5 +2540,8 @@ router.detectGoogleEmailFromCookies = detectGoogleEmailFromCookies;
 router.extractGoogleEmailFromListAccountsBody = extractGoogleEmailFromListAccountsBody;
 router.extractGoogleEmailFromFlowHtml = extractGoogleEmailFromFlowHtml;
 router.computeInternalSessionNextValidity = computeInternalSessionNextValidity;
+router.getCookieAuthFreshness = getCookieAuthFreshness;
+router.isIncomingCookieSetStale = isIncomingCookieSetStale;
+router.resolveValidNotebookSessionForHeader = resolveValidNotebookSessionForHeader;
 
 module.exports = router;

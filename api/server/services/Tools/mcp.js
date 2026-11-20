@@ -37,7 +37,32 @@ async function reinitMCPServer({
   let oauthRequired = false;
   let oauthUrl = null;
   try {
-    const customUserVars = userMCPAuthMap?.[`${Constants.mcp_prefix}${serverName}`];
+    const rawCustomUserVars = userMCPAuthMap?.[`${Constants.mcp_prefix}${serverName}`];
+    let customUserVars = rawCustomUserVars ? { ...rawCustomUserVars } : undefined;
+    if (serverName === 'notebooklm' && user?.id) {
+      try {
+        const nlmRoute = require('~/server/routes/notebooklm');
+        if (typeof nlmRoute?.resolveValidNotebookSessionForHeader === 'function') {
+          const resolved = await nlmRoute.resolveValidNotebookSessionForHeader(user.id, null);
+          if (resolved?.isValid && Array.isArray(resolved.cookies) && resolved.cookies.length > 0) {
+            customUserVars = {
+              ...(customUserVars || {}),
+              USER_NOTEBOOKLM_SESSION: JSON.stringify(resolved.cookies),
+            };
+          } else if (customUserVars && 'USER_NOTEBOOKLM_SESSION' in customUserVars) {
+            // Bloquear inyección de cookies viejas/muertas almacenadas en PluginAuth
+            customUserVars.USER_NOTEBOOKLM_SESSION = '';
+          }
+        }
+      } catch (nlmAuthErr) {
+        logger.debug(
+          `[MCP Reinitialize] Aviso sanitizando USER_NOTEBOOKLM_SESSION para ${user.id}: ${nlmAuthErr.message}`,
+        );
+        if (customUserVars && 'USER_NOTEBOOKLM_SESSION' in customUserVars) {
+          customUserVars.USER_NOTEBOOKLM_SESSION = '';
+        }
+      }
+    }
     const flowManager = _flowManager ?? getFlowStateManager(getLogStores(CacheKeys.FLOWS));
     const mcpManager = getMCPManager();
 
