@@ -295,7 +295,7 @@ export default function MatrizCompatibilidadWorkspace() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-5 sm:gap-6">
       {/* ─── BANNER PRINCIPAL HERO GLASSMORPHISM (WAPPY 14-GROUP DESIGN SYSTEM) ─── */}
       <SGSSTHeroHeader
         categoryId="matriz_compatibilidad_oficial"
@@ -639,7 +639,7 @@ export default function MatrizCompatibilidadWorkspace() {
       )}
 
       {/* ─── TABLA INTERACTIVA COMPLETA ─── */}
-      <div className="w-full">
+      <div className="w-full min-w-0 max-w-full">
         <MatrizCompatibilidadTable
           conversationId={activeConvId}
           isOfficialApp={true}

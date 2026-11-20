@@ -3639,3 +3639,168 @@ html {
 .bottom-nav-safe {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
+
+/* ==========================================================================
+   Tenshi Embedded Tools & Canvas — Systemic CSS Container Queries Engine
+   Measures real container inline-size (~580px PC Split & 390px Mobile)
+   instead of viewport width; automatically restores desktop multi-column
+   grids when expanded to fullscreen (100dvw / 1280px+).
+   ========================================================================== */
+.tenshi-tool-cq {
+  container-type: inline-size;
+  container-name: tenshi-tool;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tenshi-tool-cq > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@container tenshi-tool (max-width: 760px) {
+  /* 1. Collapse desktop multi-column grids to clean 1-column */
+  .tenshi-tool-cq .grid.md\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.xl\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.sm\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.md\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.xl\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.md\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.xl\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-5:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.xl\:grid-cols-5:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-6:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.md\:grid-cols-12:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.lg\:grid-cols-12:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Balanced 2-column layout for compact 4-card KPI strips inside split panel */
+  .tenshi-tool-cq .grid.sm\:grid-cols-4:not([data-tenshi-keep-grid='true']),
+  .tenshi-tool-cq .grid[data-tenshi-grid-2='true'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* CRITICAL GRID GUARD: Reset col-span-* on descendants of collapsed 1-col grids to prevent ghost columns */
+  .tenshi-tool-cq .grid:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']) > [class*='col-span-'] {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  .tenshi-tool-cq .grid > * {
+    min-width: 0;
+  }
+
+  /* 2. Re-stack desktop side-by-side flex containers cleanly (never touching buttons / WAPPY ExpandableButton) */
+  .tenshi-tool-cq .flex-col.md\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .flex-col.lg\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .flex-col.xl\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Normalize fixed/fractional desktop column widths */
+  .tenshi-tool-cq .md\:w-1\/2:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .lg\:w-1\/2:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .lg\:w-1\/3:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .lg\:w-2\/3:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .md\:w-72:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .md\:w-80:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .lg\:w-80:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .xl\:w-80:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .lg\:w-96:not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq [class*='md:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq [class*='lg:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* 3. Proportional container spacing (preserving button/table-cell/input geometry) */
+  .tenshi-tool-cq .p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .md\:p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .lg\:p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .p-6:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .md\:p-6:not(button):not(.wappy-expand-btn):not(th):not(td) {
+    padding: 0.875rem !important;
+  }
+
+  .tenshi-tool-cq .px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .md\:px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .lg\:px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .px-6:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select) {
+    padding-inline: 0.875rem !important;
+  }
+
+  .tenshi-tool-cq .mx-6:not(button):not(.wappy-expand-btn) {
+    margin-inline: 0.875rem !important;
+  }
+
+  /* 4. WCAG-compliant fluid heading scaling inside compact container */
+  .tenshi-tool-cq .text-3xl,
+  .tenshi-tool-cq .md\:text-3xl,
+  .tenshi-tool-cq .text-4xl,
+  .tenshi-tool-cq .md\:text-4xl {
+    font-size: clamp(1.1rem, 0.9rem + 1.4cqi, 1.45rem) !important;
+    line-height: 1.25 !important;
+  }
+
+  /* 5. LiveEditor paper sheet adapts cleanly to container width */
+  .tenshi-tool-cq .live-editor-content.paper-mode {
+    padding: 14px 16px !important;
+    max-width: 100% !important;
+  }
+
+  /* 6. Scrollable data tables contained strictly within panel width (0px overflow) */
+  .tenshi-tool-cq .overflow-x-auto,
+  .tenshi-tool-cq .table-wrapper,
+  .tenshi-tool-cq .table-responsive,
+  .tenshi-tool-cq .table-container,
+  .tenshi-tool-cq .custom-table-scroll {
+    max-inline-size: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+@container tenshi-tool (max-width: 460px) {
+  /* Mobile narrow container (390px): collapse sm:* row layouts & multi-col grids */
+  .tenshi-tool-cq .flex-col.sm\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .tenshi-tool-cq .grid.sm\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.sm\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tenshi-tool-cq .p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .md\:p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .lg\:p-8:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .p-6:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .md\:p-6:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq .p-5:not(button):not(.wappy-expand-btn):not(th):not(td) {
+    padding: 0.625rem !important;
+  }
+
+  .tenshi-tool-cq .px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .md\:px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .lg\:px-8:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select),
+  .tenshi-tool-cq .px-6:not(button):not(.wappy-expand-btn):not(th):not(td):not(input):not(select) {
+    padding-inline: 0.625rem !important;
+  }
+
+  .tenshi-tool-cq .mx-6:not(button):not(.wappy-expand-btn) {
+    margin-inline: 0.625rem !important;
+  }
+
+  .tenshi-tool-cq .live-editor-content.paper-mode {
+    padding: 10px 10px !important;
+    border-radius: 8px !important;
+  }
+}

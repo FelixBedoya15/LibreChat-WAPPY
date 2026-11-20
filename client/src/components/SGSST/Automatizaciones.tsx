@@ -1757,26 +1757,26 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto overflow-x-hidden min-w-0 pb-12">
+    <div className="flex-1 flex flex-col bg-surface-secondary/30 min-h-screen h-auto overflow-y-auto overflow-x-hidden min-w-0 w-full max-w-full pb-12">
       {/* Upper header - Estilo ACPM */}
-      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-4 ${hideMainHeader ? 'py-3.5 px-6' : ''}`}>
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center p-4 sm:p-6 bg-white dark:bg-gray-900 border-b border-border-medium/40 gap-3 sm:gap-4 min-w-0 ${hideMainHeader ? 'py-3 px-4 sm:px-6' : ''}`}>
         {!hideMainHeader ? (
-          <div>
-            <h1 className="text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
-              <Cpu className="w-7 h-7 text-purple-500" />
-              Tareas y Flujos Autónomos WAPPY
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2.5 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 leading-snug">
+              <Cpu className="w-6 h-6 sm:w-7 sm:h-7 text-purple-500 shrink-0" />
+              <span className="break-words">Tareas y Flujos Autónomos WAPPY</span>
             </h1>
           </div>
         ) : (
-          <div>
-            <h2 className="text-base font-extrabold text-text-primary flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-purple-500" />
-              Vigilancia y Flujos Autónomos de Agentes IA
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base font-extrabold text-text-primary flex items-center gap-2 leading-snug">
+              <Cpu className="w-5 h-5 text-purple-500 shrink-0" />
+              <span className="break-words">Vigilancia y Flujos Autónomos de Agentes IA</span>
             </h2>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0 max-w-full w-full md:w-auto justify-start md:justify-end">
           <ExpandableButton
             onClick={() => setShowNodesDocsModal(true)}
             variant="amber"
@@ -1827,13 +1827,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
       {/* Compliance Dashboard Panel - Estilo ACPM */}
       {showDashboard && (
-        <div className="px-6 pt-4 pb-2 transform transition-all duration-300 ease-in-out origin-top">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 p-5 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
+        <div className="px-3 sm:px-6 pt-3 sm:pt-4 pb-2 transform transition-all duration-300 ease-in-out origin-top min-w-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-5 p-3.5 sm:p-5 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm min-w-0">
             
             {/* Card 1: General Success Donut Chart */}
-            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
-              <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90">
+            <div className="p-3.5 sm:p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex items-center gap-3.5 sm:gap-5 shadow-sm relative overflow-hidden group min-w-0">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center">
+                <svg viewBox="0 0 96 96" className="w-full h-full transform -rotate-90">
                   <defs>
                     <linearGradient id="complianceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#9333ea" />
@@ -1862,17 +1862,17 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-xl font-black text-text-primary">{stats.successRate}%</span>
-                  <span className="text-[8px] text-text-tertiary font-bold uppercase tracking-wider">Éxito</span>
+                  <span className="text-lg sm:text-xl font-black text-text-primary leading-none">{stats.successRate}%</span>
+                  <span className="text-[8px] text-text-tertiary font-bold uppercase tracking-wider mt-0.5">Éxito</span>
                 </div>
               </div>
               
-              <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase">Tasa de Ejecución</h4>
-                <p className="text-[11px] text-text-secondary mt-1">
+              <div className="flex-1 min-w-0 break-words">
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase leading-snug">Tasa de Ejecución</h4>
+                <p className="text-[11px] text-text-secondary mt-1 leading-relaxed">
                   Se han completado <strong className="text-purple-600 dark:text-purple-400 font-bold">{stats.successRuns}</strong> de <strong className="text-text-primary font-bold">{stats.totalRuns}</strong> corridas totales sin error.
                 </p>
-                <div className="mt-2.5">
+                <div className="mt-2">
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                     stats.successRate >= 90 
                       ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400' 
@@ -1887,13 +1887,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
             </div>
 
             {/* Card 2: Status Distribution Stacked Bar */}
-            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm">
-              <div>
-                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase flex items-center gap-1.5">
-                  <BarChart2 className="w-4 h-4 text-purple-500" />
-                  Distribución de Estados
+            <div className="p-3.5 sm:p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm min-w-0">
+              <div className="min-w-0">
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase flex items-center gap-1.5 leading-snug">
+                  <BarChart2 className="w-4 h-4 text-purple-500 shrink-0" />
+                  <span className="break-words">Distribución de Estados</span>
                 </h4>
-                <p className="text-[10px] text-text-tertiary mt-0.5">Representación del estado actual de las automatizaciones.</p>
+                <p className="text-[10px] text-text-tertiary mt-0.5 leading-relaxed">Representación del estado actual de las automatizaciones.</p>
               </div>
 
               {/* Stacked Progress Bar */}
@@ -1925,27 +1925,27 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </div>
 
               {/* Legend with percentages */}
-              <div className="grid grid-cols-3 gap-x-2 gap-y-1 mt-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3">
                 <div className="flex items-center gap-1 text-[10px] text-text-secondary font-semibold">
                   <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                  <span className="truncate">Activas: {stats.activePct}%</span>
+                  <span>Activas: {stats.activePct}%</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-text-secondary font-semibold">
                   <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                  <span className="truncate">Corriendo: {stats.runningPct}%</span>
+                  <span>Corriendo: {stats.runningPct}%</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-text-secondary font-semibold">
                   <span className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-650 shrink-0" />
-                  <span className="truncate">Off: {stats.inactivePct}%</span>
+                  <span>Off: {stats.inactivePct}%</span>
                 </div>
               </div>
             </div>
 
             {/* Card 3: Executions by Agent */}
-            <div className="p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm min-h-[120px]">
-              <div>
-                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase">Carga por Agente</h4>
-                <p className="text-[10px] text-text-tertiary mt-0.5">Top agentes con más ejecuciones programadas.</p>
+            <div className="p-3.5 sm:p-4 bg-surface-secondary/20 dark:bg-gray-950 border border-border-medium/20 rounded-2xl flex flex-col justify-between shadow-sm min-h-[112px] min-w-0">
+              <div className="min-w-0">
+                <h4 className="text-xs font-extrabold text-text-primary tracking-wide uppercase leading-snug">Carga por Agente</h4>
+                <p className="text-[10px] text-text-tertiary mt-0.5 leading-relaxed">Top agentes con más ejecuciones programadas.</p>
               </div>
               
               <div className="mt-3.5 flex flex-col gap-2.5 max-h-[96px] overflow-y-auto pr-1">
@@ -1955,10 +1955,10 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </div>
                 ) : (
                   stats.agentStats.map(agent => (
-                    <div key={agent.name} className="flex flex-col gap-1">
-                      <div className="flex justify-between items-center text-[10px] font-bold">
+                    <div key={agent.name} className="flex flex-col gap-1 min-w-0">
+                      <div className="flex justify-between items-center gap-2 text-[10px] font-bold min-w-0">
                         <span className="text-text-primary truncate">{agent.name}</span>
-                        <span className="text-purple-600 dark:text-purple-400">{agent.count} corridas ({agent.rate}%)</span>
+                        <span className="text-purple-600 dark:text-purple-400 shrink-0 whitespace-nowrap">{agent.count} corridas ({agent.rate}%)</span>
                       </div>
                       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                         <div 
@@ -1977,71 +1977,71 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       )}
 
       {/* Analytics Summary Banner - Estilo ACPM */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pt-4 pb-2">
-        <div className="p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-3.5 shadow-sm">
-          <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500">
-            <Clock className="w-5 h-5" />
+      <div data-tenshi-grid-2="true" className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 px-3 sm:px-6 pt-3 sm:pt-4 pb-2 min-w-0">
+        <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-2.5 sm:gap-3.5 shadow-sm min-w-0">
+          <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 shrink-0">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Total Tareas</div>
-            <div className="text-lg font-extrabold text-text-primary">{stats.totalCount}</div>
-          </div>
-        </div>
-
-        <div className="p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-3.5 shadow-sm">
-          <div className="p-2 rounded-xl bg-green-50 dark:bg-green-950/20 text-green-500">
-            <CheckCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Activas</div>
-            <div className="text-lg font-extrabold text-green-500">{stats.activeCount}</div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider leading-tight">Total Tareas</div>
+            <div className="text-base sm:text-lg font-extrabold text-text-primary">{stats.totalCount}</div>
           </div>
         </div>
 
-        <div className="p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-3.5 shadow-sm">
-          <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/20 text-blue-500">
-            <Loader2 className="w-5 h-5 animate-spin" />
+        <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-2.5 sm:gap-3.5 shadow-sm min-w-0">
+          <div className="p-2 rounded-xl bg-green-50 dark:bg-green-950/20 text-green-500 shrink-0">
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">En Proceso</div>
-            <div className="text-lg font-extrabold text-blue-500">{stats.runningCount}</div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider leading-tight">Activas</div>
+            <div className="text-base sm:text-lg font-extrabold text-green-500">{stats.activeCount}</div>
           </div>
         </div>
 
-        <div className="p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-3.5 shadow-sm">
-          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500">
-            <AlertTriangle className="w-5 h-5" />
+        <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-2.5 sm:gap-3.5 shadow-sm min-w-0">
+          <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/20 text-blue-500 shrink-0">
+            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Fallidas (Último Run)</div>
-            <div className="text-lg font-extrabold text-rose-500">{stats.failedCount}</div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider leading-tight">En Proceso</div>
+            <div className="text-base sm:text-lg font-extrabold text-blue-500">{stats.runningCount}</div>
+          </div>
+        </div>
+
+        <div className="p-2.5 sm:p-3 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl flex items-center gap-2.5 sm:gap-3.5 shadow-sm min-w-0">
+          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 shrink-0">
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider leading-tight">Fallidas (Último Run)</div>
+            <div className="text-base sm:text-lg font-extrabold text-rose-500">{stats.failedCount}</div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap items-center border-b border-gray-200 dark:border-gray-800 mx-6 mt-6 mb-4 gap-1">
+      <div className="flex flex-wrap items-center border-b border-gray-200 dark:border-gray-800 mx-3 sm:mx-6 mt-4 sm:mt-6 mb-4 gap-1 min-w-0">
         <button
           onClick={() => setActiveTab('list')}
-          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
+          className={`px-2.5 sm:px-4 py-2 sm:py-2.5 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'list'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          <Bot className="w-3.5 h-3.5" />
+          <Bot className="w-3.5 h-3.5 shrink-0" />
           Mis Tareas ({automations.length})
         </button>
 
         <button
           onClick={() => setActiveTab('presets')}
-          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
+          className={`px-2.5 sm:px-4 py-2 sm:py-2.5 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'presets'
               ? 'border-teal-600 text-teal-600 dark:text-teal-400 bg-teal-50/40 dark:bg-teal-950/20 rounded-t-xl'
               : 'border-transparent text-gray-500 hover:text-teal-600 dark:hover:text-teal-400'
           }`}
         >
-          <Workflow className="w-3.5 h-3.5" />
+          <Workflow className="w-3.5 h-3.5 shrink-0" />
           <span>Flujos Preestablecidos</span>
           <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300 font-extrabold">
             {presets.length || WORKFLOW_PRESETS.length}
@@ -2052,7 +2052,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
           <button
             type="button"
             onClick={() => setActiveTab('tenshi')}
-            className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-4 py-2 sm:py-2.5 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition duration-200 flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'tenshi'
                 ? 'border-[#C7F303] text-purple-700 dark:text-[#C7F303] bg-purple-50/60 dark:bg-[#0e1300]/80 rounded-t-xl'
                 : 'border-transparent text-gray-500 hover:text-purple-600 dark:hover:text-[#C7F303]'
@@ -2067,7 +2067,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
 
         <button
           onClick={() => setActiveTab('logs')}
-          className={`px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-b-2 transition duration-200 ${
+          className={`px-2.5 sm:px-4 py-2 sm:py-2.5 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition duration-200 whitespace-nowrap ${
             activeTab === 'logs'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -2108,7 +2108,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
       </div>
 
       {/* Content Area */}
-      <div className="px-6">
+      <div className="px-3 sm:px-6 min-w-0">
         {activeTab === 'list' ? (
           loading ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 border border-border-medium/30 rounded-3xl shadow-sm">
@@ -2238,13 +2238,13 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                   </div>
 
                   {/* Meta details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-100 dark:border-gray-800 pt-3.5 mb-4">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 border-t border-gray-100 dark:border-gray-800 pt-3.5 mb-4 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 text-xs text-gray-500 dark:text-gray-400">
                       <Calendar className="w-3.5 h-3.5 shrink-0 text-purple-500" />
                       <span className="truncate" title={formatScheduleText(auto)}>{formatScheduleText(auto)}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 min-w-0 text-xs text-gray-500 dark:text-gray-400">
                       <Clock className="w-3.5 h-3.5 shrink-0 text-purple-500" />
                       <span className="truncate" title={auto.nextRunAt ? `Próxima ejecución: ${new Date(auto.nextRunAt).toLocaleString()}` : 'Sin programación activa'}>
                         {auto.status === 'active' && auto.nextRunAt
@@ -2253,7 +2253,7 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 min-w-0 text-xs text-gray-500 dark:text-gray-400">
                       <Mail className="w-3.5 h-3.5 shrink-0 text-purple-500" />
                       <span className="truncate" title={auto.emails?.join(', ') || 'Sin correos'}>
                         {auto.emails?.length > 0 ? `${auto.emails.length} correo(s)` : 'Sin correos'}
@@ -3063,9 +3063,14 @@ export default function Automatizaciones({ hideMainHeader = false, defaultTab = 
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-left">
+            <div className="bg-white dark:bg-gray-900 border border-border-medium/30 rounded-2xl overflow-hidden shadow-sm max-w-full">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Historial de ejecuciones de automatizaciones"
+                className="overflow-x-auto max-w-full"
+              >
+                <table className="min-w-[680px] w-full divide-y divide-gray-200 dark:divide-gray-800 text-left">
                   <thead className="bg-gray-50 dark:bg-gray-800/50">
                     <tr>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha y Hora</th>

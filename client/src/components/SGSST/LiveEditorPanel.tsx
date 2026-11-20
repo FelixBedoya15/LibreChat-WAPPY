@@ -708,31 +708,30 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   // ── Render ────────────────────────────────────────────────────────────────
   const renderPanel = () => (
     <div
-      className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light bg-surface-primary ${
+      className={`flex flex-col h-full min-w-0 overflow-hidden transition-colors duration-300 border-l border-border-light bg-surface-primary ${
         isMaximized
-          ? 'fixed inset-0 z-[999999] w-screen h-screen m-0 rounded-none shadow-2xl'
+          ? 'fixed inset-0 z-[999999] w-[100dvw] h-[100dvh] m-0 rounded-none shadow-2xl'
           : 'w-full'
       }`}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 relative z-[300] overflow-visible"
-        style={{ minHeight: '4rem' }}
+        className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 sm:px-4 py-2 shrink-0 relative z-[300] overflow-visible min-w-0"
       >
-        <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 overflow-hidden">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 overflow-hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-sm shrink-0">
-            <FileEdit className="h-5 w-5" />
+            <FileEdit className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h2 className="text-sm font-semibold text-text-primary truncate">{title}</h2>
-            <div className="flex items-center gap-1.5">
+            <h2 className="text-xs sm:text-sm font-semibold text-text-primary truncate">{title}</h2>
+            <div className="flex items-center gap-1.5 min-w-0">
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSubmitting ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} />
-              <span className="text-xs text-text-secondary truncate">{fileName}</span>
+              <span className="text-[11px] sm:text-xs text-text-secondary truncate">{fileName}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
+        <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 overflow-visible max-w-full py-0.5">
           {(isLoading || isSaving) && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           {/* Upload */}
@@ -839,45 +838,45 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
       />
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
         {!content ? (
-          <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20">
-              <FileText className="h-8 w-8 text-blue-500 opacity-60" />
+          <div className="flex flex-col items-center justify-center h-full gap-5 p-4 sm:p-8 text-center">
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20">
+              <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-blue-500 opacity-60" />
             </div>
-            <div>
+            <div className="min-w-0 max-w-full">
               <h3 className="text-base font-semibold text-text-primary mb-1">
                 {emptyStateTitle}
               </h3>
-              <p className="text-sm text-text-secondary max-w-xs">
+              <p className="text-xs sm:text-sm text-text-secondary max-w-xs mx-auto leading-relaxed">
                 {emptyStateMessage}
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl font-bold shadow-sm hover:bg-blue-500 hover:text-white transition-all transform hover:-translate-y-0.5"
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:bg-blue-500 hover:text-white transition-all transform hover:-translate-y-0.5"
               >
-                <Upload className="h-4 w-4" />
+                <Upload className="h-4 w-4 shrink-0" />
                 Subir DOCX o PDF
               </button>
               <button
                 onClick={() => setIsReportHistoryOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-teal-500/10 text-teal-600 border border-teal-500/20 rounded-xl font-bold shadow-sm hover:bg-teal-500 hover:text-white transition-all transform hover:-translate-y-0.5"
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-teal-500/10 text-teal-600 border border-teal-500/20 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:bg-teal-500 hover:text-white transition-all transform hover:-translate-y-0.5"
               >
-                <History className="h-4 w-4" />
+                <History className="h-4 w-4 shrink-0" />
                 Cargar desde Historial
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+          <div className="w-full min-w-0 overflow-x-hidden" style={{ minHeight: '400px' }}>
             {/* ── Document Title Header (same style as SomosSST hito editors) ── */}
             <DocumentTitleHeader
               fileName={fileName}
               onRename={setFileName}
             />
-            <div style={{ minWidth: '100%', padding: isMaximized ? '24px' : '12px' }}>
+            <div className={`w-full min-w-0 ${isMaximized ? 'p-4 sm:p-6' : 'p-2 sm:p-3'}`}>
               <LiveEditor
                 ref={liveEditorRef}
                 initialContent={content}
@@ -912,7 +911,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
               </p>
             </div>
             
-            <div className="flex items-center gap-3 bg-surface-secondary px-6 py-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface-secondary px-4 sm:px-6 py-4">
               <button
                 type="button"
                 onClick={() => {
@@ -970,7 +969,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsHistoryOpen(false)}
           />
-          <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
+          <div className="relative flex h-[88dvh] sm:h-[85dvh] w-[95vw] sm:w-[90vw] max-w-5xl flex-col overflow-hidden rounded-3xl border border-border-medium bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-6 py-4">
               <div>

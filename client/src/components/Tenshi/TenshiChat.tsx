@@ -11306,7 +11306,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               {hasOpenedHeroCanvas && (
                 <div
                   className={cn(
-                    'flex-1 min-h-0 w-full overflow-hidden',
+                    'flex-1 min-h-0 w-full overflow-hidden tenshi-tool-cq',
                     heroPanelTab === 'canvas' ? 'flex flex-col' : 'hidden',
                   )}
                 >

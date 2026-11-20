@@ -1453,7 +1453,12 @@ export default function MatrizCompatibilidadTable({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-2xl border border-border-medium bg-surface-primary shadow-sm">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Inventario de sustancias químicas SGA"
+            className="overflow-x-auto max-w-full w-full rounded-2xl border border-border-medium bg-surface-primary shadow-sm"
+          >
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-border-medium bg-surface-secondary font-bold text-text-secondary uppercase">
@@ -1666,7 +1671,12 @@ export default function MatrizCompatibilidadTable({
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          <div className="overflow-auto max-w-full rounded-2xl border border-border-medium bg-surface-primary shadow-sm p-4">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Cuadrícula cruzada de compatibilidad química SGA"
+            className="overflow-auto max-w-full w-full rounded-2xl border border-border-medium bg-surface-primary shadow-sm p-2.5 sm:p-4"
+          >
             <table className="border-collapse">
               <thead>
                 <tr>
@@ -2329,14 +2339,14 @@ export default function MatrizCompatibilidadTable({
         />
 
         {/* 2. Tarjeta Colapsable: Inventario y Cuadrícula Cruzada */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
+        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 shrink-0 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
                 <Beaker className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 break-words">
                   Inventario y Matriz Cruzada de Compatibilidad Química (SGA / NTC 3966)
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400">
@@ -2345,7 +2355,7 @@ export default function MatrizCompatibilidadTable({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap max-w-full">
               <ExpandableButton
                 variant="cyan"
                 size="sm"
@@ -2363,7 +2373,7 @@ export default function MatrizCompatibilidadTable({
               />
 
               {/* Selector de vista interna: Inventario vs Cuadrícula Cruzada */}
-              <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+              <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 max-w-full">
                 <button
                   type="button"
                   onClick={() => {
@@ -2408,7 +2418,7 @@ export default function MatrizCompatibilidadTable({
           </div>
 
           {!isTableCollapsed && (
-            <div className="p-5">
+            <div className="p-2.5 sm:p-5 min-w-0 max-w-full overflow-hidden">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
@@ -2424,14 +2434,14 @@ export default function MatrizCompatibilidadTable({
         </div>
 
         {/* 3. Tarjeta Colapsable: Dashboard y Analítica Química */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
+        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 shrink-0 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 break-words">
                   Dashboard Analítico de Riesgo Químico y Almacenamiento
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400">
@@ -2568,7 +2578,7 @@ export default function MatrizCompatibilidadTable({
 
   // ── MODO PANEL LATERAL DEL CHAT (HERRAMIENTA) ──
   const panelContent = (
-    <div className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl' : 'w-full h-full bg-surface-primary text-text-primary'}`}>
+    <div className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-[100dvh] w-[100dvw] rounded-none bg-surface-primary shadow-2xl' : 'w-full h-full bg-surface-primary text-text-primary'}`}>
       {/* ── BARRA SUPERIOR DE ACCIONES ── */}
       <div
         className="relative z-[300] flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-surface-secondary px-3 py-2 sm:px-4 sm:py-0"

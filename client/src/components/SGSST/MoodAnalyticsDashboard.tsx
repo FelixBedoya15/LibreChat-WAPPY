@@ -627,14 +627,19 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
         </div>
 
         {/* Departments breakdown */}
-        <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+        <div className="bg-surface-primary border border-border-medium rounded-2xl p-4 sm:p-6 space-y-4 shadow-sm min-w-0">
           <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-blue-500" />
-            Diagnóstico por Departamento / Área
+            <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+            <span className="break-words">Diagnóstico por Departamento / Área</span>
           </h3>
           {stats.departmentStats.length > 0 ? (
-            <div className="overflow-x-auto pt-2">
-              <table className="w-full text-xs text-left border-collapse">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Diagnóstico psicosocial por departamento o área"
+              className="overflow-x-auto max-w-full pt-2"
+            >
+              <table className="w-full min-w-[300px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border-light text-text-secondary font-bold">
                     <th className="pb-2">Área</th>
@@ -763,24 +768,24 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
         <div className="lg:col-span-2 space-y-6">
 
           {/* Cards for metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div data-tenshi-grid-2="true" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 min-w-0">
             {/* Total Answers */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Users className="w-10 h-10 text-blue-500" />
+                <Users className="w-9 h-9 sm:w-10 sm:h-10 text-blue-500" />
               </div>
-              <p className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Respuestas Totales</p>
-              <h3 className="text-3xl font-black text-text-primary tracking-tight">{stats.total}</h3>
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-wider leading-tight">Respuestas Totales</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-text-primary tracking-tight">{stats.total}</h3>
               <p className="text-[10px] text-text-secondary/70 font-semibold">En los últimos {filterDays} días</p>
             </div>
 
             {/* Happy */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Smile className="w-10 h-10 text-emerald-500" />
+                <Smile className="w-9 h-9 sm:w-10 sm:h-10 text-emerald-500" />
               </div>
-              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Feliz / Motivado</p>
-              <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{stats.happy}</h3>
+              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-tight">Feliz / Motivado</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{stats.happy}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full" style={{ width: `${stats.happyPct}%` }} />
               </div>
@@ -788,12 +793,12 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             </div>
 
             {/* Neutral */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Meh className="w-10 h-10 text-amber-500" />
+                <Meh className="w-9 h-9 sm:w-10 sm:h-10 text-amber-500" />
               </div>
-              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Tranquilo / Normal</p>
-              <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{stats.neutral}</h3>
+              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider leading-tight">Tranquilo / Normal</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{stats.neutral}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-amber-500 h-full" style={{ width: `${stats.neutralPct}%` }} />
               </div>
@@ -801,12 +806,12 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
             </div>
 
             {/* Sad/Stressed */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Frown className="w-10 h-10 text-red-500" />
+                <Frown className="w-9 h-9 sm:w-10 sm:h-10 text-red-500" />
               </div>
-              <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-wider">Estresado / Agotado</p>
-              <h3 className="text-3xl font-black text-red-600 dark:text-red-400 tracking-tight">{stats.sad}</h3>
+              <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-wider leading-tight">Estresado / Agotado</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-red-600 dark:text-red-400 tracking-tight">{stats.sad}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-red-500 h-full" style={{ width: `${stats.sadPct}%` }} />
               </div>
@@ -877,9 +882,9 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
               <div className="space-y-4 pt-2">
                 {stats.topStressors.map((s, i) => (
                   <div key={s.id} className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-text-primary">{i + 1}. {s.label}</span>
-                      <span className="text-purple-600 dark:text-purple-400 font-bold">{s.count} reportes ({s.pct}%)</span>
+                    <div className="flex justify-between items-baseline gap-2 text-xs font-semibold min-w-0">
+                      <span className="text-text-primary break-words min-w-0">{i + 1}. {s.label}</span>
+                      <span className="text-purple-600 dark:text-purple-400 font-bold shrink-0 whitespace-nowrap">{s.count} reportes ({s.pct}%)</span>
                     </div>
                     <div className="w-full bg-surface-secondary h-2.5 rounded-full overflow-hidden border border-border-light">
                       <div 
@@ -898,14 +903,19 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
           </div>
 
           {/* Departments breakdown */}
-          <div className="bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm">
+          <div className="bg-surface-primary border border-border-medium rounded-2xl p-4 sm:p-6 space-y-4 shadow-sm min-w-0">
             <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-blue-500" />
-              Diagnóstico por Departamento / Área
+              <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="break-words">Diagnóstico por Departamento / Área</span>
             </h3>
             {stats.departmentStats.length > 0 ? (
-              <div className="overflow-x-auto pt-2">
-                <table className="w-full text-xs text-left border-collapse">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Diagnóstico por departamento o área"
+                className="overflow-x-auto max-w-full pt-2"
+              >
+                <table className="w-full min-w-[300px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="border-b border-border-light text-text-secondary font-bold">
                       <th className="pb-2">Área</th>
@@ -999,8 +1009,8 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
                 }
 
                 return (
-                  <div key={d._id || i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs relative group">
-                    <div className="flex items-center justify-between text-[10px] text-text-secondary font-bold uppercase tracking-wider">
+                  <div key={d._id || i} className="p-3.5 bg-surface-secondary border border-border-light rounded-xl space-y-2 text-xs relative group min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-text-secondary font-bold uppercase tracking-wider">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(d.createdAt).toLocaleDateString('es-CO', {
@@ -1088,8 +1098,13 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
           </div>
 
           {filteredData.length > 0 ? (
-            <div className="overflow-x-auto pt-2">
-              <table className="w-full text-xs text-left border-collapse">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Historial detallado de registros psicosociales"
+              className="overflow-x-auto max-w-full pt-2"
+            >
+              <table className="w-full min-w-[580px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border-light text-text-secondary font-bold">
                     <th className="pb-2.5">Fecha y Hora</th>
@@ -1168,14 +1183,15 @@ export default function MoodAnalyticsDashboard({ isMaximized }: { isMaximized?: 
       <div className="space-y-4 pt-4 border-t border-border-medium">
         {/* Additional info with dictation */}
         <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-teal-600" /> Notas adicionales del Analista (Opcional)
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2 min-w-0">
+              <AlertTriangle className="h-4 w-4 text-teal-600 shrink-0" />
+              <span>Notas adicionales del Analista (Opcional)</span>
             </h4>
             <button
               type="button"
               onClick={handleVoiceInput}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 ${
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 shrink-0 ${
                 isListening
                   ? 'bg-red-50 text-red-600 border-red-200 animate-pulse'
                   : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'

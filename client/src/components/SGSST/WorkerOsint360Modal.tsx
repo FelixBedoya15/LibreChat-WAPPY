@@ -767,17 +767,17 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
             <div className="h-11 w-11 rounded-2xl border border-teal-500/30 bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-300 shrink-0 shadow-xs">
               <ShieldCheck className="h-6 w-6" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent truncate">
+                <h2 className="text-sm sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent leading-snug break-words">
                   Investigación 360° de Trabajadores y Conductores en Colombia
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl text-[11px] font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl text-[10px] sm:text-[11px] font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   Res. 4272 · Res. 0491 · PESV · 26 Fuentes
                 </span>
               </div>
-              <p className="text-xs text-text-secondary truncate">
+              <p className="text-xs text-text-secondary leading-relaxed mt-0.5 break-words">
                 Verificación en vivo de Certificados MinTrabajo (Alturas y Confinados con descarga PDF), Rama Judicial, SIMIT, RUNT, ARL, RUAF y Matrículas Profesionales.
               </p>
             </div>
@@ -874,13 +874,13 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
                   Placa (PESV)
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <input
                     type="text"
                     value={placa}
                     onChange={(e) => setPlaca(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7))}
                     placeholder="Ej: ABC123"
-                    className="w-full h-10 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary text-sm font-mono font-bold uppercase placeholder:font-sans placeholder:font-normal placeholder:text-text-secondary/60 focus:ring-2 focus:ring-teal-500/40 outline-none"
+                    className="flex-1 min-w-0 w-full h-10 px-3 rounded-xl border border-border-medium bg-surface-primary text-text-primary text-sm font-mono font-bold uppercase placeholder:font-sans placeholder:font-normal placeholder:text-text-secondary/60 focus:ring-2 focus:ring-teal-500/40 outline-none"
                   />
                   <ExpandableButton
                     type="submit"
@@ -1076,8 +1076,13 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
 
                 {/* Tabla Historial Completo de Cursos en MinTrabajo */}
                 {historialCursos.length > 0 && (
-                  <div className="overflow-x-auto rounded-xl border border-border-medium/60">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Historial de cursos de alturas y espacios confinados MinTrabajo"
+                    className="overflow-x-auto max-w-full w-full rounded-xl border border-border-medium/60"
+                  >
+                    <table className="w-full min-w-[680px] text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-surface-secondary/90 border-b border-border-medium/60 text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
                           <th className="py-2.5 px-3">Programa</th>
@@ -1215,8 +1220,13 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border-medium/60">
-                <table className="w-full text-left border-collapse text-xs">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Procesos encontrados en Rama Judicial"
+                className="overflow-x-auto max-w-full w-full rounded-xl border border-border-medium/60"
+              >
+                <table className="w-full min-w-[600px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-surface-secondary/90 border-b border-border-medium/60 text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">
                       <th className="py-2.5 px-3">Radicado / Llave Proceso</th>
@@ -1306,10 +1316,10 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
                 return (
                   <div
                     key={portal.id}
-                    className="group rounded-2xl border border-border-medium/50 bg-surface-secondary/40 p-4 flex flex-col justify-between gap-3 transition-all duration-300 hover:border-teal-500/40 hover:shadow-md"
+                    className="group rounded-2xl border border-border-medium/50 bg-surface-secondary/40 p-3.5 sm:p-4 flex flex-col justify-between gap-3 transition-all duration-300 hover:border-teal-500/40 hover:shadow-md min-w-0"
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-start justify-between gap-1.5">
                         <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300">
                           {portal.categoria}
                         </span>
@@ -1319,15 +1329,15 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <h4 className="text-xs sm:text-sm font-extrabold text-text-primary leading-snug">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-text-primary leading-snug break-words">
                         {portal.nombre}
                       </h4>
-                      <p className="text-[11px] text-text-secondary leading-relaxed">
+                      <p className="text-[11px] text-text-secondary leading-relaxed break-words">
                         {portal.descripcion}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-border-light/60">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border-light/60 min-w-0">
                       <span className="text-[10px] font-mono text-text-secondary truncate">
                         {usesPlaca
                           ? `Placa: ${placa.trim()}`

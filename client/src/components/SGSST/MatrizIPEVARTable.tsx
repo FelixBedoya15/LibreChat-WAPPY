@@ -3238,11 +3238,11 @@ export default function MatrizIPEVARTable({
   const renderContent = () => (
     <div
       ref={containerRef}
-      className={`flex flex-col transition-colors duration-300 ${
+      className={`flex flex-col min-w-0 max-w-full transition-colors duration-300 ${
         isMaximized
-          ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl'
+          ? 'fixed inset-0 z-[999999] m-0 h-[100dvh] w-[100dvw] rounded-none bg-surface-primary shadow-2xl'
           : isOfficialApp
-            ? 'w-full bg-transparent gap-6'
+            ? 'w-full bg-transparent gap-5 sm:gap-6'
             : 'w-full h-full border-l border-border-light bg-surface-primary'
       }`}
     >
@@ -3722,16 +3722,16 @@ export default function MatrizIPEVARTable({
       {/* ── Barra de Filtros ──────────────────────────────────────────────── */}
       <div
         data-ipevar-section="filters"
-        className="relative z-[200] flex shrink-0 flex-wrap items-center gap-2 border-b border-border-light bg-surface-secondary px-4 py-2.5"
+        className="relative z-[200] flex shrink-0 flex-wrap items-center gap-2 border-b border-border-light bg-surface-secondary px-3 sm:px-4 py-2.5 min-w-0"
       >
         {/* Búsqueda libre */}
-        <div className="relative">
+        <div className="relative min-w-0 w-full sm:w-auto">
           <input
             type="search"
             placeholder="Buscar en la matriz…"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            className="h-8 min-w-[170px] rounded-xl border border-border-medium bg-surface-primary pl-7 pr-3 text-xs outline-none transition-colors placeholder:text-text-secondary focus:border-teal-400"
+            className="h-8 w-full sm:w-auto sm:min-w-[170px] rounded-xl border border-border-medium bg-surface-primary pl-7 pr-3 text-xs outline-none transition-colors placeholder:text-text-secondary focus:border-teal-400"
           />
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
             🔍
@@ -3830,8 +3830,11 @@ export default function MatrizIPEVARTable({
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
       <div
         ref={tableContainerRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Tabla Matriz IPEVR GTC 45"
         style={{ minHeight: '135px' }}
-        className="flex-1 overflow-auto custom-scrollbar-ipevar"
+        className="flex-1 w-full max-w-full overflow-auto custom-scrollbar-ipevar"
       >
         <style>{`
           .custom-scrollbar-ipevar::-webkit-scrollbar {

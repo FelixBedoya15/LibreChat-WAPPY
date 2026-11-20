@@ -480,22 +480,22 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
         <div className="lg:col-span-2 space-y-6">
           
           {/* Header Card */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-950 via-orange-900 to-amber-950 p-6 text-white shadow-md">
-            <div className="absolute inset-0 opacity-10">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-950 via-orange-900 to-amber-950 p-4 sm:p-6 text-white shadow-md min-w-0">
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
               <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-orange-400 blur-3xl -mr-20 -mt-20" />
             </div>
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 min-w-0">
+              <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs font-bold text-orange-300 tracking-wider uppercase">
-                  <Sparkles className="w-4 h-4" />
-                  Módulo de Gestión de Actos y Condiciones Inseguras
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <span className="break-words">Módulo de Gestión de Actos y Condiciones Inseguras</span>
                 </div>
-                <h2 className="text-2xl font-black tracking-tight text-white">Analítica Predictiva ACI</h2>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">Analítica Predictiva ACI</h2>
                 <p className="text-xs text-orange-100/80">Estadísticas y gestión activa de reportes del portal de trabajadores.</p>
               </div>
 
               {/* Day filter buttons */}
-              <div className="inline-flex bg-orange-950/50 border border-orange-700/50 rounded-xl p-1 gap-1 self-start sm:self-center">
+              <div className="inline-flex flex-wrap bg-orange-950/50 border border-orange-700/50 rounded-xl p-1 gap-1 self-start sm:self-center shrink-0">
                 {[7, 30, 90].map((d) => (
                   <button
                     key={d}
@@ -514,24 +514,24 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
           </div>
 
           {/* Cards for metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div data-tenshi-grid-2="true" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 min-w-0">
             {/* Total Answers */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Activity className="w-10 h-10 text-orange-500" />
+                <Activity className="w-9 h-9 sm:w-10 sm:h-10 text-orange-500" />
               </div>
-              <p className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Reportes Buzón</p>
-              <h3 className="text-3xl font-black text-text-primary tracking-tight">{data.totalReportesBuzon}</h3>
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-wider leading-tight">Reportes Buzón</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-text-primary tracking-tight">{data.totalReportesBuzon}</h3>
               <p className="text-[10px] text-text-secondary/70 font-semibold">En los últimos {filterDays} días</p>
             </div>
 
             {/* Pending */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Clock className="w-10 h-10 text-amber-500" />
+                <Clock className="w-9 h-9 sm:w-10 sm:h-10 text-amber-500" />
               </div>
-              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pendientes</p>
-              <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{data.pendientes}</h3>
+              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider leading-tight">Pendientes</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{data.pendientes}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div 
                   className="bg-amber-500 h-full" 
@@ -542,12 +542,12 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
             </div>
 
             {/* Processed */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                <CheckCircle2 className="w-9 h-9 sm:w-10 sm:h-10 text-emerald-500" />
               </div>
-              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Procesados</p>
-              <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{data.procesados}</h3>
+              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-tight">Procesados</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{data.procesados}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div 
                   className="bg-emerald-500 h-full" 
@@ -558,12 +558,12 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
             </div>
 
             {/* Finalized PDF */}
-            <div className="bg-surface-primary border border-border-medium rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="bg-surface-primary border border-border-medium rounded-2xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 relative overflow-hidden shadow-sm min-w-0">
               <div className="absolute top-0 right-0 p-3 opacity-10">
-                <FileText className="w-10 h-10 text-blue-500" />
+                <FileText className="w-9 h-9 sm:w-10 sm:h-10 text-blue-500" />
               </div>
-              <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">PDF Finalizados</p>
-              <h3 className="text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tight">{data.finalizadosPdf}</h3>
+              <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider leading-tight">PDF Finalizados</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tight">{data.finalizadosPdf}</h3>
               <div className="w-full bg-border-light dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-blue-500 h-full w-full" />
               </div>
@@ -688,13 +688,13 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
         </div>
 
         {/* Right 2 Columns: Recent Reports List & Management */}
-        <div className="md:col-span-2 bg-surface-primary border border-border-medium rounded-2xl p-6 space-y-4 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between border-b border-border-light pb-3">
-            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />
-              Buzón de Reportes Públicos Recibidos
+        <div className="md:col-span-2 bg-surface-primary border border-border-medium rounded-2xl p-4 sm:p-6 space-y-4 shadow-sm flex flex-col min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light pb-3">
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2 min-w-0">
+              <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse shrink-0" />
+              <span className="break-words">Buzón de Reportes Públicos Recibidos</span>
             </h3>
-            <span className="text-xs font-semibold text-text-secondary bg-surface-secondary px-2 py-1 rounded-md">
+            <span className="text-xs font-semibold text-text-secondary bg-surface-secondary px-2 py-1 rounded-md shrink-0">
               {data.reportesRecientes.length} Registrados
             </span>
           </div>
@@ -704,15 +704,15 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
               data.reportesRecientes.map((report) => (
                 <div 
                   key={report.id} 
-                  className={`p-4 bg-surface-secondary border rounded-xl space-y-3 text-xs transition-all ${
+                  className={`p-3.5 sm:p-4 bg-surface-secondary border rounded-xl space-y-3 text-xs transition-all min-w-0 ${
                     report.status === 'processed' 
                       ? 'border-border-light opacity-80' 
                       : 'border-orange-500/20 shadow-sm hover:border-orange-500/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-[10px] text-text-secondary font-bold uppercase tracking-wider">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-text-secondary font-bold uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-text-tertiary" />
+                      <Calendar className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
                       {new Date(report.fecha).toLocaleDateString('es-CO', {
                         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                       })}
@@ -728,19 +728,19 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-text-primary">Colaborador: {report.trabajador} ({report.cargo})</span>
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap justify-between items-center gap-1.5 text-xs">
+                      <span className="font-bold text-text-primary break-words">Colaborador: {report.trabajador} ({report.cargo})</span>
                       <span className="text-[10px] text-text-secondary bg-surface-primary border border-border-light px-2 py-0.5 rounded-md font-semibold">📍 {report.ubicacion}</span>
                     </div>
-                    <p className="text-text-primary leading-relaxed bg-surface-primary/50 p-2.5 rounded-lg border border-border-light/50">
+                    <p className="text-text-primary leading-relaxed bg-surface-primary/50 p-2.5 rounded-lg border border-border-light/50 break-words">
                       {report.descripcion}
                     </p>
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="flex items-center justify-between pt-1 border-t border-border-light/50">
-                    <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border-light/50">
+                    <div className="flex flex-wrap gap-1.5">
                       {report.hasFoto && (
                         <span className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-md">
                           📷 Con Foto
@@ -753,7 +753,7 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <button
                         disabled={loadingReportId !== null || processingId !== null}
                         onClick={() => handleOpenReport(report.id)}
@@ -932,7 +932,7 @@ Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiz
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-border-light bg-surface-secondary">
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-border-light bg-surface-secondary">
               <button
                 onClick={() => {
                   setIsModalOpen(false);

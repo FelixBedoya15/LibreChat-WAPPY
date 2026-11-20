@@ -1149,7 +1149,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
         return (
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary">
             <div
-              className={`flex-1 overflow-y-auto p-6 ${isFree ? 'pointer-events-none select-none blur-[8px] filter' : ''}`}
+              className={`flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 ${isFree ? 'pointer-events-none select-none blur-[8px] filter' : ''}`}
             >
               <MoodAnalyticsDashboard isMaximized={isMaximized} />
             </div>
@@ -1169,7 +1169,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
       case 'actos_condiciones': {
         return (
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary">
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5">
               <ActosCondicionesAnalyticsDashboard isMaximized={isMaximized} />
             </div>
           </div>
@@ -1208,7 +1208,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
     <div
       className={`flex h-full w-full flex-col overflow-hidden bg-surface-primary text-text-primary ${
         isMaximized
-          ? 'fixed inset-0 z-[9990] m-0 h-screen w-screen rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
+          ? 'fixed inset-0 z-[9990] m-0 h-[100dvh] w-[100dvw] rounded-none shadow-2xl pt-[max(env(safe-area-inset-top),2.5rem)] sm:pt-0'
           : isCompactEmbedded
             ? 'relative'
             : 'relative pt-[max(env(safe-area-inset-top),1.5rem)] sm:pt-0'
@@ -1216,7 +1216,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div
-        className={`relative z-[300] flex w-full max-w-full shrink-0 items-center justify-between gap-1.5 overflow-visible border-b border-border-light bg-surface-secondary ${
+        className={`relative z-[300] flex w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-1.5 overflow-visible border-b border-border-light bg-surface-secondary ${
           isCompactEmbedded
             ? 'px-2.5 sm:px-3 py-1.5'
             : 'px-3 sm:px-4 py-2 sm:py-0'
@@ -1263,7 +1263,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
           </div>
         </div>
 
-        <div className={`flex shrink-0 flex-nowrap items-center ${isCompactEmbedded ? 'gap-1' : 'gap-1.5 sm:gap-2'} overflow-visible py-0.5`}>
+        <div className={`flex max-w-full flex-wrap items-center justify-end ${isCompactEmbedded ? 'gap-1' : 'gap-1.5 sm:gap-2'} overflow-visible py-0.5`}>
           {hasActiveSession && fileType !== 'animo' && fileType !== 'actos_condiciones' && (
             <button
               onClick={async (e) => {
@@ -1856,7 +1856,7 @@ const CanvasPanel: React.FC<CanvasPanelProps> = ({
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsHistoryOpen(false)}
             />
-            <div className="relative flex h-[85vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
+            <div className="relative flex h-[88dvh] sm:h-[85dvh] w-[95vw] sm:w-[90vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-primary shadow-2xl duration-200 animate-in zoom-in-95">
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-6 py-4">
                 <div>

@@ -2108,7 +2108,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
           </div>
         )}
 
-        <div className={`relative flex flex-1 flex-col overflow-y-auto overflow-x-auto w-full min-w-0 transition-colors ${paperMode ? 'bg-slate-100/70 dark:bg-zinc-950/40 p-2 sm:p-5' : 'p-2'}`}>
+        <div className={`relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden w-full min-w-0 transition-colors ${paperMode ? 'bg-slate-100/70 dark:bg-zinc-950/40 p-2 sm:p-4' : 'p-2'}`}>
           <div
             ref={editorRef}
             className={`prose outline-none transition-all live-editor-content w-full min-w-0 ${!paperMode ? 'flex-1 p-3 sm:p-6 max-w-none dark:prose-invert' : 'paper-mode max-w-4xl mx-auto'} ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
@@ -2442,7 +2442,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     bottom: 0 !important;
                     right: 0 !important;
                     width: 100vw !important;
+                    width: 100dvw !important;
                     height: 100vh !important;
+                    height: 100dvh !important;
                     z-index: 999999 !important;
                     background: #fff !important;
                     margin: 0 !important;

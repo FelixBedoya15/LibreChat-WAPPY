@@ -476,37 +476,37 @@ export const TenshiEmbeddedToolHost: React.FC<TenshiEmbeddedToolHostProps> = ({
 
       case 'matriz_ipevar':
         return (
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+          <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-4">
             <LazyMatrizIPEVARTable conversationId={activeConvoId ?? null} isOfficialApp={true} />
           </div>
         );
 
       case 'matriz_pesv':
         return (
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+          <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-4">
             <LazyMatrizPESVTable conversationId={activeConvoId ?? null} isOfficialApp={true} />
           </div>
         );
 
       case 'matriz_compatibilidad':
         return (
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+          <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-4">
             <LazyMatrizCompatibilidadWorkspace />
           </div>
         );
 
       case 'consultar_analitica_psicosocial':
         return (
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-            <LazyMoodAnalyticsDashboard isMaximized={isPanelExpanded} />
+          <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-4">
+            <LazyMoodAnalyticsDashboard isMaximized={true} />
           </div>
         );
 
       case 'consultar_analitica_actos_condiciones':
         return (
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+          <div className="h-full w-full min-w-0 overflow-y-auto overflow-x-hidden p-2.5 sm:p-4">
             <LazyActosCondicionesAnalyticsDashboard
-              isMaximized={isPanelExpanded}
+              isMaximized={true}
               onSendToChat={onSendPromptToTenshi}
             />
           </div>
@@ -590,12 +590,12 @@ export const TenshiEmbeddedToolHost: React.FC<TenshiEmbeddedToolHostProps> = ({
       className={cn(
         'flex min-h-0 flex-col overflow-hidden bg-surface-primary dark:bg-zinc-950 text-text-primary',
         isPanelExpanded
-          ? 'fixed inset-0 z-[99999] h-screen w-screen animate-in fade-in duration-150'
+          ? 'fixed inset-0 z-[99999] h-[100dvh] w-[100dvw] animate-in fade-in duration-150'
           : 'h-full w-full flex-1',
       )}
     >
       {/* Micro-barra superior discreta del panel embebido */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/90 dark:bg-zinc-900/90 backdrop-blur-md px-3 py-1.5">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/90 dark:bg-zinc-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <div
             className={cn(
@@ -651,7 +651,7 @@ export const TenshiEmbeddedToolHost: React.FC<TenshiEmbeddedToolHostProps> = ({
       </div>
 
       {/* Cuerpo único del panel activo (1 solo panel montado a la vez) */}
-      <div className="relative min-h-0 flex-1 w-full overflow-hidden">
+      <div className="relative min-h-0 flex-1 w-full overflow-hidden tenshi-tool-cq">
         <ToolPanelErrorBoundary
           key={toolId}
           toolId={toolId}
