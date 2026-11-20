@@ -249,10 +249,11 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
         }));
       }
       const modeMessages: Record<'local' | 'cloud' | 'auto', string> = {
-        local: '🖥️ Modo Local activado: Las órdenes se enviarán a tu Antigravity en Mac/PC.',
+        local:
+          '🖥️ Modo Local activado: Usa tu Mac/PC con Activar-Tenshi-Wappy y Push SSE en tiempo real.',
         cloud:
-          '☁️ Modo Cloud activado: Las órdenes se enviarán a antigravity.google.com (24/7 sin tu PC prendido).',
-        auto: '⚡ Modo Automático (Híbrido) activado: Usa Local si tu PC está activo y pasa a Cloud automáticamente.',
+          '☁️ Modo Cloud activado: Enlace declarativo MCP Streamable HTTP (2025-03-26) + 3 Skills SKILL.md para antigravity.google.com.',
+        auto: '⚡ Modo Automático (Híbrido) activado: Prioriza Local (Push SSE) si tu PC está activo y usa Cloud cuando no lo esté.',
       };
       showToast({
         message: modeMessages[nextMode],
@@ -345,6 +346,7 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
   const fullKeyFromList = keys.find((k) => k.apiKey && !k.apiKey.includes('...'))?.apiKey || null;
   const effectiveKey = newKeyGenerated || fullKeyFromList || (keys.length > 0 ? `${keys[0].keyPrefix}` : 'PEGA_TU_CLAVE_AQUI');
   const sseServerUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${effectiveKey}`;
+  const mcpServerUrl = `${originUrl}/api/mcp-bridge/mcp?apiKey=${effectiveKey}`;
 
   // Instalador unificado v2.7.0 (delega directamente en /api/mcp-bridge/antigravity/daemon.js --install)
   const buildPushBridgePrompt = (key: string) => {
@@ -396,13 +398,36 @@ export const McpAntigravityView: React.FC<McpAntigravityViewProps> = ({ onClose,
     });
   };
 
-  // Prompt de 1 Clic para Conectar Antigravity Cloud (antigravity.google.com) — MCP + Puente SSE 24/7 + Skills & Portales SST v2.7.0
+  // Prompt Declarativo Oficial para Google Antigravity Cloud (antigravity.google.com) — agy-customizations (Streamable HTTP /mcp + 3 SKILL.md puros)
   const buildCloudAntigravityPrompt = (key: string) => {
-    const cleanKey = (key?.trim() || '');
-    const safeKey = cleanKey && !cleanKey.includes('...') && cleanKey !== 'PEGA_TU_CLAVE_AQUI' ? cleanKey : effectiveKey;
-    return `Hola Antigravity, conecta mi cuenta oficial de WAPPY IA en este entorno Cloud: registra mi servidor MCP "wappy" en ~/.gemini/config/mcp_config.json y ~/.gemini/antigravity/mcp_config.json, activa el Puente Reactivo SSE 24/7 de Tenshi en segundo plano e instala automáticamente el Paquete Oficial de Skills, Scripts CLI y Motor de Portales SST de WAPPY IA (v2.7.0) usando el navegador nativo integrado de Antigravity. Ejecuta directamente este comando autorizado en tu terminal con run_command:
+    const cleanKey = key?.trim() || '';
+    const safeKey =
+      cleanKey && !cleanKey.includes('...') && cleanKey !== 'PEGA_TU_CLAVE_AQUI'
+        ? cleanKey
+        : effectiveKey;
+    const cloudMcpUrl = `${originUrl}/api/mcp-bridge/mcp?apiKey=${safeKey}&env=cloud`;
+    const cloudVerifyUrl = `${originUrl}/api/mcp-bridge/antigravity/cloud-verify?apiKey=${safeKey}`;
+    return `Hola Antigravity, siguiendo tu guía oficial agy-customizations (MCP Servers y Skills declarativas), ayúdame a configurar mi cuenta de WAPPY IA en este entorno Cloud de forma 100% declarativa (sin procesos en segundo plano ni modificaciones del sistema):
 
-node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const key='${safeKey}',url='${originUrl}';const agy=path.join(os.homedir(),'.gemini','antigravity'),cfg=path.join(os.homedir(),'.gemini','config');fs.mkdirSync(agy,{recursive:true});fs.mkdirSync(cfg,{recursive:true});const sse=url+'/api/mcp-bridge/sse?apiKey='+key;for(const p of [path.join(cfg,'mcp_config.json'),path.join(agy,'mcp_config.json')]){let m={};try{if(fs.existsSync(p))m=JSON.parse(fs.readFileSync(p,'utf8'))||{};}catch(_){}m.mcpServers=m.mcpServers||{};m.mcpServers.wappy={url:sse,serverUrl:sse};fs.writeFileSync(p,JSON.stringify(m,null,2));}const d=await fetch(url+'/api/mcp-bridge/antigravity/daemon.js').then(r=>r.text());const dp=path.join(agy,'wappy-push-daemon.js');fs.writeFileSync(dp,d);cp.spawnSync(process.execPath,[dp,'--install','--cloud','--key='+key,'--url='+url],{stdio:'inherit'});})()"`;
+1. Servidor MCP remoto ("wappy" — Streamable HTTP 2025-03-26):
+Usa read_file y write_file / edit_file para registrar de forma declarativa el servidor "wappy" en ~/.gemini/config/mcp_config.json (conservando cualquier otro servidor existente en mcpServers):
+
+{
+  "mcpServers": {
+    "wappy": {
+      "url": "${cloudMcpUrl}"
+    }
+  }
+}
+
+2. Las 3 Skills oficiales Cloud de WAPPY IA (archivos SKILL.md Markdown puros):
+Lee el contenido Markdown público de estas 3 URLs oficiales y guárdalas mediante write_file en ~/.gemini/config/skills/<nombre>/SKILL.md:
+- ${originUrl}/api/mcp-bridge/antigravity/cloud-skills/wappy-copiloto-sgsst-mcp/SKILL.md -> ~/.gemini/config/skills/wappy-copiloto-sgsst-mcp/SKILL.md
+- ${originUrl}/api/mcp-bridge/antigravity/cloud-skills/wappy-ordenes-cloud-tenshi/SKILL.md -> ~/.gemini/config/skills/wappy-ordenes-cloud-tenshi/SKILL.md
+- ${originUrl}/api/mcp-bridge/antigravity/cloud-skills/wappy-portales-colombia-sst/SKILL.md -> ~/.gemini/config/skills/wappy-portales-colombia-sst/SKILL.md
+
+3. Confirmación del enlace Cloud:
+Invoca un POST JSON-RPC de verificación ({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"antigravity-cloud","version":"2.0"}}}) a "${cloudMcpUrl}" y un POST a "${cloudVerifyUrl}" para confirmar el estado Conectado en mi panel de WAPPY IA, e indícame si debo recargar MCP Servers o abrir un nuevo chat para usar las herramientas wappy_*.`;
   };
 
   const cloudAntigravityPrompt = buildCloudAntigravityPrompt(effectiveKey);
@@ -418,37 +443,35 @@ node -e "(async()=>{const fs=require('fs'),path=require('path'),os=require('os')
     setCopiedCloudPrompt(true);
     setTimeout(() => setCopiedCloudPrompt(false), 2500);
     showToast({
-      message: '☁️ Prompt de Enlace Cloud v2.7.0 (MCP + Puente SSE 24/7 + Skills SST) copiado al portapapeles',
+      message: '☁️ Prompt Declarativo Cloud (MCP Streamable HTTP + 3 Skills SKILL.md) copiado al portapapeles',
       status: 'success',
     });
   };
 
-  // Paso 1: Configuración 100% declarativa y estándar de mcp_config.json para pegar en el Chat de Antigravity
-  const buildAntigravityPrompt = (url: string) => `Hola Antigravity, usando tu guía interna agy-customizations (MCP Servers), ayúdame a registrar mi servidor MCP "wappy" de forma declarativa en mi archivo de configuración global de MCP (.gemini/config/mcp_config.json y .gemini/antigravity/mcp_config.json dentro de mi carpeta de usuario, conservando cualquier otro servidor que ya exista en mcpServers) con este bloque JSON:
+  // Paso 1: Configuración 100% declarativa y estándar de mcp_config.json (Streamable HTTP 2025-03-26) para pegar en el Chat de Antigravity
+  const buildAntigravityPrompt = (url: string) => `Hola Antigravity, siguiendo tu guía oficial agy-customizations (MCP Servers), ayúdame a registrar mi servidor MCP remoto "wappy" (transporte Streamable HTTP 2025-03-26) de forma declarativa en ~/.gemini/config/mcp_config.json (conservando cualquier otro servidor que ya exista en mcpServers) con este bloque JSON:
 
 {
   "mcpServers": {
     "wappy": {
-      "url": "${url}",
-      "serverUrl": "${url}"
+      "url": "${url}"
     }
   }
 }
 
-Por favor usa tus herramientas de lectura y edición de archivos para guardarlo y confírmame cuando quede listo.`;
+Por favor usa read_file y write_file / edit_file para guardarlo y confírmame cuando quede listo.`;
 
-  const antigravityPrompt = buildAntigravityPrompt(sseServerUrl);
+  const antigravityPrompt = buildAntigravityPrompt(mcpServerUrl);
 
   // Paso 2: Mensaje para verificar la conexión en un nuevo chat de Antigravity
   const verifyConnectionPrompt = `Hola Antigravity, usa las herramientas de mi servidor MCP "wappy" (como wappy_consultar_perfil_empresa y wappy_resumen_general_360) y dame un resumen ejecutivo de mi empresa en WAPPY para confirmar que ya estamos conectados.`;
 
-  // Configuración JSON para mcp_config.json
+  // Configuración JSON para mcp_config.json (Streamable HTTP 2025-03-26)
   const antigravityJsonConfig = JSON.stringify(
     {
       mcpServers: {
         wappy: {
-          url: sseServerUrl,
-          serverUrl: sseServerUrl,
+          url: mcpServerUrl,
         },
       },
     },
@@ -481,18 +504,17 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
 
     let textToCopy = text;
     if (keyToUse) {
-      const liveSseUrl = `${originUrl}/api/mcp-bridge/sse?apiKey=${keyToUse}`;
+      const liveMcpUrl = `${originUrl}/api/mcp-bridge/mcp?apiKey=${keyToUse}`;
       if (type === 'key') {
         textToCopy = keyToUse;
       } else if (type === 'prompt') {
-        textToCopy = buildAntigravityPrompt(liveSseUrl);
+        textToCopy = buildAntigravityPrompt(liveMcpUrl);
       } else if (type === 'config') {
         textToCopy = JSON.stringify(
           {
             mcpServers: {
               wappy: {
-                url: liveSseUrl,
-                serverUrl: liveSseUrl,
+                url: liveMcpUrl,
               },
             },
           },
@@ -868,11 +890,12 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               {isLiveConnected && (
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold border-emerald-500/70 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 px-2.5 py-0.5 rounded-xl border">
                   <span className="h-1.5 w-1.5 rounded-sm bg-emerald-500 animate-pulse" />
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Conectado en Vivo (Push SSE)
+                  <CheckCircle2 className="w-3.5 h-3.5" />{' '}
+                  {localConnected ? 'Conectado en Vivo (Push SSE)' : 'Conectado en Cloud (MCP HTTP)'}
                 </span>
               )}
               <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-xl bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                v2.7.0 Auto-Entrenado
+                v2.7.0 • Streamable HTTP &amp; Push SSE
               </span>
               <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-xl bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-500/30">
                 Acceso Total
@@ -880,8 +903,8 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
               {isLiveConnected
-                ? 'Tu instancia de Google Antigravity está enlazada en tiempo real con WAPPY IA por Push SSE (0 ms de latencia) y sincronizada con el Ecosistema Oficial v2.7.0.'
-                : 'Conecta Antigravity (Local o Cloud) a tu cuenta de WAPPY para instalar automáticamente las 120+ herramientas MCP, el motor de Portales SST Colombia y las 3 Skills operativas maestras.'}
+                ? 'Tu instancia de Google Antigravity está enlazada con WAPPY IA (Push SSE en Local y/o MCP Streamable HTTP 2025-03-26 en Cloud) con las 120+ herramientas SG-SST.'
+                : 'Conecta Antigravity en Local (instalador Activar-Tenshi-Wappy + Push SSE en tiempo real) o en Cloud (MCP Streamable HTTP 2025-03-26 + 3 Skills declarativas SKILL.md).'}
             </p>
           </div>
         </div>
@@ -1025,8 +1048,8 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
                   {cloudConnected
-                    ? `Corriendo 24/7 en la nube (${cloudCount} instancia${cloudCount === 1 ? '' : 's'} activa${cloudCount === 1 ? '' : 's'})`
-                    : 'Listo para enlazar en 1 clic sin instalar nada'}
+                    ? `Enlazado vía MCP Streamable HTTP (${cloudCount} sesión${cloudCount === 1 ? '' : 'es'} verificada${cloudCount === 1 ? '' : 's'})`
+                    : 'MCP Streamable HTTP (2025-03-26) + 3 Skills SKILL.md declarativas'}
                 </div>
               </div>
             </div>
@@ -1065,7 +1088,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               )}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
-              Envía las órdenes al Antigravity de tu Mac/PC.
+              Usa tu Mac/PC con <code className="font-mono">Activar-Tenshi-Wappy</code> (<code className="font-mono">.command</code>/<code className="font-mono">.bat</code>) y Push SSE en tiempo real.
             </span>
           </button>
 
@@ -1089,7 +1112,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               )}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
-              Envía las órdenes a <code className="font-mono">antigravity.google.com</code> (corre 24/7 sin tu PC prendido).
+              Usa <code className="font-mono">antigravity.google.com</code> con MCP Streamable HTTP (<code className="font-mono">2025-03-26</code>) + 3 Skills <code className="font-mono">SKILL.md</code> sin daemons.
             </span>
           </button>
 
@@ -1113,7 +1136,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               )}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug">
-              Usa Local si tu PC está activo y pasa a Cloud automáticamente cuando apagues tu PC.
+              Prioriza Local (Push SSE) si tu PC está activo y usa tu configuración Cloud cuando trabajes en la nube.
             </span>
           </button>
         </div>
@@ -1162,7 +1185,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
       {/* Tab: Configuración Antigravity (Guía Paso a Paso Simple) */}
       {activeTab === 'config' && (
         <div className="flex flex-col gap-5 min-w-0">
-          {/* TARJETA VISUAL OFICIAL: Ecosistema Auto-Entrenado WAPPY <-> Google Antigravity v2.7.0 */}
+          {/* TARJETA VISUAL OFICIAL: Ecosistema Oficial WAPPY <-> Google Antigravity (Local & Cloud) */}
           <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm border border-teal-500/30 dark:border-teal-500/30 shadow-sm flex flex-col gap-4">
             <div className="pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-500/10 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -1175,7 +1198,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm sm:text-base font-extrabold bg-gradient-to-r from-green-600 to-cyan-600 dark:from-green-400 dark:to-cyan-400 bg-clip-text text-transparent tracking-tight">
-                      Ecosistema Oficial Auto-Entrenado WAPPY ↔ Google Antigravity
+                      Ecosistema Oficial WAPPY ↔ Google Antigravity
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-xl border border-emerald-500/70 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30">
                       <span className="h-1.5 w-1.5 rounded-sm bg-emerald-500 animate-pulse" />
@@ -1183,31 +1206,28 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1 leading-relaxed">
-                    Al conectar tu instancia Local o Cloud (<code className="font-mono text-teal-700 dark:text-teal-300">daemon.js --install</code>), Antigravity instala y entrena automáticamente estos 3 paquetes operativos maestros:
+                    En <strong>Cloud (<code className="font-mono text-sky-700 dark:text-sky-300">antigravity.google.com</code>)</strong> usa <strong>MCP Streamable HTTP (<code className="font-mono">2025-03-26</code>) + 3 Skills declarativas (<code className="font-mono">SKILL.md</code>)</strong> sin daemons en segundo plano; en <strong>Local (Mac/PC)</strong> conserva el instalador <code className="font-mono text-teal-700 dark:text-teal-300">Activar-Tenshi-Wappy.command</code>/<code className="font-mono text-teal-700 dark:text-teal-300">.bat</code> con Push SSE en tiempo real:
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* 3 Pilares Auto-Instalados y Entrenados (WAPPY 14-Group Design System) */}
+            {/* 3 Pilares Operativos (WAPPY 14-Group Design System) */}
             <div className="relative grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
               {/* 1. Portales Oficiales Colombia (Grupo 5: Cyan) */}
               <div className="p-3.5 rounded-xl bg-cyan-500/5 dark:bg-zinc-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex flex-col gap-2 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-extrabold text-slate-900 dark:text-zinc-100 leading-snug">
-                    🕷️ Skill + Script CLI de Portales Oficiales Colombia
+                    🕷️ Skill de Portales Oficiales Colombia SST
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <code className="px-2 py-0.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 font-mono text-[10px] font-bold break-all">
                     wappy-portales-colombia-sst
                   </code>
-                  <code className="px-2 py-0.5 rounded-lg bg-slate-500/10 dark:bg-zinc-800/80 border border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-mono text-[10px] font-bold break-all">
-                    wappy-osint-portals.js
-                  </code>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                  ARL (SURA, Positiva, Bolívar), EPS/ADRES, Pensiones, Curso de Alturas MinTrabajo, Rama Judicial y SIMIT desde la IP del usuario + uso del navegador nativo integrado de Antigravity.
+                  Guía normativa y verificación de ARL, EPS/ADRES, Pensiones, Alturas MinTrabajo, Rama Judicial y SIMIT (<code className="font-mono">SKILL.md</code> declarativa en Cloud + CLI local en Mac/PC).
                 </p>
               </div>
 
@@ -1232,64 +1252,67 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
               <div className="p-3.5 rounded-xl bg-purple-500/5 dark:bg-zinc-950/60 border border-purple-500/30 hover:border-purple-500/50 transition-all flex flex-col gap-2 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-extrabold text-slate-900 dark:text-zinc-100 leading-snug">
-                    ⚡ Skill + Entregables Tenshi &amp; Escuadrón Studio
+                    ⚡ Skill + Entregables Tenshi &amp; Studio
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <code className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono text-[10px] font-bold break-all">
+                    wappy-ordenes-cloud-tenshi
+                  </code>
+                  <code className="px-2 py-0.5 rounded-lg bg-slate-500/10 dark:bg-zinc-800/80 border border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-mono text-[10px] font-bold break-all">
                     wappy-ordenes-y-entregables-tenshi
                   </code>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                  Envío directo de certificados <code className="font-mono">.pdf</code>/<code className="font-mono">.png</code>, documentos <code className="font-mono">LiveEditor</code> y producción audiovisual 60-FPS.
+                  Flujo declarativo Cloud (<code className="font-mono">wappy-ordenes-cloud-tenshi</code>) y entrega directa de documentos <code className="font-mono">LiveEditor</code>, reportes y producción audiovisual.
                 </p>
               </div>
             </div>
 
-            {/* Nota destacada tranquila: Sincronización Automática v2.7.0 por Push SSE */}
+            {/* Nota destacada tranquila: Transporte Dual Oficial */}
             <div className="relative p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex flex-col sm:flex-row sm:items-center gap-2.5 min-w-0">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold shrink-0 w-fit">
                 <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-                Sincronización Automática v2.7.0 por Push SSE
+                Arquitectura Oficial agy-customizations
               </span>
               <p className="text-xs text-slate-700 dark:text-zinc-200 leading-relaxed">
-                Si tu instancia ya estaba conectada, recibe automáticamente las nuevas Skills, Scripts y mejoras en segundo plano sin volver a ejecutar ningún comando.
+                En <strong>Cloud</strong> cumple al 100% con <code className="font-mono">agy-customizations</code> (<code className="font-mono">Streamable HTTP /mcp</code> + <code className="font-mono">SKILL.md</code> puros, cero procesos en segundo plano); en <strong>Local</strong> sincroniza actualizaciones automáticamente por Push SSE.
               </p>
             </div>
           </div>
 
           {/* Título contextual según modo activo — sin sub-selector redundante */}
           <div className="flex items-center gap-2 flex-wrap pb-1">
-            {activeMode === 'cloud' && <><span className="text-lg">☁️</span><span className="text-sm font-extrabold text-sky-700 dark:text-sky-300">Conexión en la Nube</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Sin instalar nada en tu PC</span></>}
-            {activeMode === 'local' && <><span className="text-lg">🖥️</span><span className="text-sm font-extrabold text-teal-700 dark:text-teal-300">Conexión Local</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Mac / Windows</span></>}
+            {activeMode === 'cloud' && <><span className="text-lg">☁️</span><span className="text-sm font-extrabold text-sky-700 dark:text-sky-300">Conexión en la Nube</span><span className="text-xs text-slate-500 dark:text-zinc-400">— MCP Streamable HTTP (2025-03-26) + SKILL.md</span></>}
+            {activeMode === 'local' && <><span className="text-lg">🖥️</span><span className="text-sm font-extrabold text-teal-700 dark:text-teal-300">Conexión Local</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Mac / Windows (Push SSE en tiempo real)</span></>}
             {activeMode === 'auto' && <><span className="text-lg">⚡</span><span className="text-sm font-extrabold text-purple-700 dark:text-purple-300">Modo Automático</span><span className="text-xs text-slate-500 dark:text-zinc-400">— Cloud + Local disponibles</span></>}
           </div>
 
-          {/* TARJETA DESTACADA: ☁️ Conexión en la Nube (antigravity.google.com) — Sin instalar nada en tu PC */}
+          {/* TARJETA DESTACADA: ☁️ Conexión en la Nube (antigravity.google.com) — Declarativa agy-customizations */}
           {(connectionGuideMode === 'both' || connectionGuideMode === 'cloud') && (
             <div className="p-5 rounded-2xl bg-gradient-to-br from-sky-500/10 via-cyan-500/5 to-indigo-500/10 dark:from-sky-950/30 dark:via-zinc-900 dark:to-indigo-950/20 border border-sky-500/30 flex flex-col gap-4 shadow-sm min-w-0">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 min-w-0">
-                <div className="flex items-start gap-3 min-w-0">
+              <div className="flex flex-col items-start gap-3 min-w-0">
+                <div className="flex items-start gap-3 min-w-0 w-full">
                   <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-300 font-black text-base shrink-0">
                     ☁️
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-extrabold text-slate-900 dark:text-zinc-100">
-                        ☁️ Conexión en la Nube (<code className="font-mono text-sky-600 dark:text-sky-300">antigravity.google.com</code>) — Sin instalar nada en tu PC
+                        ☁️ Conexión en la Nube (<code className="font-mono text-sky-600 dark:text-sky-300">antigravity.google.com</code>) — 100% Declarativa
                       </h3>
                       <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300">
-                        24/7 en la Nube • v2.7.0 • 1 Clic
+                        MCP Streamable HTTP • 2025-03-26 • agy-customizations
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1 leading-relaxed">
-                      Enlaza tu cuenta de WAPPY directamente en el navegador con <strong>Google Antigravity Web</strong> (<code className="font-mono">antigravity.google.com</code>). Registra el servidor MCP (120+ herramientas SG-SST), activa el Puente Reactivo SSE 24/7 e instala automáticamente el <strong>Paquete Oficial de Skills, Scripts CLI y Motor de Portales SST (v2.7.0)</strong> usando el navegador nativo integrado de Antigravity.
+                      Enlaza tu cuenta de WAPPY con <strong>Google Antigravity Cloud</strong> (<code className="font-mono">antigravity.google.com</code>) mediante <strong>MCP Streamable HTTP (<code className="font-mono">2025-03-26</code>) + 3 Skills Declarativas Oficiales (<code className="font-mono">SKILL.md</code>)</strong> sin daemons en segundo plano, 100% compatible con la VM efímera y los controles de seguridad de Google. Si trabajas en escritorio (Mac/PC), el modo <strong>Local</strong> mantiene el instalador <code className="font-mono">Activar-Tenshi-Wappy.command</code>/<code className="font-mono">.bat</code> con Push SSE en tiempo real.
                     </p>
                   </div>
                 </div>
 
-                {/* Botonera dedicada Cloud (Cumple regla anti-parpadeo: cada botón en contenedor dedicado/estable) */}
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {/* Botonera dedicada Cloud en su propia fila (Regla Anti-Flicker ExpandableButton, 0px overflow) */}
+                <div className="flex flex-wrap items-center justify-start gap-2.5">
                   <ExpandingButton
                     onClick={() => {
                       window.open('https://antigravity.google.com', '_blank', 'noopener,noreferrer');
@@ -1305,10 +1328,10 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                     label={
                       copiedCloudPrompt
                         ? '¡Prompt Cloud Copiado!'
-                        : '📋 Copiar Prompt de Enlace Cloud (v2.7.0)'
+                        : '📋 Copiar Prompt Declarativo Cloud'
                     }
                     variant="purple"
-                    title="Copiar el Prompt de 1 Clic v2.7.0 con tu API Key activa para pegarlo en el chat de antigravity.google.com"
+                    title="Copiar el Prompt Declarativo Cloud (MCP Streamable HTTP + 3 Skills SKILL.md) para pegarlo en antigravity.google.com"
                   />
                 </div>
               </div>
@@ -1320,7 +1343,7 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                     1. Abre antigravity.google.com
                   </span>
                   <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                    Inicia sesión con tu cuenta de Google en <strong>https://antigravity.google.com</strong> desde cualquier navegador o celular.
+                    Inicia sesión con tu cuenta de Google en <strong>https://antigravity.google.com</strong> desde cualquier navegador o dispositivo.
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-sky-500/20 flex flex-col gap-1">
@@ -1328,22 +1351,38 @@ Por favor usa tus herramientas de lectura y edición de archivos para guardarlo 
                     2. Adjunta Drive / GitHub en Resources
                   </span>
                   <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                    En el panel lateral <strong>Resources</strong> de Antigravity Web puedes adjuntar tus carpetas de <strong>Google Drive</strong> o repositorios de <strong>GitHub</strong> para que trabaje sobre tus archivos en la nube.
+                    En el panel lateral <strong>Resources</strong> de Antigravity Web puedes adjuntar tus carpetas de <strong>Google Drive</strong> o repositorios de <strong>GitHub</strong> para trabajar en la nube.
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-sky-500/20 flex flex-col gap-1">
                   <span className="text-xs font-extrabold text-sky-700 dark:text-sky-300">
-                    3. Pega el Prompt de Enlace Cloud
+                    3. Pega el Prompt Declarativo Cloud
                   </span>
                   <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed">
-                    Haz clic en <strong>📋 Copiar Prompt de Enlace Cloud</strong>, pégalo en el chat de <code className="font-mono">antigravity.google.com</code> y quedará entrenado y en <strong>🟢 Conectado</strong>.
+                    Haz clic en <strong>📋 Copiar Prompt Declarativo Cloud</strong> y pégalo en el chat: registrará <code className="font-mono">mcp_config.json</code> (<code className="font-mono">/mcp</code>), guardará las 3 <code className="font-mono">SKILL.md</code> y marcará <strong>🟢 Conectado</strong>.
                   </p>
                 </div>
               </div>
 
-              {/* Vista previa del Prompt de Enlace Cloud */}
+              {/* Vista previa del Prompt Declarativo Cloud */}
               <div className="p-3.5 rounded-xl bg-sky-50/50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200 font-mono text-xs border border-sky-200/70 dark:border-zinc-800 leading-relaxed whitespace-pre-wrap select-all max-h-48 overflow-y-auto break-all">
                 {cloudAntigravityPrompt}
+              </div>
+
+              {/* Nota de Seguridad sobre la clave personal wpy_live_... (Grupo 8: Amber) */}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex items-start gap-2.5 text-[11px] leading-relaxed min-w-0">
+                <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <strong className="font-extrabold">Nota de seguridad:</strong> No compartas públicamente tu clave personal <code className="font-mono">wpy_live_...</code> ni capturas con la URL completa. Si alguna vez queda expuesta, puedes revocarla y generar una nueva al instante en la pestaña{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('keys')}
+                    className="font-extrabold underline hover:text-amber-700 dark:hover:text-amber-100 transition-colors cursor-pointer"
+                  >
+                    Mis Claves
+                  </button>
+                  .
+                </div>
               </div>
             </div>
           )}

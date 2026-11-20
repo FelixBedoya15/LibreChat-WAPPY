@@ -4431,9 +4431,28 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
   } catch (_) {}
 
   const isAdmin = isWappyAdminUser(req?.user);
-  const effectiveConnected = userListeners > 0 || (isAdmin && activeListeners > 0);
-  const effectiveLocalCount = userListeners > 0 ? userLocalCount : (isAdmin ? globalLocalCount : 0);
-  const effectiveCloudCount = userListeners > 0 ? userCloudCount : (isAdmin ? globalCloudCount : 0);
+  let userCloudMcpCount = 0;
+  let cloudTransport = userCloudCount > 0 ? 'sse' : null;
+  try {
+    if (targetUid && typeof mcpBridge?.getAntigravityDaemonsBreakdown === 'function') {
+      const bd = mcpBridge.getAntigravityDaemonsBreakdown(targetUid, req?.user);
+      if (userCloudCount === 0 && bd?.cloudConnected && bd?.cloudTransport === 'mcp-streamable-http') {
+        userCloudMcpCount = 1;
+        cloudTransport = 'mcp-streamable-http';
+        const cloudInstance = Array.isArray(bd.instances)
+          ? bd.instances.find((inst) => inst?.transport === 'mcp-streamable-http')
+          : null;
+        if (cloudInstance) {
+          instances.push(cloudInstance);
+        }
+      }
+    }
+  } catch (_) {}
+
+  const totalUserCount = userListeners + userCloudMcpCount;
+  const effectiveConnected = totalUserCount > 0 || (isAdmin && activeListeners > 0);
+  const effectiveLocalCount = totalUserCount > 0 ? userLocalCount : (isAdmin ? globalLocalCount : 0);
+  const effectiveCloudCount = totalUserCount > 0 ? (userCloudCount + userCloudMcpCount) : (isAdmin ? globalCloudCount : 0);
   const activeMode =
     typeof mcpBridge?.getUserAntigravityMode === 'function'
       ? mcpBridge.getUserAntigravityMode(targetUid, req?.user)
@@ -4451,13 +4470,15 @@ function getAntigravityBridgeStatus(req, explicitUserId = '') {
   return {
     connected: effectiveConnected,
     daemonListening: userListeners > 0 || activeListeners > 0,
+    sseDaemonsCount: userListeners,
     userDaemonConnected: effectiveConnected,
     activeListeners,
-    userListeners: userListeners > 0 ? userListeners : (isAdmin ? activeListeners : 0),
+    userListeners: totalUserCount > 0 ? totalUserCount : (isAdmin ? activeListeners : 0),
     localCount: effectiveLocalCount,
     cloudCount: effectiveCloudCount,
     localConnected: effectiveLocalCount > 0,
     cloudConnected: effectiveCloudCount > 0,
+    cloudTransport,
     activeMode,
     effectiveEnv,
     instances,
@@ -4601,6 +4622,7 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
   const skillsBaseDirs = [
     path.join(process.cwd(), '.agents', 'skills'),
     path.resolve(__dirname, '..', '..', '..', '.agents', 'skills'),
+    '/app/.agents/skills',
   ];
 
   const xlAddendum = `
@@ -4624,14 +4646,17 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
         }
       } catch (_) {}
     }
-    const enrichedContent = markdownContent.includes('Suplemento Oficial Wappy Studio v3.0')
-      ? markdownContent
-      : `${markdownContent || `# ${meta.name}\n\n${meta.description}`}${xlAddendum}`;
+    const fallbackMd = `---\nname: ${meta.id}\ndescription: "${String(meta.description || '').replace(/"/g, '\\"')}"\n---\n\n# ${meta.name}\n\n${meta.description}`;
+    const baseMd = markdownContent || fallbackMd;
+    const enrichedContent = baseMd.includes('Suplemento Oficial Wappy Studio v3.0')
+      ? baseMd
+      : `${baseMd}${xlAddendum}`;
     return {
       id: meta.id,
       name: meta.name,
       category: meta.category,
       description: meta.description,
+      url: `${originUrl}/api/studio/antigravity/cloud-skills/${meta.id}/SKILL.md`,
       relativePath: `${meta.id}/SKILL.md`,
       targetDirs: [
         `~/.gemini/config/skills/${meta.id}/SKILL.md`,
@@ -4892,6 +4917,36 @@ router.get('/antigravity/skills-bundle.json', (req, res) => {
 });
 
 /**
+ * GET /api/studio/antigravity/cloud-skills/:skillId/SKILL.md
+ * Sirve individualmente el archivo SKILL.md declarativo puro Markdown de cualquiera de las 7 Skills Oficiales
+ * de Diseño UI/UX y Video 60-FPS de Wappy Studio para instancias de Google Antigravity Cloud (0 scripts, 0 daemons).
+ */
+router.get('/antigravity/cloud-skills/:skillId/SKILL.md', (req, res) => {
+  try {
+    const requestedId = String(req.params.skillId || '').trim().toLowerCase();
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club';
+    const originUrl = `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+    const payload = buildWappySkillsBundlePayload(originUrl);
+    const foundSkill = Array.isArray(payload?.skills)
+      ? payload.skills.find((s) => String(s.id || '').toLowerCase() === requestedId)
+      : null;
+
+    res.setHeader('Cache-Control', 'no-cache');
+    if (!foundSkill || !foundSkill.content) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.status(404).send('Skill de Wappy Studio no encontrada.');
+    }
+
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    return res.status(200).send(foundSkill.content);
+  } catch (error) {
+    logger.error('[WappyStudio Antigravity] Error serving cloud-skills SKILL.md:', error);
+    return res.status(500).type('text/plain; charset=utf-8').send('Error sirviendo SKILL.md de Wappy Studio.');
+  }
+});
+
+/**
  * GET /api/studio/antigravity/skills-installer.js
  * Script Node.js auto-contenido que instala los 4 Subagentes Oficiales + las 7 Skills de Diseño y Video
  * en ~/.gemini/config/, ~/.gemini/antigravity/ y .agents/, registra el escuadrón en AGENTS.md / GEMINI.md,
@@ -5113,8 +5168,10 @@ router.get('/antigravity/status', studioAuth, async (req, res) => {
     userListeners: Number(bridge?.userListeners || 0),
     localCount: Number(bridge?.localCount || 0),
     cloudCount: Number(bridge?.cloudCount || 0),
+    sseDaemonsCount: Number(bridge?.sseDaemonsCount || 0),
     localConnected: Boolean(bridge?.localConnected),
     cloudConnected: Boolean(bridge?.cloudConnected),
+    cloudTransport: bridge?.cloudTransport || null,
     activeMode: bridge?.activeMode || 'local',
     effectiveEnv: bridge?.effectiveEnv || 'local',
     instances: Array.isArray(bridge?.instances) ? bridge.instances : [],

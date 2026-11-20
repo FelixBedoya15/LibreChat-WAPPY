@@ -63,6 +63,13 @@ const requireApiKeyOrJwt = async (req, res, next) => {
   return baseRequireApiKeyOrJwt(req, res, next);
 };
 const sseTransports = new Map();
+const CLOUD_MCP_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas en memoria
+const CLOUD_MCP_PERSISTED_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días hidratado desde User.personalization
+const CLOUD_MCP_DB_THROTTLE_MS = 5 * 60 * 1000; // Máx. 1 escritura en MongoDB cada 5 minutos por usuario
+const antigravityCloudMcpSessions = new Map(); // userId -> { connectedAt, lastSeenAt, protocolVersion, lastMethod, transport: 'mcp-streamable-http' }
+const antigravityCloudMcpPersistedAt = new Map(); // userId -> epoch ms (personalization.antigravityCloudMcpAt)
+const antigravityCloudMcpHydratedUsers = new Set(); // userId
+const antigravityCloudMcpDbWriteAt = new Map(); // userId -> epoch ms
 const CompanyInfo = require('~/models/CompanyInfo');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const PESVWorkspaceSession = require('~/models/PESVWorkspaceSession');
@@ -462,7 +469,7 @@ router.post('/messages', async (req, res) => {
   }
 });
 
-async function processSingleJsonRpc(body, rawApiKey) {
+async function processSingleJsonRpc(body, rawApiKey, options = {}) {
   if (!body || typeof body !== 'object') {
     return {
       jsonrpc: '2.0',
@@ -471,17 +478,26 @@ async function processSingleJsonRpc(body, rawApiKey) {
     };
   }
 
-  const { jsonrpc, id, method, params } = body;
+  const { id, method, params } = body;
+
+  // 1. Notificaciones JSON-RPC 2.0 (sin respuesta con cuerpo; Streamable HTTP 2025-03-26 responde 202 Accepted vacío)
+  if (
+    method === 'notifications/initialized' ||
+    ((id === undefined || id === null) && typeof method === 'string' && method.startsWith('notifications/'))
+  ) {
+    return null;
+  }
+
   const requestId = id !== undefined ? id : 1;
 
-  // 1. Manejo de server/discover (MCP Stateless 2026 / Capability Negotiation)
+  // 2. Manejo de server/discover (MCP Stateless / Capability Negotiation)
   if (method === 'server/discover') {
     return {
       jsonrpc: '2.0',
       id: requestId,
       result: {
         resultType: 'complete',
-        supportedVersions: ['2026-07-28', '2024-11-05'],
+        supportedVersions: ['2025-06-18', '2025-03-26', '2024-11-05'],
         capabilities: {
           tools: { listChanged: true },
           resources: {},
@@ -489,16 +505,11 @@ async function processSingleJsonRpc(body, rawApiKey) {
           events: {},
         },
         serverInfo: {
-          name: 'wappy-bridge',
-          version: '2.0.0',
+          name: 'wappy',
+          version: '2.8.0',
         },
       },
     };
-  }
-
-  // 2. Notificaciones (no esperan respuesta con contenido)
-  if (method === 'notifications/initialized' || (!id && method?.startsWith('notifications/'))) {
-    return null;
   }
 
   // 3. Ping
@@ -511,7 +522,7 @@ async function processSingleJsonRpc(body, rawApiKey) {
   }
 
   // 4. Autenticación de clave para operaciones funcionales
-  if (!rawApiKey) {
+  if (!rawApiKey && !options?.auth) {
     return {
       jsonrpc: '2.0',
       id: requestId,
@@ -519,7 +530,7 @@ async function processSingleJsonRpc(body, rawApiKey) {
     };
   }
 
-  const auth = await authenticateApiKey(rawApiKey);
+  const auth = options?.auth || (await authenticateApiKey(rawApiKey));
   if (!auth) {
     return {
       jsonrpc: '2.0',
@@ -529,19 +540,26 @@ async function processSingleJsonRpc(body, rawApiKey) {
   }
 
   if (method === 'initialize') {
+    const requestedProtocolVersion =
+      typeof params?.protocolVersion === 'string' && params.protocolVersion.trim()
+        ? params.protocolVersion.trim()
+        : '';
+    const negotiatedProtocolVersion =
+      requestedProtocolVersion || (options?.isStreamableHttp ? '2025-03-26' : '2024-11-05');
+
     return {
       jsonrpc: '2.0',
       id: requestId,
       result: {
-        protocolVersion: params?.protocolVersion || '2024-11-05',
+        protocolVersion: negotiatedProtocolVersion,
         capabilities: {
           tools: { listChanged: true },
           resources: {},
           prompts: {},
         },
         serverInfo: {
-          name: 'wappy-bridge',
-          version: '2.0.0',
+          name: 'wappy',
+          version: '2.8.0',
         },
       },
     };
@@ -557,7 +575,7 @@ async function processSingleJsonRpc(body, rawApiKey) {
 
   const baseUrl = `http://127.0.0.1:${process.env.PORT || 3080}`;
   const mcpServer = createWappyMcpServer({
-    apiKey: rawApiKey,
+    apiKey: rawApiKey || auth?.apiKey?.rawKey,
     wappyUrl: baseUrl,
   });
 
@@ -603,20 +621,66 @@ async function handleDirectMcpJsonRpc(req, res) {
       req.headers['x-api-key'] ||
       bearerKey;
 
-    res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
-    if (Array.isArray(req.body)) {
-      const responses = await Promise.all(
-        req.body.map((item) => processSingleJsonRpc(item, rawApiKey))
-      );
-      const filtered = responses.filter(Boolean);
-      return res.status(200).json(filtered.length > 0 ? filtered : { jsonrpc: '2.0' });
+    const isStreamableHttp = req.path === '/mcp';
+    const auth = rawApiKey ? await authenticateApiKey(rawApiKey) : null;
+
+    if (auth?.user && isStreamableHttp) {
+      const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+      const rawRemoteIp = forwardedFor || String(req.ip || req.socket?.remoteAddress || '').trim();
+      const isLoopbackIp =
+        rawRemoteIp === '127.0.0.1' ||
+        rawRemoteIp === '::1' ||
+        rawRemoteIp === '::ffff:127.0.0.1' ||
+        rawRemoteIp === 'localhost';
+      const clientSignature = `${req.headers['user-agent'] || ''} ${req.headers['x-wappy-client'] || ''}`;
+      const isLocalPushDaemon = /wappy-push-daemon|wappy-antigravity-daemon/i.test(clientSignature);
+      const explicitEnv = String(req.query?.env || req.headers['x-wappy-env'] || '').toLowerCase().trim();
+
+      if (explicitEnv !== 'local' && (explicitEnv === 'cloud' || (!isLoopbackIp && !isLocalPushDaemon))) {
+        const targetUserId = String(
+          (auth.user.isSubUser && auth.user.parentUser) ? auth.user.parentUser : auth.user._id
+        );
+        const firstItem = Array.isArray(req.body) ? req.body[0] : req.body;
+        const rpcMethod = typeof firstItem?.method === 'string' ? firstItem.method : 'mcp';
+        const rpcProtocolVersion =
+          typeof firstItem?.params?.protocolVersion === 'string' && firstItem.params.protocolVersion.trim()
+            ? firstItem.params.protocolVersion.trim()
+            : undefined;
+
+        recordAntigravityCloudMcpPresence(targetUserId, {
+          protocolVersion: rpcProtocolVersion,
+          lastMethod: rpcMethod,
+          isGuest: Boolean(auth.user.isGuest),
+          userObj: auth.user,
+        });
+      }
     }
 
-    const response = await processSingleJsonRpc(req.body, rawApiKey);
+    const rpcOptions = { isStreamableHttp, auth };
+
+    if (Array.isArray(req.body)) {
+      if (req.body.length === 0) {
+        return res.status(400).json({
+          jsonrpc: '2.0',
+          id: null,
+          error: { code: -32600, message: 'Invalid Request: Empty batch' },
+        });
+      }
+      const responses = await Promise.all(
+        req.body.map((item) => processSingleJsonRpc(item, rawApiKey, rpcOptions))
+      );
+      const filtered = responses.filter(Boolean);
+      if (filtered.length === 0) {
+        return res.status(202).end();
+      }
+      return res.status(200).json(filtered);
+    }
+
+    const response = await processSingleJsonRpc(req.body, rawApiKey, rpcOptions);
     if (!response) {
-      return res.status(200).json({ jsonrpc: '2.0' });
+      return res.status(202).end();
     }
     return res.status(200).json(response);
   } catch (error) {
@@ -631,6 +695,19 @@ async function handleDirectMcpJsonRpc(req, res) {
   }
 }
 
+router.post('/mcp', handleDirectMcpJsonRpc);
+router.get('/mcp', (req, res) => {
+  res.setHeader('Allow', 'POST, DELETE');
+  return res.status(405).json({
+    jsonrpc: '2.0',
+    id: null,
+    error: {
+      code: -32000,
+      message: 'Method Not Allowed: Use POST for stateless Streamable HTTP MCP.',
+    },
+  });
+});
+router.delete('/mcp', (req, res) => res.status(200).end());
 router.post('/sse', handleDirectMcpJsonRpc);
 router.post('/', handleDirectMcpJsonRpc);
 
@@ -9568,28 +9645,148 @@ function getUserAntigravityMode(userId, userObj = null) {
   return 'local';
 }
 
+function resolveActiveCloudMcpSession(userId, userObj = null) {
+  if (!userId) return null;
+  const key = String(userId);
+  const nowMs = Date.now();
+
+  const memSession = antigravityCloudMcpSessions.get(key);
+  if (memSession) {
+    const lastSeenMs = new Date(memSession.lastSeenAt || memSession.connectedAt || 0).getTime();
+    if (Number.isFinite(lastSeenMs) && lastSeenMs > 0 && nowMs - lastSeenMs <= CLOUD_MCP_SESSION_TTL_MS) {
+      return memSession;
+    }
+    antigravityCloudMcpSessions.delete(key);
+  }
+
+  const rawFromUserObj = userObj?.personalization?.antigravityCloudMcpAt;
+  if (rawFromUserObj) {
+    const ts = new Date(rawFromUserObj).getTime();
+    if (Number.isFinite(ts) && ts > 0) {
+      antigravityCloudMcpPersistedAt.set(key, ts);
+      antigravityCloudMcpHydratedUsers.add(key);
+    }
+  } else if (!antigravityCloudMcpHydratedUsers.has(key) && mongoose.Types.ObjectId.isValid(key)) {
+    antigravityCloudMcpHydratedUsers.add(key);
+    User.findById(key)
+      .select('personalization')
+      .lean()
+      .then((u) => {
+        if (u?.personalization?.antigravityCloudMcpAt && !antigravityCloudMcpPersistedAt.has(key)) {
+          const ts = new Date(u.personalization.antigravityCloudMcpAt).getTime();
+          if (Number.isFinite(ts) && ts > 0) {
+            antigravityCloudMcpPersistedAt.set(key, ts);
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  const persistedTs = antigravityCloudMcpPersistedAt.get(key) || 0;
+  if (persistedTs > 0 && nowMs - persistedTs <= CLOUD_MCP_PERSISTED_TTL_MS) {
+    const iso = new Date(persistedTs).toISOString();
+    return {
+      connectedAt: iso,
+      lastSeenAt: iso,
+      protocolVersion: '2025-03-26',
+      lastMethod: 'persisted',
+      transport: 'mcp-streamable-http',
+    };
+  }
+
+  return null;
+}
+
+function recordAntigravityCloudMcpPresence(userId, options = {}) {
+  if (!userId) return null;
+  const key = String(userId);
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+
+  const prev = antigravityCloudMcpSessions.get(key);
+  const prevSeenMs = prev ? new Date(prev.lastSeenAt || prev.connectedAt || 0).getTime() : 0;
+  const wasActiveInMemory = Boolean(prev && prevSeenMs > 0 && nowMs - prevSeenMs <= CLOUD_MCP_SESSION_TTL_MS);
+  const wasConnectedBefore = wasActiveInMemory || Boolean(resolveActiveCloudMcpSession(key, options.userObj || null));
+
+  const sessionEntry = {
+    connectedAt: wasActiveInMemory && prev?.connectedAt ? prev.connectedAt : nowIso,
+    lastSeenAt: nowIso,
+    protocolVersion: options.protocolVersion || prev?.protocolVersion || '2025-03-26',
+    lastMethod: options.lastMethod || prev?.lastMethod || 'mcp',
+    transport: 'mcp-streamable-http',
+  };
+
+  antigravityCloudMcpSessions.set(key, sessionEntry);
+  antigravityCloudMcpPersistedAt.set(key, nowMs);
+  antigravityCloudMcpHydratedUsers.add(key);
+
+  const lastDbWrite = antigravityCloudMcpDbWriteAt.get(key) || 0;
+  if (
+    !options.isGuest &&
+    mongoose.Types.ObjectId.isValid(key) &&
+    (options.forcePersist || nowMs - lastDbWrite >= CLOUD_MCP_DB_THROTTLE_MS)
+  ) {
+    antigravityCloudMcpDbWriteAt.set(key, nowMs);
+    User.updateOne(
+      { _id: key },
+      { $set: { 'personalization.antigravityCloudMcpAt': new Date(nowMs) } }
+    ).catch(() => {});
+  }
+
+  const breakdown = getAntigravityDaemonsBreakdown(key, options.userObj || null);
+  if (!wasConnectedBefore || !wasActiveInMemory || options.forceBroadcast || options.lastMethod === 'initialize') {
+    broadcastAntigravityEvent(key, 'daemon_status_changed', {
+      userId: key,
+      env: 'cloud',
+      transport: 'mcp-streamable-http',
+      ...breakdown,
+      timestamp: nowIso,
+    });
+  }
+
+  return breakdown;
+}
+
 function getAntigravityDaemonsBreakdown(userId, userObj = null) {
   const key = userId ? String(userId) : '';
   const clients = key ? antigravityStreamClients.get(key) : null;
   let localCount = 0;
-  let cloudCount = 0;
+  let sseCloudCount = 0;
   const instances = [];
 
   if (clients && clients.size > 0) {
     for (const clientRes of clients) {
       if (clientRes.__wappyClientType !== 'browser') {
         const env = clientRes.__wappyDaemonEnv === 'cloud' ? 'cloud' : 'local';
-        if (env === 'cloud') cloudCount++;
+        if (env === 'cloud') sseCloudCount++;
         else localCount++;
         instances.push({
           env,
           platform: clientRes.__wappyDaemonPlatform || (env === 'cloud' ? 'linux' : 'local-os'),
+          transport: 'sse',
           host: clientRes.__wappyDaemonHost || '',
           version: clientRes.__wappyDaemonVersion || '',
           connectedAt: clientRes.__wappyConnectedAt || null,
         });
       }
     }
+  }
+
+  const sseDaemonsCount = localCount + sseCloudCount;
+  const cloudMcpSession = key ? resolveActiveCloudMcpSession(key, userObj) : null;
+  let cloudCount = sseCloudCount;
+  let cloudTransport = sseCloudCount > 0 ? 'sse' : null;
+
+  if (sseCloudCount === 0 && cloudMcpSession) {
+    cloudCount = 1;
+    cloudTransport = 'mcp-streamable-http';
+    instances.push({
+      env: 'cloud',
+      platform: 'antigravity-cloud',
+      transport: 'mcp-streamable-http',
+      version: '2.8.0',
+      connectedAt: cloudMcpSession.connectedAt || cloudMcpSession.lastSeenAt || null,
+    });
   }
 
   const totalCount = localCount + cloudCount;
@@ -9606,10 +9803,13 @@ function getAntigravityDaemonsBreakdown(userId, userObj = null) {
 
   return {
     localCount,
+    sseCloudCount,
     cloudCount,
+    sseDaemonsCount,
     totalCount,
     localConnected: localCount > 0,
     cloudConnected: cloudCount > 0,
+    cloudTransport,
     connected: totalCount > 0,
     activeMode,
     effectiveEnv,
@@ -9666,7 +9866,7 @@ function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
           desiredEnv = 'local';
         } else if (
           (payload?.sourceModule === 'sgsst_automation' || payload?.preferCloud === true) &&
-          breakdown.cloudCount > 0
+          (breakdown.sseCloudCount ?? 0) > 0
         ) {
           desiredEnv = 'cloud';
         } else {
@@ -9674,10 +9874,10 @@ function broadcastAntigravityEvent(userId, eventName, payload, options = {}) {
         }
       }
     }
-    const hasDesired = desiredEnv === 'cloud' ? breakdown.cloudCount > 0 : breakdown.localCount > 0;
+    const hasDesired = desiredEnv === 'cloud' ? (breakdown.sseCloudCount ?? 0) > 0 : breakdown.localCount > 0;
     if (hasDesired || options?.strictMode) {
       targetDaemonEnv = desiredEnv;
-    } else if (breakdown.totalCount > 0) {
+    } else if ((breakdown.sseDaemonsCount ?? 0) > 0) {
       targetDaemonEnv = desiredEnv === 'cloud' ? 'local' : 'cloud';
     }
   } else if (eventName === 'launch_connector' && payload?.token !== 'wappy_daemon_autoupdate') {
@@ -10681,6 +10881,11 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
 
         for (const t of pendingTasks) {
           const desc = String(t.description || '');
+          const mTargetEnv = desc.match(/TargetEnv:\s*(local|cloud)/i);
+          const taskTargetEnv = mTargetEnv ? mTargetEnv[1].toLowerCase() : null;
+          if (taskTargetEnv && res.__wappyDaemonEnv !== taskTargetEnv) {
+            continue;
+          }
           const mFormato = desc.match(/Formato Esperado:\s*([a-z_]+)/i);
           const mEmpresa = desc.match(/Empresa:\s*([^\n\r]+)/i);
           const mRecurso = desc.match(/Recurso Objetivo:\s*([^\n\r]+)/i);
@@ -10708,6 +10913,7 @@ router.get('/antigravity/stream', requireApiKeyOrJwt, async (req, res) => {
               estado: t.status,
               prioridad: t.priority,
               sourceModule: t.sourceModule || 'tenshi_voice',
+              ...(taskTargetEnv ? { targetEnv: taskTargetEnv } : {}),
               companyId: taskCompany ? String(taskCompany._id || '') : (t.companyId ? String(t.companyId) : ''),
               companyName: taskCompany?.companyName || '',
               companyNit: taskCompany?.nit || '',
@@ -10896,12 +11102,462 @@ router.get('/antigravity/skills-pack.json', async (req, res) => {
   }
 });
 
+/**
+ * Catálogo Oficial de 3 Skills Declarativas Puro Markdown para Google Antigravity Cloud (`antigravity.google.com`).
+ * 100% compatibles con entornos remotos efímeros y MCP Streamable HTTP (`2025-03-26`), con cero procesos persistentes ni scripts externos.
+ */
+const ANTIGRAVITY_CLOUD_DECLARATIVE_SKILLS = [
+  {
+    id: 'wappy-copiloto-sgsst-mcp',
+    name: 'wappy-copiloto-sgsst-mcp',
+    description:
+      "Opera el Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en WAPPY IA mediante las 130+ herramientas del servidor MCP 'wappy' (empresa activa, resumen 360, trabajadores, Matriz GTC 45, PESV, Químicos SGA, Diagnóstico Res. 0312, Matriz Legal, COPASST/CCL, ATEL, Cronograma ACPM, Cursos LMS y Documentos en Vivo LiveEditor).",
+    content: `---
+name: wappy-copiloto-sgsst-mcp
+description: "Opera el Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en WAPPY IA mediante las 130+ herramientas del servidor MCP 'wappy' (empresa activa, resumen 360, trabajadores, Matriz GTC 45, PESV, Químicos SGA, Diagnóstico Res. 0312, Matriz Legal, COPASST/CCL, ATEL, Cronograma ACPM, Cursos LMS y Documentos en Vivo LiveEditor)."
+---
+
+# Copiloto Maestro SG-SST Multi-Empresa vía MCP (\`wappy-copiloto-sgsst-mcp\`)
+
+## Propósito
+Esta skill guía la operación técnica y normativa colombiana de las **130+ herramientas del servidor MCP \`wappy\`** conectado por **Streamable HTTP (\`2025-03-26\`)** para administrar los módulos de **Somos SST (Hitos 1 al 8)**, **Academia LMS**, **Flujos Autónomos (\`/tareas\`)** y el **Editor Corporativo en Vivo (\`LiveEditor\`)** con aislamiento estricto multi-empresa.
+
+---
+
+## Cuándo Activar Esta Skill
+Actívala ante cualquier solicitud de consulta, auditoría, registro o generación documental sobre:
+- Perfil empresarial, sedes y cambio de empresa activa.
+- Trabajadores, Perfil Sociodemográfico y Perfiles de Cargo.
+- Matriz de Identificación de Peligros, Evaluación y Valoración de Riesgos **GTC 45 (IPEVR)**.
+- Matriz de Seguridad Vial **PESV** (Res. 20223040040595) y parque automotor.
+- Inventario de Productos Químicos y Matriz de Compatibilidad **SGA** (Decreto 1496 de 2018).
+- Autoevaluación de Estándares Mínimos (**Res. 0312 de 2019**).
+- Matriz Legal (**Decreto 1072 de 2015**), Comités (**COPASST**, Convivencia Laboral, Brigada), **ATEL**, Estudios de Puesto, **OWAS**, **ATS**, Permisos de Alturas, Vulnerabilidad, Contexto DOFA y Revisión por la Alta Dirección.
+- Cronograma Anual / Planes de Acción **ACPM**, Capacitaciones, Auditorías y Cursos **LMS**.
+- Creación o edición de informes ejecutivos, actas, políticas y procedimientos exportables a Word/PDF en **\`LiveEditor\`**.
+
+---
+
+## Reglas Operativas Fundamentales
+
+### 1. Paso 0 Obligatorio: Verificar Siempre la Empresa Activa (\`companyId\`)
+WAPPY IA es una plataforma multitenant donde un mismo profesional SST puede gestionar múltiples empresas:
+1. **Antes de consultar o escribir cualquier dato**, invoca siempre **\`wappy_consultar_perfil_empresa\`** para confirmar razón social, NIT, clase de riesgo ARL (I a V), actividad económica y número de trabajadores.
+2. Si el usuario solicita trabajar sobre otra empresa específica (por nombre o NIT), invoca **\`wappy_consultar_empresas\`**, identifica su \`companyId\` y actívala con **\`wappy_activar_empresa\`** (o envía \`companyId\` explícitamente en las herramientas que lo admitan).
+3. **Aislamiento Estricto:** Nunca mezcles trabajadores, matrices, indicadores ni documentos entre organizaciones distintas.
+
+### 2. Lectura Panorámica Inteligente (Contexto 360°)
+- Para obtener el diagnóstico ejecutivo consolidado de la empresa activa con el menor número de llamadas, ejecuta primero **\`wappy_resumen_general_360\`** y/o **\`wappy_obtener_briefing_ejecutivo\`**.
+- A continuación, profundiza únicamente en los módulos requeridos por la tarea:
+  - **Trabajadores y Cargos:** \`wappy_consultar_trabajadores\`, \`wappy_registrar_trabajador\`, \`wappy_actualizar_trabajador\`, \`wappy_retirar_trabajador\`, \`wappy_reactivar_trabajador\`, \`wappy_consultar_perfiles_cargo\`, \`wappy_guardar_perfil_cargo\`.
+  - **Matriz GTC 45:** \`wappy_consultar_matriz_gtc45\`, \`wappy_alimentar_matriz_gtc45\`, \`wappy_actualizar_riesgo_gtc45\`, \`wappy_eliminar_riesgo_gtc45\`.
+  - **PESV y Vehículos:** \`wappy_consultar_matriz_pesv\`, \`wappy_alimentar_matriz_pesv\`, \`wappy_actualizar_riesgo_pesv\`, \`wappy_consultar_vehiculos\`, \`wappy_registrar_vehiculo\`.
+  - **Químicos SGA:** \`wappy_consultar_inventario_quimico\`, \`wappy_registrar_producto_quimico\`, \`wappy_consultar_pubchem_quimico\`, \`wappy_consultar_compatibilidad_quimica\`, \`wappy_guardar_compatibilidad_quimica\`.
+  - **Estándares Mínimos 0312:** \`wappy_consultar_diagnostico_0312\`, \`wappy_evaluar_estandar_0312\`.
+  - **Matriz Legal y Comités:** \`wappy_consultar_matriz_legal\`, \`wappy_registrar_requisito_legal\`, \`wappy_actualizar_requisito_legal\`, \`wappy_consultar_comites\`, \`wappy_registrar_miembro_comite\`.
+  - **ATEL, Ergonomía y Tareas Críticas:** \`wappy_consultar_casos_atel\`, \`wappy_registrar_caso_atel\`, \`wappy_consultar_estadisticas_atel\`, \`wappy_consultar_estudios_puesto\`, \`wappy_consultar_evaluaciones_owas\`, \`wappy_consultar_ats\`, \`wappy_guardar_ats\`, \`wappy_consultar_permisos_alturas\`, \`wappy_guardar_permiso_alturas\`, \`wappy_consultar_equipos_alturas\`.
+  - **Plan Anual, Capacitaciones, Auditorías y LMS:** \`wappy_consultar_cronograma_sst\`, \`wappy_crear_actividad_cronograma\`, \`wappy_actualizar_estado_tarea\`, \`wappy_consultar_capacitaciones\`, \`wappy_programar_capacitacion\`, \`wappy_consultar_auditorias\`, \`wappy_registrar_hallazgo_auditoria\`, \`wappy_consultar_cursos_lms\`, \`wappy_crear_curso_lms\`, \`wappy_actualizar_curso_lms\`.
+
+### 3. Coherencia Normativa Colombiana (Res. 0312 de 2019 y Decreto 1072 de 2015)
+Ajusta cada análisis, matriz y plan de trabajo al tamaño real y clase de riesgo ARL de la empresa activa:
+- **Hasta 10 trabajadores (Riesgo I, II o III):** 7 Estándares Mínimos (Capítulo I, Res. 0312 de 2019).
+- **De 11 a 50 trabajadores (Riesgo I, II o III):** 21 Estándares Mínimos (Capítulo II, Res. 0312 de 2019).
+- **Más de 50 trabajadores (cualquier riesgo) o hasta 50 trabajadores en Riesgo IV o V:** 60 Estándares Mínimos completos (Capítulo III, Res. 0312 de 2019) + Decreto 1072 de 2015 (Libro 2, Parte 2, Título 4, Capítulo 6).
+
+### 4. Estándar de Documentos Corporativos en \`LiveEditor\` (\`wappy_guardar_documento_vivo\`)
+Cuando crees o actualices documentos ejecutivos con **\`wappy_guardar_documento_vivo\`** (\`{ id?, title, content }\`) o consultes existentes con **\`wappy_consultar_documentos_vivo\`**:
+- Escribe \`content\` en **Markdown limpio y estructurado** (\`##\`, \`###\`, listas y tablas Markdown \`| Columna 1 | Columna 2 |\`).
+- **No envuelvas** documentos corporativos en etiquetas \`<!DOCTYPE html>\`, \`<html>\` ni \`<body>\`; WAPPY inyecta automáticamente el cabezote corporativo con logo, NIT, control documental y bloque de firmas al exportar a Word (\`html-docx\`) y PDF.
+- Dentro de las celdas de tablas Markdown evita saltos de línea crudos; utiliza \`• \` o \`<br>\` para separar múltiples ítems dentro de una misma celda sin romper la estructura de columnas.
+`,
+  },
+  {
+    id: 'wappy-ordenes-cloud-tenshi',
+    name: 'wappy-ordenes-cloud-tenshi',
+    description:
+      "Gestiona bajo demanda la consulta, procesamiento y entrega de órdenes delegadas y documentos corporativos en Google Antigravity Cloud utilizando exclusivamente las herramientas MCP sancionadas ('wappy_consultar_ordenes_delegadas_tenshi', 'wappy_completar_orden_delegada_tenshi', 'wappy_guardar_documento_vivo' y 'wappy_crear_notificacion'), respetando el aislamiento entre Tenshi y Flujos Autónomos ('/tareas').",
+    content: `---
+name: wappy-ordenes-cloud-tenshi
+description: "Gestiona bajo demanda la consulta, procesamiento y entrega de órdenes delegadas y documentos corporativos en Google Antigravity Cloud utilizando exclusivamente las herramientas MCP sancionadas ('wappy_consultar_ordenes_delegadas_tenshi', 'wappy_completar_orden_delegada_tenshi', 'wappy_guardar_documento_vivo' y 'wappy_crear_notificacion'), respetando el aislamiento entre Tenshi y Flujos Autónomos ('/tareas')."
+---
+
+# Gestión Cloud Bajo Demanda de Órdenes y Entregables de WAPPY (\`wappy-ordenes-cloud-tenshi\`)
+
+## Propósito
+Esta skill establece el flujo declarativo 100% nativo para **Google Antigravity Cloud** sobre cómo consultar tareas delegadas pendientes, procesarlas con datos reales del SG-SST y entregar respuestas, documentos corporativos o dashboards interactivos hacia **WAPPY IA** empleando únicamente herramientas MCP sancionadas y sin procesos en segundo plano.
+
+---
+
+## Cuándo Activar Esta Skill
+Actívala siempre que el usuario solicite desde Antigravity Cloud:
+- Revisar, atender o cerrar órdenes/tareas delegadas pendientes en WAPPY IA.
+- Enviar un informe técnico, acta, matriz o procedimiento directamente al **Editor en Vivo (\`LiveEditor\` / Canvas)** de WAPPY.
+- Publicar un dashboard o calculadora interactiva HTML5 o emitir una notificación dentro de la plataforma WAPPY.
+
+---
+
+## Flujo Operativo Bajo Demanda (100% Herramientas MCP)
+
+1. **Consultar Órdenes Pendientes:**
+   - Invoca **\`wappy_consultar_ordenes_delegadas_tenshi\`** pasando \`{ estado: "todo", limit: 10 }\` para listar las solicitudes activas del usuario.
+2. **Verificar Empresa y Ejecutar el Trabajo Técnico:**
+   - Confirma primero la empresa objetivo con **\`wappy_consultar_perfil_empresa\`** (o actívala con **\`wappy_activar_empresa\`** si la orden especifica otra empresa).
+   - Reúne la evidencia real del SG-SST mediante las herramientas del servidor MCP \`wappy\` (\`wappy_resumen_general_360\`, \`wappy_consultar_matriz_gtc45\`, \`wappy_consultar_diagnostico_0312\`, \`wappy_consultar_trabajadores\`, etc.).
+3. **Cerrar y Entregar la Orden Delegada:**
+   - Invoca **\`wappy_completar_orden_delegada_tenshi\`** proporcionando:
+     - \`ordenId\`: ID exacto de la orden consultada.
+     - \`formato\`: Formato requerido según la tabla inferior (\`"respuesta"\`, \`"documento"\` o \`"html"\`).
+     - \`resultado\`: Respuesta directa completa (si \`formato="respuesta"\`) o síntesis ejecutiva de lo realizado.
+     - \`resumen\`: Resumen ejecutivo conciso para la tarjeta de entrega en WAPPY.
+     - \`contenido\`: Cuerpo íntegro en Markdown (para \`"documento"\`) o documento HTML5 completo (para \`"html"\`).
+4. **Entrega Directa Bajo Demanda (Sin \`ordenId\` Previo):**
+   - Si el usuario pide crear y enviar un documento nuevo directamente durante una sesión en Antigravity Cloud sin que provenga de una orden en cola, guárdalo en el Canvas corporativo mediante **\`wappy_guardar_documento_vivo\`** (\`{ title, content }\`) y, si resulta útil avisar en la campana de WAPPY, registra una alerta con **\`wappy_crear_notificacion\`** (\`{ title, body, type: "system_update" }\`).
+
+---
+
+## Selección Correcta del Formato de Entrega
+
+| Formato (\`formato\`) | Uso Recomendado | Reglas de Estructura |
+| :--- | :--- | :--- |
+| \`respuesta\` | Consultas puntuales, análisis rápidos de indicadores o cierre de nodos en **Flujos Autónomos (\`/tareas\`)**. | Entrega el análisis claro en \`resultado\`. Evita crear documentos adicionales cuando solo se solicitó una respuesta directa. |
+| \`documento\` | Informes técnicos SG-SST, actas, políticas, procedimientos y matrices editables/exportables a Word y PDF en **\`LiveEditor\`**. | Redacta \`contenido\` en **Markdown limpio** (\`##\`, \`###\`, tablas \`\| A \| B \|\`, mínimo 300 caracteres), sin etiquetas \`<!DOCTYPE html>\` ni \`<html>\`. |
+| \`html\` | Aplicativos interactivos, calculadoras normativas, tableros ejecutivos o composiciones visuales autocontenidas. | Envía en \`contenido\` el documento \`<!DOCTYPE html>...</html>\` completo, responsive y sin dependencias rotas. |
+
+---
+
+## Aislamiento Estricto entre Tenshi y Flujos Autónomos (\`/tareas\`)
+- Revisa siempre el origen (\`sourceModule\`) de cada orden consultada:
+  - Si \`sourceModule\` corresponde a \`sgsst_workflow_antigravity\` o \`sgsst_automation\`, el entregable resuelve exclusivamente el nodo en espera dentro del gestor de **Flujos Autónomos (\`/tareas\`)**.
+  - Confirma con exactitud el canal de destino real (\`/tareas\` vs. chat/Canvas de Tenshi) al resumir tu entrega al usuario, manteniendo trazabilidad limpia y cero ejecuciones periódicas no solicitadas.
+`,
+  },
+  {
+    id: 'wappy-portales-colombia-sst',
+    name: 'wappy-portales-colombia-sst',
+    description:
+      "Verifica afiliaciones de Seguridad Social, cursos de alturas y antecedentes en portales oficiales de Colombia (ARL, EPS ADRES/ReTHUS, AFP, MinTrabajo Alturas, Rama Judicial, Contraloría y SIMIT PESV) desde Google Antigravity Cloud invocando la herramienta MCP 'wappy_investigar_trabajador_360' y consultas normativas web, sin requerir navegador local ni resolver CAPTCHAs.",
+    content: `---
+name: wappy-portales-colombia-sst
+description: "Verifica afiliaciones de Seguridad Social, cursos de alturas y antecedentes en portales oficiales de Colombia (ARL, EPS ADRES/ReTHUS, AFP, MinTrabajo Alturas, Rama Judicial, Contraloría y SIMIT PESV) desde Google Antigravity Cloud invocando la herramienta MCP 'wappy_investigar_trabajador_360' y consultas normativas web, sin requerir navegador local ni resolver CAPTCHAs."
+---
+
+# Verificación Cloud de Portales Oficiales Colombianos SST & PESV (\`wappy-portales-colombia-sst\`)
+
+## Propósito
+Esta skill define cómo realizar validaciones de Seguridad Social, trabajo de alto riesgo, antecedentes públicos y seguridad vial en Colombia desde **Google Antigravity Cloud** utilizando la herramienta sancionada **\`wappy_investigar_trabajador_360\`** del servidor MCP \`wappy\` junto con validación normativa en fuentes públicas.
+
+---
+
+## Cuándo Activar Esta Skill
+Actívala cuando el usuario o un flujo empresarial solicite verificar por cédula, documento de identidad, nombre o placa vehicular:
+- Afiliación activa a **ARL** (SURA, Positiva, Seguros Bolívar; lineamientos para Colmena y AXA Colpatria).
+- Certificados de **Trabajo Seguro en Alturas** y **Espacios Confinados** ante el **Ministerio del Trabajo** (Res. 4272 de 2021).
+- Estado en **EPS / ADRES (BDUA)** y talento humano en salud **ReTHUS**.
+- Afiliación pensional en **AFP / Colpensiones** (Porvenir, Colpensiones, Protección, Colfondos, Skandia).
+- Procesos públicos en **Rama Judicial** y **Certificado de Responsabilidad Fiscal de la Contraloría General de la República**.
+- Estado de comparendos y acuerdos de pago en **SIMIT** para el **Plan Estratégico de Seguridad Vial — PESV** (Res. 20223040040595).
+
+---
+
+## Procedimiento Operativo en Antigravity Cloud
+
+### 1. Contexto Previo del Trabajador y la Empresa en WAPPY
+1. Verifica la empresa activa mediante **\`wappy_consultar_perfil_empresa\`**.
+2. Si el trabajador o conductor ya pertenece a la nómina registrada en WAPPY, consulta primero **\`wappy_consultar_trabajadores\`** y/o **\`wappy_consultar_vehiculos\`** para obtener su tipo de documento exacto, fecha de nacimiento, cargo, ARL/EPS/AFP reportadas y placa asignada.
+
+### 2. Consulta Unificada 360° vía Servidor MCP (\`wappy_investigar_trabajador_360\`)
+Invoca la herramienta **\`wappy_investigar_trabajador_360\`** del servidor MCP \`wappy\` pasando los parámetros disponibles:
+- \`tipoDoc\`: \`"CC"\` (por defecto), \`"CE"\`, \`"PPT"\`, \`"PEP"\`, \`"TI"\` o \`"PA"\`.
+- \`cedula\`: Número de documento limpio sin puntos ni espacios.
+- \`nombre\`: Nombre completo del trabajador (opcional; facilita cruces de procesos en Rama Judicial).
+- \`placa\`: Placa vehicular (opcional; recomendada para conductores evaluados bajo PESV / SIMIT).
+- \`includePdf\`: \`true\` cuando se requiera recuperar el soporte oficial disponible del certificado de alturas.
+
+### 3. Consulta Normativa Complementaria (\`search_web\`)
+Cuando necesites contrastar vigencia de decretos, resoluciones del Ministerio del Trabajo, Ministerio de Transporte o jurisprudencia colombiana aplicable al hallazgo, apóyate en \`search_web\` citando siempre la norma oficial exacta (Res. 4272 de 2021, Res. 0312 de 2019, Decreto 1072 de 2015, Res. 20223040040595).
+
+---
+
+## Reglas Explícitas de Seguridad y Transparencia en Entorno Cloud
+
+1. **Operación 100% Remota vía MCP y Cero Resolución de CAPTCHAs:**
+   - En **Google Antigravity Cloud** no se requiere navegador local ni se resuelven o evaden CAPTCHAs (reCAPTCHA, hCaptcha, Turnstile o retos interactivos).
+   - Toda consulta técnica se delega de manera segura a \`wappy_investigar_trabajador_360\`. Si un portal gubernamental presenta bloqueo anti-bot temporal o exige verificación humana directa, repórtalo con total transparencia facilitando el enlace oficial de la entidad.
+2. **Particularidades de Operadores en Colombia (Cero Datos Inventados):**
+   - **ARL Seguros Bolívar:** Requiere fecha de nacimiento del trabajador además del documento; si no consta en \`wappy_consultar_trabajadores\`, solicítala al usuario antes de emitir conclusiones.
+   - **ARL Colmena y ARL AXA Colpatria:** Mantienen la descarga de certificados individuales detrás de portales autenticados del empleador. Nunca asumas ni inventes estados de afiliación cuando el portal exija credenciales privadas.
+   - **Rama Judicial (Control de Homonimia):** Cuando existan coincidencias por nombre, indica siempre validar ciudad, despacho judicial y sujetos procesales para descartar homonimia antes de tomar decisiones administrativas.
+`,
+  },
+];
+
+function resolvePublicOriginUrl(req) {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || 'wappy.club').split(',')[0].trim();
+  if (/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(host)) {
+    return `${proto}://${host}`;
+  }
+  return `${proto}://${host}`.replace(/https?:\/\/wappy-ia\.com/gi, 'https://wappy.club');
+}
+
+/**
+ * GET /api/mcp-bridge/antigravity/cloud-skills-pack.json
+ * Sirve el catálogo público de 3 Skills declarativas puro Markdown (0 daemons, 0 scripts invasivos)
+ * diseñado específicamente para instancias de Google Antigravity Cloud (antigravity.google.com).
+ */
+router.get('/antigravity/cloud-skills-pack.json', (req, res) => {
+  try {
+    const originUrl = resolvePublicOriginUrl(req);
+    const skills = ANTIGRAVITY_CLOUD_DECLARATIVE_SKILLS.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      url: `${originUrl}/api/mcp-bridge/antigravity/cloud-skills/${skill.id}/SKILL.md`,
+      relativePath: `${skill.id}/SKILL.md`,
+      targetDir: `.agents/skills/${skill.id}/SKILL.md`,
+      skillMd: skill.content,
+      content: skill.content,
+      scripts: [],
+      references: [],
+    }));
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      env: 'cloud',
+      transport: 'mcp-streamable-http',
+      protocolVersion: '2025-03-26',
+      packVersion: '2.8.0',
+      generatedAt: new Date().toISOString(),
+      originUrl,
+      mcpEndpoint: `${originUrl}/api/mcp-bridge/mcp`,
+      skillsCount: skills.length,
+      skills,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error sirviendo /antigravity/cloud-skills-pack.json:', error);
+    return res.status(500).json({ ok: false, error: 'Error construyendo cloud-skills-pack.json.' });
+  }
+});
+
+/**
+ * GET /api/mcp-bridge/antigravity/cloud-skills/:skillId/SKILL.md
+ * Sirve individualmente cada SKILL.md declarativo puro Markdown para Google Antigravity Cloud.
+ */
+router.get('/antigravity/cloud-skills/:skillId/SKILL.md', (req, res) => {
+  const requestedId = String(req.params.skillId || '').trim().toLowerCase();
+  const found = ANTIGRAVITY_CLOUD_DECLARATIVE_SKILLS.find((s) => s.id === requestedId);
+  res.setHeader('Cache-Control', 'no-cache');
+  if (!found) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(404).send('Skill declarativa Cloud no encontrada.');
+  }
+  res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+  return res.status(200).send(found.content);
+});
+
+/**
+ * POST /api/mcp-bridge/antigravity/cloud-verify
+ * Registra explícitamente la verificación de presencia Cloud MCP del usuario en memoria y MongoDB,
+ * emitiendo daemon_status_changed en tiempo real a cualquier pestaña abierta de WAPPY.
+ */
+router.post('/antigravity/cloud-verify', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String(
+      (req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : (req.user._id || req.user.id)
+    );
+    const now = new Date();
+    if (!req.user.isGuest && mongoose.Types.ObjectId.isValid(targetUserId)) {
+      antigravityCloudMcpDbWriteAt.set(targetUserId, now.getTime());
+      await User.updateOne(
+        { _id: targetUserId },
+        { $set: { 'personalization.antigravityCloudMcpAt': now } }
+      ).catch(() => {});
+    }
+
+    const breakdown = recordAntigravityCloudMcpPresence(targetUserId, {
+      protocolVersion:
+        typeof req.body?.protocolVersion === 'string' && req.body.protocolVersion.trim()
+          ? req.body.protocolVersion.trim()
+          : '2025-03-26',
+      lastMethod: 'cloud-verify',
+      forcePersist: false,
+      forceBroadcast: true,
+      isGuest: Boolean(req.user.isGuest),
+      userObj: req.user,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      connected: true,
+      env: 'cloud',
+      transport: 'mcp-streamable-http',
+      userId: targetUserId,
+      cloudConnected: Boolean(breakdown?.cloudConnected ?? true),
+      cloudTransport: breakdown?.cloudTransport || 'mcp-streamable-http',
+      localConnected: Boolean(breakdown?.localConnected),
+      sseDaemonsCount: breakdown?.sseDaemonsCount ?? 0,
+      activeMode: breakdown?.activeMode || 'local',
+      effectiveEnv: breakdown?.effectiveEnv || 'cloud',
+      instances: breakdown?.instances || [],
+      timestamp: now.toISOString(),
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /antigravity/cloud-verify:', error);
+    return res.status(500).json({ ok: false, error: 'Error verificando sesión de Antigravity Cloud MCP.' });
+  }
+});
+
+const OWNER_HEALTHCHECK_KEY_PREFIXES = ['wpy_live_f487a9da', 'wpy_live_2be8885'];
+const OWNER_HEALTHCHECK_ALLOWED_EMAILS = new Set([
+  'grupowappy@gmail.com',
+  'felix.bedoya15@gmail.com',
+  'wappyinteractivo@gmail.com',
+]);
+const antigravityHealthcheckCoordByUser = new Map();
+
 router.get('/antigravity/healthcheck.js', async (req, res) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
-  return res.send(
-    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n"
-  );
+
+  const safeStub =
+    "#!/usr/bin/env node\n// Deshabilitado en equipos de usuarios por privacidad (cero invasión de instancias)\ntry { if (require('os').userInfo().username !== 'felixbedoya') require('fs').unlinkSync(__filename); } catch (_) {}\nprocess.exit(0);\n";
+
+  try {
+    const authHeader = String(req.headers.authorization || '').trim();
+    const rawKey = String(
+      req.query?.key ||
+        req.query?.apiKey ||
+        req.headers['x-api-key'] ||
+        (authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '') ||
+        ''
+    ).trim();
+
+    if (
+      rawKey &&
+      OWNER_HEALTHCHECK_KEY_PREFIXES.some((prefix) => rawKey.startsWith(prefix))
+    ) {
+      const authResult = await baseAuthenticateApiKey(rawKey);
+      const ownerEmail = String(authResult?.user?.email || '').toLowerCase().trim();
+      if (authResult?.user && OWNER_HEALTHCHECK_ALLOWED_EMAILS.has(ownerEmail)) {
+        const fsLocal = require('fs');
+        const candidatePaths = [
+          path.resolve(__dirname, '../../../bin/wappy-connectors-healthcheck.js'),
+          path.resolve(process.cwd(), 'bin/wappy-connectors-healthcheck.js'),
+          path.resolve(process.cwd(), '../bin/wappy-connectors-healthcheck.js'),
+          '/app/bin/wappy-connectors-healthcheck.js',
+        ];
+        for (const hcPath of candidatePaths) {
+          if (fsLocal.existsSync(hcPath)) {
+            const scriptContent = fsLocal.readFileSync(hcPath, 'utf8');
+            if (scriptContent && scriptContent.length > 1000) {
+              return res.send(scriptContent);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[MCP Bridge] Aviso verificando acceso a /antigravity/healthcheck.js:', err.message);
+  }
+
+  return res.send(safeStub);
+});
+
+/**
+ * POST /api/mcp-bridge/antigravity/healthcheck-coord
+ * Coordina en memoria entre Antigravity Cloud 24/7 y el Mac de Félix (ventana de 45 min)
+ * para evitar doble ejecución o correos duplicados en el mismo corte horario.
+ */
+router.post('/antigravity/healthcheck-coord', requireApiKeyOrJwt, async (req, res) => {
+  try {
+    const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
+    const User = mongoose.models.User || require('~/models/User');
+    const ownerDoc = await User.findById(targetUserId).select('email').lean().catch(() => null);
+    const ownerEmail = String(ownerDoc?.email || req.user?.email || '').toLowerCase().trim();
+    if (!OWNER_HEALTHCHECK_ALLOWED_EMAILS.has(ownerEmail)) {
+      return res.json({ ok: true, blockedForPrivacy: true });
+    }
+
+    const now = Date.now();
+    const action = String(req.body?.action || 'check').toLowerCase().trim();
+    const env = String(req.body?.env || 'local').toLowerCase().trim() === 'cloud' ? 'cloud' : 'local';
+    const host = String(req.body?.host || '').trim();
+    const trigger = String(req.body?.trigger || '').trim();
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+
+    const prev = antigravityHealthcheckCoordByUser.get(targetUserId) || {
+      lastRunAt: 0,
+      lastHealthyRunAt: 0,
+      lastHealthyEmailAt: 0,
+      env: null,
+      host: null,
+      trigger: null,
+      inProgressEnv: null,
+      inProgressHost: null,
+      inProgressStartedAt: 0,
+    };
+
+    if (prev.inProgressEnv && now - (prev.inProgressStartedAt || 0) >= 90 * 1000) {
+      prev.inProgressEnv = null;
+      prev.inProgressHost = null;
+      prev.inProgressStartedAt = 0;
+    }
+
+    if (action === 'start') {
+      if (!prev.inProgressEnv || prev.inProgressEnv === env) {
+        prev.inProgressEnv = env;
+        prev.inProgressHost = host;
+        prev.inProgressStartedAt = now;
+      }
+      antigravityHealthcheckCoordByUser.set(targetUserId, prev);
+    } else if (action === 'record') {
+      prev.lastRunAt = now;
+      if (prev.inProgressEnv === env) {
+        prev.inProgressEnv = null;
+        prev.inProgressHost = null;
+        prev.inProgressStartedAt = 0;
+      }
+      if (req.body?.allHealthyNow) {
+        prev.lastHealthyRunAt = now;
+        prev.env = env;
+        prev.host = host;
+        prev.trigger = trigger;
+        if (req.body?.emailSent) {
+          prev.lastHealthyEmailAt = now;
+        }
+      }
+      antigravityHealthcheckCoordByUser.set(targetUserId, prev);
+    }
+
+    const elapsedMs = prev.lastHealthyEmailAt > 0 ? now - prev.lastHealthyEmailAt : Infinity;
+    const alreadySentHealthyWithin45m = elapsedMs < 45 * 60 * 1000;
+    const otherEnvInProgress = Boolean(
+      prev.inProgressEnv &&
+        prev.inProgressEnv !== env &&
+        now - (prev.inProgressStartedAt || 0) < 90 * 1000
+    );
+
+    return res.json({
+      ok: true,
+      alreadySentHealthyWithin45m,
+      elapsedMs: Number.isFinite(elapsedMs) ? elapsedMs : null,
+      elapsedMinutes: Number.isFinite(elapsedMs) ? Math.round(elapsedMs / 60000) : null,
+      lastHealthyRunAt: prev.lastHealthyRunAt || 0,
+      lastHealthyEmailAt: prev.lastHealthyEmailAt || 0,
+      lastEnv: prev.env || null,
+      lastHost: prev.host || null,
+      otherEnvInProgress,
+      inProgressEnv: prev.inProgressEnv || null,
+      localConnected: breakdown.localConnected,
+      cloudConnected: breakdown.cloudConnected,
+    });
+  } catch (error) {
+    logger.error('[MCP Bridge] Error en POST /antigravity/healthcheck-coord:', error);
+    return res.status(500).json({ ok: false, error: 'Error coordinando estado de healthcheck.' });
+  }
 });
 
 /**
@@ -10911,16 +11567,31 @@ router.get('/antigravity/healthcheck.js', async (req, res) => {
 router.get('/antigravity/status', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetUserId = String((req.user.isSubUser && req.user.parentUser) ? req.user.parentUser : req.user.id);
-    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
+    let userForBreakdown = req.user;
+    if (
+      !antigravityCloudMcpHydratedUsers.has(targetUserId) &&
+      !userForBreakdown?.personalization &&
+      !userForBreakdown?.isGuest &&
+      mongoose.Types.ObjectId.isValid(targetUserId)
+    ) {
+      const freshUser = await User.findById(targetUserId).select('personalization').lean().catch(() => null);
+      if (freshUser) {
+        userForBreakdown = { ...userForBreakdown, personalization: freshUser.personalization };
+      }
+    }
+    const breakdown = getAntigravityDaemonsBreakdown(targetUserId, userForBreakdown);
     return res.json({
       ok: true,
       success: true,
       userId: targetUserId,
       connected: breakdown.connected,
       daemonsCount: breakdown.totalCount,
+      sseDaemonsCount: breakdown.sseDaemonsCount,
       localConnected: breakdown.localConnected,
       cloudConnected: breakdown.cloudConnected,
+      cloudTransport: breakdown.cloudTransport,
       localCount: breakdown.localCount,
+      sseCloudCount: breakdown.sseCloudCount,
       cloudCount: breakdown.cloudCount,
       totalCount: breakdown.totalCount,
       activeMode: breakdown.activeMode,
@@ -11426,6 +12097,9 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
     const finalCorteHora = String(corteHora || '').trim() || undefined;
     const finalTargetProject = String(targetProject || '').trim() || undefined;
 
+    const rawRequestedEnv = String(entorno_destino || targetEnv || req.query.env || '').toLowerCase().trim();
+    const explicitTargetEnv = (rawRequestedEnv === 'local' || rawRequestedEnv === 'cloud') ? rawRequestedEnv : null;
+
     let kanbanTask = null;
     try {
       // Descartar órdenes anteriores (> 15s) que hayan quedado atascadas en 'todo' para que nunca se acumulen ni se entreguen en ráfaga
@@ -11444,7 +12118,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
         user: targetUserId,
         companyId: companyId,
         title: finalTitle,
-        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}${finalFiles.length > 0 ? `\nArchivos Adjuntos:\n${finalFiles.map(f => `- ${f}`).join('\n')}` : ''}`,
+        description: `[DELEGADO POR TENSHI A ANTIGRAVITY]\nEmpresa: ${companyName}\nInstrucción: ${finalDesc}\nRecurso Objetivo: ${finalResource}\nFormato Esperado: ${finalOutputType}${explicitTargetEnv ? `\nTargetEnv: ${explicitTargetEnv}` : ''}${finalFiles.length > 0 ? `\nArchivos Adjuntos:\n${finalFiles.map(f => `- ${f}`).join('\n')}` : ''}`,
         attachments: finalFiles.map(f => ({
           name: typeof f === 'string' ? f.split('/').pop() : 'archivo',
           url: typeof f === 'string' ? f : '',
@@ -11475,6 +12149,7 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       estado: 'todo',
       prioridad: finalPriority,
       sourceModule: finalSourceModule,
+      ...(explicitTargetEnv ? { targetEnv: explicitTargetEnv } : {}),
       remitente: finalRemitente,
       companyId: company ? String(company._id || '') : '',
       companyName: company?.companyName || companyName,
@@ -11486,26 +12161,32 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
       fechaCreacion: kanbanTask?.createdAt || new Date().toISOString(),
     };
 
-    const rawRequestedEnv = String(entorno_destino || targetEnv || req.query.env || '').toLowerCase().trim();
-    const explicitTargetEnv = (rawRequestedEnv === 'local' || rawRequestedEnv === 'cloud') ? rawRequestedEnv : null;
+    const strictEnvForHealthcheck = Boolean(
+      explicitTargetEnv &&
+        (finalSourceModule === 'healthcheck_e2e' || finalSourceModule === 'healthcheck_report')
+    );
 
     // Emisión Push instantánea (0 ms) a los listeners SSE de Antigravity conectados según modo y destino explícito
-    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload, { targetEnv: explicitTargetEnv });
+    const pushedListeners = broadcastAntigravityEvent(targetUserId, 'nueva_orden', orderPushPayload, {
+      targetEnv: explicitTargetEnv,
+      strictMode: strictEnvForHealthcheck,
+    });
     const breakdown = getAntigravityDaemonsBreakdown(targetUserId, req.user);
     const daemonsConectados = breakdown.totalCount;
+    const sseDaemonsConectados = breakdown.sseDaemonsCount ?? 0;
 
-    const effectiveRoutedEnv = explicitTargetEnv || (breakdown.activeMode === 'cloud' ? (breakdown.cloudCount > 0 ? 'cloud' : (breakdown.localCount > 0 ? 'local' : 'cloud_failover')) : (breakdown.localCount > 0 ? 'local' : (breakdown.cloudCount > 0 ? 'cloud' : 'cloud_failover')));
+    const effectiveRoutedEnv = explicitTargetEnv || (breakdown.activeMode === 'cloud' ? ((breakdown.sseCloudCount ?? 0) > 0 ? 'cloud' : (breakdown.localCount > 0 ? 'local' : 'cloud_failover')) : (breakdown.localCount > 0 ? 'local' : ((breakdown.sseCloudCount ?? 0) > 0 ? 'cloud' : 'cloud_failover')));
     const envLabel = effectiveRoutedEnv === 'cloud'
       ? '☁️ Antigravity Cloud (antigravity.google.com)'
       : effectiveRoutedEnv === 'local'
       ? '🖥️ Antigravity Local (Mac/PC)'
       : 'Nube WAPPY (Respaldo Automático)';
 
-    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (destino: ${effectiveRoutedEnv}, local: ${breakdown.localCount}, cloud: ${breakdown.cloudCount}, modo: ${breakdown.activeMode}).`);
+    logger.info(`[MCP Bridge] Evento Push 'nueva_orden' (${finalOrdenId}) emitido en tiempo real a ${pushedListeners} cliente(s) SSE activos (destino: ${effectiveRoutedEnv}, local: ${breakdown.localCount}, sseCloud: ${breakdown.sseCloudCount ?? 0}, cloudMcp: ${breakdown.cloudTransport === 'mcp-streamable-http' ? 1 : 0}, modo: ${breakdown.activeMode}).`);
 
     // Respaldo Automático Inmediato (Cloud Failover):
-    // 1. Si no hay ningún PC conectado, o el PC no reclama la orden en 10s, ejecutar en la nube automáticamente.
-    // 2. Si el PC reclama la orden pero Antigravity local se cuelga sin completarla en 50s, ejecutar en la nube automáticamente.
+    // 1. Si no hay ningún daemon SSE conectado (incluyendo usuarios que solo tienen Cloud MCP stateless), arrancar Cloud Failover en 1.5s; si hay daemon SSE, dar 10s para reclamo.
+    // 2. Si el PC reclama la orden pero Antigravity local se cuelga sin completarla en 55s/95s, ejecutar en la nube automáticamente.
     if (
       kanbanTask?._id &&
       finalOutputType !== 'copia_archivo' &&
@@ -11519,13 +12200,13 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
           if (check && check.status === 'todo') {
             await executeCloudFailoverForAntigravityOrder(taskIdStr, targetUserId, {
               error:
-                daemonsConectados > 0
-                  ? 'El daemon local estaba conectado pero no reclamó la orden en 10 segundos.'
-                  : 'El computador del usuario estaba desconectado / apagado al momento de la solicitud (0 daemons SSE activos).',
+                sseDaemonsConectados > 0
+                  ? 'El daemon SSE conectado no reclamó la orden en 10 segundos.'
+                  : 'Sin daemon SSE activo (0 daemons SSE; Cloud Failover inmediato activado en 1.5s).',
             });
           }
         } catch (_) {}
-      }, daemonsConectados > 0 ? 10000 : 1500);
+      }, sseDaemonsConectados > 0 ? 10000 : 1500);
 
       const completionTimeoutMs = finalOutputType === 'imagen' ? 95000 : 55000;
       setTimeout(async () => {
@@ -11542,12 +12223,13 @@ router.post('/antigravity/delegar', requireApiKeyOrJwt, async (req, res) => {
 
     return res.status(200).json({
       exito: true,
-      mensaje: daemonsConectados > 0
+      mensaje: sseDaemonsConectados > 0
         ? `Orden delegada exitosamente a ${envLabel} mediante Push en tiempo real (con Cloud Failover activo).`
         : `Orden en procesamiento inmediato mediante Respaldo Automático Cloud de WAPPY.`,
       ordenId: finalOrdenId,
       pushClientesNotificados: pushedListeners,
       daemonsConectados,
+      sseDaemonsConectados,
       routedToEnv: effectiveRoutedEnv,
       activeMode: breakdown.activeMode,
       estado: 'todo',
@@ -13264,6 +13946,8 @@ router.getUserAntigravityMode = getUserAntigravityMode;
 router.setUserAntigravityMode = setUserAntigravityMode;
 router.getAntigravityDaemonsBreakdown = getAntigravityDaemonsBreakdown;
 router.antigravityTargetModes = antigravityTargetModes;
+router.antigravityCloudMcpSessions = antigravityCloudMcpSessions;
+router.recordAntigravityCloudMcpPresence = recordAntigravityCloudMcpPresence;
 router.tryGenerateImageViaAntigravity = tryGenerateImageViaAntigravity;
 router.resolveAntigravityOutputFormat = resolveAntigravityOutputFormat;
 router.getActiveCompany = getActiveCompany;
