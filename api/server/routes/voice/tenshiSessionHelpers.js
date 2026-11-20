@@ -15,6 +15,7 @@ const CORE_ALWAYS_ACTIVE_TOOLS = [
   'wappy_controlar_videollamada',
   'wappy_iniciar_estudio_ergonomico_vivo',
   'wappy_abrir_chat_agente',
+  'wappy_activar_herramienta_agente',
   'wappy_buscar_historial_instantaneo',
   'gestionar_memoria',
   'wappy_memoria_procedimental',
@@ -27,6 +28,118 @@ const CORE_ALWAYS_ACTIVE_TOOLS = [
   'wappy_enviar_correo',
   'wappy_gestionar_agenda',
 ];
+
+const TENSHI_PANEL_TOOL_IDS = [
+  'canvas',
+  'editor_live',
+  'editor_rit',
+  'matriz_ipevar',
+  'matriz_pesv',
+  'matriz_compatibilidad',
+  'consultar_analitica_psicosocial',
+  'consultar_analitica_actos_condiciones',
+  'gestor_automatizaciones',
+  'wappy_investigar_trabajador_360',
+  'blog_editor',
+];
+
+const TENSHI_PANEL_TOOL_SET = new Set(TENSHI_PANEL_TOOL_IDS);
+
+function normalizeTenshiPanelToolId(rawName) {
+  if (typeof rawName !== 'string') return null;
+  const trimmed = rawName.trim();
+  if (!trimmed) return null;
+
+  const asciiLower = trimmed
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const snake = asciiLower
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!snake || snake === 'generar_imagen_sst') {
+    return null;
+  }
+
+  if (TENSHI_PANEL_TOOL_SET.has(snake)) {
+    return snake;
+  }
+
+  if (snake === 'canvas_tool') return 'canvas';
+  if (snake === 'wappy_consultar_analitica_psicosocial') return 'consultar_analitica_psicosocial';
+  if (snake === 'wappy_consultar_analitica_actos_condiciones') {
+    return 'consultar_analitica_actos_condiciones';
+  }
+
+  const spaced = snake.replace(/_/g, ' ');
+  const compact = snake.replace(/_/g, '');
+
+  if (/\bcanvas\b|\blienzo\b/.test(spaced) || compact === 'canvas' || compact === 'canvastool') {
+    return 'canvas';
+  }
+  if (
+    compact.includes('gtc45') ||
+    spaced.includes('ipevr') ||
+    spaced.includes('ipevar') ||
+    spaced.includes('peligro')
+  ) {
+    return 'matriz_ipevar';
+  }
+  if (
+    spaced.includes('pesv') ||
+    spaced.includes('riesgo vial') ||
+    spaced.includes('riesgos viales') ||
+    spaced.includes('seguridad vial')
+  ) {
+    return 'matriz_pesv';
+  }
+  if (spaced.includes('quimic') || /\bsga\b/.test(spaced) || spaced.includes('compatib')) {
+    return 'matriz_compatibilidad';
+  }
+  if (
+    spaced.includes('psicosocial') ||
+    spaced.includes('animo') ||
+    spaced.includes('clima laboral')
+  ) {
+    return 'consultar_analitica_psicosocial';
+  }
+  if (spaced.includes('actos') || spaced.includes('condiciones')) {
+    return 'consultar_analitica_actos_condiciones';
+  }
+  if (spaced.includes('blog')) {
+    return 'blog_editor';
+  }
+  if (/\brit\b/.test(spaced) || spaced.includes('reglamento')) {
+    return 'editor_rit';
+  }
+  if (
+    spaced.includes('live') ||
+    spaced.includes('documento vivo') ||
+    spaced.includes('documentos vivo') ||
+    spaced.includes('documentos en vivo') ||
+    spaced.includes('editor')
+  ) {
+    return 'editor_live';
+  }
+  if (
+    spaced.includes('auto') ||
+    spaced.includes('flujo') ||
+    spaced.includes('tarea') ||
+    spaced.includes('cron')
+  ) {
+    return 'gestor_automatizaciones';
+  }
+  if (
+    spaced.includes('osint') ||
+    spaced.includes('360') ||
+    spaced.includes('investigar') ||
+    spaced.includes('portal')
+  ) {
+    return 'wappy_investigar_trabajador_360';
+  }
+
+  return null;
+}
 
 const ADMIN_ONLY_TOOLS = ['wappy_consultar_metricas_admin', 'wappy_admin_sistema'];
 
@@ -46,7 +159,6 @@ const POPOVER_ENABLED_TOOLS_MAP = {
     'wappy_retirar_trabajador',
     'wappy_reintegrar_trabajador',
     'wappy_ejecutar_accion_usuario',
-    'wappy_activar_herramienta_agente',
   ],
   matriz_ipevar: ['matriz_ipevar'],
   matriz_pesv: ['matriz_pesv'],
@@ -1245,6 +1357,7 @@ function isPureGreetingOrSmallTalk(text, options = {}) {
 module.exports = {
   ALLOWED_TENSHI_MODELS,
   CORE_ALWAYS_ACTIVE_TOOLS,
+  TENSHI_PANEL_TOOL_IDS,
   ADMIN_ONLY_TOOLS,
   POPOVER_ENABLED_TOOLS_MAP,
   CONNECTOR_TOOL_MAP,
@@ -1253,6 +1366,7 @@ module.exports = {
   buildTenshiGenerationConfig,
   deduplicateFunctionDeclarations,
   normalizeConnectorsObject,
+  normalizeTenshiPanelToolId,
   selectTenshiTools,
   resolveSelectedNotebooks,
   buildNotebookLmPromptBlock,

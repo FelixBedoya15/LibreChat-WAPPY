@@ -49,6 +49,10 @@ import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
+import {
+  getTenshiPanelToolMeta,
+  isTenshiPanelTool,
+} from './TenshiToolPanels';
 
 /* ─── Types & Constants ──────────────────────────────────────────────────── */
 
@@ -494,6 +498,7 @@ function ToolRow({
   label,
   subtitle,
   statusDot,
+  actionButton,
   checked,
   onChange,
   id,
@@ -502,12 +507,13 @@ function ToolRow({
   label: string;
   subtitle?: string;
   statusDot?: 'online' | 'offline';
+  actionButton?: React.ReactNode;
   checked: boolean;
   onChange: () => void;
   id: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-100/80 dark:hover:bg-zinc-800/80">
+    <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-100/80 dark:hover:bg-zinc-800/80">
       <label
         htmlFor={id}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-zinc-200"
@@ -539,7 +545,10 @@ function ToolRow({
           )}
         </span>
       </label>
-      <ToggleSwitch id={id} checked={checked} onChange={onChange} />
+      <div className="flex shrink-0 items-center gap-1.5">
+        {actionButton}
+        <ToggleSwitch id={id} checked={checked} onChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -898,6 +907,9 @@ export interface TenshiSessionControlsProps {
   ) => void;
   compact?: boolean;
   onExternalModalToggle?: (isOpen: boolean) => void;
+  onOpenToolPanel?: (toolId: string) => void;
+  onToolPanelActivated?: (toolId: string) => void;
+  activePanelTab?: string;
 }
 
 export default function TenshiSessionControls({
@@ -905,6 +917,9 @@ export default function TenshiSessionControls({
   onChangePrefs,
   compact = false,
   onExternalModalToggle,
+  onOpenToolPanel,
+  onToolPanelActivated,
+  activePanelTab,
 }: TenshiSessionControlsProps) {
   const { token, isAuthenticated } = useAuthContext();
 
@@ -1156,6 +1171,7 @@ export default function TenshiSessionControls({
   };
 
   const handleToggleTool = (toolId: string) => {
+    const wasEnabled = prefs.enabledTools.includes(toolId);
     onChangePrefs((prev) => {
       const exists = prev.enabledTools.includes(toolId);
       const nextTools = exists
@@ -1163,6 +1179,9 @@ export default function TenshiSessionControls({
         : [...prev.enabledTools, toolId];
       return { ...prev, enabledTools: nextTools };
     });
+    if (!wasEnabled && (toolId === 'canvas' || isTenshiPanelTool(toolId))) {
+      onToolPanelActivated?.(toolId);
+    }
   };
 
   const handleApplyLightweightProfile = () => {
@@ -1460,16 +1479,45 @@ export default function TenshiSessionControls({
                         </span>
                       </div>
                       <div className="space-y-0.5">
-                        {cat.tools.map((tool) => (
-                          <ToolRow
-                            key={tool.id}
-                            id={`tenshi-tool-${tool.id}`}
-                            icon={tool.icon}
-                            label={tool.label}
-                            checked={prefs.enabledTools.includes(tool.id)}
-                            onChange={() => handleToggleTool(tool.id)}
-                          />
-                        ))}
+                        {cat.tools.map((tool) => {
+                          const isChecked = prefs.enabledTools.includes(tool.id);
+                          const hasPanel = tool.id === 'canvas' || isTenshiPanelTool(tool.id);
+                          const panelMeta = getTenshiPanelToolMeta(tool.id);
+                          const isCurrentPanel = activePanelTab === tool.id;
+                          return (
+                            <ToolRow
+                              key={tool.id}
+                              id={`tenshi-tool-${tool.id}`}
+                              icon={tool.icon}
+                              label={tool.label}
+                              checked={isChecked}
+                              onChange={() => handleToggleTool(tool.id)}
+                              actionButton={
+                                isChecked && hasPanel && onOpenToolPanel ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenu('none');
+                                      setIsModelDropdownOpen(false);
+                                      onOpenToolPanel(tool.id);
+                                    }}
+                                    title={`Abrir ${tool.label} en pestaña de Tenshi`}
+                                    className={cn(
+                                      'inline-flex shrink-0 items-center gap-0.5 rounded-xl border px-1.5 py-0.5 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer whitespace-nowrap',
+                                      panelMeta
+                                        ? panelMeta.openPillClass
+                                        : 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20',
+                                      isCurrentPanel && 'ring-1 ring-current',
+                                    )}
+                                  >
+                                    <span>{isCurrentPanel ? 'Abierto ↗' : 'Abrir ↗'}</span>
+                                  </button>
+                                ) : undefined
+                              }
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   );

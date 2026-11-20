@@ -2567,7 +2567,7 @@ export default function MatrizCompatibilidadTable({
   }
 
   // ── MODO PANEL LATERAL DEL CHAT (HERRAMIENTA) ──
-  return (
+  const panelContent = (
     <div className={`flex h-full flex-col border-l border-border-light transition-colors duration-300 ${isMaximized ? 'fixed inset-0 z-[999999] m-0 h-screen w-screen rounded-none bg-surface-primary shadow-2xl' : 'w-full h-full bg-surface-primary text-text-primary'}`}>
       {/* ── BARRA SUPERIOR DE ACCIONES ── */}
       <div
@@ -2860,4 +2860,8 @@ export default function MatrizCompatibilidadTable({
       {renderProductCardModal()}
     </div>
   );
+
+  return isMaximized && typeof document !== 'undefined'
+    ? createPortal(panelContent, document.body)
+    : panelContent;
 }

@@ -34,10 +34,12 @@ const { getLatestSystemActivity } = require('~/server/services/systemActivitySer
 const { executeTenshiMcpTool, TOOL_ROUTES } = require('./voice/tenshiMcpDispatcher');
 const {
     ALLOWED_TENSHI_MODELS,
+    TENSHI_PANEL_TOOL_IDS,
     sanitizeRequestedTenshiModel,
     buildTenshiModelFallbacks,
     buildTenshiGenerationConfig,
     normalizeConnectorsObject,
+    normalizeTenshiPanelToolId,
     selectTenshiTools,
     resolveSelectedNotebooks,
     buildNotebookLmPromptBlock,
@@ -47,6 +49,55 @@ const {
     evaluateSafeSstCalculator,
     isPureGreetingOrSmallTalk,
 } = require('./voice/tenshiSessionHelpers');
+
+const TENSHI_PANEL_TOOL_LABELS = {
+    canvas: 'Canvas',
+    editor_live: 'Editor de Documentos en Vivo',
+    editor_rit: 'Editor del Reglamento Interno de Trabajo (RIT)',
+    matriz_ipevar: 'Matriz de Peligros IPEVR (GTC-45)',
+    matriz_pesv: 'Matriz de Riesgos Viales (PESV)',
+    matriz_compatibilidad: 'Matriz de Compatibilidad Química (SGA)',
+    consultar_analitica_psicosocial: 'Analítica Psicosocial y Clima Laboral',
+    consultar_analitica_actos_condiciones: 'Analítica de Actos y Condiciones Inseguras',
+    gestor_automatizaciones: 'Gestor de Automatizaciones y Flujos',
+    wappy_investigar_trabajador_360: 'Investigador 360° de Trabajadores (OSINT)',
+    blog_editor: 'Editor de Blog',
+    generar_imagen_sst: 'Generador de Imágenes SST',
+};
+
+const PANEL_OPEN_VERB_REGEX =
+    /\b(abre|abrir|ábreme|abreme|activa|activar|actívame|activame|muestra|muéstrame|muestrame|trae|tráeme|traeme|enseña|enséñame|ensename|despliega|pesta[nñ]a|panel)\b/i;
+
+const PANEL_TOPIC_REGEX_MAP = {
+    editor_live: /\b(editor|live|liveeditor|documentos?\s+(en\s+)?vivo)\b/i,
+    editor_rit: /\b(rit|reglamento(\s+interno)?)\b/i,
+    matriz_ipevar: /\b(matriz|gtc[\s-]?45|ipevr|ipevar|peligros)\b/i,
+    matriz_pesv: /\b(pesv|riesgos?\s+viales|seguridad\s+vial)\b/i,
+    matriz_compatibilidad: /\b(compatibilidad|qu[ií]mic[oa]s?|sga)\b/i,
+    consultar_analitica_psicosocial: /\b(psicosocial|[aá]nimo|clima\s+laboral|anal[ií]tica)\b/i,
+    consultar_analitica_actos_condiciones: /\b(actos|condiciones|buz[oó]n|anal[ií]tica)\b/i,
+    gestor_automatizaciones: /\b(panel|pesta[nñ]a|gestor|automatizaciones|tareas)\b/i,
+    wappy_investigar_trabajador_360: /\b(investigador|osint|360|portales|investigar)\b/i,
+    blog_editor: /\b(blog|art[ií]culos?|editor)\b/i,
+};
+
+function isExplicitPanelOpenUserIntent(userTextLower = '', canonicalPanelId = '') {
+    const text = String(userTextLower || '').trim();
+    if (!text || !PANEL_OPEN_VERB_REGEX.test(text)) {
+        return false;
+    }
+    const topicRegex = PANEL_TOPIC_REGEX_MAP[canonicalPanelId];
+    if (!topicRegex) {
+        return false;
+    }
+    if (
+        canonicalPanelId === 'gestor_automatizaciones' &&
+        !/\b(abre|abrir|ábreme|abreme|muestra|muéstrame|muestrame|trae|tráeme|traeme|despliega|panel|pesta[nñ]a)\b/i.test(text)
+    ) {
+        return false;
+    }
+    return topicRegex.test(text);
+}
 const TenshiPendingAction = require('../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
 const {
@@ -3642,8 +3693,9 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
 10. **BLOG DE WAPPY ('wappy_consultar_blog' y 'wappy_leer_articulo_blog')**:
    - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
    - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
-11. **ACTIVACIÓN TOTAL DE HERRAMIENTAS DE AGENTES ('wappy_activar_herramienta_agente')**:
-   - TIENES FACULTAD TOTAL para activar y ejecutar directamente cualquiera de las herramientas especializadas de los agentes ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario te pida abrir, activar o ejecutar la herramienta de un agente.
+11. **ACTIVACIÓN VISUAL DE HERRAMIENTAS CON PANEL JUNTO A CANVAS ('wappy_activar_herramienta_agente')**:
+   - TIENES FACULTAD TOTAL para activar, abrir, traer o mostrar en las pestañas deslizables junto a Canvas cualquiera de las herramientas especializadas de WAPPY usando su ID canónico exacto: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual).
+   - REGLA OBLIGATORIA: Cuando el usuario te pida "activar", "abrir", "traer" o "mostrar" cualquiera de estas herramientas en Tenshi (ej. "ábreme la matriz GTC-45", "activa el editor live", "muéstrame la matriz PESV", "trae compatibilidad química", "abre el editor del RIT", "muéstrame analítica psicosocial", "abre actos y condiciones", "abre el gestor de automatizaciones", "abre el investigador 360", "abre el editor de blog", "abre Canvas"), DEBES invocar 'wappy_activar_herramienta_agente' con el ID exacto correspondiente para que se abra de inmediato la pestaña junto a Canvas.
 12. **DELEGACIÓN Y CONEXIÓN BIDIRECCIONAL CON ANTIGRAVITY ('wappy_delegar_orden_antigravity')**:
    - Si el usuario menciona explícitamente a "Antigravity" (ej: "pregúntale a Antigravity...", "conéctate con Antigravity", "que Antigravity cree un documento y me lo mande al chat"):
    - DISTINCIÓN CRÍTICA: Si el usuario solo hace una pregunta o consulta para Antigravity (sin pedir explícitamente crear un documento, informe o aplicativo), invoca 'wappy_delegar_orden_antigravity' con tipo_entregable='respuesta' para que Antigravity responda directamente en el chat sin generar documentos innecesarios.
@@ -5026,17 +5078,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const wappyActivarHerramientaAgenteDeclaration = {
                 name: 'wappy_activar_herramienta_agente',
-                description: "Activa y ejecuta de inmediato cualquiera de las herramientas especializadas de los agentes de WAPPY ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario pida abrir o activar una herramienta de un agente.",
+                description: "Activa y abre de inmediato el panel visual como pestaña deslizable junto a Canvas de cualquiera de las herramientas especializadas de WAPPY: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual). DEBES invocarla siempre que el usuario pida activar, abrir, traer o mostrar cualquiera de estas herramientas en Tenshi pasando el ID exacto en 'herramienta'.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         herramienta: {
                             type: 'STRING',
-                            description: "Nombre de la herramienta especializada: 'canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'."
+                            description: "ID exacto de la herramienta especializada a abrir en el panel junto a Canvas: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' o 'generar_imagen_sst'."
                         },
                         parametros: {
                             type: 'OBJECT',
-                            description: 'Parámetros o argumentos específicos para la herramienta.',
+                            description: 'Parámetros o argumentos específicos opcionales para la herramienta.',
                             properties: {
                                 accion: { type: 'STRING', description: 'Acción a realizar en la herramienta' },
                                 datos: { type: 'STRING', description: 'Datos, contenido o configuración' }
@@ -5959,6 +6011,39 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         let activeTurnCanvasConvoId = null;
                         requestedGuiAction = null;
                         requestedGuiActions = null;
+                        const enqueuePanelGuiAction = (rawToolName, rawParams = '', customMessage = '') => {
+                            const rawStr = typeof rawToolName === 'string' ? rawToolName.trim() : '';
+                            const normalizedTool = normalizeTenshiPanelToolId(rawStr);
+                            const effectiveTool = normalizedTool || rawStr;
+                            if (!effectiveTool) return null;
+                            const label = TENSHI_PANEL_TOOL_LABELS[effectiveTool] || effectiveTool;
+                            const fallbackMsg =
+                                effectiveTool === 'generar_imagen_sst'
+                                    ? `¡Listo! Activo el **${label}** para ti.`
+                                    : effectiveTool === 'canvas'
+                                      ? '¡Listo! Te abro **Canvas** en tu espacio de trabajo interactivo.'
+                                      : `¡Listo! Te abro **${label}** en la pestaña junto a Canvas.`;
+                            const guiPayload = {
+                                name: 'wappy_activar_herramienta_agente',
+                                args: {
+                                    herramienta: effectiveTool,
+                                    parametros: rawParams !== undefined && rawParams !== null ? rawParams : '',
+                                },
+                                message: customMessage || fallbackMsg,
+                            };
+                            requestedGuiAction = guiPayload;
+                            if (Array.isArray(requestedGuiActions)) {
+                                const alreadyQueued = requestedGuiActions.some(
+                                    (a) =>
+                                        a?.name === 'wappy_activar_herramienta_agente' &&
+                                        a?.args?.herramienta === effectiveTool
+                                );
+                                if (!alreadyQueued) {
+                                    requestedGuiActions.push(guiPayload);
+                                }
+                            }
+                            return guiPayload;
+                        };
                         const queuedCalls = [];
                         const executedCallSigs = new Set();
 
@@ -6239,7 +6324,15 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         }
                                     }
                                 } else if (call.name === 'matriz_ipevar') {
-                                    if (call.args?.accion === 'escribir' && Array.isArray(call.args?.riesgos) && call.args.riesgos.length > 0) {
+                                    const ipevarAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const isOpenIpevarAction = ['abrir', 'mostrar', 'activar', 'open', 'show'].includes(ipevarAction);
+                                    if (isOpenIpevarAction || (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'matriz_ipevar'))) {
+                                        enqueuePanelGuiAction('matriz_ipevar', call.args || '');
+                                    }
+                                    if (isOpenIpevarAction) {
+                                        toolOutput = JSON.stringify({ exito: true, herramienta: 'matriz_ipevar', panel_activado: true });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else if (call.args?.accion === 'escribir' && Array.isArray(call.args?.riesgos) && call.args.riesgos.length > 0) {
                                         const savedRes = await saveRisksToHito1Matrices(targetUserId, companyInfo, call.args.riesgos);
                                         toolOutput = JSON.stringify(savedRes);
                                     } else if (call.args?.accion === 'leer') {
@@ -6250,17 +6343,53 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         toolOutput = await new MatrizIPEVAR({ req })._call(call.args);
                                     }
                                 } else if (call.name === 'matriz_pesv') {
-                                    const MatrizPESV = require('../../app/clients/tools/structured/MatrizPESV');
-                                    toolOutput = await new MatrizPESV({ req })._call(call.args);
+                                    const pesvAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const isOpenPesvAction = ['abrir', 'mostrar', 'activar', 'open', 'show'].includes(pesvAction);
+                                    if (isOpenPesvAction || (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'matriz_pesv'))) {
+                                        enqueuePanelGuiAction('matriz_pesv', call.args || '');
+                                    }
+                                    if (isOpenPesvAction) {
+                                        toolOutput = JSON.stringify({ exito: true, herramienta: 'matriz_pesv', panel_activado: true });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const MatrizPESV = require('../../app/clients/tools/structured/MatrizPESV');
+                                        toolOutput = await new MatrizPESV({ req })._call(call.args);
+                                    }
                                 } else if (call.name === 'matriz_compatibilidad') {
-                                    const MatrizCompatibilidad = require('../../app/clients/tools/structured/MatrizCompatibilidad');
-                                    toolOutput = await new MatrizCompatibilidad({ req })._call(call.args);
+                                    const compatAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const isOpenCompatAction = ['abrir', 'mostrar', 'activar', 'open', 'show'].includes(compatAction);
+                                    if (isOpenCompatAction || (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'matriz_compatibilidad'))) {
+                                        enqueuePanelGuiAction('matriz_compatibilidad', call.args || '');
+                                    }
+                                    if (isOpenCompatAction) {
+                                        toolOutput = JSON.stringify({ exito: true, herramienta: 'matriz_compatibilidad', panel_activado: true });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const MatrizCompatibilidad = require('../../app/clients/tools/structured/MatrizCompatibilidad');
+                                        toolOutput = await new MatrizCompatibilidad({ req })._call(call.args);
+                                    }
                                 } else if (call.name === 'gestor_automatizaciones') {
                                     if (companyInfo?._id && !req.companyId) {
                                         req.companyId = String(companyInfo._id);
                                     }
-                                    const GestorAutomatizaciones = require('../../app/clients/tools/structured/GestorAutomatizaciones');
-                                    toolOutput = await new GestorAutomatizaciones({ req })._call(call.args);
+                                    const autoAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const isOpenAutoAction = ['abrir', 'mostrar', 'open', 'show'].includes(autoAction);
+                                    const isFlowExecutionAction = autoAction === 'ejecutar_tenshi' || autoAction === 'ejecutar_ahora';
+                                    if (
+                                        isOpenAutoAction ||
+                                        (!requestedGuiAction &&
+                                            !isFlowExecutionAction &&
+                                            isExplicitPanelOpenUserIntent(lastUserLower, 'gestor_automatizaciones'))
+                                    ) {
+                                        enqueuePanelGuiAction('gestor_automatizaciones', call.args || '');
+                                    }
+                                    if (isOpenAutoAction) {
+                                        toolOutput = JSON.stringify({ exito: true, herramienta: 'gestor_automatizaciones', panel_activado: true });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const GestorAutomatizaciones = require('../../app/clients/tools/structured/GestorAutomatizaciones');
+                                        toolOutput = await new GestorAutomatizaciones({ req })._call(call.args);
+                                    }
                                 } else if (call.name === 'google_sheets') {
                                     const GoogleSheetsTool = require('../../app/clients/tools/structured/GoogleSheets');
                                     toolOutput = await new GoogleSheetsTool({ req })._call(call.args);
@@ -6296,11 +6425,30 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                           ? rawScraperOut
                                           : JSON.stringify(rawScraperOut);
                                 } else if (call.name === 'blog_editor') {
-                                    const blogTool = new BlogEditor({ req });
-                                    toolOutput = await blogTool._call(call.args || {});
+                                    const blogAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const isOpenBlogAction = ['abrir', 'mostrar', 'activar', 'open', 'show'].includes(blogAction);
+                                    if (isOpenBlogAction || (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'blog_editor'))) {
+                                        enqueuePanelGuiAction('blog_editor', call.args || '');
+                                    }
+                                    if (isOpenBlogAction) {
+                                        toolOutput = JSON.stringify({ exito: true, herramienta: 'blog_editor', panel_activado: true });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const blogTool = new BlogEditor({ req });
+                                        toolOutput = await blogTool._call(call.args || {});
+                                    }
                                 } else if (call.name === 'editor_live') {
                                     const liveAction = String(call.args?.accion || 'listar').toLowerCase().trim();
                                     const mcpCtx = { companyId: activeCompanyIdStr };
+                                    const isOpenLivePanelAction = ['abrir', 'mostrar', 'activar', 'open', 'show'].includes(liveAction);
+                                    const isExplicitOpenLiveIntent =
+                                        isOpenLivePanelAction ||
+                                        (!requestedGuiAction &&
+                                            ['listar', 'leer', 'ver'].includes(liveAction) &&
+                                            isExplicitPanelOpenUserIntent(lastUserLower, 'editor_live'));
+                                    if (isExplicitOpenLiveIntent) {
+                                        enqueuePanelGuiAction('editor_live', call.args || '');
+                                    }
                                     if (liveAction === 'eliminar' || liveAction === 'borrar' || liveAction === 'delete') {
                                         const delId = String(call.args?.id || call.args?.docId || '').trim();
                                         if (!delId) {
@@ -6333,7 +6481,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         }).lean();
                                         toolOutput = JSON.stringify(
                                             doc
-                                                ? { success: true, documento: doc }
+                                                ? { success: true, documento: doc, ...(isExplicitOpenLiveIntent ? { panel_activado: true } : {}) }
                                                 : { error: `No se encontró el documento en vivo con ID ${call.args.id}.` }
                                         );
                                     } else {
@@ -6346,20 +6494,45 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                             );
                                             res.total = res.documentos.length;
                                         }
-                                        toolOutput = JSON.stringify(res);
+                                        toolOutput = JSON.stringify(
+                                            isExplicitOpenLiveIntent && res && typeof res === 'object'
+                                                ? { ...res, panel_activado: true }
+                                                : res
+                                        );
+                                        if (isOpenLivePanelAction && loops === 1 && queuedCalls.length === 0 && !call.args?.busqueda && !call.args?.id) {
+                                            break;
+                                        }
                                     }
                                 } else if (call.name === 'wappy_investigar_trabajador_360') {
                                     const osintArgs = { ...(call.args || {}) };
                                     if (osintArgs.documento && !osintArgs.cedula) {
                                         osintArgs.cedula = osintArgs.documento;
                                     }
-                                    const res = await executeTenshiMcpTool(
-                                        'wappy_investigar_trabajador_360',
-                                        osintArgs,
-                                        targetUserId,
-                                        { companyId: activeCompanyIdStr }
+                                    const hasOsintTarget = Boolean(
+                                        String(osintArgs.cedula || '').trim() ||
+                                        String(osintArgs.nombre || '').trim() ||
+                                        String(osintArgs.placa || '').trim()
                                     );
-                                    toolOutput = JSON.stringify(res);
+                                    const isOpenOsintIntent = isExplicitPanelOpenUserIntent(lastUserLower, 'wappy_investigar_trabajador_360');
+                                    if (!hasOsintTarget || (!requestedGuiAction && isOpenOsintIntent)) {
+                                        enqueuePanelGuiAction('wappy_investigar_trabajador_360', osintArgs);
+                                    }
+                                    if (!hasOsintTarget) {
+                                        toolOutput = JSON.stringify({
+                                            exito: true,
+                                            herramienta: 'wappy_investigar_trabajador_360',
+                                            panel_activado: true,
+                                        });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const res = await executeTenshiMcpTool(
+                                            'wappy_investigar_trabajador_360',
+                                            osintArgs,
+                                            targetUserId,
+                                            { companyId: activeCompanyIdStr }
+                                        );
+                                        toolOutput = JSON.stringify(res);
+                                    }
                                 } else if (call.name === 'forensic_audit') {
                                     const {
                                         analyzeDisabilityCertificateForensics,
@@ -6551,12 +6724,39 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     const calcRes = evaluateSafeSstCalculator(call.args || {});
                                     toolOutput = JSON.stringify(calcRes);
                                 } else if (call.name === 'editor_rit') {
-                                    const EditorRIT = require('../../app/clients/tools/structured/EditorRIT');
-                                    toolOutput = await new EditorRIT({ req })._call(call.args);
+                                    const ritAction = String(call.args?.accion || '').toLowerCase().trim();
+                                    const ritActivation = enqueuePanelGuiAction('editor_rit', call.args || '');
+                                    if (['abrir', 'mostrar', 'activar', 'open', 'show'].includes(ritAction)) {
+                                        toolOutput = JSON.stringify({
+                                            exito: true,
+                                            herramienta: 'editor_rit',
+                                            panel_activado: true,
+                                            mensaje: ritActivation?.message || 'Editor del Reglamento Interno de Trabajo (RIT) activado junto a Canvas.',
+                                        });
+                                        if (loops === 1 && queuedCalls.length === 0) break;
+                                    } else {
+                                        const prevRitConvoId = req.body?.conversationId;
+                                        if (!req.body) req.body = {};
+                                        if (!req.body.conversationId || req.body.conversationId === 'new') {
+                                            req.body.conversationId = activeTenshiConvoId || `temp-${targetUserId}-${activeCompanyIdStr || 'default'}`;
+                                        }
+                                        try {
+                                            const EditorRIT = require('../../app/clients/tools/structured/EditorRIT');
+                                            toolOutput = await new EditorRIT({ req })._call(call.args);
+                                        } finally {
+                                            req.body.conversationId = prevRitConvoId;
+                                        }
+                                    }
                                 } else if (call.name === 'consultar_analitica_psicosocial' || call.name === 'wappy_consultar_analitica_psicosocial') {
+                                    if (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'consultar_analitica_psicosocial')) {
+                                        enqueuePanelGuiAction('consultar_analitica_psicosocial', call.args || '');
+                                    }
                                     const res = await executeTenshiMcpTool('wappy_consultar_analitica_psicosocial', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'consultar_analitica_actos_condiciones' || call.name === 'wappy_consultar_analitica_actos_condiciones') {
+                                    if (!requestedGuiAction && isExplicitPanelOpenUserIntent(lastUserLower, 'consultar_analitica_actos_condiciones')) {
+                                        enqueuePanelGuiAction('consultar_analitica_actos_condiciones', call.args || '');
+                                    }
                                     const res = await executeTenshiMcpTool('wappy_consultar_analitica_actos_condiciones', call.args || {}, targetUserId);
                                     toolOutput = JSON.stringify(res);
                                 } else if (call.name === 'wappy_crear_informe' || call.name === 'wappy_generar_informe') {
@@ -6989,6 +7189,52 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                          markdown_para_incluir_en_tu_respuesta: mediaOut.flowMd,
                                          instruccion: 'Incluye SIEMPRE el código markdown_para_incluir_en_tu_respuesta UNA SOLA VEZ en tu respuesta. PROHIBIDO agregar un segundo enlace [⬇ Descargar] repetido hacia la misma URL, ya que la tarjeta visual de WAPPY ya incluye la vista previa y el botón de descarga.',
                                      });
+                                 } else if (
+                                     call.name === 'wappy_activar_herramienta_agente' ||
+                                     (call.name === 'wappy_mcp_sst' &&
+                                         (call.args?.herramienta === 'wappy_activar_herramienta_agente' ||
+                                             call.args?.tool === 'wappy_activar_herramienta_agente'))
+                                 ) {
+                                     const activateArgs =
+                                         call.name === 'wappy_mcp_sst'
+                                             ? (call.args?.parametros && typeof call.args.parametros === 'object'
+                                                   ? call.args.parametros
+                                                   : call.args?.args && typeof call.args.args === 'object'
+                                                     ? call.args.args
+                                                     : {})
+                                             : (call.args || {});
+                                     const rawHerramienta =
+                                         typeof (activateArgs?.herramienta || activateArgs?.tool || activateArgs?.nombre) === 'string'
+                                             ? String(activateArgs?.herramienta || activateArgs?.tool || activateArgs?.nombre).trim()
+                                             : '';
+                                     const normalizedTool = normalizeTenshiPanelToolId(rawHerramienta);
+                                     const effectiveTool = normalizedTool || rawHerramienta;
+                                     const effectiveParams =
+                                         activateArgs?.parametros !== undefined && activateArgs?.parametros !== null
+                                             ? activateArgs.parametros
+                                             : '';
+                                     if (!effectiveTool) {
+                                         toolOutput = JSON.stringify({
+                                             exito: false,
+                                             error: `Debes indicar el ID exacto de la herramienta en "herramienta": ${TENSHI_PANEL_TOOL_IDS.join(', ')} o generar_imagen_sst.`,
+                                         });
+                                     } else {
+                                         const activatedGui = enqueuePanelGuiAction(effectiveTool, effectiveParams);
+                                         toolOutput = JSON.stringify({
+                                             exito: true,
+                                             herramienta: effectiveTool,
+                                             parametros: effectiveParams,
+                                             panel_activado: true,
+                                             mensaje:
+                                                 activatedGui?.message ||
+                                                 `Herramienta "${effectiveTool}" activada con éxito junto a Canvas.`,
+                                             instruccion:
+                                                 'El panel visual ya fue activado en la interfaz junto a Canvas. NO vuelvas a invocar wappy_activar_herramienta_agente; responde de forma breve y clara al usuario.',
+                                         });
+                                         if (loops === 1 && queuedCalls.length === 0) {
+                                             break;
+                                         }
+                                     }
                                  } else if (call.name === 'wappy_mcp_sst' || call.name in TOOL_ROUTES || (call.name.startsWith('wappy_') && !['wappy_navegar', 'wappy_diligenciar_formulario', 'wappy_seleccionar_empresa', 'wappy_activar_empresa'].includes(call.name))) {
                                     const targetTool = call.name === 'wappy_mcp_sst' ? (call.args?.herramienta || call.args?.tool || 'wappy_resumen_general_360') : call.name;
                                     const targetArgs = call.name === 'wappy_mcp_sst' ? (call.args?.parametros || call.args?.args || call.args || {}) : (call.args || {});
@@ -7779,13 +8025,18 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             'wappy_abrir_articulo_blog',
             'wappy_diligenciar_formulario',
             'wappy_controlar_videollamada',
+            'wappy_activar_herramienta_agente',
         ]);
         const guiActionName = requestedGuiAction?.name || requestedGuiAction?.action || '';
+        const allQueuedGuiActionsAreOneShot =
+            !Array.isArray(requestedGuiActions) ||
+            requestedGuiActions.length === 0 ||
+            requestedGuiActions.every((a) => oneShotGuiActionNames.has(a?.name || a?.action || ''));
 
         if (
             responseText &&
             (!requestedGuiAction || oneShotGuiActionNames.has(guiActionName)) &&
-            (!requestedGuiActions || requestedGuiActions.length === 0)
+            allQueuedGuiActionsAreOneShot
         ) {
             await TenshiMessage.create({
                 user: req.user.id,

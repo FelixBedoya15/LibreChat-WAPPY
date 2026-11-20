@@ -2264,13 +2264,27 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_activar_herramienta_agente",
-                            description: "Activa y ejecuta de inmediato cualquiera de las herramientas especializadas de los agentes de WAPPY ('canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'). Invócala cuando el usuario pida abrir o activar una herramienta de un agente.",
+                            description: "Activa y abre de inmediato en una pestaña dedicada junto a Canvas dentro de Tenshi cualquiera de las 12 herramientas especializadas con panel de los agentes de WAPPY: 'canvas', 'editor_live' (Editor en Vivo / documentos Word), 'editor_rit' (Editor de Reglamento Interno de Trabajo), 'matriz_ipevar' (Matriz GTC-45 IPEVR), 'matriz_pesv' (Matriz PESV), 'matriz_compatibilidad' (Matriz de Compatibilidad Química SGA), 'consultar_analitica_psicosocial' (Analítica Psicosocial y Clima/Ánimo), 'consultar_analitica_actos_condiciones' (Analítica de Actos y Condiciones Inseguras), 'gestor_automatizaciones' (Gestor de Automatizaciones y Tareas), 'wappy_investigar_trabajador_360' (Investigación OSINT 360° de trabajador), 'blog_editor' (Editor de Blog) y 'generar_imagen_sst' (Generador de Imágenes SST). Invócala SIEMPRE que el usuario pida activar, abrir o traer en pantalla una de estas herramientas.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     herramienta: {
                                         type: "string",
-                                        description: "Nombre de la herramienta especializada: 'canvas', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'gestor_automatizaciones', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'editor_live', 'generar_imagen_sst'."
+                                        enum: [
+                                            "canvas",
+                                            "editor_live",
+                                            "editor_rit",
+                                            "matriz_ipevar",
+                                            "matriz_pesv",
+                                            "matriz_compatibilidad",
+                                            "consultar_analitica_psicosocial",
+                                            "consultar_analitica_actos_condiciones",
+                                            "gestor_automatizaciones",
+                                            "wappy_investigar_trabajador_360",
+                                            "blog_editor",
+                                            "generar_imagen_sst"
+                                        ],
+                                        description: "ID canónico exacto de la herramienta con panel a abrir en pestaña junto a Canvas dentro de Tenshi: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor', 'generar_imagen_sst'."
                                     },
                                     parametros: {
                                         type: "object",
@@ -3064,6 +3078,7 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 7. **NORMATIVIDAD VIGENTE**: Ante leyes/decretos/resoluciones/sentencias en Colombia, usa SIEMPRE \`web_search\` para verificar vigencia actual (ej: Res. 4272/2021 derogó 1409/2012; Res. 0312/2019 derogó 1111/2017).
 8. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para cualquiera de los 16 Flujos Tenshi globales (6 OSINT/Forense + 10 Somos SST activos para todos los usuarios) listados en tu contexto, usa \`accion: 'ejecutar_tenshi'\` pasando \`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal y \`esperar_resultado: true\` para responder al instante con el campo \`resultado\`. Si preguntan por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), conexiones, puertos, casillas, estado \`Operativo\` vs \`En Construcción\` o ejemplos/diseño de flujos, invoca \`accion: 'consultar_documentacion_nodos'\` con \`busqueda_nodo\` y recuérdale el botón "Guía de Nodos" al lado izquierdo de "Flujos Preestablecidos" en \`/tareas\`. Para activar, pausar o ejecutar tareas de empresa en \`/tareas\`, pasa SIEMPRE el nombre exacto o las palabras temáticas dichas por el usuario en \`automatizacion_id\`/\`nombre\` SIN inventar códigos ni activar un flujo distinto; usa \`accion: 'crear'\` (construyendo flujos DAG completos con \`disparadores\`, \`comando_tenshi\`, \`hitos_fuente\`, \`herramientas_ia\`, \`extractores\`, \`salidas\`, \`incluir_condicion_if\`, \`condicion_if\`, \`modelo_ia\`, \`crear_como_flujo_tenshi\`) solo cuando el usuario pida crear un flujo nuevo; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
 9. **ACADEMIA VS TIENDA VS BLOG & MULTIMEDIA**: Academia (/academia?tab=cursos) = cursos interactivos; si piden "ábreme el curso X" invoca \`wappy_abrir_curso\` de inmediato. Tienda (/marketplace) = productos con precio COP. Blog = \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`. Tienes NotebookLM (\`notebooklm_*\`), MedlinePlus (\`wappy_consultar_rehabilitacion_medlineplus\`) y Google Flow (\`google_flow_*\`).
+10. **ACTIVAR / ABRIR HERRAMIENTAS CON PANEL EN PESTAÑA JUNTO A CANVAS ('wappy_activar_herramienta_agente')**: Cuando el usuario pida activar, abrir o traer en pantalla una herramienta especializada con panel (ej. "activa el editor RIT", "abre el editor en vivo", "abre la analítica psicosocial", "abre analítica de actos y condiciones", "trae la matriz IPEVR", "abre la matriz PESV", "abre matriz de compatibilidad", "abre OSINT 360", "abre automatizaciones", "abre el editor de blog", "abre generador de imágenes SST" o "abre Canvas"), INVOCA DE INMEDIATO \`wappy_activar_herramienta_agente\` pasando el ID canónico exacto en \`herramienta\`: \`canvas\`, \`editor_live\`, \`editor_rit\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`, \`consultar_analitica_psicosocial\`, \`consultar_analitica_actos_condiciones\`, \`gestor_automatizaciones\`, \`wappy_investigar_trabajador_360\`, \`blog_editor\` o \`generar_imagen_sst\`. Esto abrirá su panel interactivo en una pestaña dedicada junto a Canvas dentro de Tenshi.
 
 [DOMINIO INTEGRAL DE METODOLOGÍAS Y SKILLS DE WAPPY IA]:
 1. **Investigación ATEL (Res. 1401/2007)**: 15 días calendario equipo investigador (jefe, COPASST, SST) + ARL; 10 días graves/mortales; Árbol de causas, Ishikawa 6M, 5 Porqués, ILCI.

@@ -37,10 +37,16 @@ interface StatsData {
   reportesRecientes: ReporteReciente[];
 }
 
-export default function ActosCondicionesAnalyticsDashboard({ isMaximized }: { isMaximized?: boolean }) {
+export default function ActosCondicionesAnalyticsDashboard({
+  isMaximized,
+  onSendToChat,
+}: {
+  isMaximized?: boolean;
+  onSendToChat?: (prompt: string) => void;
+}) {
   const { token, user } = useAuthContext();
   const { showToast } = useToastContext();
-  const { ask } = useChatContext();
+  const chatCtx = useChatContext();
   
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -150,43 +156,50 @@ ${reportData?.foto3Desc ? `*Detalle:* ${reportData.foto3Desc}` : ''}\n` : ''}${v
 <video src="${videoUrl}" controls style="max-width: 100%; border-radius: 8px; margin-top: 8px;"></video>\n` : ''}
 Por favor, clasifícalo adecuadamente, identifica peligros según GTC 45, analiza las causas básicas e inmediatas, define controles siguiendo la jerarquía y genera el reporte técnico interactivo.`;
 
-      ask(
-        { text: promptText },
-        {
-          overrideFiles: [
-            mediaUrl1 && {
-              file_id: `${report.id}_foto1`,
-              filepath: mediaUrl1,
-              type: 'image/png',
-              filename: 'foto1.png',
-              height: 512,
-              width: 512,
-            },
-            mediaUrl2 && {
-              file_id: `${report.id}_foto2`,
-              filepath: mediaUrl2,
-              type: 'image/png',
-              filename: 'foto2.png',
-              height: 512,
-              width: 512,
-            },
-            mediaUrl3 && {
-              file_id: `${report.id}_foto3`,
-              filepath: mediaUrl3,
-              type: 'image/png',
-              filename: 'foto3.png',
-              height: 512,
-              width: 512,
-            },
-            videoUrl && {
-              file_id: `${report.id}_video`,
-              filepath: videoUrl,
-              type: 'video/mp4',
-              filename: 'video.mp4',
-            },
-          ].filter(Boolean) as any[],
-        }
-      );
+      if (onSendToChat) {
+        onSendToChat(promptText);
+      } else if (typeof chatCtx?.ask === 'function') {
+        chatCtx.ask(
+          { text: promptText },
+          {
+            overrideFiles: [
+              mediaUrl1 && {
+                file_id: `${report.id}_foto1`,
+                filepath: mediaUrl1,
+                type: 'image/png',
+                filename: 'foto1.png',
+                height: 512,
+                width: 512,
+              },
+              mediaUrl2 && {
+                file_id: `${report.id}_foto2`,
+                filepath: mediaUrl2,
+                type: 'image/png',
+                filename: 'foto2.png',
+                height: 512,
+                width: 512,
+              },
+              mediaUrl3 && {
+                file_id: `${report.id}_foto3`,
+                filepath: mediaUrl3,
+                type: 'image/png',
+                filename: 'foto3.png',
+                height: 512,
+                width: 512,
+              },
+              videoUrl && {
+                file_id: `${report.id}_video`,
+                filepath: videoUrl,
+                type: 'video/mp4',
+                filename: 'video.mp4',
+              },
+            ].filter(Boolean) as any[],
+          },
+        );
+      } else {
+        showToast({ message: 'No hay una sesión de chat disponible para analizar el reporte.', status: 'warning' });
+        return;
+      }
       showToast({ message: 'Reporte enviado al chat con éxito para análisis.', status: 'success' });
       setIsModalOpen(false);
     } catch (err) {

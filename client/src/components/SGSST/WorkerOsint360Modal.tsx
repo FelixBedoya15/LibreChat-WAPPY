@@ -30,6 +30,7 @@ import { cn } from '~/utils';
 export interface WorkerOsint360ModalProps {
   isOpen: boolean;
   onClose: () => void;
+  embedded?: boolean;
   initialCedula?: string;
   initialTipoDoc?: string;
   initialNombre?: string;
@@ -393,6 +394,7 @@ function normalizeCategoria(rawCat?: string): PortalOficialItem['categoria'] {
 export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
   isOpen,
   onClose,
+  embedded = false,
   initialCedula = '',
   initialTipoDoc = 'CC',
   initialNombre = '',
@@ -743,16 +745,17 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
     return Array.isArray(ramaJudicial?.procesos) ? ramaJudicial!.procesos! : [];
   }, [ramaJudicial]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !embedded) return null;
 
-  const modalContent = (
-    <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200 overflow-x-hidden"
-      onClick={onClose}
-    >
+  const innerPanel = (
       <div
-        className="relative w-full max-w-6xl max-h-[92vh] rounded-3xl border border-border-medium/60 bg-surface-primary dark:bg-zinc-900 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'relative flex flex-col overflow-hidden bg-surface-primary dark:bg-zinc-900',
+          embedded
+            ? 'h-full w-full'
+            : 'w-full max-w-6xl max-h-[92vh] rounded-3xl border border-border-medium/60 shadow-2xl animate-in zoom-in-95 duration-200',
+        )}
+        onClick={embedded ? undefined : (e) => e.stopPropagation()}
       >
         {/* Luces ambientales WAPPY Design System */}
         <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
@@ -780,15 +783,17 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <ExpandableButton
-              variant="neutral"
-              size="sm"
-              icon={<X className="h-4 w-4" />}
-              label="Cerrar"
-              onClick={onClose}
-            />
-          </div>
+          {!embedded && (
+            <div className="flex items-center gap-2 shrink-0">
+              <ExpandableButton
+                variant="neutral"
+                size="sm"
+                icon={<X className="h-4 w-4" />}
+                label="Cerrar"
+                onClick={onClose}
+              />
+            </div>
+          )}
         </div>
 
         {/* ═══ CUERPO SCROLLABLE ═══ */}
@@ -1358,6 +1363,18 @@ export const WorkerOsint360Modal: React.FC<WorkerOsint360ModalProps> = ({
           </div>
         </div>
       </div>
+  );
+
+  if (embedded) {
+    return innerPanel;
+  }
+
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200 overflow-x-hidden"
+      onClick={onClose}
+    >
+      {innerPanel}
     </div>
   );
 

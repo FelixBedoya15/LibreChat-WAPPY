@@ -48,6 +48,8 @@ import {
   Upload,
   AlertCircle,
   Music,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import * as XLSX from 'xlsx';
@@ -91,6 +93,12 @@ import TenshiSessionControls, {
 import TenshiConversationSwitcher, {
   useTenshiConversations,
 } from './TenshiConversationSwitcher';
+import TenshiEmbeddedToolHost, {
+  getActivePanelToolsFromEnabled,
+  resolveTenshiPanelToolId,
+  type TenshiHeroTab,
+  type TenshiPanelToolId,
+} from './TenshiToolPanels';
 import {
   loadTasksVision,
   loadClassicPoseScripts,
@@ -1777,12 +1785,18 @@ export default function TenshiChat() {
   }));
 
   const [isHeroChatOpen, setIsHeroChatOpen] = useState(false);
-  const [heroPanelTab, setHeroPanelTab] = useState<'chat' | 'canvas'>('chat');
+  const [heroPanelTab, setHeroPanelTab] = useState<TenshiHeroTab>('chat');
   const [heroCanvasConvoId, setHeroCanvasConvoId] = useState<string | null>(null);
   const [hasOpenedHeroCanvas, setHasOpenedHeroCanvas] = useState(false);
   const [heroCanvasHasContent, setHeroCanvasHasContent] = useState(false);
   const heroLeftPanelRef = useRef<HTMLDivElement | null>(null);
   const heroAmbientGridRef = useRef<HTMLDivElement | null>(null);
+  const heroTabRailRef = useRef<HTMLDivElement | null>(null);
+  const heroTabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [heroTabScrollState, setHeroTabScrollState] = useState<{
+    canScrollLeft: boolean;
+    canScrollRight: boolean;
+  }>({ canScrollLeft: false, canScrollRight: false });
   const turnCompleteRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const blurElementInside = useCallback((container: HTMLElement | null) => {
@@ -2128,6 +2142,186 @@ export default function TenshiChat() {
       saveTenshiSessionPrefs(sessionPrefs, prefsUserKey);
     }
   }, [sessionPrefs, prefsUserKey]);
+
+  // Herramientas con panel activas en el carril de pestañas (a la derecha de Chat y Canvas)
+  const activePanelToolMetas = useMemo(
+    () => getActivePanelToolsFromEnabled(sessionPrefs.enabledTools),
+    [sessionPrefs.enabledTools],
+  );
+  const showHeroCanvasTab =
+    sessionPrefs.enabledTools.includes('canvas') ||
+    heroCanvasHasContent ||
+    Boolean(streamingCanvas?.content) ||
+    heroPanelTab === 'canvas';
+  const totalVisibleHeroTabs = 1 + (showHeroCanvasTab ? 1 : 0) + activePanelToolMetas.length;
+
+  const updateHeroTabScrollIndicators = useCallback(() => {
+    const el = heroTabRailRef.current;
+    if (!el) {
+      setHeroTabScrollState((prev) =>
+        prev.canScrollLeft || prev.canScrollRight
+          ? { canScrollLeft: false, canScrollRight: false }
+          : prev,
+      );
+      return;
+    }
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const canScrollLeft = el.scrollLeft > 4;
+    const canScrollRight = maxScroll - el.scrollLeft > 4;
+    setHeroTabScrollState((prev) =>
+      prev.canScrollLeft === canScrollLeft && prev.canScrollRight === canScrollRight
+        ? prev
+        : { canScrollLeft, canScrollRight },
+    );
+  }, []);
+
+  const scrollHeroTabIntoView = useCallback(
+    (tabId: string) => {
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => {
+        const btn = heroTabButtonRefs.current[tabId];
+        if (btn && typeof btn.scrollIntoView === 'function') {
+          btn.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        }
+        window.setTimeout(updateHeroTabScrollIndicators, 220);
+      });
+    },
+    [updateHeroTabScrollIndicators],
+  );
+
+  const scrollHeroTabRailBy = useCallback(
+    (delta: number) => {
+      const el = heroTabRailRef.current;
+      if (!el) return;
+      el.scrollBy({ left: delta, behavior: 'smooth' });
+      window.setTimeout(updateHeroTabScrollIndicators, 220);
+    },
+    [updateHeroTabScrollIndicators],
+  );
+
+  // Recalcular flechas/fade del carril horizontal cuando cambian pestañas o tamaño del viewport
+  useEffect(() => {
+    if (!isHeroChatOpen && !isMobileHeroMode) return;
+    const rafId = window.requestAnimationFrame(updateHeroTabScrollIndicators);
+    const timerId = window.setTimeout(updateHeroTabScrollIndicators, 180);
+    const el = heroTabRailRef.current;
+    let ro: ResizeObserver | null = null;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => updateHeroTabScrollIndicators());
+      ro.observe(el);
+    }
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timerId);
+      ro?.disconnect();
+    };
+  }, [
+    activePanelToolMetas.length,
+    showHeroCanvasTab,
+    isHeroChatOpen,
+    isMobileHeroMode,
+    heroPanelTab,
+    viewportSize.width,
+    updateHeroTabScrollIndicators,
+  ]);
+
+  // Auto-scroll hacia la pestaña activa al cambiar de tab
+  useEffect(() => {
+    if (isHeroChatOpen) {
+      scrollHeroTabIntoView(heroPanelTab);
+    }
+  }, [heroPanelTab, isHeroChatOpen, scrollHeroTabIntoView]);
+
+  // Si el usuario desactiva en ⚙️ Herramientas el toggle de la pestaña abierta, regresar a Chat
+  useEffect(() => {
+    if (heroPanelTab === 'chat') return;
+    if (heroPanelTab === 'canvas') {
+      if (
+        !sessionPrefs.enabledTools.includes('canvas') &&
+        !heroCanvasHasContent &&
+        !Boolean(streamingCanvas?.content)
+      ) {
+        setHeroPanelTab('chat');
+      }
+      return;
+    }
+    if (!sessionPrefs.enabledTools.includes(heroPanelTab)) {
+      setHeroPanelTab('chat');
+    }
+  }, [heroPanelTab, sessionPrefs.enabledTools, heroCanvasHasContent, streamingCanvas?.content]);
+
+  // Helper único para abrir cualquier herramienta con panel (o Canvas) dentro de Tenshi
+  const openToolTabInTenshi = useCallback(
+    (rawToolName: string): 'canvas' | TenshiPanelToolId | null => {
+      const resolved = resolveTenshiPanelToolId(rawToolName);
+      if (!resolved) return null;
+
+      try {
+        tenshiAudio.playBlip();
+      } catch (_) {}
+
+      setSessionPrefs((prev) => {
+        if (prev.enabledTools.includes(resolved)) return prev;
+        return {
+          ...prev,
+          enabledTools: [...prev.enabledTools, resolved],
+        };
+      });
+
+      if (resolved === 'canvas') {
+        setHasOpenedHeroCanvas(true);
+      }
+
+      if (!isMobileHeroModeRef.current) {
+        hasExitedHeroInMountRef.current = false;
+        if (typeof window !== 'undefined') {
+          safeRemoveItem('tenshi_mobile_hero_minimized', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_hero_exited', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_just_logged_in', window.sessionStorage);
+          safeSetItem('tenshi_mobile_hero_forced', 'true', window.sessionStorage);
+        }
+        setIsMobileHeroMode(true);
+        setIsOpen(false);
+      }
+
+      blurElementInside(heroAmbientGridRef.current);
+      setHeroPanelTab(resolved);
+      setIsHeroChatOpen(true);
+      scrollHeroTabIntoView(resolved);
+
+      return resolved;
+    },
+    [blurElementInside, scrollHeroTabIntoView],
+  );
+
+  const openToolTabInTenshiRef = useRef(openToolTabInTenshi);
+  openToolTabInTenshiRef.current = openToolTabInTenshi;
+
+  const handleToolPanelActivated = useCallback(
+    (toolId: string) => {
+      if (toolId === 'canvas') {
+        setHasOpenedHeroCanvas(true);
+      }
+      scrollHeroTabIntoView(toolId);
+    },
+    [scrollHeroTabIntoView],
+  );
+
+  // Escuchar evento global para abrir una pestaña de herramienta directamente en Tenshi
+  useEffect(() => {
+    const handleOpenPanelEvent = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const rawTool =
+        typeof detail === 'string'
+          ? detail
+          : detail?.toolId || detail?.herramienta || detail?.tool || '';
+      if (rawTool) {
+        openToolTabInTenshiRef.current(String(rawTool));
+      }
+    };
+    window.addEventListener('wappy-open-tenshi-tool-panel', handleOpenPanelEvent);
+    return () => window.removeEventListener('wappy-open-tenshi-tool-panel', handleOpenPanelEvent);
+  }, []);
 
   // Multi-Chat de Tenshi (crear, cambiar, renombrar y eliminar chats por empresa)
   const {
@@ -4372,34 +4566,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const tool = (action.args?.herramienta || '').toLowerCase().trim();
             const params = action.args?.parametros || {};
 
-            if (tool.includes('canvas')) {
-              if (isMobileHeroModeRef.current) {
-                setHasOpenedHeroCanvas(true);
-                setHeroPanelTab('canvas');
-                setIsHeroChatOpen(true);
-              } else {
-                setIsCanvasActive(true);
-              }
-            }
-
-            if (tool.includes('gtc45') || tool.includes('ipevar')) {
-              navigate('/sgsst?hito=hito4&module=peligros');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'peligros' } }));
-            } else if (tool.includes('pesv')) {
-              navigate('/sgsst?hito=hito5&module=vehicles_pesv');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'vehicles_pesv' } }));
-            } else if (tool.includes('quimic') || tool.includes('compatib')) {
-              navigate('/sgsst?hito=hito5&module=chemical_registry');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'chemical_registry' } }));
-            } else if (tool.includes('auto') || tool.includes('cron')) {
-              navigate('/sgsst?hito=hito8&module=predictivo');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'predictivo' } }));
+            const openedPanel = openToolTabInTenshiRef.current(tool);
+            if (!openedPanel && tool.includes('canvas')) {
+              setIsCanvasActive(true);
             }
 
             window.dispatchEvent(
               new CustomEvent('wappy-herramienta-activada', { detail: { herramienta: tool, parametros: params } })
             );
-            resultMsg = `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
+            resultMsg = openedPanel
+              ? `Herramienta "${tool}" abierta en la pestaña integrada de Tenshi (${openedPanel}).`
+              : `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
           } else if (action.name === 'wappy_generar_analisis_aplicativo') {
             const rawApp = (action.args?.aplicativo || action.args?.modulo || '').toLowerCase().trim();
             const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawApp, '');
@@ -7904,6 +8081,32 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             continue;
           }
 
+          if (
+            action.name === 'wappy_activar_herramienta_agente' ||
+            action.accion === 'activar_herramienta_agente' ||
+            action.action === 'wappy_activar_herramienta_agente'
+          ) {
+            const rawTool = String(
+              action.args?.herramienta || action.herramienta || action.args?.tool || action.tool || '',
+            ).trim();
+            const params = action.args?.parametros || action.parametros || {};
+            const openedPanel = openToolTabInTenshiRef.current(rawTool);
+            window.dispatchEvent(
+              new CustomEvent('wappy-herramienta-activada', {
+                detail: { herramienta: rawTool, parametros: params },
+              }),
+            );
+            lastResult = {
+              success: true,
+              message: openedPanel
+                ? `Herramienta "${rawTool}" abierta en el panel integrado de Tenshi (${openedPanel}).`
+                : `Herramienta "${rawTool}" activada.`,
+            };
+            setTenshiStatus('');
+            index++;
+            continue;
+          }
+
           if (action.name === 'wappy_navegar' || action.accion === 'navegar') {
             const rawModulo = action.modulo || action.args?.modulo;
             const rawRuta = action.ruta || action.args?.ruta;
@@ -8308,6 +8511,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
     await runChatTurn([...messages, userMsg]);
   };
+
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+
+  const handleSendPromptFromEmbeddedTool = useCallback((prompt: string) => {
+    const clean = (prompt || '').trim();
+    if (!clean) return;
+    setHeroPanelTab('chat');
+    setIsHeroChatOpen(true);
+    void handleSendRef.current(clean);
+  }, []);
 
   const renderDragDropOverlay = () => {
     if (!isDragOverComposer) return null;
@@ -9928,7 +10142,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       blurElementInside(heroAmbientGridRef.current);
                       setHeroPanelTab('chat');
                       setIsHeroChatOpen(true);
-                    } else if (heroPanelTab === 'canvas') {
+                    } else if (heroPanelTab !== 'chat') {
                       setHeroPanelTab('chat');
                     } else {
                       blurElementInside(heroLeftPanelRef.current);
@@ -9960,7 +10174,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                       setIsHeroChatOpen(true);
-                    } else if (heroPanelTab === 'chat') {
+                    } else if (heroPanelTab !== 'canvas') {
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                     } else {
@@ -10117,62 +10331,209 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 )}
               >
               {heroPanelTab === 'chat' && renderDragDropOverlay()}
-              {/* Cabecera del Panel Izquierdo Hero (Selector Chat / Canvas + Multi-Chat Tenshi) */}
-              <div className="flex w-full max-w-full min-w-0 flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/85 dark:bg-zinc-900/85 shrink-0">
-                <div
-                  role="tablist"
-                  aria-label="Vista del panel de Tenshi"
-                  className="inline-flex min-w-0 items-center gap-1 p-1 rounded-2xl bg-white/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs shrink-0"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={heroPanelTab === 'chat'}
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      setHeroPanelTab('chat');
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
-                      heroPanelTab === 'chat'
-                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
-                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+              {/* Cabecera del Panel Izquierdo Hero (Carril Deslizable Chat / Canvas / Herramientas + Multi-Chat Tenshi) */}
+              <div className="flex w-full max-w-full min-w-0 flex-col gap-1.5 px-3 sm:px-4 py-2 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/85 dark:bg-zinc-900/85 shrink-0">
+                <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2">
+                  {/* Carril horizontal deslizable con flechas ‹ / › y degradado indicador */}
+                  <div className="relative flex min-w-0 flex-1 items-center gap-1">
+                    {heroTabScrollState.canScrollLeft && (
+                      <button
+                        type="button"
+                        onClick={() => scrollHeroTabRailBy(-150)}
+                        aria-label="Desplazar pestañas a la izquierda"
+                        title="Desplazar pestañas a la izquierda"
+                        className="hidden sm:inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-800/95 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span>Chat</span>
-                  </button>
 
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={heroPanelTab === 'canvas'}
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      setHasOpenedHeroCanvas(true);
-                      setHeroPanelTab('canvas');
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
-                      heroPanelTab === 'canvas'
-                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
-                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+                    <div className="relative min-w-0 flex-1">
+                      <div
+                        ref={heroTabRailRef}
+                        role="tablist"
+                        aria-label="Vista del panel de Tenshi"
+                        onScroll={updateHeroTabScrollIndicators}
+                        className="flex w-full min-w-0 items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth p-1 rounded-2xl bg-white/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs"
+                      >
+                        <button
+                          ref={(el) => {
+                            heroTabButtonRefs.current.chat = el;
+                          }}
+                          type="button"
+                          role="tab"
+                          aria-selected={heroPanelTab === 'chat'}
+                          onClick={() => {
+                            tenshiAudio.playBlip();
+                            setHeroPanelTab('chat');
+                          }}
+                          className={cn(
+                            'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                            heroPanelTab === 'chat'
+                              ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                              : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                          )}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                          <span>Chat</span>
+                        </button>
+
+                        {showHeroCanvasTab && (
+                          <button
+                            ref={(el) => {
+                              heroTabButtonRefs.current.canvas = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            aria-selected={heroPanelTab === 'canvas'}
+                            onClick={() => {
+                              tenshiAudio.playBlip();
+                              setHasOpenedHeroCanvas(true);
+                              setHeroPanelTab('canvas');
+                            }}
+                            className={cn(
+                              'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                              heroPanelTab === 'canvas'
+                                ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                            )}
+                          >
+                            <FileEdit className="w-3.5 h-3.5 shrink-0" />
+                            <span>Canvas</span>
+                            {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse"
+                                title="Documento cargado en Canvas"
+                              />
+                            )}
+                          </button>
+                        )}
+
+                        {activePanelToolMetas.map((toolMeta) => {
+                          const ToolIcon = toolMeta.icon;
+                          const isSelected = heroPanelTab === toolMeta.id;
+                          return (
+                            <button
+                              key={toolMeta.id}
+                              ref={(el) => {
+                                heroTabButtonRefs.current[toolMeta.id] = el;
+                              }}
+                              type="button"
+                              role="tab"
+                              aria-selected={isSelected}
+                              title={toolMeta.fullLabel}
+                              onClick={() => {
+                                tenshiAudio.playBlip();
+                                setHeroPanelTab(toolMeta.id);
+                              }}
+                              className={cn(
+                                'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                                isSelected
+                                  ? toolMeta.activeTabClass
+                                  : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                              )}
+                            >
+                              <ToolIcon
+                                className={cn(
+                                  'w-3.5 h-3.5 shrink-0',
+                                  !isSelected && toolMeta.iconClass,
+                                )}
+                              />
+                              <span>{toolMeta.shortLabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {heroTabScrollState.canScrollRight && (
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-1 right-1 w-8 rounded-r-xl bg-gradient-to-l from-white/95 via-white/75 to-transparent dark:from-zinc-800/95 dark:via-zinc-800/75"
+                        />
+                      )}
+                    </div>
+
+                    {heroTabScrollState.canScrollRight && (
+                      <button
+                        type="button"
+                        onClick={() => scrollHeroTabRailBy(150)}
+                        aria-label="Desplazar pestañas a la derecha"
+                        title="Desplazar pestañas a la derecha"
+                        className="hidden sm:inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-800/95 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                  >
-                    <FileEdit className="w-3.5 h-3.5 shrink-0" />
-                    <span>Canvas</span>
-                    {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse"
-                        title="Documento cargado en Canvas"
+                  </div>
+
+                  {/* Multi-Chat de Tenshi inline en escritorio cuando solo hay <= 2 pestañas */}
+                  {heroPanelTab === 'chat' && totalVisibleHeroTabs <= 2 && (
+                    <div className="hidden sm:flex min-w-0 max-w-[230px] items-center shrink">
+                      <TenshiConversationSwitcher
+                        conversations={tenshiConversations}
+                        activeConversationId={activeConversationId}
+                        isLoading={isLoadingTenshiConversations}
+                        isMutating={isMutatingTenshiConversations}
+                        fullWidthOnMobile={false}
+                        onSelectConversation={handleSelectTenshiConversation}
+                        onCreateConversation={handleCreateTenshiConversation}
+                        onRenameConversation={renameTenshiConversation}
+                        onDeleteConversation={handleDeleteTenshiConversation}
                       />
+                    </div>
+                  )}
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {heroPanelTab === 'chat' ? (
+                      <ExpandableButton
+                        type="button"
+                        variant="neutral"
+                        size="sm"
+                        icon={<RotateCcw className="h-3.5 w-3.5" />}
+                        label="Reiniciar"
+                        onClick={handleClearHistory}
+                        title="Reiniciar chat"
+                      />
+                    ) : (
+                      heroPanelTab === 'canvas' &&
+                      streamingCanvas?.fileType === 'html' &&
+                      Boolean(streamingCanvas?.content) && (
+                        <ExpandableButton
+                          type="button"
+                          variant="fuchsia"
+                          size="sm"
+                          icon={<ExternalLink className="h-3.5 w-3.5" />}
+                          label="Abrir en pestaña"
+                          onClick={() => openHtmlReport(streamingCanvas.content)}
+                          title="Abrir informe HTML en nueva pestaña"
+                        />
+                      )
                     )}
-                  </button>
+                    <ExpandableButton
+                      type="button"
+                      variant="neutral"
+                      size="sm"
+                      icon={<X className="h-3.5 w-3.5" />}
+                      label="Cerrar"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        blurElementInside(heroLeftPanelRef.current);
+                        setIsHeroChatOpen(false);
+                        setCanvasMaximized(false);
+                      }}
+                      title={heroPanelTab === 'chat' ? 'Cerrar chat' : 'Cerrar panel'}
+                    />
+                  </div>
                 </div>
 
-                {/* Multi-Chat de Tenshi (en móvil se despliega en sub-fila limpia sin overflow; en PC vive inline) */}
+                {/* Sub-fila ordenada para Multi-Chat en móvil o en escritorio cuando hay >= 3 pestañas */}
                 {heroPanelTab === 'chat' && (
-                  <div className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 flex items-center sm:justify-start">
+                  <div
+                    className={cn(
+                      'w-full min-w-0',
+                      totalVisibleHeroTabs <= 2 ? 'sm:hidden' : 'block',
+                    )}
+                  >
                     <TenshiConversationSwitcher
                       conversations={tenshiConversations}
                       activeConversationId={activeConversationId}
@@ -10186,47 +10547,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     />
                   </div>
                 )}
-
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {heroPanelTab === 'chat' ? (
-                    <ExpandableButton
-                      type="button"
-                      variant="neutral"
-                      size="sm"
-                      icon={<RotateCcw className="h-3.5 w-3.5" />}
-                      label="Reiniciar"
-                      onClick={handleClearHistory}
-                      title="Reiniciar chat"
-                    />
-                  ) : (
-                    streamingCanvas?.fileType === 'html' &&
-                    Boolean(streamingCanvas?.content) && (
-                      <ExpandableButton
-                        type="button"
-                        variant="fuchsia"
-                        size="sm"
-                        icon={<ExternalLink className="h-3.5 w-3.5" />}
-                        label="Abrir en pestaña"
-                        onClick={() => openHtmlReport(streamingCanvas.content)}
-                        title="Abrir informe HTML en nueva pestaña"
-                      />
-                    )
-                  )}
-                  <ExpandableButton
-                    type="button"
-                    variant="neutral"
-                    size="sm"
-                    icon={<X className="h-3.5 w-3.5" />}
-                    label="Cerrar"
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      blurElementInside(heroLeftPanelRef.current);
-                      setIsHeroChatOpen(false);
-                      setCanvasMaximized(false);
-                    }}
-                    title={heroPanelTab === 'canvas' ? 'Cerrar panel' : 'Cerrar chat'}
-                  />
-                </div>
               </div>
 
               {/* Cuerpo Chat (se mantiene montado para conservar historial, scroll y borrador al alternar pestañas) */}
@@ -10965,6 +11285,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         prefs={sessionPrefs}
                         onChangePrefs={setSessionPrefs}
                         onExternalModalToggle={setIsExternalModalOpen}
+                        onOpenToolPanel={openToolTabInTenshi}
+                        onToolPanelActivated={handleToolPanelActivated}
+                        activePanelTab={heroPanelTab}
                       />
                     </div>
 
@@ -11010,6 +11333,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       }}
                     />
                   </Suspense>
+                </div>
+              )}
+
+              {/* Cuerpo de Herramienta con Panel Integrado (1 solo panel extra montado a la vez) */}
+              {heroPanelTab !== 'chat' && heroPanelTab !== 'canvas' && (
+                <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden">
+                  <TenshiEmbeddedToolHost
+                    toolId={heroPanelTab}
+                    userId={user?.id || (user as any)?._id || null}
+                    activeConvoId={activeConversationId || conversation?.conversationId || null}
+                    onBackToChat={() => setHeroPanelTab('chat')}
+                    onSendPromptToTenshi={handleSendPromptFromEmbeddedTool}
+                  />
                 </div>
               )}
             </div>
@@ -12098,6 +12434,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         onChangePrefs={setSessionPrefs}
                         compact={true}
                         onExternalModalToggle={setIsExternalModalOpen}
+                        onOpenToolPanel={openToolTabInTenshi}
+                        onToolPanelActivated={handleToolPanelActivated}
+                        activePanelTab={heroPanelTab}
                       />
                     </div>
 
