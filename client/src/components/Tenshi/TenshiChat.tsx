@@ -3073,6 +3073,7 @@ export default function TenshiChat() {
   const handleSelectPersonality = useCallback((mode: 'express' | 'consultor' | 'auditor') => {
     tenshiAudio.playBlip();
     setPersonalityMode(mode);
+    setHoveredPersonality(null);
     safeSetItem('wappy_tenshi_personality', mode);
     if (sendPersonalityRef.current) {
       sendPersonalityRef.current(mode);
@@ -10236,29 +10237,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 )}
               >
 
-              {/* Selector de Personalidad Adaptativa (1 Clic - Móvil) con Letrero Estilo WAPPY */}
-              <div className="flex flex-col gap-1.5 border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 shrink-0">
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              {/* Selector de Personalidad Adaptativa (1 Clic - Hero/Móvil) con Tooltip Flotante solo en Hover Desktop */}
+              <div
+                onPointerLeave={() => setHoveredPersonality(null)}
+                className="relative z-20 flex shrink-0 flex-col border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 select-none"
+              >
+                <div className="flex min-w-0 items-center justify-between gap-1.5">
+                  <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                     Modo:
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                     {([
-                      { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
-                      { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
-                      { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                      { id: 'express', label: '⚡ Express' },
+                      { id: 'consultor', label: '🛡️ Consultor' },
+                      { id: 'auditor', label: '⚖️ Auditor' },
                     ] as const).map((m) => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => handleSelectPersonality(m.id)}
-                        onMouseEnter={() => setHoveredPersonality(m.id)}
-                        onMouseLeave={() => setHoveredPersonality(null)}
+                        onPointerEnter={(e) => {
+                          if (e.pointerType !== 'touch') {
+                            setHoveredPersonality(m.id);
+                          }
+                        }}
+                        onPointerLeave={() => setHoveredPersonality(null)}
                         className={cn(
-                          'px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 border shadow-2xs',
+                          'px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 border shadow-2xs cursor-pointer',
                           personalityMode === m.id
                             ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
-                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700',
                         )}
                       >
                         {m.label}
@@ -10266,15 +10274,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300">
-                  <span>
-                    {(hoveredPersonality || personalityMode) === 'express'
-                      ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
-                      : (hoveredPersonality || personalityMode) === 'auditor'
-                        ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
-                        : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
-                  </span>
-                </div>
+                {hoveredPersonality && (
+                  <div
+                    role="tooltip"
+                    className="hidden md:flex items-center gap-1.5 absolute left-3.5 right-3.5 top-full mt-1.5 z-30 pointer-events-none rounded-xl border border-teal-500/40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold leading-snug text-teal-700 dark:text-teal-300 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+                  >
+                    <span>
+                      {hoveredPersonality === 'express'
+                        ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                        : hoveredPersonality === 'auditor'
+                          ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                          : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Visor de Tenshi Visión y Telemetría Ergonómica en Chat Móvil / Split PC */}
@@ -11158,29 +11171,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             />
           </div>
 
-          {/* 7. Selector de Personalidad Adaptativa (1 Clic - Desktop) con Letrero Estilo WAPPY */}
-          <div className="flex shrink-0 flex-col gap-1 border-b border-slate-200/50 bg-white/90 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/90 select-none">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
+          {/* 7. Selector de Personalidad Adaptativa (1 Clic - Desktop) con Tooltip Flotante solo en Hover Desktop */}
+          <div
+            onPointerLeave={() => setHoveredPersonality(null)}
+            className="relative z-20 flex shrink-0 flex-col border-b border-slate-200/50 bg-white/90 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/90 select-none"
+          >
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
                 Modo:
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                 {([
-                  { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
-                  { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
-                  { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                  { id: 'express', label: '⚡ Express' },
+                  { id: 'consultor', label: '🛡️ Consultor' },
+                  { id: 'auditor', label: '⚖️ Auditor' },
                 ] as const).map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => handleSelectPersonality(m.id)}
-                    onMouseEnter={() => setHoveredPersonality(m.id)}
-                    onMouseLeave={() => setHoveredPersonality(null)}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType !== 'touch') {
+                        setHoveredPersonality(m.id);
+                      }
+                    }}
+                    onPointerLeave={() => setHoveredPersonality(null)}
                     className={cn(
-                      'px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border shadow-2xs',
+                      'px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border shadow-2xs cursor-pointer',
                       personalityMode === m.id
                         ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
-                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700',
                     )}
                   >
                     {m.label}
@@ -11188,15 +11208,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-2.5 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 transition-all">
-              <span className="truncate">
-                {(hoveredPersonality || personalityMode) === 'express'
-                  ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
-                  : (hoveredPersonality || personalityMode) === 'auditor'
-                    ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
-                    : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
-              </span>
-            </div>
+            {hoveredPersonality && (
+              <div
+                role="tooltip"
+                className="hidden md:flex items-center gap-1.5 absolute left-3.5 right-3.5 top-full mt-1.5 z-30 pointer-events-none rounded-xl border border-teal-500/40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold leading-snug text-teal-700 dark:text-teal-300 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+              >
+                <span>
+                  {hoveredPersonality === 'express'
+                    ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                    : hoveredPersonality === 'auditor'
+                      ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                      : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Visor de Tenshi Visión y Telemetría Ergonómica en Desktop */}

@@ -650,12 +650,14 @@ export interface TenshiModelPickerPillProps {
   model: TenshiModelId;
   onSelectModel: (model: TenshiModelId) => void;
   compact?: boolean;
+  className?: string;
 }
 
 export function TenshiModelPickerPill({
   model,
   onSelectModel,
   compact = false,
+  className,
 }: TenshiModelPickerPillProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -671,7 +673,18 @@ export function TenshiModelPickerPill({
       setCoords(null);
       return;
     }
-    setCoords(computeUpwardPopoverCoords(triggerRef.current, 304, 380, 'right'));
+    const triggerEl = triggerRef.current;
+    if (!triggerEl) {
+      setCoords(null);
+      return;
+    }
+    const rect = triggerEl.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      setIsOpen(false);
+      setCoords(null);
+      return;
+    }
+    setCoords(computeUpwardPopoverCoords(triggerEl, 304, 380, 'right'));
   }, [isOpen]);
 
   useEffect(() => {
@@ -748,13 +761,14 @@ export function TenshiModelPickerPill({
         title={`Cambiar modelo IA · Actual: ${model} (${activeModelMeta.badge})`}
         onClick={handleToggle}
         className={cn(
-          'inline-flex h-8 min-w-0 shrink-0 items-center gap-1 rounded-xl border px-2 text-[11px] font-bold transition-all duration-200 ease-in-out sm:hover:-rotate-1 sm:hover:scale-[1.03] active:scale-95 cursor-pointer',
+          'hidden md:inline-flex h-8 min-w-0 shrink-0 items-center gap-1 rounded-xl border px-2 text-[11px] font-bold transition-all duration-200 ease-in-out sm:hover:-rotate-1 sm:hover:scale-[1.03] active:scale-95 cursor-pointer',
           compact ? 'max-w-[140px]' : 'max-w-[165px] sm:max-w-[195px]',
           isOpen
             ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/30'
             : isNonDefaultModel
               ? 'border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/25'
               : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20',
+          className,
         )}
       >
         <Cpu className="h-3.5 w-3.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
