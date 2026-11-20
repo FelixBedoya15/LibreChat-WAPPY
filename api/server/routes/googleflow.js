@@ -190,23 +190,32 @@ function mergeGoogleCookiesByDomain(incoming = [], existing = []) {
  * Refresca bajo demanda __Secure-1PSIDTS y SIDCC usando las Master Cookies (SID, OSID, SAPISID)
  * a través del motor de rotación de notebooklm-mcp y sincroniza en MongoDB.
  */
-async function refreshGoogleCookiesOnDemand(userId, cookies = [], email = '', force = false) {
+async function refreshGoogleCookiesOnDemand(
+  userId,
+  cookies = [],
+  email = '',
+  force = false,
+  companyId = null
+) {
   if (!Array.isArray(cookies) || cookies.length === 0) return cookies;
   if (userId) {
     lastFlowCookieRefreshByUser.set(String(userId), Date.now());
   }
   try {
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const companyIdStr = companyId ? String(companyId).trim() : '';
     const res = await fetch(`${notebooklmUrl}/api/refresh-cookies`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': String(userId || ''),
         'x-user-email': String(email || ''),
+        ...(companyIdStr ? { 'X-Company-Id': companyIdStr } : {}),
       },
       body: JSON.stringify({
         user_id: String(userId || ''),
         email: String(email || ''),
+        ...(companyIdStr ? { company_id: companyIdStr, companyId: companyIdStr } : {}),
         cookies,
         force: Boolean(force),
       }),
@@ -496,7 +505,8 @@ async function resolveGoogleFlowCredentials(userId, explicitCompanyId = null) {
         userId,
         cookies,
         targetEmail,
-        Boolean(isPsidtsExpired)
+        Boolean(isPsidtsExpired),
+        activeCompId
       );
     }
   }
@@ -1298,7 +1308,7 @@ async function executeFlowImageGeneration({
         }
         if (authAttempt === 0 && userId) {
           logger.info('[GoogleFlow] 🔄 Rotando __Secure-1PSIDTS bajo demanda tras fallo de autenticación en /generate...');
-          currentCookies = await refreshGoogleCookiesOnDemand(userId, currentCookies, creds.email || '', true);
+          currentCookies = await refreshGoogleCookiesOnDemand(userId, currentCookies, creds.email || '', true, creds.activeCompId || null);
           continue;
         }
         flowCookieAuthFailed = true;
@@ -1570,7 +1580,7 @@ async function executeFlowVideoGeneration({
         }
         if (authAttempt === 0 && userId) {
           logger.info('[GoogleFlow] 🔄 Rotando __Secure-1PSIDTS bajo demanda tras fallo de autenticación en /generate (video)...');
-          currentVidCookies = await refreshGoogleCookiesOnDemand(userId, currentVidCookies, creds.email || '', true);
+          currentVidCookies = await refreshGoogleCookiesOnDemand(userId, currentVidCookies, creds.email || '', true, creds.activeCompId || null);
           continue;
         }
         vidCookieAuthFailed = true;
@@ -1853,7 +1863,7 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
     let finalCookies = [...nbSession.cookies];
     let fxSession = await fetchLabsFxSession(finalCookies);
     if (!fxSession.ok) {
-      finalCookies = await refreshGoogleCookiesOnDemand(userId, finalCookies, nbSession.email || '', true);
+      finalCookies = await refreshGoogleCookiesOnDemand(userId, finalCookies, nbSession.email || '', true, activeCompId);
       fxSession = await fetchLabsFxSession(finalCookies);
     }
     const effectiveEmail = fxSession.email || nbSession.email || req.user.email || 'Cuenta vinculada';
@@ -1957,7 +1967,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
       let fxCheck = await fetchLabsFxSession(cookies);
       if (!fxCheck.ok || !cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value)) {
-        cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || existingFlow?.email || existingNb?.email || userEmail || '');
+        cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || existingFlow?.email || existingNb?.email || userEmail || '', false, activeCompId);
         if (!fxCheck.ok) {
           fxCheck = await fetchLabsFxSession(cookies);
         }
@@ -2120,7 +2130,7 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       } else {
         let fxCheck = await fetchLabsFxSession(session.cookies);
         if (!fxCheck.ok) {
-          const refreshed = await refreshGoogleCookiesOnDemand(userId, session.cookies, session.email || '', true);
+          const refreshed = await refreshGoogleCookiesOnDemand(userId, session.cookies, session.email || '', true, activeCompId);
           session.cookies = refreshed;
           session.cookieCount = refreshed.length;
           fxCheck = await fetchLabsFxSession(session.cookies);

@@ -241,11 +241,16 @@ class WappyNotebookLM extends Tool {
       let connectionFailed = false;
       for (const toolName of toolList) {
         try {
+          const effectiveCid = companyId || this.companyId || null;
+          const companyIdStr = effectiveCid ? String(effectiveCid).trim() : '';
           const headers = {
             'Content-Type': 'application/json',
           };
           if (this.userId) {
             headers['x-user-id'] = String(this.userId);
+          }
+          if (companyIdStr) {
+            headers['X-Company-Id'] = companyIdStr;
           }
           if (email) {
             headers['x-user-email'] = String(email);
@@ -263,6 +268,7 @@ class WappyNotebookLM extends Tool {
               cookies,
               user_id: String(this.userId || 'default'),
               ...(email ? { user_email: String(email) } : {}),
+              ...(companyIdStr ? { company_id: companyIdStr } : {}),
             }),
             signal: AbortSignal.timeout(timeoutMs),
           });
@@ -391,10 +397,13 @@ class WappyNotebookLM extends Tool {
     artifactType,
     cookies,
     nlmHelpers,
+    companyId = null,
     waitSeconds = 18,
   }) {
     const baseUrls = getNotebookLmBaseCandidates();
     const maxAttempts = Math.max(1, Math.min(6, Math.ceil(waitSeconds / 3)));
+    const effectiveCid = companyId || this.companyId || null;
+    const companyIdStr = effectiveCid ? String(effectiveCid).trim() : '';
     let lastStatus = 'in_progress';
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -410,9 +419,11 @@ class WappyNotebookLM extends Tool {
             type: String(artifactType || 'infographic'),
           });
           if (this.userId) dlQs.set('user_id', String(this.userId));
+          if (companyIdStr) dlQs.set('company_id', companyIdStr);
 
           const headers = {};
           if (this.userId) headers['x-user-id'] = String(this.userId);
+          if (companyIdStr) headers['X-Company-Id'] = companyIdStr;
           if (Array.isArray(cookies) && cookies.length > 0) {
             headers['x-notebooklm-auth'] = JSON.stringify(cookies);
           }
@@ -758,14 +769,17 @@ class WappyNotebookLM extends Tool {
             artifactType: normalizedType,
             cookies,
             nlmHelpers,
+            companyId: effectiveCompanyId,
             waitSeconds: Number(data.wait_seconds) || 18,
           });
         }
 
+        const dlUrlParams = new URLSearchParams();
+        if (this.userId) dlUrlParams.set('userId', String(this.userId));
+        if (effectiveCompanyId) dlUrlParams.set('companyId', String(effectiveCompanyId));
+        const dlUrlSuffix = dlUrlParams.toString() ? `?${dlUrlParams.toString()}` : '';
         const wappyApiDownload = artifactId
-          ? `https://wappy.club/api/notebooklm/download/${resolvedNbId}/${artifactId}${
-              this.userId ? `?userId=${encodeURIComponent(String(this.userId))}` : ''
-            }`
+          ? `https://wappy.club/api/notebooklm/download/${resolvedNbId}/${artifactId}${dlUrlSuffix}`
           : null;
 
         const payload = {

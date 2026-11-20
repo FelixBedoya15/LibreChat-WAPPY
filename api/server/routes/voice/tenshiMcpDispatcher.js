@@ -611,12 +611,37 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
 
     let NotebookSession = null;
     let sessionDoc = null;
+    let targetCompanyId = effectiveCompanyId || null;
     try {
       NotebookSession = require('~/models/NotebookSession');
+      const nlmRoute = require('~/server/routes/notebooklm');
       if (userId) {
-        if (effectiveCompanyId) {
-          sessionDoc = await NotebookSession.findOne({ user: userId, companyId: effectiveCompanyId })
-            .lean()
+        if (typeof nlmRoute?.resolveValidNotebookSessionForHeader === 'function') {
+          const resolved = await nlmRoute
+            .resolveValidNotebookSessionForHeader(userId, effectiveCompanyId, {
+              strictCompany: Boolean(effectiveCompanyId),
+            })
+            .catch(() => null);
+          if (resolved?.session) {
+            sessionDoc = resolved.session;
+          }
+          targetCompanyId = resolved?.companyId ?? targetCompanyId;
+        }
+        if (!sessionDoc && typeof nlmRoute?.resolveActiveCompanyId === 'function') {
+          const activeComp = await nlmRoute
+            .resolveActiveCompanyId(userId, effectiveCompanyId)
+            .catch(() => effectiveCompanyId || null);
+          if (activeComp) {
+            targetCompanyId = activeComp;
+            sessionDoc = await NotebookSession.findOne({ user: userId, companyId: activeComp })
+              .sort({ isValid: -1, updatedAt: -1 })
+              .lean()
+              .catch(() => null);
+          }
+        }
+        if (!sessionDoc && typeof nlmRoute?.findSessionForCompany === 'function') {
+          sessionDoc = await nlmRoute
+            .findSessionForCompany(NotebookSession, userId, targetCompanyId)
             .catch(() => null);
         }
         if (!sessionDoc) {
@@ -624,11 +649,12 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
             user: userId,
             $or: [{ companyId: null }, { companyId: { $exists: false } }],
           })
+            .sort({ isValid: -1, updatedAt: -1 })
             .lean()
             .catch(() => null);
         }
-        if (!sessionDoc) {
-          sessionDoc = await NotebookSession.findOne({ user: userId }).lean().catch(() => null);
+        if (sessionDoc && sessionDoc.companyId !== undefined) {
+          targetCompanyId = sessionDoc.companyId || targetCompanyId;
         }
       }
       if (!sessionDoc || !Array.isArray(sessionDoc.cookies) || sessionDoc.cookies.length === 0) {
@@ -718,10 +744,14 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
         }
       }
 
+      const companyIdStr = targetCompanyId ? String(targetCompanyId).trim() : '';
       const nbHeaders = {
         'Content-Type': 'application/json',
         'x-user-id': String(userId || ''),
       };
+      if (companyIdStr) {
+        nbHeaders['X-Company-Id'] = companyIdStr;
+      }
       if (sessionDoc.email) {
         nbHeaders['x-user-email'] = String(sessionDoc.email);
       }
@@ -734,6 +764,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
           arguments: cleanArgs,
           user_id: String(userId || ''),
           user_email: String(sessionDoc.email || ''),
+          ...(companyIdStr ? { company_id: companyIdStr } : {}),
         }),
         signal: AbortSignal.timeout(90000),
       });
@@ -762,7 +793,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
             NotebookSession,
             userId,
             sessionDoc,
-            effectiveCompanyId,
+            targetCompanyId,
             errMsg
           );
           return {
@@ -784,8 +815,8 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       if (targetTool === 'notebook_list' && Array.isArray(data?.result) && userId) {
         const updateQuery = sessionDoc?._id
           ? { _id: sessionDoc._id }
-          : effectiveCompanyId
-            ? { user: userId, companyId: effectiveCompanyId }
+          : targetCompanyId
+            ? { user: userId, companyId: targetCompanyId }
             : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
         NotebookSession.updateOne(
           updateQuery,
@@ -832,7 +863,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
           NotebookSession,
           userId,
           sessionDoc,
-          effectiveCompanyId,
+          targetCompanyId,
           nbErr?.message || ''
         );
         return {

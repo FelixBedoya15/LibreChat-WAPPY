@@ -13612,11 +13612,15 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
     effectiveEmail = session?.email || req.user.email || '';
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
+    const companyIdStr = companyId ? String(companyId).trim() : '';
     const headers = {
       'Content-Type': 'application/json',
       'x-user-id': String(req.user.id),
       'x-user-email': String(effectiveEmail),
     };
+    if (companyIdStr) {
+      headers['X-Company-Id'] = companyIdStr;
+    }
     if (cookies.length > 0) {
       headers['x-notebooklm-auth'] = JSON.stringify(cookies);
     }
@@ -13629,6 +13633,7 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
         arguments: toolArgs,
         user_id: String(req.user.id),
         user_email: String(effectiveEmail),
+        ...(companyIdStr ? { company_id: companyIdStr } : {}),
       }),
       signal: AbortSignal.timeout(90000),
     });

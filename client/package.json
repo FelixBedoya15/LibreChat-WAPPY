@@ -86,6 +86,7 @@
     "lucide-react": "^0.394.0",
     "match-sorter": "^8.1.0",
     "micromark-extension-llm-math": "^3.1.0",
+    "onnxruntime-web": "^1.31.1",
     "phaser": "^3.90.0",
     "pptxgenjs": "^4.0.1",
     "qrcode": "^1.5.4",

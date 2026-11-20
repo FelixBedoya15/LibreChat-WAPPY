@@ -5808,11 +5808,14 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
         if (primaryMcpUrl.includes('notebooklm-mcp')) {
           candidateMcpUrls.push('http://127.0.0.1:9420');
         }
+        const targetCompanyId = firstValidSession.companyId || company?._id || null;
+        const companyIdStr = targetCompanyId ? String(targetCompanyId).trim() : '';
         const mcpHeaders = {
           'Content-Type': 'application/json',
           'x-user-id': String(userId || ''),
           'x-user-email': String(firstValidSession.email || ''),
           'x-notebooklm-auth': JSON.stringify(firstValidSession.cookies || []),
+          ...(companyIdStr ? { 'X-Company-Id': companyIdStr } : {}),
         };
         let mcpQueryResult = null;
         let mcpErrorMsg = null;
@@ -5830,6 +5833,7 @@ async function inspectTriggersAndMemoryTeams(ctx = {}) {
                 },
                 user_id: String(userId || ''),
                 user_email: String(firstValidSession.email || ''),
+                ...(companyIdStr ? { company_id: companyIdStr } : {}),
               }),
             });
             const data = await resp.json().catch(() => ({}));
