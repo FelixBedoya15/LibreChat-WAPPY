@@ -997,10 +997,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         new CustomEvent('notebooklm_auth_expired', { detail: message.data })
                     );
                     window.dispatchEvent(
+                        new CustomEvent('wappy-notebooklm-auth-expired', { detail: message.data })
+                    );
+                    window.dispatchEvent(
                         new CustomEvent('wappy-notebooklm-updated', {
                             detail: {
                                 ...(message.data || {}),
                                 authExpired: true,
+                                sessionExpired: true,
                                 isValid: false,
                             },
                         })

@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import ExpandableButton from '~/components/Common/ExpandableButton';
+import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
 import {
   AI_ENGINE_MODELS,
   EXTRACTOR_NODES,
@@ -423,12 +424,14 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
   const [newAiFieldDesc, setNewAiFieldDesc] = useState<string>('');
   const [nbLoading, setNbLoading] = useState<boolean>(false);
   const [nbConnected, setNbConnected] = useState<boolean | null>(null);
+  const [nbSessionExpired, setNbSessionExpired] = useState<boolean>(false);
   const [nbEmail, setNbEmail] = useState<string>('');
   const [nbSyncWarning, setNbSyncWarning] = useState<string | null>(null);
   const [nbNotebooks, setNbNotebooks] = useState<
     Array<{ id: string; title: string; emoji: string; sources_count: number }>
   >([]);
   const [nbForceManual, setNbForceManual] = useState<boolean>(false);
+  const [isNotebookLMModalOpen, setIsNotebookLMModalOpen] = useState<boolean>(false);
 
   const rawId = (activeNode.nodeId || '').trim();
   const cleanId = rawId.replace(
@@ -474,17 +477,34 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         const data = await res.json().catch(() => null);
         if (signal?.aborted) return;
         if (!res.ok || !data || typeof data !== 'object') {
+          const expiredOnError = Boolean(
+            data && typeof data === 'object' && (data.sessionExpired === true || data.isValid === false),
+          );
+          setNbSessionExpired(expiredOnError);
           setNbConnected(false);
+          if (data && typeof data === 'object' && typeof data.email === 'string') {
+            setNbEmail(data.email.trim());
+          }
           setNbNotebooks([]);
-          setNbSyncWarning('No se pudo consultar la sesión de Google NotebookLM.');
+          setNbSyncWarning(
+            expiredOnError
+              ? (typeof data?.syncWarning === 'string' && data.syncWarning.trim()) ||
+                  'Tu sesión de Google NotebookLM expiró. Haz clic en Reconectar.'
+              : 'No se pudo consultar la sesión de Google NotebookLM.',
+          );
           return;
         }
-        setNbConnected(Boolean(data.connected));
-        setNbEmail(typeof data.email === 'string' ? data.email : '');
+        const rawConnected = Boolean(data.connected);
+        const expired = Boolean(data.sessionExpired || (rawConnected && data.isValid === false));
+        setNbSessionExpired(expired);
+        setNbConnected(rawConnected && !expired);
+        setNbEmail(typeof data.email === 'string' ? data.email.trim() : '');
         setNbSyncWarning(
           typeof data.syncWarning === 'string' && data.syncWarning.trim()
             ? data.syncWarning.trim()
-            : null,
+            : expired
+              ? 'Tu sesión de Google NotebookLM expiró. Haz clic en Reconectar.'
+              : null,
         );
         const rawList = Array.isArray(data.notebooks) ? data.notebooks : [];
         const normalized = rawList
@@ -500,6 +520,7 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
         setNbNotebooks(normalized);
       } catch (err: any) {
         if (err?.name === 'AbortError' || signal?.aborted) return;
+        setNbSessionExpired(false);
         setNbConnected(false);
         setNbNotebooks([]);
         setNbSyncWarning('Sesión de Google NotebookLM sin conexión activa.');
@@ -517,8 +538,36 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
     if (!isNotebookLmNode) return;
     const controller = new AbortController();
     void fetchNotebookLmNotebooks(false, controller.signal);
+    const handleAuthExpired = (e: Event) => {
+      const custom = e as CustomEvent<{ message?: string; reason?: string } | undefined>;
+      setNbSessionExpired(true);
+      setNbConnected(false);
+      setNbSyncWarning(
+        (typeof custom?.detail?.message === 'string' && custom.detail.message.trim()) ||
+          (typeof custom?.detail?.reason === 'string' && custom.detail.reason.trim()) ||
+          'Tu sesión de Google NotebookLM expiró. Haz clic en Reconectar.',
+      );
+    };
+    const handleUpdated = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (
+        custom?.detail?.authExpired === true ||
+        custom?.detail?.sessionExpired === true ||
+        custom?.detail?.isValid === false
+      ) {
+        handleAuthExpired(e);
+        return;
+      }
+      void fetchNotebookLmNotebooks(Boolean(custom?.detail?.refresh));
+    };
+    window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+    window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
+    window.addEventListener('wappy-notebooklm-updated', handleUpdated);
     return () => {
       controller.abort();
+      window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+      window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
+      window.removeEventListener('wappy-notebooklm-updated', handleUpdated);
     };
   }, [isNotebookLmNode, activeNode.key, fetchNotebookLmNotebooks]);
 
@@ -1608,22 +1657,46 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
       return (
         <div className="space-y-3.5 min-w-0">
           {/* Cabecera y estado de sesión NotebookLM */}
-          <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/10 dark:bg-purple-950/25 space-y-2.5 min-w-0">
+          <div
+            className={`p-3.5 rounded-2xl border space-y-2.5 min-w-0 ${
+              nbSessionExpired
+                ? 'border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/25'
+                : 'border-purple-500/30 bg-purple-500/10 dark:bg-purple-950/25'
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 rounded-xl border border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4" />
+                <div
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                    nbSessionExpired
+                      ? 'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                      : 'border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300'
+                  }`}
+                >
+                  {nbSessionExpired ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <BookOpen className="w-4 h-4" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-black uppercase tracking-wide text-purple-900 dark:text-purple-200 truncate">
                     Google NotebookLM · Cuadernos RAG y Studio
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
+                  <div
+                    className={`text-[11px] truncate ${
+                      nbSessionExpired
+                        ? 'font-bold text-rose-700 dark:text-rose-300'
+                        : 'font-semibold text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
                     {nbLoading
                       ? '⏳ Consultando tus cuadernos en Google NotebookLM...'
-                      : nbConnected
-                        ? `🟢 Conectado${nbEmail ? ` · ${nbEmail}` : ''} (${safeNotebooks.length} cuaderno${safeNotebooks.length === 1 ? '' : 's'})`
-                        : '⚠️ Sesión NotebookLM sin vincular (puedes conectar o escribir ID/título manual)'}
+                      : nbSessionExpired
+                        ? `🔴 Sesión expirada${nbEmail ? ` · ${nbEmail}` : ''} — Reconectar`
+                        : nbConnected
+                          ? `🟢 Conectado${nbEmail ? ` · ${nbEmail}` : ''} (${safeNotebooks.length} cuaderno${safeNotebooks.length === 1 ? '' : 's'})`
+                          : '⚠️ Sesión NotebookLM sin vincular (puedes conectar o escribir ID/título manual)'}
                   </div>
                 </div>
               </div>
@@ -1641,26 +1714,48 @@ export default function WappyNodeCustomEditor(props: WappyNodeCustomEditorProps)
                   title="Recargar listado real de cuadernos desde Google NotebookLM"
                   onClick={() => void fetchNotebookLmNotebooks(true)}
                 />
-                {!nbConnected && !nbLoading && (
-                  <a
-                    href="/c/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Abrir WAPPY para vincular Google NotebookLM desde tu Perfil"
-                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 text-xs font-bold transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    <span>Conectar NotebookLM</span>
-                  </a>
-                )}
+                {nbSessionExpired && !nbLoading ? (
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="amber"
+                    icon={<AlertTriangle className="w-3.5 h-3.5" />}
+                    badge="Reconectar"
+                    label="Reconectar NotebookLM"
+                    title="Sesión expirada — Reconectar Google NotebookLM"
+                    onClick={() => setIsNotebookLMModalOpen(true)}
+                  />
+                ) : !nbConnected && !nbLoading ? (
+                  <ExpandableButton
+                    type="button"
+                    size="sm"
+                    variant="emerald"
+                    icon={<ExternalLink className="w-3.5 h-3.5" />}
+                    badge="Conectar"
+                    label="Conectar NotebookLM"
+                    title="Vincular tu cuenta privada de Google NotebookLM"
+                    onClick={() => setIsNotebookLMModalOpen(true)}
+                  />
+                ) : null}
               </div>
             </div>
 
             {nbSyncWarning && (
-              <div className="px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+              <div
+                className={`px-3 py-2 rounded-xl border text-[11px] font-semibold ${
+                  nbSessionExpired
+                    ? 'border-rose-500/35 bg-rose-500/10 text-rose-800 dark:text-rose-200'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                }`}
+              >
                 ⚠️ {nbSyncWarning}
               </div>
             )}
+
+            <NotebookLMModal
+              isOpen={isNotebookLMModalOpen}
+              onClose={() => setIsNotebookLMModalOpen(false)}
+            />
 
             {/* Selector de cuaderno real o entrada manual */}
             <div className="space-y-2">

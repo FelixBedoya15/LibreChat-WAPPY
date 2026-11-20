@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { request } from 'librechat-data-provider';
-import { Check, RefreshCw, Search, BookOpen, ExternalLink } from 'lucide-react';
+import { Check, RefreshCw, Search, BookOpen, ExternalLink, AlertTriangle } from 'lucide-react';
 import { cn } from '~/utils';
 import type { NotebookLMNotebookItem } from '~/hooks/Agents/useAgentSessionOverrides';
+import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
 
 interface AgentNotebookLMPickerProps {
   agentId?: string;
@@ -11,6 +12,7 @@ interface AgentNotebookLMPickerProps {
 
 export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNotebookLMPickerProps) {
   const [connected, setConnected] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [notebooks, setNotebooks] = useState<NotebookLMNotebookItem[]>([]);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
@@ -18,6 +20,7 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadNotebooks = useCallback(
     async (forceRefresh = false) => {
@@ -29,8 +32,11 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
         if (forceRefresh) qs.set('refresh', '1');
         const res: any = await request.get(`/api/notebooklm/notebooks?${qs.toString()}`);
         if (res && typeof res === 'object') {
-          setConnected(Boolean(res.connected));
-          setEmail(res.email || null);
+          const rawConnected = Boolean(res.connected);
+          const expired = Boolean(res.sessionExpired || (rawConnected && res.isValid === false));
+          setSessionExpired(expired);
+          setConnected(rawConnected && !expired);
+          setEmail(typeof res.email === 'string' && res.email.trim() ? res.email.trim() : null);
           const list: NotebookLMNotebookItem[] = Array.isArray(res.notebooks) ? res.notebooks : [];
           setNotebooks(list);
           if (Array.isArray(res.assignedNotebooks)) {
@@ -50,6 +56,35 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
     if (agentId) {
       loadNotebooks(false);
     }
+  }, [agentId, loadNotebooks]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setSessionExpired(true);
+      setConnected(false);
+    };
+    const handleUpdated = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (
+        custom?.detail?.authExpired === true ||
+        custom?.detail?.sessionExpired === true ||
+        custom?.detail?.isValid === false
+      ) {
+        handleAuthExpired();
+        return;
+      }
+      if (agentId) {
+        loadNotebooks(Boolean(custom?.detail?.refresh));
+      }
+    };
+    window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+    window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
+    window.addEventListener('wappy-notebooklm-updated', handleUpdated);
+    return () => {
+      window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+      window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
+      window.removeEventListener('wappy-notebooklm-updated', handleUpdated);
+    };
   }, [agentId, loadNotebooks]);
 
   const toggleNotebook = async (nb: NotebookLMNotebookItem) => {
@@ -84,24 +119,53 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
     <div className="mb-4">
       <div className="mb-1.5 flex items-center justify-between">
         <label className="text-token-text-primary flex items-center gap-1.5 text-sm font-medium">
-          <BookOpen className="h-4 w-4 text-emerald-500" />
+          {sessionExpired ? (
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          ) : (
+            <BookOpen className="h-4 w-4 text-emerald-500" />
+          )}
           <span>Segundo Cerebro (NotebookLM)</span>
         </label>
         <span
           className={cn(
-            'rounded-full px-2 py-0.5 text-[10px] font-bold',
-            assignedIds.length > 0
-              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-              : 'bg-surface-tertiary text-text-secondary',
+            'rounded-lg px-2 py-0.5 text-[10px] font-bold',
+            sessionExpired
+              ? 'border border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+              : assignedIds.length > 0
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                : 'bg-surface-tertiary text-text-secondary',
           )}
         >
-          {assignedIds.length > 0
-            ? `${assignedIds.length} cuaderno${assignedIds.length === 1 ? '' : 's'}`
-            : 'Todos disponibles'}
+          {sessionExpired
+            ? 'Sesión expirada'
+            : assignedIds.length > 0
+              ? `${assignedIds.length} cuaderno${assignedIds.length === 1 ? '' : 's'}`
+              : 'Todos disponibles'}
         </span>
       </div>
 
-      <div className="rounded-xl border border-border-light bg-surface-secondary/60 p-2.5">
+      <div
+        className={cn(
+          'rounded-xl border p-2.5',
+          sessionExpired
+            ? 'border-amber-500/40 bg-amber-500/10'
+            : 'border-border-light bg-surface-secondary/60',
+        )}
+      >
+        {sessionExpired && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-rose-500/35 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+            <span className="truncate">
+              Sesión expirada{email ? ` (${email})` : ''} — Reconectar
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 text-[10px] font-extrabold text-amber-900 dark:text-amber-100 hover:bg-amber-500/30 transition-colors cursor-pointer"
+            >
+              Reconectar
+            </button>
+          </div>
+        )}
         <p className="mb-2 text-[11px] leading-relaxed text-text-secondary">
           Asigna cuadernos específicos de Google NotebookLM como fuente de información para{' '}
           <strong className="text-text-primary">{agentName || 'este agente'}</strong>.{' '}
@@ -208,13 +272,16 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
                           <div className="min-w-0 flex-1">
                             <div className="truncate">{nb.title}</div>
                             <div className="text-[10px] text-text-secondary">
-                              {nb.sourcesCount} fuente{nb.sourcesCount === 1 ? '' : 's'}
+                              {(() => {
+                                const count = nb.sources_count ?? (nb as any).sourcesCount ?? 0;
+                                return `${count} fuente${count === 1 ? '' : 's'}`;
+                              })()}
                             </div>
                           </div>
                         </div>
-                        {nb.url && (
+                        {(nb as any).url && (
                           <a
-                            href={nb.url}
+                            href={(nb as any).url}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -228,10 +295,31 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
                     );
                   })}
                 </div>
-                {email && (
-                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-text-secondary">
-                    <span className="truncate">Cuenta: {email}</span>
-                    {saving && <span className="text-emerald-500">Guardando...</span>}
+                {(email || sessionExpired) && (
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-text-secondary">
+                    <span
+                      className={cn(
+                        'truncate',
+                        sessionExpired && 'font-semibold text-rose-600 dark:text-rose-400',
+                      )}
+                    >
+                      {sessionExpired
+                        ? `Sesión expirada${email ? ` (${email})` : ''}`
+                        : connected
+                          ? `Conectado: ${email}`
+                          : `Cuenta: ${email}`}
+                    </span>
+                    {sessionExpired ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="shrink-0 font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                      >
+                        Reconectar
+                      </button>
+                    ) : saving ? (
+                      <span className="text-emerald-500">Guardando...</span>
+                    ) : null}
                   </div>
                 )}
               </>
@@ -239,6 +327,10 @@ export default function AgentNotebookLMPicker({ agentId, agentName }: AgentNoteb
           </div>
         )}
       </div>
+      <NotebookLMModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

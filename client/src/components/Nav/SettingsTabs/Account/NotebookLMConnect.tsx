@@ -28,16 +28,38 @@ export default function NotebookLMConnect() {
   }, [fetchStatus, isOpen]);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      setStatus((prev: any) => ({ ...(prev || {}), connected: true, isValid: false, sessionExpired: true }));
+    };
+    const handleUpdated = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (
+        custom?.detail?.authExpired === true ||
+        custom?.detail?.sessionExpired === true ||
+        custom?.detail?.isValid === false
+      ) {
+        handleAuthExpired();
+        return;
+      }
+      fetchStatus();
+    };
     window.addEventListener('wappy-company-changed', fetchStatus);
     window.addEventListener('wappy-empresa-cambiada', fetchStatus);
+    window.addEventListener('wappy-notebooklm-updated', handleUpdated);
+    window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+    window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
     return () => {
       window.removeEventListener('wappy-company-changed', fetchStatus);
       window.removeEventListener('wappy-empresa-cambiada', fetchStatus);
+      window.removeEventListener('wappy-notebooklm-updated', handleUpdated);
+      window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+      window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
     };
   }, [fetchStatus]);
 
   const isConnected = Boolean(status?.connected);
-  const isValid = status?.isValid !== false;
+  const isExpired = Boolean(status?.sessionExpired || (isConnected && status?.isValid === false));
+  const isValid = isConnected && !isExpired;
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl border border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/10 transition-all hover:border-teal-500/40">
@@ -50,11 +72,11 @@ export default function NotebookLMConnect() {
             <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">
               Google NotebookLM & Gemini Notebook
             </h4>
-            {isConnected && isValid ? (
+            {isValid ? (
               <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
                 <CheckCircle2 className="w-3 h-3" /> Conectado (Privado)
               </span>
-            ) : isConnected && !isValid ? (
+            ) : isExpired ? (
               <span className="flex items-center gap-1 text-[10px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg">
                 <AlertTriangle className="w-3 h-3" /> Sesión Expirada
               </span>
@@ -65,9 +87,9 @@ export default function NotebookLMConnect() {
             )}
           </div>
           <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-            {isConnected && isValid
+            {isValid
               ? `Tus agentes consultan únicamente tus cuadernos privados en Google (${status?.email || 'Cuenta vinculada'}).`
-              : isConnected && !isValid
+              : isExpired
               ? 'Tu sesión de Google expiró. Haz clic en Actualizar Sesión para revincular tu cuenta.'
               : 'Conecta tu propio Google NotebookLM de forma 100% privada (sin compartir tus cuadernos con nadie).'}
           </p>
@@ -75,13 +97,13 @@ export default function NotebookLMConnect() {
       </div>
 
       <WappyExpandButton
-        variant={isConnected && !isValid ? 'amber' : 'teal'}
+        variant={isExpired ? 'orange' : 'teal'}
         onClick={() => setIsOpen(true)}
         icon={<Sparkles className="w-4 h-4" />}
         label={
-          isConnected && isValid
+          isValid
             ? 'Gestionar Sesión'
-            : isConnected && !isValid
+            : isExpired
             ? 'Actualizar Sesión'
             : 'Vincular Mi Cuenta'
         }

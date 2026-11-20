@@ -529,7 +529,7 @@ const TOOL_ROUTES = {
 };
 
 const NOTEBOOKLM_AUTH_ERROR_REGEX =
-  /(unauthenticated|csrf|token\s+csrf|sesi[oó]n\s+(?:de\s+google\s+)?(?:notebooklm\s+)?(?:expirad|caducad|inv[aá]lid)|cookiemismatch|cookie[\s_-]*mismatch|cookies?\s+(?:expirad|caducad|inv[aá]lid|no\s+v[aá]lid)|authentication\s+(?:error|failed|expired|required)|error\s+de\s+autenticaci[oó]n|not\s+authenticated|login\s+required|accounts\.google\.com|re-?autentica|volver\s+a\s+(?:vincular|conectar|iniciar\s+sesi[oó]n))/i;
+  /(rpcerror\s*[:#(-]?\s*16|rpc\s*error\s*16|error\s*code\s*[:=]?\s*16|unauthenticated|csrf|token\s+csrf|hassnlm0e|snlm0e|wzsz1e|sesi[oó]n\s+(?:de\s+google\s+)?(?:notebooklm\s+)?(?:expirad|caducad|inv[aá]lid)|cookiemismatch|cookie[\s_-]*mismatch|cookies?\s+(?:expirad|caducad|inv[aá]lid|no\s+v[aá]lid)|authentication\s+(?:error|failed|expired|required)|error\s+de\s+autenticaci[oó]n|not\s+authenticated|login\s+required|accounts\.google\.com|re-?autentica|volver\s+a\s+(?:vincular|conectar|iniciar\s+sesi[oó]n))/i;
 
 function isNotebookLmAuthError(errText, httpStatus = 200) {
   if (httpStatus === 401 || httpStatus === 403) return true;
@@ -537,21 +537,47 @@ function isNotebookLmAuthError(errText, httpStatus = 200) {
   return NOTEBOOKLM_AUTH_ERROR_REGEX.test(String(errText));
 }
 
-async function markNotebookSessionInvalid(NotebookSession, userId, sessionDoc = null) {
+async function markNotebookSessionInvalid(
+  NotebookSession,
+  userId,
+  sessionDoc = null,
+  effectiveCompanyId = null,
+  reason = ''
+) {
   if (!NotebookSession || !userId) return;
+  const targetCompanyId = sessionDoc?.companyId ?? effectiveCompanyId ?? null;
+  try {
+    const nlmRoute = require('~/server/routes/notebooklm');
+    if (typeof nlmRoute?.markNotebookAndLinkedFlowInvalid === 'function') {
+      await nlmRoute.markNotebookAndLinkedFlowInvalid(
+        userId,
+        targetCompanyId,
+        reason || 'Sesión NotebookLM expirada en Tenshi MCP',
+        {
+          sessionDocId: sessionDoc?._id || null,
+          email: sessionDoc?.email || '',
+        }
+      );
+      return;
+    }
+  } catch (delegateErr) {
+    logger.warn(
+      `[Tenshi MCP] Fallback local en markNotebookSessionInvalid para user=${userId}: ${delegateErr.message}`
+    );
+  }
+
+  // Fallback estrictamente acotado al documento/empresa específica (NUNCA updateMany por userId)
   const now = new Date();
-  const filter = sessionDoc?._id ? { _id: sessionDoc._id } : { user: userId };
+  const filter = sessionDoc?._id
+    ? { _id: sessionDoc._id }
+    : targetCompanyId
+      ? { user: userId, companyId: targetCompanyId }
+      : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
   await NotebookSession.updateOne(filter, {
     $set: { isValid: false, lastTestedAt: now },
   }).catch((upErr) => {
     logger.warn(`[Tenshi MCP] No se pudo marcar NotebookSession.isValid=false para usuario ${userId}: ${upErr.message}`);
   });
-  if (sessionDoc?._id) {
-    await NotebookSession.updateMany(
-      { user: userId, isValid: { $ne: false } },
-      { $set: { isValid: false, lastTestedAt: now } }
-    ).catch(() => {});
-  }
 }
 
 async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
@@ -709,6 +735,7 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
           user_id: String(userId || ''),
           user_email: String(sessionDoc.email || ''),
         }),
+        signal: AbortSignal.timeout(90000),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -731,7 +758,13 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
         const errMsg = rawErrMsg || `Error HTTP ${response.status}: ${response.statusText}`;
         logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}" (authExpired=${authExpired}): ${errMsg}`);
         if (authExpired) {
-          await markNotebookSessionInvalid(NotebookSession, userId, sessionDoc);
+          await markNotebookSessionInvalid(
+            NotebookSession,
+            userId,
+            sessionDoc,
+            effectiveCompanyId,
+            errMsg
+          );
           return {
             ok: false,
             authExpired: true,
@@ -749,7 +782,11 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       }
 
       if (targetTool === 'notebook_list' && Array.isArray(data?.result) && userId) {
-        const updateQuery = sessionDoc?._id ? { _id: sessionDoc._id } : { user: userId };
+        const updateQuery = sessionDoc?._id
+          ? { _id: sessionDoc._id }
+          : effectiveCompanyId
+            ? { user: userId, companyId: effectiveCompanyId }
+            : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
         NotebookSession.updateOne(
           updateQuery,
           {
@@ -766,7 +803,9 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
               notebooksUpdatedAt: new Date(),
             },
           }
-        ).catch(() => {});
+        ).catch((upErr) => {
+          logger.warn(`[Tenshi MCP] Aviso actualizando cachedNotebooks para user=${userId}: ${upErr.message}`);
+        });
 
         if (effectiveSelectedNotebooks.length > 0) {
           const allowedIds = new Set(
@@ -789,7 +828,13 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       logger.error(`[Tenshi MCP] Error conectando con NotebookLM para "${targetTool}":`, nbErr);
       const authExpired = isNotebookLmAuthError(nbErr?.message);
       if (authExpired) {
-        await markNotebookSessionInvalid(NotebookSession, userId, sessionDoc);
+        await markNotebookSessionInvalid(
+          NotebookSession,
+          userId,
+          sessionDoc,
+          effectiveCompanyId,
+          nbErr?.message || ''
+        );
         return {
           ok: false,
           authExpired: true,

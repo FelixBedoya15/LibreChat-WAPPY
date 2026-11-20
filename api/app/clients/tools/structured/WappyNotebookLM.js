@@ -175,10 +175,51 @@ class WappyNotebookLM extends Tool {
     };
   }
 
-  async _callDirectTool(toolCandidates, args = {}, { cookies = [], timeoutMs = 45000 } = {}) {
+  _isAuthFailureError(errMsg = '', status = 200, nlmHelpers = null) {
+    if (status === 401 || status === 403) return true;
+    const text = String(errMsg || '');
+    if (!text) return false;
+    if (typeof nlmHelpers?.isNotebookAuthFailureError === 'function') {
+      return nlmHelpers.isNotebookAuthFailureError(text);
+    }
+    return /(rpcerror\s*[:#(-]?\s*16|rpc\s*error\s*16|error\s*code\s*[:=]?\s*16|unauthenticated|token\s+csrf|csrf|hassnlm0e|snlm0e|wzsz1e|cookiemismatch|sesi[oó]n\s+expirad|caducad|expired|autenticaci[oó]n|401|403|signin|servicelogin|login\s*required)/i.test(
+      text,
+    );
+  }
+
+  async _invalidateSessionIfAuthError(
+    errMsg = '',
+    status = 200,
+    { companyId = null, nlmHelpers = null, sessionDocId = null, email = '' } = {},
+  ) {
+    if (!this.userId) return false;
+    if (!this._isAuthFailureError(errMsg, status, nlmHelpers)) return false;
+    try {
+      const helpers = nlmHelpers || require('~/server/routes/notebooklm');
+      if (typeof helpers?.markNotebookAndLinkedFlowInvalid === 'function') {
+        await helpers.markNotebookAndLinkedFlowInvalid(
+          this.userId,
+          companyId ?? this.companyId ?? null,
+          String(errMsg || 'Error de autenticación NotebookLM'),
+          { sessionDocId, email },
+        );
+        return true;
+      }
+    } catch (invErr) {
+      logger.warn(`[wappy_notebooklm] Error marcando sesión inválida en MongoDB: ${invErr.message}`);
+    }
+    return false;
+  }
+
+  async _callDirectTool(
+    toolCandidates,
+    args = {},
+    { cookies = [], timeoutMs = 45000, companyId = null, nlmHelpers = null, sessionDocId = null, email = '' } = {},
+  ) {
     const toolList = Array.isArray(toolCandidates) ? toolCandidates : [toolCandidates];
     const baseUrls = getNotebookLmBaseCandidates();
     let lastError = null;
+    let authInvalidated = false;
 
     for (const baseUrl of baseUrls) {
       let connectionFailed = false;
@@ -189,6 +230,9 @@ class WappyNotebookLM extends Tool {
           };
           if (this.userId) {
             headers['x-user-id'] = String(this.userId);
+          }
+          if (email) {
+            headers['x-user-email'] = String(email);
           }
           if (Array.isArray(cookies) && cookies.length > 0) {
             headers['x-notebooklm-auth'] = JSON.stringify(cookies);
@@ -202,6 +246,7 @@ class WappyNotebookLM extends Tool {
               args,
               cookies,
               user_id: String(this.userId || 'default'),
+              ...(email ? { user_email: String(email) } : {}),
             }),
             signal: AbortSignal.timeout(timeoutMs),
           });
@@ -214,14 +259,28 @@ class WappyNotebookLM extends Tool {
             data = { raw: rawText };
           }
 
-          if (!res.ok) {
-            const errMsg = String(data?.error || data?.detail || data?.message || `HTTP ${res.status}`);
+          const nestedErr =
+            data?.error ||
+            data?.detail ||
+            (data?.result && typeof data.result === 'object' ? data.result.error || '' : '');
+
+          if (!res.ok || nestedErr) {
+            const errMsg = String(nestedErr || data?.message || `HTTP ${res.status}`);
             const unsupported =
               res.status === 400 &&
               (/no soportada/i.test(errMsg) || /not supported/i.test(errMsg) || /unknown tool/i.test(errMsg));
             lastError = new Error(errMsg);
             if (unsupported) {
               continue;
+            }
+            if (!authInvalidated && this._isAuthFailureError(errMsg, res.status, nlmHelpers)) {
+              authInvalidated = await this._invalidateSessionIfAuthError(errMsg, res.status, {
+                companyId,
+                nlmHelpers,
+                sessionDocId,
+                email,
+              });
+              lastError.authExpired = true;
             }
             throw lastError;
           }
@@ -233,6 +292,15 @@ class WappyNotebookLM extends Tool {
           };
         } catch (err) {
           lastError = err;
+          if (!authInvalidated && this._isAuthFailureError(err?.message, 200, nlmHelpers)) {
+            authInvalidated = await this._invalidateSessionIfAuthError(err?.message, 200, {
+              companyId,
+              nlmHelpers,
+              sessionDocId,
+              email,
+            });
+            err.authExpired = true;
+          }
           const msg = String(err?.message || '').toLowerCase();
           if (
             err?.name === 'AbortError' ||
@@ -255,7 +323,7 @@ class WappyNotebookLM extends Tool {
     throw lastError || new Error('No fue posible conectar con el servicio notebooklm-mcp.');
   }
 
-  async _resolveFirstActiveNotebookId(session, cookies, nlmHelpers) {
+  async _resolveFirstActiveNotebookId(session, cookies, nlmHelpers, effectiveCompanyId = null) {
     if (Array.isArray(session?.cachedNotebooks) && session.cachedNotebooks.length > 0) {
       const firstCached = session.cachedNotebooks.find((nb) => nb && (nb.id || nb.notebook_id));
       if (firstCached) {
@@ -275,7 +343,18 @@ class WappyNotebookLM extends Tool {
     }
 
     if (Array.isArray(cookies) && cookies.length > 0) {
-      const { result } = await this._callDirectTool('notebook_list', {}, { cookies, timeoutMs: 20000 });
+      const { result } = await this._callDirectTool(
+        'notebook_list',
+        {},
+        {
+          cookies,
+          timeoutMs: 20000,
+          companyId: effectiveCompanyId,
+          nlmHelpers,
+          sessionDocId: session?._id,
+          email: session?.email || '',
+        },
+      );
       const normalized =
         typeof nlmHelpers?.normalizeNotebookList === 'function'
           ? nlmHelpers.normalizeNotebookList(result)
@@ -419,6 +498,13 @@ class WappyNotebookLM extends Tool {
     try {
       const { nlmHelpers, effectiveCompanyId, session, cookies } = await this._getScopedSessionContext();
       const hasConnection = Boolean(session && Array.isArray(cookies) && cookies.length > 0);
+      const toolCtxOpts = {
+        cookies,
+        companyId: effectiveCompanyId,
+        nlmHelpers,
+        sessionDocId: session?._id || null,
+        email: session?.email || '',
+      };
 
       if (rawAction === 'listar_cuadernos') {
         if (!hasConnection) {
@@ -437,7 +523,10 @@ class WappyNotebookLM extends Tool {
 
         let notebooks = [];
         try {
-          const { result } = await this._callDirectTool('notebook_list', {}, { cookies, timeoutMs: 25000 });
+          const { result } = await this._callDirectTool('notebook_list', {}, {
+            ...toolCtxOpts,
+            timeoutMs: 25000,
+          });
           const rawList =
             typeof nlmHelpers?.normalizeNotebookList === 'function'
               ? nlmHelpers.normalizeNotebookList(result)
@@ -450,6 +539,9 @@ class WappyNotebookLM extends Tool {
             sources_count: Number(nb.sources_count || nb.source_count || 0),
           }));
         } catch (liveErr) {
+          if (liveErr?.authExpired || this._isAuthFailureError(liveErr?.message, 200, nlmHelpers)) {
+            throw liveErr;
+          }
           if (Array.isArray(session?.cachedNotebooks) && session.cachedNotebooks.length > 0) {
             notebooks = session.cachedNotebooks.map((nb) => ({
               id: String(nb.id || nb.notebook_id || ''),
@@ -487,7 +579,12 @@ class WappyNotebookLM extends Tool {
 
       let notebookId = String(data.notebook_id || data.notebookId || data.notebook || '').trim();
       if (!notebookId) {
-        notebookId = await this._resolveFirstActiveNotebookId(session, cookies, nlmHelpers);
+        notebookId = await this._resolveFirstActiveNotebookId(
+          session,
+          cookies,
+          nlmHelpers,
+          effectiveCompanyId,
+        );
       }
 
       if (!notebookId) {
@@ -523,7 +620,7 @@ class WappyNotebookLM extends Tool {
             query: question,
             question,
           },
-          { cookies, timeoutMs: 60000 },
+          { ...toolCtxOpts, timeoutMs: 60000 },
         );
 
         const parsedObj =
@@ -590,7 +687,7 @@ class WappyNotebookLM extends Tool {
             ...(sourceText ? { text: sourceText, content: sourceText } : {}),
             ...(sourceTitle ? { title: sourceTitle } : {}),
           },
-          { cookies, timeoutMs: 45000 },
+          { ...toolCtxOpts, timeoutMs: 45000 },
         );
 
         const payload = {
@@ -621,7 +718,7 @@ class WappyNotebookLM extends Tool {
             ...(focusPrompt ? { instructions: focusPrompt, focus_prompt: focusPrompt } : {}),
             language: 'es',
           },
-          { cookies, timeoutMs: 65000 },
+          { ...toolCtxOpts, timeoutMs: 65000 },
         );
 
         const resObj = result && typeof result === 'object' ? result : {};
@@ -682,9 +779,11 @@ class WappyNotebookLM extends Tool {
       );
     } catch (err) {
       logger.error('[wappy_notebooklm] Error ejecutando herramienta:', err);
+      const isAuthErr = Boolean(err?.authExpired) || this._isAuthFailureError(err?.message);
       const errPayload = {
         ok: false,
         action: rawAction,
+        ...(isAuthErr ? { authExpired: true, sessionExpired: true } : {}),
         error: err.message,
       };
       return this.returnValue(errPayload, errPayload);

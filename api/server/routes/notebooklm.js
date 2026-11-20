@@ -76,7 +76,7 @@ function hasDbscBoundCookies(cookies = []) {
 function isNotebookAuthFailureError(errMsg = '') {
   const lower = String(errMsg || '').toLowerCase();
   if (!lower) return false;
-  return /(unauthenticated|csrf|snlm0e|wzsz1e|cookiemismatch|cookie\s*mismatch|sesi[oó]n\s+expirad|caducad|expired|autenticaci[oó]n|401|403|signin|servicelogin|login\s*required|redirect.*accounts\.google)/i.test(
+  return /(rpcerror\s*[:#(-]?\s*16|rpc\s*error\s*16|error\s*code\s*[:=]?\s*16|unauthenticated|token\s+csrf|csrf|hassnlm0e|snlm0e|wzsz1e|cookiemismatch|cookie[\s_-]*mismatch|sesi[oó]n\s+(?:de\s+google\s+)?(?:notebooklm\s+)?(?:expirad|caducad|inv[aá]lid)|caducad|expired|autenticaci[oó]n|401|403|signin|servicelogin|login\s*required|redirect.*accounts\.google)/i.test(
     lower
   );
 }
@@ -92,42 +92,246 @@ function getPsidtsMeta(cookies = []) {
   };
 }
 
-async function markNotebookAndLinkedFlowInvalid(userId, activeCompId, email = '') {
-  if (!userId) return;
-  const now = new Date();
+function cleanGoogleEmailCandidate(val = '') {
+  const s = String(val || '').trim();
+  if (!s) return '';
+  const decoded = s.replace(/\\u0040/gi, '@').replace(/\\x40/gi, '@');
+  if (!/^[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]{2,}$/.test(decoded)) return '';
+  if (/@wappy\.internal$/i.test(decoded) || /@example\.com$/i.test(decoded)) return '';
+  return decoded;
+}
+
+function buildGoogleCookieHeaderForEmailDetection(cookies = []) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return '';
+  const allowedDomains = new Set([
+    '.google.com',
+    'google.com',
+    'accounts.google.com',
+    '.accounts.google.com',
+    'flow.google.com',
+    '.flow.google.com',
+  ]);
+  const dedup = new Map();
+  for (const c of cookies) {
+    if (!c || !c.name || !c.value) continue;
+    const dom = String(c.domain || '.google.com').toLowerCase();
+    if (!allowedDomains.has(dom)) continue;
+    if (!dom.includes('flow.google.com')) {
+      dedup.set(c.name, c.value);
+    }
+  }
+  for (const c of cookies) {
+    if (!c || !c.name || !c.value) continue;
+    const dom = String(c.domain || '.google.com').toLowerCase();
+    if (dom === 'flow.google.com' || dom === '.flow.google.com') {
+      dedup.set(c.name, c.value);
+    }
+  }
+  if (dedup.size === 0) {
+    for (const c of cookies) {
+      if (c && c.name && c.value) {
+        dedup.set(c.name, c.value);
+      }
+    }
+  }
+  return Array.from(dedup.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join('; ');
+}
+
+function extractGoogleEmailFromListAccountsBody(rawText = '') {
+  const text = String(rawText || '').trim();
+  if (!text) return '';
+  const cleaned = text.replace(/^\)\]\}'\s*/, '');
   try {
-    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+    const parsed = JSON.parse(cleaned);
+    const accounts = Array.isArray(parsed?.[1]) ? parsed[1] : Array.isArray(parsed) ? parsed : [];
+    let firstValid = '';
+    for (const entry of accounts) {
+      if (!Array.isArray(entry)) continue;
+      // Formato estándar gaia.l.a: ["gaia.l.a", 1, "Display Name", "email@gmail.com", avatarUrl, isDefault, isSignedIn, ...]
+      const emailCand = cleanGoogleEmailCandidate(entry[3]);
+      if (!emailCand) continue;
+      if (!firstValid) firstValid = emailCand;
+      const isSignedIn = entry[5] === 1 || entry[6] === 1 || entry[9] === 1;
+      if (isSignedIn) {
+        return emailCand;
+      }
+    }
+    if (firstValid) return firstValid;
+  } catch (_) {
+    // Fallback regex abajo si el payload tiene prefijo o formato no estándar
+  }
+  const normalized = cleaned.replace(/\\u0040/gi, '@').replace(/\\"/g, '"');
+  const match = normalized.match(/["']([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})["']/);
+  return match ? cleanGoogleEmailCandidate(match[1]) : '';
+}
+
+function extractGoogleEmailFromFlowHtml(html = '') {
+  const text = String(html || '');
+  if (!text) return '';
+  const match = text.match(/"oPEP7c"\s*:\s*"([^"\\]+(?:\\u0040|@)[^"\\]+)"/i);
+  return match ? cleanGoogleEmailCandidate(match[1]) : '';
+}
+
+async function detectGoogleEmailFromCookies(cookies = []) {
+  const cookieHeader = buildGoogleCookieHeaderForEmailDetection(cookies);
+  if (!cookieHeader) return '';
+  const ua =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  try {
+    let res = await fetch('https://accounts.google.com/ListAccounts?gpsia=1&source=ogb', {
+      method: 'POST',
+      headers: {
+        Cookie: cookieHeader,
+        'User-Agent': ua,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        Origin: 'https://accounts.google.com',
+        Referer: 'https://accounts.google.com/',
+      },
+      body: ' ',
+      signal: AbortSignal.timeout(6000),
+    });
+    if (res.status === 405) {
+      res = await fetch('https://accounts.google.com/ListAccounts?gpsia=1&source=ogb', {
+        method: 'GET',
+        headers: {
+          Cookie: cookieHeader,
+          'User-Agent': ua,
+        },
+        signal: AbortSignal.timeout(6000),
+      });
+    }
+    if (res.ok) {
+      const rawBody = await res.text();
+      const detected = extractGoogleEmailFromListAccountsBody(rawBody);
+      if (detected) return detected;
+    }
+  } catch (err) {
+    logger.debug(`[NotebookLM] ListAccounts email detection no bloqueante: ${err.message}`);
+  }
+
+  try {
+    const flowRes = await fetch('https://flow.google.com/', {
+      method: 'GET',
+      headers: {
+        Cookie: cookieHeader,
+        'User-Agent': ua,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(6000),
+    });
+    if (flowRes.ok) {
+      const html = await flowRes.text();
+      const detected = extractGoogleEmailFromFlowHtml(html);
+      if (detected) return detected;
+    }
+  } catch (err) {
+    logger.debug(`[NotebookLM] flow.google.com oPEP7c email detection no bloqueante: ${err.message}`);
+  }
+
+  return '';
+}
+
+function computeInternalSessionNextValidity(existingDoc, verified) {
+  if (verified === true) {
+    return true;
+  }
+  // Si verified !== true, JAMÁS cambiar isValid de false a true ni inicializar en true sin verificación RPC real
+  if (!existingDoc) {
+    return false;
+  }
+  return existingDoc.isValid !== false;
+}
+
+async function markNotebookAndLinkedFlowInvalid(
+  userId,
+  activeCompId = null,
+  reasonOrEmail = '',
+  options = {}
+) {
+  if (!userId) return { invalidatedNotebook: false, invalidatedFlow: false };
+  const now = new Date();
+  const thirdStr = String(reasonOrEmail || '').trim();
+  const thirdLooksLikeEmail = Boolean(cleanGoogleEmailCandidate(thirdStr));
+  let targetEmail = cleanGoogleEmailCandidate(options?.email || (thirdLooksLikeEmail ? thirdStr : ''));
+  const reason = String(options?.reason || (thirdLooksLikeEmail ? '' : thirdStr)).trim();
+  const explicitDocId = options?.sessionDocId || null;
+
+  let resolvedCompId = activeCompId;
+  if (resolvedCompId === undefined) {
+    resolvedCompId = await resolveActiveCompanyId(userId, null).catch(() => null);
+  }
+
+  let invalidatedNotebook = false;
+  let invalidatedFlow = false;
+
+  try {
+    let existingNb = null;
+    if (explicitDocId && mongoose.Types.ObjectId.isValid(String(explicitDocId))) {
+      existingNb = await NotebookSession.findOne({ _id: explicitDocId }).lean().catch(() => null);
+    }
+    if (!existingNb) {
+      existingNb = await findSessionForCompany(NotebookSession, userId, resolvedCompId);
+    }
+    if (!targetEmail && existingNb?.email) {
+      targetEmail = cleanGoogleEmailCandidate(existingNb.email);
+    }
     if (existingNb?._id) {
       await NotebookSession.findOneAndUpdate(
         { _id: existingNb._id },
         { $set: { isValid: false, lastTestedAt: now } }
-      ).catch(() => {});
+      );
+      invalidatedNotebook = true;
+    } else {
+      const scopedFilter = resolvedCompId
+        ? { user: userId, companyId: resolvedCompId }
+        : { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+      const resUp = await NotebookSession.updateOne(scopedFilter, {
+        $set: { isValid: false, lastTestedAt: now },
+      });
+      invalidatedNotebook = Boolean(resUp?.matchedCount || resUp?.modifiedCount);
     }
-    await NotebookSession.findOneAndUpdate(
-      { user: userId, companyId: activeCompId || null },
-      { $set: { companyId: activeCompId || null, isValid: false, lastTestedAt: now } }
-    ).catch(() => {});
-  } catch (_) {}
+    logger.warn(
+      `[NotebookLM] Sesión invalidada (isValid=false) para user=${userId} company=${resolvedCompId || 'null'}${reason ? ` | motivo: ${reason.slice(0, 180)}` : ''}`
+    );
+  } catch (nbErr) {
+    logger.warn(
+      `[NotebookLM] Error invalidando NotebookSession para user=${userId}: ${nbErr.message}`
+    );
+  }
 
   try {
     const GoogleFlowSession = require('~/models/GoogleFlowSession');
-    const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, resolvedCompId);
     if (existingFlow && !existingFlow.apiKey) {
-      const nbEmailNorm = String(email || '').trim().toLowerCase();
+      const nbEmailNorm = String(targetEmail || '').trim().toLowerCase();
       const flowEmailNorm = String(existingFlow.email || '').trim().toLowerCase();
       const sameEmailOrCompany =
         !nbEmailNorm ||
         !flowEmailNorm ||
         nbEmailNorm === flowEmailNorm ||
-        String(existingFlow.companyId || '') === String(activeCompId || '');
+        String(existingFlow.companyId || '') === String(resolvedCompId || '');
       if (sameEmailOrCompany) {
         await GoogleFlowSession.findOneAndUpdate(
           { _id: existingFlow._id },
           { $set: { isValid: false, lastTestedAt: now } }
-        ).catch(() => {});
+        );
+        invalidatedFlow = true;
+        logger.warn(
+          `[NotebookLM] GoogleFlowSession vinculado invalidado (isValid=false) para user=${userId} company=${resolvedCompId || 'null'}.`
+        );
       }
     }
-  } catch (_) {}
+  } catch (flowErr) {
+    logger.warn(
+      `[NotebookLM] Error invalidando GoogleFlowSession vinculado para user=${userId}: ${flowErr.message}`
+    );
+  }
+
+  return { invalidatedNotebook, invalidatedFlow };
 }
 
 /**
@@ -364,31 +568,13 @@ router.post('/internal/session/:userId', async (req, res) => {
     const activeCompId = await resolveActiveCompanyId(userId, explicitCompanyId);
     const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
     const mergedNb = mergeGoogleCookiesByDomain(incomingCookies, existingNb?.cookies || []);
-    const effectiveEmail = req.body?.email || existingNb?.email || `${userId}@wappy.internal`;
+    const effectiveEmail =
+      cleanGoogleEmailCandidate(existingNb?.email) ||
+      cleanGoogleEmailCandidate(req.body?.email) ||
+      `${userId}@wappy.internal`;
 
-    const prevNbPsidts = getPsidtsMeta(existingNb?.cookies || []);
-    const incPsidts = getPsidtsMeta(incomingCookies);
-    const hasNewerNbPsidts = Boolean(
-      incPsidts.value &&
-        (incPsidts.value !== prevNbPsidts.value ||
-          (incPsidts.expires > 0 && incPsidts.expires > prevNbPsidts.expires))
-    );
-    const psidtsRotated = req.body?.psidtsRotated === true;
-    const psidtsExplicitlyFalse = req.body?.psidtsRotated === false;
     const verified = req.body?.verified === true;
-
-    let nextNbIsValid;
-    if (!existingNb) {
-      nextNbIsValid = !psidtsExplicitlyFalse || verified;
-    } else if (psidtsExplicitlyFalse && !verified) {
-      nextNbIsValid = existingNb.isValid ?? false;
-    } else if (existingNb.isValid === false && !verified && !(psidtsRotated && hasNewerNbPsidts)) {
-      nextNbIsValid = false;
-    } else if (psidtsRotated || verified) {
-      nextNbIsValid = true;
-    } else {
-      nextNbIsValid = existingNb.isValid === false ? hasNewerNbPsidts : existingNb.isValid ?? true;
-    }
+    const nextNbIsValid = computeInternalSessionNextValidity(existingNb, verified);
 
     const nbUpdateDoc = {
       companyId: activeCompId || null,
@@ -397,7 +583,7 @@ router.post('/internal/session/:userId', async (req, res) => {
       cookieCount: mergedNb.length,
       isValid: nextNbIsValid,
     };
-    if (psidtsRotated || verified || !existingNb) {
+    if (verified) {
       nbUpdateDoc.lastTestedAt = new Date();
     }
 
@@ -411,34 +597,16 @@ router.post('/internal/session/:userId', async (req, res) => {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
       const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
-      const prevFlowPsidts = getPsidtsMeta(existingFlow?.cookies || []);
-      const hasNewerFlowPsidts = Boolean(
-        incPsidts.value &&
-          (incPsidts.value !== prevFlowPsidts.value ||
-            (incPsidts.expires > 0 && incPsidts.expires > prevFlowPsidts.expires))
-      );
-      let nextFlowIsValid;
-      if (!existingFlow) {
-        nextFlowIsValid = !psidtsExplicitlyFalse || verified;
-      } else if (psidtsExplicitlyFalse && !verified) {
-        nextFlowIsValid = existingFlow.isValid ?? false;
-      } else if (existingFlow.isValid === false && !verified && !(psidtsRotated && hasNewerFlowPsidts)) {
-        nextFlowIsValid = false;
-      } else if (psidtsRotated || verified) {
-        nextFlowIsValid = true;
-      } else {
-        nextFlowIsValid =
-          existingFlow.isValid === false ? hasNewerFlowPsidts : existingFlow.isValid ?? true;
-      }
+      const nextFlowIsValid = computeInternalSessionNextValidity(existingFlow, verified);
 
       const flowUpdateDoc = {
         companyId: activeCompId || null,
-        email: existingFlow?.email || effectiveEmail,
+        email: cleanGoogleEmailCandidate(existingFlow?.email) || effectiveEmail,
         cookies: mergedFlow,
         cookieCount: mergedFlow.length,
         isValid: nextFlowIsValid,
       };
-      if (psidtsRotated || verified || !existingFlow) {
+      if (verified) {
         flowUpdateDoc.lastTestedAt = new Date();
       }
 
@@ -447,12 +615,17 @@ router.post('/internal/session/:userId', async (req, res) => {
         flowUpdateDoc,
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
-    } catch (_) {}
+    } catch (flowSyncErr) {
+      logger.warn(
+        `[NotebookLM Internal] No se pudo sincronizar GoogleFlowSession para user=${userId}: ${flowSyncErr.message}`
+      );
+    }
 
     return res.json({
       success: true,
       cookieCount: mergedNb.length,
-      isValid: nextNbIsValid,
+      isValid: Boolean(nextNbIsValid),
+      sessionExpired: !Boolean(nextNbIsValid),
       dbscBound: hasDbscBoundCookies(mergedNb),
     });
   } catch (err) {
@@ -644,6 +817,9 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     if (!session && !fileExists) {
       return res.json({
         connected: false,
+        hasSession: false,
+        isValid: false,
+        sessionExpired: false,
         usingDefault: false,
         dbscBound: false,
         message: 'Sin vincular. Conecta tu cuenta privada de Google NotebookLM.',
@@ -652,18 +828,22 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 
     const email = session?.email || diskEmail || req.user.email || 'Cuenta conectada';
     const cookieCount = session?.cookieCount || diskCookieCount;
-    const isValid = session?.isValid ?? true;
+    const hasSession = Boolean(session || fileExists);
+    const isValid = Boolean(session ? session.isValid !== false : diskCookieCount > 0);
+    const sessionExpired = !isValid;
     const lastTestedAt = session?.lastTestedAt || session?.updatedAt || null;
     const activeCookies =
       Array.isArray(session?.cookies) && session.cookies.length > 0 ? session.cookies : diskCookies;
-    const dbscBound = hasDbscBoundCookies(activeCookies);
+    const dbscBound = Boolean(hasDbscBoundCookies(activeCookies));
 
     return res.json({
-      connected: true,
+      connected: Boolean(hasSession),
+      hasSession: Boolean(hasSession),
       usingDefault: false,
       email,
       cookieCount,
       isValid,
+      sessionExpired,
       dbscBound,
       ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       lastTestedAt,
@@ -708,7 +888,6 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       });
     }
 
-    const effectiveEmail = clientEmail || userEmail || `${userId}@wappy.internal`;
     const activeCompId = await resolveActiveCompanyId(
       userId,
       req.body?.companyId || req.query?.companyId
@@ -717,6 +896,15 @@ router.post('/session', requireJwtAuth, async (req, res) => {
     // Fusionar con cookies existentes de la misma cuenta (para no perder OSID de flow.google.com ni __Secure-1PSIDTS rotados)
     const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
     let mergedCookies = mergeGoogleCookiesByDomain(cookies, existingNb?.cookies || []);
+
+    // Detectar el correo real de Google desde las cookies entrantes (non-blocking, timeout 6s)
+    const detectedGoogleEmail = await detectGoogleEmailFromCookies(mergedCookies);
+    const effectiveEmail =
+      cleanGoogleEmailCandidate(detectedGoogleEmail) ||
+      cleanGoogleEmailCandidate(clientEmail) ||
+      cleanGoogleEmailCandidate(existingNb?.email) ||
+      cleanGoogleEmailCandidate(userEmail) ||
+      `${userId}@wappy.internal`;
 
     // 1. Guardar inicialmente en MongoDB antes de llamar a notebooklm-mcp (así si notebooklm-mcp rota y hace POST /internal/session/:userId, no lo pisamos)
     await NotebookSession.findOneAndUpdate(
@@ -2100,5 +2288,11 @@ router.findCachedNotebookArtifact = findCachedNotebookArtifact;
 router.normalizeNotebookList = normalizeNotebookList;
 router.callNotebookLmDirectTool = callNotebookLmDirectTool;
 router.resolveUserNotebookCredentials = resolveUserNotebookCredentials;
+router.markNotebookAndLinkedFlowInvalid = markNotebookAndLinkedFlowInvalid;
+router.isNotebookAuthFailureError = isNotebookAuthFailureError;
+router.detectGoogleEmailFromCookies = detectGoogleEmailFromCookies;
+router.extractGoogleEmailFromListAccountsBody = extractGoogleEmailFromListAccountsBody;
+router.extractGoogleEmailFromFlowHtml = extractGoogleEmailFromFlowHtml;
+router.computeInternalSessionNextValidity = computeInternalSessionNextValidity;
 
 module.exports = router;

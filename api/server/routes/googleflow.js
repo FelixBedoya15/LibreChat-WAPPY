@@ -1791,6 +1791,9 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     if (!session) {
       return res.json({
         connected: false,
+        hasSession: false,
+        isValid: false,
+        sessionExpired: false,
         dbscBound: false,
         canSyncFromNotebookLM,
         notebookEmail: nbSession?.email || '',
@@ -1801,16 +1804,20 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     const email = session.email || req.user.email || 'Cuenta vinculada';
     const cookieCount = session.cookieCount || (session.cookies ? session.cookies.length : 0);
     const hasApiKey = Boolean(session.apiKey && session.apiKey.length > 5);
-    const isValid = session.isValid ?? true;
+    const hasSession = true;
+    const isValid = Boolean(session.isValid !== false);
+    const sessionExpired = !isValid;
     const lastTestedAt = session.lastTestedAt || session.updatedAt || null;
-    const dbscBound = hasDbscBoundCookies(session.cookies || []);
+    const dbscBound = Boolean(hasDbscBoundCookies(session.cookies || []));
 
     return res.json({
-      connected: true,
+      connected: Boolean(hasSession),
+      hasSession: Boolean(hasSession),
       email,
       cookieCount,
       hasApiKey,
       isValid,
+      sessionExpired,
       dbscBound,
       ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       lastTestedAt,
@@ -1935,10 +1942,10 @@ router.post('/session', requireJwtAuth, async (req, res) => {
 
     let testResult = { success: true };
     let detectedEmail = '';
+    const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
 
     if (cookies.length > 0) {
-      const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
-      const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
       cookies = mergeGoogleCookiesByDomain(
         cookies,
         mergeGoogleCookiesByDomain(existingFlow?.cookies || [], existingNb?.cookies || [])
@@ -1950,13 +1957,22 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
       let fxCheck = await fetchLabsFxSession(cookies);
       if (!fxCheck.ok || !cookies.some((c) => c && c.name === '__Secure-1PSIDTS' && c.value)) {
-        cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || userEmail || '');
+        cookies = await refreshGoogleCookiesOnDemand(userId, cookies, clientEmail || existingFlow?.email || existingNb?.email || userEmail || '');
         if (!fxCheck.ok) {
           fxCheck = await fetchLabsFxSession(cookies);
         }
       }
       if (fxCheck.email) {
         detectedEmail = fxCheck.email;
+      } else {
+        try {
+          const nlmRoute = require('~/server/routes/notebooklm');
+          if (typeof nlmRoute?.detectGoogleEmailFromCookies === 'function') {
+            detectedEmail = await nlmRoute.detectGoogleEmailFromCookies(cookies);
+          }
+        } catch (emailErr) {
+          logger.debug('[GoogleFlow] Detección de email via ListAccounts no bloqueante:', emailErr.message);
+        }
       }
       if (!fxCheck.ok && !apiKey) {
         testResult = {
@@ -1966,7 +1982,17 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       }
     }
 
-    const effectiveEmail = detectedEmail || clientEmail || userEmail || `${userId}@wappy.internal`;
+    const validEmail = (e) => {
+      const s = String(e || '').trim();
+      return s && s.includes('@') && !s.endsWith('@wappy.internal') ? s : '';
+    };
+    const effectiveEmail =
+      validEmail(detectedEmail) ||
+      validEmail(clientEmail) ||
+      validEmail(existingFlow?.email) ||
+      validEmail(existingNb?.email) ||
+      validEmail(userEmail) ||
+      `${userId}@wappy.internal`;
 
     const updateData = {
       companyId: activeCompId || null,

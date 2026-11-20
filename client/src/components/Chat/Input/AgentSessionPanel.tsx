@@ -16,6 +16,7 @@ import { useLocalize, useAuthContext } from '~/hooks';
 import { cn, isTextChatModel } from '~/utils';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
+import { GoogleFlowModal } from '~/components/Nav/SettingsTabs/Account/GoogleFlowModal';
 import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 /** Extended version while data-provider package is being rebuilt */
@@ -66,26 +67,73 @@ function ToggleSwitch({
 function ToolRow({
     icon,
     label,
+    subtitle,
+    subtitleClassName,
+    statusDot,
+    statusTitle,
+    actionButton,
     checked,
     onChange,
     id,
 }: {
     icon: React.ReactNode;
     label: string;
+    subtitle?: string;
+    subtitleClassName?: string;
+    statusDot?: 'online' | 'warning' | 'offline';
+    statusTitle?: string;
+    actionButton?: React.ReactNode;
     checked: boolean;
     onChange: () => void;
     id: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-surface-hover rounded-lg">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-surface-hover rounded-lg">
             <label
                 htmlFor={id}
-                className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm text-text-secondary"
             >
-                {icon}
-                <span>{label}</span>
+                <span className="flex-shrink-0">{icon}</span>
+                <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                        <span className="truncate">{label}</span>
+                        {statusDot && (
+                            <span
+                                title={
+                                    statusTitle ||
+                                    (statusDot === 'online'
+                                        ? 'Conectado y activo'
+                                        : statusDot === 'warning'
+                                          ? 'Sesión expirada — Reconectar'
+                                          : 'Sin conexión activa')
+                                }
+                                className={cn(
+                                    'inline-block h-2 w-2 flex-shrink-0 rounded-full',
+                                    statusDot === 'online'
+                                        ? 'bg-emerald-500 ring-2 ring-emerald-500/25'
+                                        : statusDot === 'warning'
+                                          ? 'bg-amber-500 ring-2 ring-rose-500/35'
+                                          : 'bg-slate-400 dark:bg-zinc-600',
+                                )}
+                            />
+                        )}
+                    </span>
+                    {subtitle && (
+                        <span
+                            className={cn(
+                                'block truncate text-[10px] text-text-tertiary',
+                                subtitleClassName,
+                            )}
+                        >
+                            {subtitle}
+                        </span>
+                    )}
+                </span>
             </label>
-            <ToggleSwitch id={id} checked={checked} onChange={onChange} />
+            <div className="flex shrink-0 items-center gap-1.5">
+                {actionButton}
+                <ToggleSwitch id={id} checked={checked} onChange={onChange} />
+            </div>
         </div>
     );
 }
@@ -206,6 +254,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     const [googleMenuTab, setGoogleMenuTab] = useState<'connectors' | 'notebooks'>('connectors');
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [isNotebookLMModalOpen, setIsNotebookLMModalOpen] = useState(false);
+    const [isGoogleFlowModalOpen, setIsGoogleFlowModalOpen] = useState(false);
 
     // Estado de cuadernos de Google NotebookLM y asignación por agente ("Segundo Cerebro")
     const [nbConnected, setNbConnected] = useState(false);
@@ -218,6 +267,11 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     const [isSavingNotebooks, setIsSavingNotebooks] = useState(false);
     const [notebookSearch, setNotebookSearch] = useState('');
     const [nbSyncWarning, setNbSyncWarning] = useState<string | null>(null);
+
+    // Estado en vivo de Google Flow (Veo & Imagen)
+    const [flowConnected, setFlowConnected] = useState(false);
+    const [flowSessionExpired, setFlowSessionExpired] = useState(false);
+    const [flowEmail, setFlowEmail] = useState('');
 
     const {
         hasWebSearch,
@@ -286,6 +340,71 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         });
     };
 
+    const fetchNotebookStatus = useCallback(async () => {
+        if (!token) return;
+        try {
+            const activeCompanyId =
+                typeof window !== 'undefined'
+                    ? (localStorage.getItem('wappy_active_company_id') || '').trim()
+                    : '';
+            const qs =
+                activeCompanyId && activeCompanyId !== 'default'
+                    ? `?companyId=${encodeURIComponent(activeCompanyId)}`
+                    : '';
+            const res = await fetch(`/api/notebooklm/status${qs}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                if (data?.sessionExpired === true || data?.isValid === false) {
+                    setNotebookSessionExpired(true);
+                }
+                return;
+            }
+            if (!data || typeof data !== 'object') return;
+            const connected = Boolean(data?.connected);
+            const expired = Boolean(data?.sessionExpired || (connected && data?.isValid === false));
+            setNbConnected(connected);
+            setNotebookSessionExpired(expired);
+            setNbDbscBound(Boolean(connected && data?.dbscBound === true));
+            setNbEmail(typeof data?.email === 'string' ? data.email.trim() : '');
+        } catch {
+            // silent fallback
+        }
+    }, [token]);
+
+    const fetchGoogleFlowStatus = useCallback(async () => {
+        if (!token) return;
+        try {
+            const activeCompanyId =
+                typeof window !== 'undefined'
+                    ? (localStorage.getItem('wappy_active_company_id') || '').trim()
+                    : '';
+            const qs =
+                activeCompanyId && activeCompanyId !== 'default'
+                    ? `?companyId=${encodeURIComponent(activeCompanyId)}`
+                    : '';
+            const res = await fetch(`/api/googleflow/status${qs}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                if (data?.sessionExpired === true || data?.isValid === false) {
+                    setFlowSessionExpired(true);
+                }
+                return;
+            }
+            if (!data || typeof data !== 'object') return;
+            const connected = Boolean(data?.connected);
+            const expired = Boolean(data?.sessionExpired || (connected && data?.isValid === false));
+            setFlowConnected(connected);
+            setFlowSessionExpired(expired);
+            setFlowEmail(typeof data?.email === 'string' ? data.email.trim() : '');
+        } catch {
+            // silent fallback
+        }
+    }, [token]);
+
     const fetchNotebooks = useCallback(
         async (forceRefresh = false) => {
             if (!token || !agentId) return;
@@ -293,6 +412,13 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 setIsLoadingNotebooks(true);
                 setNbSyncWarning(null);
                 const qs = new URLSearchParams({ agentId });
+                const activeCompanyId =
+                    typeof window !== 'undefined'
+                        ? (localStorage.getItem('wappy_active_company_id') || '').trim()
+                        : '';
+                if (activeCompanyId && activeCompanyId !== 'default') {
+                    qs.set('companyId', activeCompanyId);
+                }
                 if (forceRefresh) {
                     qs.set('refresh', '1');
                 }
@@ -312,8 +438,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 if (!data) return;
 
                 const connected = Boolean(data?.connected);
-                const expired =
-                    data?.sessionExpired === true || (connected && data?.isValid === false);
+                const expired = Boolean(
+                    data?.sessionExpired === true || (connected && data?.isValid === false),
+                );
                 const dbscBound = Boolean(connected && data?.dbscBound === true);
                 const syncWarning =
                     typeof data?.syncWarning === 'string' && data.syncWarning.trim()
@@ -346,8 +473,10 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     useEffect(() => {
         if (token && agentId) {
             fetchNotebooks(false);
+            fetchNotebookStatus();
+            fetchGoogleFlowStatus();
         }
-    }, [token, agentId, fetchNotebooks]);
+    }, [token, agentId, fetchNotebooks, fetchNotebookStatus, fetchGoogleFlowStatus]);
 
     useEffect(() => {
         const applyAuthExpiredDetail = (detail?: { reason?: string; message?: string } | null) => {
@@ -361,10 +490,15 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
             if (reason) {
                 setNbSyncWarning(reason);
             }
+            fetchGoogleFlowStatus();
         };
         const handleExternalUpdate = (e: Event) => {
             const custom = e as CustomEvent;
-            if (custom?.detail?.authExpired === true || custom?.detail?.isValid === false) {
+            if (
+                custom?.detail?.authExpired === true ||
+                custom?.detail?.sessionExpired === true ||
+                custom?.detail?.isValid === false
+            ) {
                 applyAuthExpiredDetail(custom?.detail);
                 return;
             }
@@ -373,21 +507,52 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 setSessionNotebooklmNotebooks(custom.detail.assignedNotebooks);
             } else {
                 fetchNotebooks(Boolean(custom?.detail?.refresh));
+                fetchGoogleFlowStatus();
             }
         };
         const handleAuthExpired = (e: Event) => {
             const custom = e as CustomEvent<{ reason?: string; message?: string } | undefined>;
             applyAuthExpiredDetail(custom?.detail);
         };
+        const handleFlowUpdate = (e: Event) => {
+            const custom = e as CustomEvent;
+            if (
+                custom?.detail?.authExpired === true ||
+                custom?.detail?.sessionExpired === true ||
+                custom?.detail?.isValid === false
+            ) {
+                setFlowSessionExpired(true);
+                return;
+            }
+            fetchGoogleFlowStatus();
+        };
+        const handleFlowAuthExpired = () => {
+            setFlowSessionExpired(true);
+        };
+        const handleCompanyChange = () => {
+            fetchNotebooks(false);
+            fetchNotebookStatus();
+            fetchGoogleFlowStatus();
+        };
         window.addEventListener('wappy-notebooklm-updated', handleExternalUpdate);
         window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
         window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
+        window.addEventListener('wappy-googleflow-updated', handleFlowUpdate);
+        window.addEventListener('wappy-googleflow-auth-expired', handleFlowAuthExpired);
+        window.addEventListener('googleflow_auth_expired', handleFlowAuthExpired);
+        window.addEventListener('wappy-company-changed', handleCompanyChange);
+        window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
         return () => {
             window.removeEventListener('wappy-notebooklm-updated', handleExternalUpdate);
             window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
             window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
+            window.removeEventListener('wappy-googleflow-updated', handleFlowUpdate);
+            window.removeEventListener('wappy-googleflow-auth-expired', handleFlowAuthExpired);
+            window.removeEventListener('googleflow_auth_expired', handleFlowAuthExpired);
+            window.removeEventListener('wappy-company-changed', handleCompanyChange);
+            window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
         };
-    }, [agentId, fetchNotebooks, setSessionNotebooklmNotebooks]);
+    }, [agentId, fetchNotebooks, fetchNotebookStatus, fetchGoogleFlowStatus, setSessionNotebooklmNotebooks]);
 
     const safeAvailableNotebooks = useMemo(
         () => (Array.isArray(availableNotebooks) ? availableNotebooks : []),
@@ -517,6 +682,12 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
         />
     );
 
+    const nbOperational = nbConnected && !notebookSessionExpired;
+    const flowOperational = flowConnected && !flowSessionExpired;
+    const isFlowActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes('google_flow') ?? false;
+    const hasAnyGoogleSessionExpired =
+        (isNotebookLmActive && notebookSessionExpired) || (isFlowActive && flowSessionExpired);
+
     const googleTrigger = (
         <TooltipAnchor
             render={
@@ -526,6 +697,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                     onClick={() => {
                         if (!isGoogleOpen) {
                             setGoogleMenuTab('connectors');
+                            fetchNotebookStatus();
+                            fetchGoogleFlowStatus();
                         }
                     }}
                     className={cn(
@@ -541,9 +714,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z"/>
                         </svg>
                     </div>
-                    {isNotebookLmActive && notebookSessionExpired ? (
+                    {hasAnyGoogleSessionExpired ? (
                         <span
-                            title="Sesión de NotebookLM expirada"
+                            title="Sesión de Google expirada — Reconectar"
                             className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-md border border-rose-500/50 bg-amber-500/90 px-1 text-[9px] font-extrabold text-amber-950 shadow-sm"
                         >
                             !
@@ -557,8 +730,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
             }
             id="google-tools-panel-button"
             description={
-                notebookSessionExpired
-                    ? 'Herramientas de Google · Sesión de NotebookLM expirada'
+                hasAnyGoogleSessionExpired
+                    ? 'Herramientas de Google · Sesión expirada (Reconectar)'
                     : 'Herramientas de Google & Cuadernos de NotebookLM'
             }
         />
@@ -860,8 +1033,58 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 render={
                                                     <ToolRow
                                                         id="agent-session-notebooklm"
-                                                        icon={<NotebookIcon className="h-4 w-4 text-emerald-600" />}
+                                                        icon={
+                                                            notebookSessionExpired ? (
+                                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                            ) : (
+                                                                <NotebookIcon className="h-4 w-4 text-emerald-600" />
+                                                            )
+                                                        }
                                                         label="Google NotebookLM"
+                                                        subtitle={
+                                                            notebookSessionExpired
+                                                                ? 'Sesión expirada — Reconectar'
+                                                                : nbOperational
+                                                                  ? nbEmail
+                                                                      ? `Conectado · ${nbEmail}`
+                                                                      : 'Sesión privada activa'
+                                                                  : 'Sin vincular'
+                                                        }
+                                                        subtitleClassName={
+                                                            notebookSessionExpired
+                                                                ? 'font-semibold text-amber-600 dark:text-amber-400'
+                                                                : undefined
+                                                        }
+                                                        statusDot={
+                                                            nbOperational
+                                                                ? 'online'
+                                                                : notebookSessionExpired
+                                                                  ? 'warning'
+                                                                  : 'offline'
+                                                        }
+                                                        statusTitle={
+                                                            nbOperational
+                                                                ? 'Google NotebookLM conectado y válido'
+                                                                : notebookSessionExpired
+                                                                  ? 'Sesión de Google NotebookLM expirada — Reconectar'
+                                                                  : 'Google NotebookLM sin vincular'
+                                                        }
+                                                        actionButton={
+                                                            notebookSessionExpired ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsGoogleOpen(false);
+                                                                        setIsNotebookLMModalOpen(true);
+                                                                    }}
+                                                                    title="Reconectar sesión privada de Google NotebookLM"
+                                                                    className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                                                                >
+                                                                    Reconectar
+                                                                </button>
+                                                            ) : undefined
+                                                        }
                                                         checked={isNotebookLmActive}
                                                         onChange={toggleNotebookLm}
                                                     />
@@ -1037,6 +1260,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         .filter((toolId) => toolId !== 'google_antigravity')
                                         .map((toolId) => {
                                             const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
+                                            const isFlow = toolId === 'google_flow';
                                             const displayName = toolTranslations[toolId] ?? toolId
                                                 .split('_')
                                                 .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -1048,8 +1272,77 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                     render={
                                                         <ToolRow
                                                             id={`agent-session-tool-${toolId}`}
-                                                            icon={getToolIcon(toolId)}
+                                                            icon={
+                                                                isFlow && flowSessionExpired ? (
+                                                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                                ) : (
+                                                                    getToolIcon(toolId)
+                                                                )
+                                                            }
                                                             label={displayName}
+                                                            subtitle={
+                                                                isFlow
+                                                                    ? flowSessionExpired
+                                                                        ? 'Sesión expirada — Reconectar'
+                                                                        : flowOperational
+                                                                          ? flowEmail
+                                                                              ? `Conectado · ${flowEmail}`
+                                                                              : 'Sesión privada activa'
+                                                                          : 'Sin vincular'
+                                                                    : undefined
+                                                            }
+                                                            subtitleClassName={
+                                                                isFlow && flowSessionExpired
+                                                                    ? 'font-semibold text-amber-600 dark:text-amber-400'
+                                                                    : undefined
+                                                            }
+                                                            statusDot={
+                                                                isFlow
+                                                                    ? flowOperational
+                                                                        ? 'online'
+                                                                        : flowSessionExpired
+                                                                          ? 'warning'
+                                                                          : 'offline'
+                                                                    : undefined
+                                                            }
+                                                            statusTitle={
+                                                                isFlow
+                                                                    ? flowOperational
+                                                                        ? 'Google Flow conectado y válido'
+                                                                        : flowSessionExpired
+                                                                          ? 'Sesión de Google Flow expirada — Reconectar'
+                                                                          : 'Google Flow sin vincular'
+                                                                    : undefined
+                                                            }
+                                                            actionButton={
+                                                                isFlow && flowSessionExpired ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setIsGoogleOpen(false);
+                                                                            setIsGoogleFlowModalOpen(true);
+                                                                        }}
+                                                                        title="Reconectar sesión privada de Google Flow"
+                                                                        className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                                                                    >
+                                                                        Reconectar
+                                                                    </button>
+                                                                ) : isFlow && !flowConnected ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setIsGoogleOpen(false);
+                                                                            setIsGoogleFlowModalOpen(true);
+                                                                        }}
+                                                                        title="Vincular cuenta privada de Google Flow"
+                                                                        className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                                                                    >
+                                                                        Conectar
+                                                                    </button>
+                                                                ) : undefined
+                                                            }
                                                             checked={isActive}
                                                             onChange={() => {
                                                                 if (!isActive && !isProOrAdmin && toolId !== 'google_flow') {
@@ -1122,12 +1415,20 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 onClick={() => fetchNotebooks(true)}
                                                 disabled={isLoadingNotebooks}
                                                 title="Actualizar cuadernos desde Google NotebookLM"
-                                                className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-500/30 bg-surface-primary px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-emerald-500 hover:text-emerald-500 transition-colors"
+                                                className={cn(
+                                                    'flex shrink-0 items-center gap-1 rounded-lg border bg-surface-primary px-2 py-1 text-[10px] font-semibold transition-colors',
+                                                    notebookSessionExpired
+                                                        ? 'border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
+                                                        : 'border-emerald-500/30 text-text-secondary hover:border-emerald-500 hover:text-emerald-500',
+                                                )}
                                             >
                                                 <RefreshCw
                                                     className={cn(
                                                         'h-3 w-3',
-                                                        isLoadingNotebooks && 'animate-spin text-emerald-500',
+                                                        isLoadingNotebooks &&
+                                                            (notebookSessionExpired
+                                                                ? 'animate-spin text-amber-500'
+                                                                : 'animate-spin text-emerald-500'),
                                                     )}
                                                 />
                                                 <span>Sync</span>
@@ -1309,14 +1610,28 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                                   ? 'Reconecta tu sesión para sincronizar tus cuadernos.'
                                                                   : 'No se encontraron cuadernos en tu cuenta de NotebookLM.'}
                                                         </p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => fetchNotebooks(true)}
-                                                            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-500 hover:underline"
-                                                        >
-                                                            <RefreshCw className="h-3 w-3" />
-                                                            <span>Volver a sincronizar</span>
-                                                        </button>
+                                                        {notebookSessionExpired ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsGoogleOpen(false);
+                                                                    setIsNotebookLMModalOpen(true);
+                                                                }}
+                                                                className="mt-2 inline-flex items-center gap-1 rounded-xl border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                                                            >
+                                                                <RefreshCw className="h-3 w-3" />
+                                                                <span>Reconectar sesión</span>
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => fetchNotebooks(true)}
+                                                                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-500 hover:underline"
+                                                            >
+                                                                <RefreshCw className="h-3 w-3" />
+                                                                <span>Volver a sincronizar</span>
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     filteredNotebooks.map((nb) => {
@@ -1382,15 +1697,28 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                             <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border-medium/40 pt-2 text-[10px] text-text-tertiary">
                                                 <span
                                                     className={cn(
-                                                        'truncate max-w-[170px]',
-                                                        notebookSessionExpired && 'font-semibold text-amber-700 dark:text-amber-300',
+                                                        'truncate max-w-[180px]',
+                                                        notebookSessionExpired && 'font-semibold text-rose-600 dark:text-rose-400',
                                                     )}
+                                                    title={
+                                                        notebookSessionExpired
+                                                            ? `Sesión expirada${nbEmail ? ` (${nbEmail})` : ''}`
+                                                            : nbOperational
+                                                              ? nbEmail
+                                                                  ? `Conectado: ${nbEmail}`
+                                                                  : 'Sesión privada activa'
+                                                              : undefined
+                                                    }
                                                 >
                                                     {notebookSessionExpired
-                                                        ? `Expirada${nbEmail ? `: ${nbEmail}` : ''}`
-                                                        : nbEmail
-                                                          ? `Conectado: ${nbEmail}`
-                                                          : 'Sesión privada activa'}
+                                                        ? `Sesión expirada${nbEmail ? ` (${nbEmail})` : ''}`
+                                                        : nbOperational
+                                                          ? nbEmail
+                                                              ? `Conectado: ${nbEmail}`
+                                                              : 'Sesión privada activa'
+                                                          : isLoadingNotebooks
+                                                            ? 'Verificando sesión...'
+                                                            : 'Sin vincular'}
                                                 </span>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <button
@@ -1402,7 +1730,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                         className={cn(
                                                             'font-semibold transition-colors',
                                                             notebookSessionExpired
-                                                                ? 'text-amber-700 dark:text-amber-300 hover:underline'
+                                                                ? 'text-amber-600 dark:text-amber-400 hover:underline'
                                                                 : 'text-text-secondary hover:text-emerald-500',
                                                         )}
                                                     >
@@ -1502,7 +1830,11 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
             <NotebookLMModal
                 isOpen={isNotebookLMModalOpen}
                 onClose={() => setIsNotebookLMModalOpen(false)}
-                onStatusChange={() => fetchNotebooks(true)}
+            />
+
+            <GoogleFlowModal
+                isOpen={isGoogleFlowModalOpen}
+                onClose={() => setIsGoogleFlowModalOpen(false)}
             />
 
             {isUpgradeModalOpen && createPortal(

@@ -24,6 +24,7 @@ import { ExpandableButton } from '~/components/Common/ExpandableButton';
 interface NotebookLMStatus {
   connected?: boolean;
   isValid?: boolean;
+  sessionExpired?: boolean;
   dbscBound?: boolean;
   dbscWarning?: string | null;
   email?: string;
@@ -61,9 +62,8 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
   const antigravityPrompt = `Ejecuta en la terminal mi conector local de WAPPY:\n\n\`\`\`bash\n${agCliCommand}\n\`\`\``;
 
   const notifyStatusUpdated = () => {
-    if (onStatusChange) {
-      onStatusChange();
-    } else if (typeof window !== 'undefined') {
+    onStatusChange?.();
+    if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('wappy-notebooklm-updated', { detail: { refresh: true } }));
     }
   };
@@ -341,8 +341,8 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
   if (!isOpen) return null;
 
   const isConnected = Boolean(status?.connected);
-  const isExpired = isConnected && status?.isValid === false;
-  const isValid = isConnected && status?.isValid !== false;
+  const isExpired = Boolean(status?.sessionExpired || (isConnected && status?.isValid === false));
+  const isValid = isConnected && !isExpired;
   const isDbscBound = Boolean((isConnected && status?.dbscBound === true) || savedDbscInfo?.bound);
   const dbscWarningText =
     (typeof status?.dbscWarning === 'string' && status.dbscWarning.trim()) ||

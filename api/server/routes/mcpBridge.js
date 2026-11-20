@@ -13558,17 +13558,31 @@ router.delete('/documentos-vivo/:id', requireApiKeyOrJwt, async (req, res) => {
 
 // 40.10 Puente Directo de Antigravity hacia Google NotebookLM (35 herramientas)
 router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
+  let companyId = null;
+  let session = null;
+  let effectiveEmail = req.user?.email || '';
+  const nlmRoute = require('~/server/routes/notebooklm');
+  const checkAuthErr = (msg, status = 200) => {
+    if (status === 401 || status === 403) return true;
+    if (typeof nlmRoute?.isNotebookAuthFailureError === 'function') {
+      return nlmRoute.isNotebookAuthFailureError(msg);
+    }
+    return /(rpcerror\s*[:#(-]?\s*16|unauthenticated|token\s+csrf|csrf|sesi[oó]n\s+expirad|hassnlm0e|snlm0e|wzsz1e|401|403)/i.test(
+      String(msg || '')
+    );
+  };
+
   try {
     const { tool, arguments: toolArgs = {} } = req.body || {};
     if (!tool) {
       return res.status(400).json({ error: 'El parámetro "tool" es obligatorio.' });
     }
     const NotebookSession = require('~/models/NotebookSession');
-    const companyId = await resolveTargetCompanyId(
+    companyId = await resolveTargetCompanyId(
       req.user.id,
       req.body?.companyId || req.query?.companyId
     );
-    let session = companyId
+    session = companyId
       ? await NotebookSession.findOne({ user: req.user.id, companyId }).lean().catch(() => null)
       : null;
     if (!session) {
@@ -13580,7 +13594,7 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
         .catch(() => null);
     }
     const cookies = session?.cookies || [];
-    const effectiveEmail = session?.email || req.user.email || '';
+    effectiveEmail = session?.email || req.user.email || '';
 
     const notebooklmUrl = process.env.NOTEBOOKLM_URL || 'http://notebooklm-mcp:9420';
     const headers = {
@@ -13601,17 +13615,42 @@ router.post('/notebooklm/tool', requireApiKeyOrJwt, async (req, res) => {
         user_id: String(req.user.id),
         user_email: String(effectiveEmail),
       }),
+      signal: AbortSignal.timeout(90000),
     });
     const mcpData = await mcpRes.json().catch(() => ({}));
-    if (!mcpRes.ok || mcpData?.error) {
+    const rawErrMsg = String(
+      mcpData?.error ||
+        (mcpData?.result && typeof mcpData.result === 'object' ? mcpData.result.error || '' : '') ||
+        (!mcpRes.ok ? `Error ejecutando herramienta NotebookLM "${tool}" (HTTP ${mcpRes.status}).` : '')
+    ).trim();
+
+    if (!mcpRes.ok || rawErrMsg) {
+      const authExpired = checkAuthErr(rawErrMsg, mcpRes.status);
+      if (authExpired && typeof nlmRoute?.markNotebookAndLinkedFlowInvalid === 'function') {
+        await nlmRoute.markNotebookAndLinkedFlowInvalid(req.user.id, companyId, rawErrMsg, {
+          sessionDocId: session?._id,
+          email: effectiveEmail,
+        });
+      }
       return res.status(mcpRes.status || 500).json({
-        error: mcpData?.error || `Error ejecutando herramienta NotebookLM "${tool}".`,
+        error: rawErrMsg || `Error ejecutando herramienta NotebookLM "${tool}".`,
+        ...(authExpired ? { authExpired: true, sessionExpired: true } : {}),
       });
     }
     return res.json(mcpData);
   } catch (error) {
     logger.error('[MCP Bridge] Error POST /notebooklm/tool:', error);
-    return res.status(500).json({ error: error.message });
+    const authExpired = checkAuthErr(error?.message);
+    if (authExpired && req.user?.id && typeof nlmRoute?.markNotebookAndLinkedFlowInvalid === 'function') {
+      await nlmRoute.markNotebookAndLinkedFlowInvalid(req.user.id, companyId, error?.message || '', {
+        sessionDocId: session?._id,
+        email: effectiveEmail,
+      });
+    }
+    return res.status(500).json({
+      error: error.message,
+      ...(authExpired ? { authExpired: true, sessionExpired: true } : {}),
+    });
   }
 });
 

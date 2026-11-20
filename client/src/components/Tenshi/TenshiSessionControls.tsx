@@ -50,6 +50,7 @@ import { useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
 import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
+import { GoogleFlowModal } from '~/components/Nav/SettingsTabs/Account/GoogleFlowModal';
 import {
   getTenshiPanelToolMeta,
   isTenshiPanelTool,
@@ -498,7 +499,9 @@ function ToolRow({
   icon,
   label,
   subtitle,
+  subtitleClassName,
   statusDot,
+  statusTitle,
   actionButton,
   checked,
   onChange,
@@ -507,7 +510,9 @@ function ToolRow({
   icon: React.ReactNode;
   label: string;
   subtitle?: string;
-  statusDot?: 'online' | 'offline';
+  subtitleClassName?: string;
+  statusDot?: 'online' | 'warning' | 'offline';
+  statusTitle?: string;
   actionButton?: React.ReactNode;
   checked: boolean;
   onChange: () => void;
@@ -526,21 +531,31 @@ function ToolRow({
             {statusDot && (
               <span
                 title={
-                  statusDot === 'online'
-                    ? 'Google Antigravity conectado en tiempo real'
-                    : 'Daemon de Google Antigravity sin conexión activa'
+                  statusTitle ||
+                  (statusDot === 'online'
+                    ? 'Conectado y activo'
+                    : statusDot === 'warning'
+                      ? 'Sesión expirada — Reconectar'
+                      : 'Sin conexión activa')
                 }
                 className={cn(
                   'inline-block h-2 w-2 flex-shrink-0 rounded-full',
                   statusDot === 'online'
                     ? 'bg-emerald-500 ring-2 ring-emerald-500/25'
-                    : 'bg-slate-400 dark:bg-zinc-600',
+                    : statusDot === 'warning'
+                      ? 'bg-amber-500 ring-2 ring-rose-500/35'
+                      : 'bg-slate-400 dark:bg-zinc-600',
                 )}
               />
             )}
           </span>
           {subtitle && (
-            <span className="block truncate text-[10px] text-slate-400 dark:text-zinc-400">
+            <span
+              className={cn(
+                'block truncate text-[10px] text-slate-400 dark:text-zinc-400',
+                subtitleClassName,
+              )}
+            >
               {subtitle}
             </span>
           )}
@@ -941,6 +956,12 @@ export default function TenshiSessionControls({
   const [nbSyncWarning, setNbSyncWarning] = useState<string | null>(null);
   const [isNotebookLMModalOpen, setIsNotebookLMModalOpen] = useState(false);
 
+  // Google Flow live state
+  const [flowConnected, setFlowConnected] = useState(false);
+  const [flowSessionExpired, setFlowSessionExpired] = useState(false);
+  const [flowEmail, setFlowEmail] = useState('');
+  const [isGoogleFlowModalOpen, setIsGoogleFlowModalOpen] = useState(false);
+
   // Google Antigravity live daemon status
   const [antigravityStatus, setAntigravityStatus] = useState<{
     connected: boolean;
@@ -959,8 +980,8 @@ export default function TenshiSessionControls({
   onChangePrefsRef.current = onChangePrefs;
 
   useEffect(() => {
-    onExternalModalToggle?.(isNotebookLMModalOpen);
-  }, [isNotebookLMModalOpen, onExternalModalToggle]);
+    onExternalModalToggle?.(isNotebookLMModalOpen || isGoogleFlowModalOpen);
+  }, [isNotebookLMModalOpen, isGoogleFlowModalOpen, onExternalModalToggle]);
 
   // Fetch Antigravity daemon status
   const fetchAntigravityStatus = useCallback(async () => {
@@ -981,6 +1002,64 @@ export default function TenshiSessionControls({
     }
   }, [token, isAuthenticated]);
 
+  // Fetch NotebookLM quick status (/api/notebooklm/status)
+  const fetchNotebookStatus = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
+    try {
+      const companyId = (safeGetItem('wappy_active_company_id') || '').trim();
+      const qs = companyId && companyId !== 'default' ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const res = await fetch(`/api/notebooklm/status${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data?.sessionExpired === true || data?.isValid === false) {
+          setNbSessionExpired(true);
+        }
+        return;
+      }
+      if (!data || typeof data !== 'object') return;
+      const connected = Boolean(data?.connected);
+      const expired = Boolean(data?.sessionExpired || (connected && data?.isValid === false));
+      setNbConnected(connected);
+      setNbSessionExpired(expired);
+      setNbDbscBound(Boolean(connected && data?.dbscBound));
+      setNbEmail(typeof data?.email === 'string' ? data.email.trim() : '');
+      if (expired) {
+        setNbSyncWarning((prev) => prev || 'Sesión de NotebookLM expirada. Reconecta tu cuenta en 1 clic.');
+      }
+    } catch {
+      // silent fallback
+    }
+  }, [token, isAuthenticated]);
+
+  // Fetch Google Flow live status (/api/googleflow/status)
+  const fetchGoogleFlowStatus = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
+    try {
+      const companyId = (safeGetItem('wappy_active_company_id') || '').trim();
+      const qs = companyId && companyId !== 'default' ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const res = await fetch(`/api/googleflow/status${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data?.sessionExpired === true || data?.isValid === false) {
+          setFlowSessionExpired(true);
+        }
+        return;
+      }
+      if (!data || typeof data !== 'object') return;
+      const connected = Boolean(data?.connected);
+      const expired = Boolean(data?.sessionExpired || (connected && data?.isValid === false));
+      setFlowConnected(connected);
+      setFlowSessionExpired(expired);
+      setFlowEmail(typeof data?.email === 'string' ? data.email.trim() : '');
+    } catch {
+      // silent fallback
+    }
+  }, [token, isAuthenticated]);
+
   // Fetch NotebookLM notebooks assigned to Tenshi ("agentId=tenshi")
   const fetchNotebooks = useCallback(
     async (forceRefresh = false) => {
@@ -989,20 +1068,35 @@ export default function TenshiSessionControls({
         setIsLoadingNotebooks(true);
         setNbSyncWarning(null);
         const qs = new URLSearchParams({ agentId: 'tenshi' });
+        const companyId = (safeGetItem('wappy_active_company_id') || '').trim();
+        if (companyId && companyId !== 'default') {
+          qs.set('companyId', companyId);
+        }
         if (forceRefresh) {
           qs.set('refresh', '1');
         }
         const res = await fetch(`/api/notebooklm/notebooks?${qs.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          if (data?.sessionExpired === true || data?.isValid === false) {
+            setNbSessionExpired(true);
+            setNbSyncWarning(
+              typeof data?.syncWarning === 'string' && data.syncWarning.trim()
+                ? data.syncWarning.trim()
+                : 'Sesión de NotebookLM expirada. Reconecta tu cuenta en 1 clic.',
+            );
+          }
+          return;
+        }
+        if (!data || typeof data !== 'object') return;
         const connected = Boolean(data?.connected);
-        const expired = connected && (data?.isValid === false || Boolean(data?.sessionExpired));
+        const expired = Boolean(data?.sessionExpired || (connected && data?.isValid === false));
         setNbConnected(connected);
         setNbSessionExpired(expired);
-        setNbDbscBound(Boolean(data?.dbscBound));
-        setNbEmail(typeof data?.email === 'string' ? data.email : '');
+        setNbDbscBound(Boolean(connected && data?.dbscBound));
+        setNbEmail(typeof data?.email === 'string' ? data.email.trim() : '');
         const nbs = sanitizeNotebooks(data?.notebooks);
         const assigned = sanitizeNotebooks(data?.assignedNotebooks);
         setAvailableNotebooks(nbs);
@@ -1010,8 +1104,8 @@ export default function TenshiSessionControls({
           ...prev,
           selectedNotebooks: assigned,
         }));
-        if (data?.syncWarning) {
-          setNbSyncWarning(String(data.syncWarning));
+        if (typeof data?.syncWarning === 'string' && data.syncWarning.trim()) {
+          setNbSyncWarning(data.syncWarning.trim());
         } else if (expired) {
           setNbSyncWarning('Sesión de NotebookLM expirada. Reconecta tu cuenta en 1 clic.');
         }
@@ -1028,15 +1122,21 @@ export default function TenshiSessionControls({
   useEffect(() => {
     if (token && isAuthenticated) {
       fetchNotebooks(false);
+      fetchNotebookStatus();
+      fetchGoogleFlowStatus();
       fetchAntigravityStatus();
     }
-  }, [token, isAuthenticated, fetchNotebooks, fetchAntigravityStatus]);
+  }, [token, isAuthenticated, fetchNotebooks, fetchNotebookStatus, fetchGoogleFlowStatus, fetchAntigravityStatus]);
 
-  // Listen to cross-component NotebookLM sync & auth expiration events
+  // Listen to cross-component NotebookLM & Google Flow sync & auth expiration events
   useEffect(() => {
     const handleExternalUpdate = (e: Event) => {
       const custom = e as CustomEvent;
-      if (custom.detail?.authExpired === true || custom.detail?.isValid === false) {
+      if (
+        custom.detail?.authExpired === true ||
+        custom.detail?.sessionExpired === true ||
+        custom.detail?.isValid === false
+      ) {
         setNbSessionExpired(true);
         setNbSyncWarning(
           String(
@@ -1045,6 +1145,7 @@ export default function TenshiSessionControls({
               'Sesión de Google NotebookLM expirada. Haz clic en Reconectar.',
           ),
         );
+        fetchGoogleFlowStatus();
         return;
       }
       if (custom.detail?.agentId === 'tenshi' && Array.isArray(custom.detail?.assignedNotebooks)) {
@@ -1054,7 +1155,8 @@ export default function TenshiSessionControls({
           selectedNotebooks: sanitized,
         }));
       } else {
-        fetchNotebooks(false);
+        fetchNotebooks(Boolean(custom.detail?.refresh));
+        fetchGoogleFlowStatus();
       }
     };
     const handleAuthExpired = (e: Event) => {
@@ -1067,16 +1169,47 @@ export default function TenshiSessionControls({
             'Sesión de Google NotebookLM expirada. Haz clic en Reconectar.',
         ),
       );
+      fetchGoogleFlowStatus();
+    };
+    const handleFlowUpdate = (e: Event) => {
+      const custom = e as CustomEvent;
+      if (
+        custom.detail?.authExpired === true ||
+        custom.detail?.sessionExpired === true ||
+        custom.detail?.isValid === false
+      ) {
+        setFlowSessionExpired(true);
+        return;
+      }
+      fetchGoogleFlowStatus();
+    };
+    const handleFlowAuthExpired = () => {
+      setFlowSessionExpired(true);
+    };
+    const handleCompanyChange = () => {
+      fetchNotebooks(false);
+      fetchNotebookStatus();
+      fetchGoogleFlowStatus();
     };
     window.addEventListener('wappy-notebooklm-updated', handleExternalUpdate);
     window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
     window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+    window.addEventListener('wappy-googleflow-updated', handleFlowUpdate);
+    window.addEventListener('wappy-googleflow-auth-expired', handleFlowAuthExpired);
+    window.addEventListener('googleflow_auth_expired', handleFlowAuthExpired);
+    window.addEventListener('wappy-company-changed', handleCompanyChange);
+    window.addEventListener('wappy-empresa-cambiada', handleCompanyChange);
     return () => {
       window.removeEventListener('wappy-notebooklm-updated', handleExternalUpdate);
       window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
       window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+      window.removeEventListener('wappy-googleflow-updated', handleFlowUpdate);
+      window.removeEventListener('wappy-googleflow-auth-expired', handleFlowAuthExpired);
+      window.removeEventListener('googleflow_auth_expired', handleFlowAuthExpired);
+      window.removeEventListener('wappy-company-changed', handleCompanyChange);
+      window.removeEventListener('wappy-empresa-cambiada', handleCompanyChange);
     };
-  }, [fetchNotebooks]);
+  }, [fetchNotebooks, fetchNotebookStatus, fetchGoogleFlowStatus]);
 
   const saveAssignedNotebooks = useCallback(
     async (nextList: TenshiNotebookItem[]) => {
@@ -1268,6 +1401,11 @@ export default function TenshiSessionControls({
 
   const assignedCount = prefs.selectedNotebooks.length;
   const isNonDefaultModel = prefs.model !== DEFAULT_TENSHI_MODEL;
+  const nbOperational = nbConnected && !nbSessionExpired;
+  const flowOperational = flowConnected && !flowSessionExpired;
+  const hasAnySessionExpired =
+    (prefs.connectors.notebooklm && nbSessionExpired) ||
+    (prefs.connectors.google_flow && flowSessionExpired);
 
   const workspaceConnectors: Array<{
     key: keyof TenshiConnectorsState;
@@ -1589,25 +1727,44 @@ export default function TenshiSessionControls({
                     fetchNotebooks(false);
                   }
                 }}
+                title={
+                  nbSessionExpired
+                    ? 'Sesión de Google NotebookLM expirada — Reconectar'
+                    : 'Cuadernos de Google NotebookLM'
+                }
                 className={cn(
                   'flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer border',
-                  connectorsTab === 'notebooks'
-                    ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 shadow-2xs'
-                    : 'border-transparent text-slate-500 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400',
+                  nbSessionExpired
+                    ? connectorsTab === 'notebooks'
+                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300 shadow-2xs'
+                      : 'border-transparent text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
+                    : connectorsTab === 'notebooks'
+                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 shadow-2xs'
+                      : 'border-transparent text-slate-500 dark:text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400',
                 )}
               >
-                <NotebookIcon className="h-3.5 w-3.5 text-emerald-500" />
+                {nbSessionExpired ? (
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                ) : (
+                  <NotebookIcon className="h-3.5 w-3.5 text-emerald-500" />
+                )}
                 <span>Cuadernos</span>
-                <span
-                  className={cn(
-                    'inline-flex h-4 min-w-[16px] items-center justify-center rounded-md px-1 text-[10px] font-extrabold',
-                    assignedCount > 0
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                      : 'bg-slate-200/80 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300',
-                  )}
-                >
-                  {assignedCount > 0 ? assignedCount : availableNotebooks.length}
-                </span>
+                {nbSessionExpired ? (
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-md border border-rose-500/40 bg-rose-500/15 px-1 text-[10px] font-extrabold text-rose-700 dark:text-rose-300">
+                    !
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'inline-flex h-4 min-w-[16px] items-center justify-center rounded-md px-1 text-[10px] font-extrabold',
+                      assignedCount > 0
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        : 'bg-slate-200/80 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300',
+                    )}
+                  >
+                    {assignedCount > 0 ? assignedCount : availableNotebooks.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1625,6 +1782,11 @@ export default function TenshiSessionControls({
                       : 'Daemon desconectado'
                   }
                   statusDot={antigravityStatus.connected ? 'online' : 'offline'}
+                  statusTitle={
+                    antigravityStatus.connected
+                      ? 'Google Antigravity conectado en tiempo real'
+                      : 'Daemon de Google Antigravity sin conexión activa'
+                  }
                   checked={prefs.connectors.antigravity}
                   onChange={() => handleToggleConnector('antigravity')}
                 />
@@ -1633,19 +1795,83 @@ export default function TenshiSessionControls({
                 <div>
                   <ToolRow
                     id="tenshi-connector-notebooklm"
-                    icon={<NotebookIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                    icon={
+                      nbSessionExpired ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <NotebookIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      )
+                    }
                     label="Google NotebookLM"
+                    subtitle={
+                      nbSessionExpired
+                        ? 'Sesión expirada — Reconectar'
+                        : nbOperational
+                          ? nbEmail
+                            ? `Conectado · ${nbEmail}`
+                            : 'Sesión privada activa'
+                          : 'Sin vincular'
+                    }
+                    subtitleClassName={
+                      nbSessionExpired
+                        ? 'font-semibold text-amber-600 dark:text-amber-400'
+                        : undefined
+                    }
+                    statusDot={nbOperational ? 'online' : nbSessionExpired ? 'warning' : 'offline'}
+                    statusTitle={
+                      nbOperational
+                        ? 'Google NotebookLM conectado y válido'
+                        : nbSessionExpired
+                          ? 'Sesión de Google NotebookLM expirada — Reconectar'
+                          : 'Google NotebookLM sin vincular'
+                    }
+                    actionButton={
+                      nbSessionExpired ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenu('none');
+                            setIsNotebookLMModalOpen(true);
+                          }}
+                          title="Reconectar sesión privada de Google NotebookLM"
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                        >
+                          Reconectar
+                        </button>
+                      ) : undefined
+                    }
                     checked={prefs.connectors.notebooklm}
                     onChange={() => handleToggleConnector('notebooklm')}
                   />
 
                   {prefs.connectors.notebooklm && (
-                    <div className="mx-1.5 mb-2 mt-1 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5">
+                    <div
+                      className={cn(
+                        'mx-1.5 mb-2 mt-1 rounded-xl border p-2.5',
+                        nbSessionExpired
+                          ? 'border-amber-500/40 bg-amber-500/10'
+                          : 'border-emerald-500/30 bg-emerald-500/5',
+                      )}
+                    >
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-1.5">
-                          <Brain className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
-                          <span className="truncate text-[11px] font-bold text-slate-800 dark:text-zinc-100">
-                            2° Cerebro ({assignedCount}/{availableNotebooks.length})
+                          {nbSessionExpired ? (
+                            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                          ) : (
+                            <Brain className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                          )}
+                          <span
+                            className={cn(
+                              'truncate text-[11px] font-bold',
+                              nbSessionExpired
+                                ? 'text-rose-700 dark:text-rose-300'
+                                : 'text-slate-800 dark:text-zinc-100',
+                            )}
+                          >
+                            {nbSessionExpired
+                              ? '2° Cerebro · Sesión expirada'
+                              : `2° Cerebro (${assignedCount}/${availableNotebooks.length})`}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -1666,14 +1892,37 @@ export default function TenshiSessionControls({
                           <button
                             type="button"
                             onClick={() => setConnectorsTab('notebooks')}
-                            className="rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+                            className={cn(
+                              'rounded-lg border px-2 py-0.5 text-[10px] font-bold transition-colors cursor-pointer',
+                              nbSessionExpired
+                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200 hover:bg-amber-500/25'
+                                : 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25',
+                            )}
                           >
                             Pestaña →
                           </button>
                         </div>
                       </div>
 
-                      {!nbConnected && !isLoadingNotebooks ? (
+                      {nbSessionExpired ? (
+                        <div className="flex flex-col gap-1.5 pt-0.5">
+                          <p className="text-[11px] leading-tight text-amber-800 dark:text-amber-200">
+                            {nbSyncWarning ||
+                              `Sesión expirada${nbEmail ? ` (${nbEmail})` : ''}. Reconecta tu cuenta en 1 clic para consultar tus cuadernos.`}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenu('none');
+                              setIsNotebookLMModalOpen(true);
+                            }}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 dark:text-amber-100 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            <span>Reconectar NotebookLM</span>
+                          </button>
+                        </div>
+                      ) : !nbConnected && !isLoadingNotebooks ? (
                         <div className="flex flex-col gap-1.5 pt-0.5">
                           <p className="text-[11px] leading-tight text-slate-600 dark:text-zinc-300">
                             Conecta tu Google NotebookLM para elegir qué cuadernos usará Tenshi.
@@ -1752,16 +2001,88 @@ export default function TenshiSessionControls({
                 </div>
 
                 {/* 3-10. Resto de conectores Google Workspace + OneDrive */}
-                {workspaceConnectors.map((conn) => (
-                  <ToolRow
-                    key={conn.key}
-                    id={`tenshi-connector-${conn.key}`}
-                    icon={conn.icon}
-                    label={conn.label}
-                    checked={prefs.connectors[conn.key]}
-                    onChange={() => handleToggleConnector(conn.key)}
-                  />
-                ))}
+                {workspaceConnectors.map((conn) => {
+                  const isFlow = conn.key === 'google_flow';
+                  return (
+                    <ToolRow
+                      key={conn.key}
+                      id={`tenshi-connector-${conn.key}`}
+                      icon={
+                        isFlow && flowSessionExpired ? (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        ) : (
+                          conn.icon
+                        )
+                      }
+                      label={conn.label}
+                      subtitle={
+                        isFlow
+                          ? flowSessionExpired
+                            ? 'Sesión expirada — Reconectar'
+                            : flowOperational
+                              ? flowEmail
+                                ? `Conectado · ${flowEmail}`
+                                : 'Sesión privada activa'
+                              : 'Sin vincular'
+                          : undefined
+                      }
+                      subtitleClassName={
+                        isFlow && flowSessionExpired
+                          ? 'font-semibold text-amber-600 dark:text-amber-400'
+                          : undefined
+                      }
+                      statusDot={
+                        isFlow
+                          ? flowOperational
+                            ? 'online'
+                            : flowSessionExpired
+                              ? 'warning'
+                              : 'offline'
+                          : undefined
+                      }
+                      statusTitle={
+                        isFlow
+                          ? flowOperational
+                            ? 'Google Flow conectado y válido'
+                            : flowSessionExpired
+                              ? 'Sesión de Google Flow expirada — Reconectar'
+                              : 'Google Flow sin vincular'
+                          : undefined
+                      }
+                      actionButton={
+                        isFlow && flowSessionExpired ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenu('none');
+                              setIsGoogleFlowModalOpen(true);
+                            }}
+                            title="Reconectar sesión privada de Google Flow"
+                            className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                          >
+                            Reconectar
+                          </button>
+                        ) : isFlow && !flowConnected ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenu('none');
+                              setIsGoogleFlowModalOpen(true);
+                            }}
+                            title="Vincular cuenta privada de Google Flow"
+                            className="inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                          >
+                            Conectar
+                          </button>
+                        ) : undefined
+                      }
+                      checked={prefs.connectors[conn.key]}
+                      onChange={() => handleToggleConnector(conn.key)}
+                    />
+                  );
+                })}
               </div>
             )}
 
@@ -1769,20 +2090,47 @@ export default function TenshiSessionControls({
             {connectorsTab === 'notebooks' && (
               <div className="flex min-h-0 flex-1 flex-col p-3">
                 {/* Cabecera del Segundo Cerebro */}
-                <div className="mb-2.5 shrink-0 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2.5">
+                <div
+                  className={cn(
+                    'mb-2.5 shrink-0 rounded-xl border p-2.5',
+                    nbSessionExpired
+                      ? 'border-amber-500/40 bg-amber-500/10'
+                      : 'border-emerald-500/25 bg-emerald-500/10',
+                  )}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        <Brain className="h-4 w-4" />
+                      <div
+                        className={cn(
+                          'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg',
+                          nbSessionExpired
+                            ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                            : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+                        )}
+                      >
+                        {nbSessionExpired ? (
+                          <AlertTriangle className="h-4 w-4" />
+                        ) : (
+                          <Brain className="h-4 w-4" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-100">
                           2° Cerebro · Tenshi
                         </p>
-                        <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-                          {assignedCount > 0
-                            ? `${assignedCount} cuaderno(s) activo(s) como fuente`
-                            : 'Elige cuadernos prioritarios para Tenshi'}
+                        <p
+                          className={cn(
+                            'text-[10px] font-semibold',
+                            nbSessionExpired
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-emerald-700 dark:text-emerald-400',
+                          )}
+                        >
+                          {nbSessionExpired
+                            ? 'Sesión expirada — Reconectar'
+                            : assignedCount > 0
+                              ? `${assignedCount} cuaderno(s) activo(s) como fuente`
+                              : 'Elige cuadernos prioritarios para Tenshi'}
                         </p>
                       </div>
                     </div>
@@ -1816,7 +2164,7 @@ export default function TenshiSessionControls({
                   </div>
                 )}
 
-                {!nbConnected && !isLoadingNotebooks ? (
+                {!nbConnected && !nbSessionExpired && !isLoadingNotebooks ? (
                   <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200/70 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 p-4 text-center">
                     <NotebookIcon className="mb-2 h-7 w-7 text-emerald-500" />
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-100">
@@ -1918,16 +2266,32 @@ export default function TenshiSessionControls({
                           <p className="text-xs text-slate-500 dark:text-zinc-400">
                             {notebookSearch
                               ? 'Ningún cuaderno coincide con tu búsqueda.'
-                              : 'No se encontraron cuadernos en tu cuenta.'}
+                              : nbSessionExpired
+                                ? 'Reconecta tu sesión para sincronizar tus cuadernos.'
+                                : 'No se encontraron cuadernos en tu cuenta.'}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => fetchNotebooks(true)}
-                            className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            <span>Volver a sincronizar</span>
-                          </button>
+                          {nbSessionExpired ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenu('none');
+                                setIsNotebookLMModalOpen(true);
+                              }}
+                              className="mt-2 inline-flex items-center gap-1 rounded-xl border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              <span>Reconectar sesión</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => fetchNotebooks(true)}
+                              className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              <span>Volver a sincronizar</span>
+                            </button>
+                          )}
                         </div>
                       ) : (
                         filteredNotebooks.map((nb) => {
@@ -1988,20 +2352,47 @@ export default function TenshiSessionControls({
                     </div>
 
                     {/* Pie con correo vinculado y accesos */}
-                    <div className="mt-2.5 flex shrink-0 items-center justify-between border-t border-slate-200/70 dark:border-zinc-800 pt-2 text-[10px] text-slate-400 dark:text-zinc-400">
-                      <span className="max-w-[175px] truncate">
-                        {nbEmail ? `Conectado: ${nbEmail}` : 'Sesión privada activa'}
+                    <div className="mt-2.5 flex shrink-0 items-center justify-between gap-2 border-t border-slate-200/70 dark:border-zinc-800 pt-2 text-[10px] text-slate-400 dark:text-zinc-400">
+                      <span
+                        className={cn(
+                          'max-w-[185px] truncate',
+                          nbSessionExpired && 'font-semibold text-rose-600 dark:text-rose-400',
+                        )}
+                        title={
+                          nbSessionExpired
+                            ? `Sesión expirada${nbEmail ? ` (${nbEmail})` : ''}`
+                            : nbOperational
+                              ? nbEmail
+                                ? `Conectado: ${nbEmail}`
+                                : 'Sesión privada activa'
+                              : undefined
+                        }
+                      >
+                        {nbSessionExpired
+                          ? `Sesión expirada${nbEmail ? ` (${nbEmail})` : ''}`
+                          : nbOperational
+                            ? nbEmail
+                              ? `Conectado: ${nbEmail}`
+                              : 'Sesión privada activa'
+                            : isLoadingNotebooks
+                              ? 'Verificando sesión...'
+                              : 'Sin vincular'}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             setOpenMenu('none');
                             setIsNotebookLMModalOpen(true);
                           }}
-                          className="font-bold text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+                          className={cn(
+                            'font-bold transition-colors cursor-pointer',
+                            nbSessionExpired
+                              ? 'text-amber-600 dark:text-amber-400 hover:underline'
+                              : 'text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400',
+                          )}
                         >
-                          Configurar
+                          {nbSessionExpired ? 'Reconectar' : 'Configurar'}
                         </button>
                         <a
                           href="https://notebooklm.google.com"
@@ -2070,7 +2461,11 @@ export default function TenshiSessionControls({
           type="button"
           aria-label="Conectores Google y Cuadernos de NotebookLM"
           aria-expanded={openMenu === 'connectors'}
-          title="Conectores Google, OneDrive y Cuadernos NotebookLM"
+          title={
+            hasAnySessionExpired
+              ? 'Sesión de Google expirada — Haz clic para reconectar'
+              : 'Conectores Google, OneDrive y Cuadernos NotebookLM'
+          }
           onClick={() => {
             if (openMenu === 'connectors' && connectorsTab === 'connectors') {
               setOpenMenu('none');
@@ -2079,24 +2474,30 @@ export default function TenshiSessionControls({
               setConnectorsTab('connectors');
               setOpenMenu('connectors');
               fetchAntigravityStatus();
+              fetchNotebookStatus();
+              fetchGoogleFlowStatus();
             }
           }}
           className={cn(
             'relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 ease-in-out sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95 cursor-pointer',
-            openMenu === 'connectors'
-              ? 'border-emerald-500/50 bg-emerald-500/15 ring-1 ring-emerald-500/30'
-              : 'border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 hover:border-emerald-500/40 hover:bg-emerald-500/10',
+            hasAnySessionExpired
+              ? openMenu === 'connectors'
+                ? 'border-amber-500/50 bg-amber-500/15 ring-1 ring-amber-500/30'
+                : 'border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20'
+              : openMenu === 'connectors'
+                ? 'border-emerald-500/50 bg-emerald-500/15 ring-1 ring-emerald-500/30'
+                : 'border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 hover:border-emerald-500/40 hover:bg-emerald-500/10',
           )}
         >
           <GoogleMulticolorIcon />
-          {prefs.connectors.notebooklm && (assignedCount > 0 || nbSessionExpired) && (
+          {(hasAnySessionExpired || (prefs.connectors.notebooklm && assignedCount > 0)) && (
             <span
               className={cn(
                 'pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-md px-1 text-[9px] font-black text-white shadow-xs',
-                nbSessionExpired ? 'bg-amber-500' : 'bg-emerald-500',
+                hasAnySessionExpired ? 'bg-amber-500' : 'bg-emerald-500',
               )}
             >
-              {nbSessionExpired ? '!' : assignedCount}
+              {hasAnySessionExpired ? '!' : assignedCount}
             </span>
           )}
         </button>
@@ -2177,7 +2578,11 @@ export default function TenshiSessionControls({
       <NotebookLMModal
         isOpen={isNotebookLMModalOpen}
         onClose={() => setIsNotebookLMModalOpen(false)}
-        onStatusChange={() => fetchNotebooks(true)}
+      />
+
+      <GoogleFlowModal
+        isOpen={isGoogleFlowModalOpen}
+        onClose={() => setIsGoogleFlowModalOpen(false)}
       />
     </>
   );

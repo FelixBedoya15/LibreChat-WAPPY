@@ -24,6 +24,7 @@ import { ExpandableButton } from '~/components/Common/ExpandableButton';
 interface GoogleFlowStatus {
   connected?: boolean;
   isValid?: boolean;
+  sessionExpired?: boolean;
   dbscBound?: boolean;
   dbscWarning?: string | null;
   email?: string;
@@ -59,6 +60,13 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
   const terminalCommand = `mkdir -p ~/.gemini/antigravity && curl -fsSL "${serverOrigin}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --googleflow --url="${serverOrigin}" --token="${token || ''}"`;
   const agCliCommand = `node ~/.gemini/antigravity/wappy-push-daemon.js --googleflow --url="${serverOrigin}" --token="${token || ''}"`;
   const antigravityPrompt = `Ejecuta en la terminal mi conector local de WAPPY:\n\n\`\`\`bash\n${agCliCommand}\n\`\`\``;
+
+  const notifyStatusUpdated = () => {
+    onStatusChange?.();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wappy-googleflow-updated', { detail: { refresh: true } }));
+    }
+  };
 
   const clearPollTimer = () => {
     if (pollTimerRef.current) {
@@ -147,7 +155,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
                 if (stData?.dbscBound === false) {
                   setSavedDbscInfo(null);
                 }
-                onStatusChange?.();
+                notifyStatusUpdated();
                 clearPollTimer();
               }
             }
@@ -214,7 +222,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
           setManualJson('');
         }
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
         setFeedback({
           type: 'error',
@@ -243,7 +251,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success) {
         await fetchStatus();
-        onStatusChange?.();
+        notifyStatusUpdated();
         setFeedback({
           type: 'success',
           message: data?.message || '✓ ¡Sesión sincronizada y activa!',
@@ -278,7 +286,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
           message: data?.message || '✓ ¡Conexión privada con Google Flow verificada con éxito!',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
         setFeedback({
           type: 'error',
@@ -289,7 +297,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
             'Aún no hay una sesión activa vinculada o la sesión expiró. Haz clic en Reconectar o usa la Opción A.',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       }
     } catch (err: any) {
       setFeedback({ type: 'error', message: 'Error al probar: ' + (err?.message || 'Error desconocido') });
@@ -319,7 +327,7 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
           message: 'Sesión privada desvinculada correctamente.',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
         setFeedback({ type: 'error', message: data?.error || 'Error al desvincular.' });
       }
@@ -333,8 +341,8 @@ export const GoogleFlowModal: React.FC<GoogleFlowModalProps> = ({
   if (!isOpen) return null;
 
   const isConnected = Boolean(status?.connected);
-  const isExpired = isConnected && status?.isValid === false;
-  const isValid = isConnected && status?.isValid !== false;
+  const isExpired = Boolean(status?.sessionExpired || (isConnected && status?.isValid === false));
+  const isValid = isConnected && !isExpired;
   const isDbscBound = Boolean((isConnected && status?.dbscBound === true) || savedDbscInfo?.bound);
   const dbscWarningText =
     (typeof status?.dbscWarning === 'string' && status.dbscWarning.trim()) ||
