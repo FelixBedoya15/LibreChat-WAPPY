@@ -9,22 +9,40 @@ import { OpenSidebar } from '~/components/Chat/Menus';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import type { ContextType } from '~/common';
 import { sanitizeSlug } from '~/utils/slug';
+import { resolveBlogThumbnail } from './blogThumbnail';
 
 // --- Helpers ---
 const mapTag = (tag: string) => {
     if (!tag) return '';
     const mappings: Record<string, string> = {
         'sst': 'Seguridad y Salud en el Trabajo',
+        'sg-sst': 'Seguridad y Salud en el Trabajo',
+        'seguridad y salud en el trabajo': 'Seguridad y Salud en el Trabajo',
         'pesv': 'Seguridad Vial',
+        'seguridad vial': 'Seguridad Vial',
+        'ia': 'Inteligencia Artificial',
+        'inteligencia artificial': 'Inteligencia Artificial',
+        'normas': 'Normatividad',
+        'normatividad': 'Normatividad',
+        'derecho laboral': 'Derecho Laboral',
+        'contratación laboral': 'Contratación Laboral',
     };
     const normalized = tag.toLowerCase().trim();
-    return mappings[normalized] || (tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase());
+    return mappings[normalized] || (tag.trim().charAt(0).toUpperCase() + tag.trim().slice(1).toLowerCase());
 };
 
 // --- Sub-components ---
 
 const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void, navigate: any }) => {
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [post?._id, post?.thumbnail]);
+
     if (!post) return null;
+
+    const thumbnailSrc = resolveBlogThumbnail(post.thumbnail);
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}>
@@ -39,11 +57,12 @@ const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void
 
                 {/* Image Section */}
                 <div className="w-full md:w-2/5 h-56 md:h-auto relative bg-surface-tertiary flex-shrink-0">
-                    {post.thumbnail ? (
+                    {thumbnailSrc && !imgError ? (
                         <img 
-                            src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} 
-                            alt={post.title} 
+                            src={thumbnailSrc} 
+                            alt={post.title || 'Imagen del artículo'} 
                             className="w-full h-full object-cover"
+                            onError={() => setImgError(true)}
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-tertiary to-surface-secondary">
@@ -94,6 +113,14 @@ const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void
 };
 
 const PostCard = ({ post, navigate, onMoreInfo }: { post: any, navigate: any, onMoreInfo?: () => void }) => {
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [post?.thumbnail]);
+
+    const thumbnailSrc = resolveBlogThumbnail(post?.thumbnail);
+
     return (
         <div 
             role="button"
@@ -113,11 +140,13 @@ const PostCard = ({ post, navigate, onMoreInfo }: { post: any, navigate: any, on
         >
             {/* Thumbnail */}
             <div className="absolute inset-0 bg-surface-tertiary">
-                {post.thumbnail ? (
+                {thumbnailSrc && !imgError ? (
                     <img 
-                        src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} 
-                        alt={post.title} 
+                        src={thumbnailSrc} 
+                        alt={post.title || 'Imagen del artículo'} 
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={() => setImgError(true)}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-tertiary to-surface-secondary">
@@ -210,17 +239,26 @@ const PostRow = ({ title, posts, navigate, onMoreInfo }: { title: string, posts:
 };
 
 const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate: any, onMoreInfo: () => void }) => {
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [post?._id, post?.thumbnail]);
+
     if (!post) return null;
+
+    const thumbnailSrc = resolveBlogThumbnail(post.thumbnail);
 
     return (
         <div className="relative w-full h-screen overflow-hidden flex flex-col justify-end pb-16 sm:pb-20 md:pb-28">
             {/* Background Image */}
             <div className="absolute inset-0">
-                {post.thumbnail ? (
+                {thumbnailSrc && !imgError ? (
                     <img 
-                        src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} 
-                        alt={post.title} 
+                        src={thumbnailSrc} 
+                        alt={post.title || 'Artículo destacado'} 
                         className="w-full h-full object-cover"
+                        onError={() => setImgError(true)}
                     />
                 ) : (
                     <div className="w-full h-full bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-primary" />
@@ -273,7 +311,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
 // --- Main Component ---
 
 export default function BlogDashboard({ hideFloatingHeader = false }: { hideFloatingHeader?: boolean } = {}) {
-    const [posts, setPosts] = useState([]);
+    const [posts, setPosts] = useState<any[]>([]);
     const [categorizedPosts, setCategorizedPosts] = useState<Record<string, any[]>>({});
     const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
     const [featuredPost, setFeaturedPost] = useState<any>(null);
@@ -292,7 +330,8 @@ export default function BlogDashboard({ hideFloatingHeader = false }: { hideFloa
         const fetchPosts = async () => {
             try {
                 const response = await axios.get('/api/blog');
-                const publishedPosts = response.data.filter((p: any) => p.isPublished);
+                const rawPosts = Array.isArray(response.data) ? response.data : [];
+                const publishedPosts = rawPosts.filter((p: any) => p.isPublished);
                 
                 // Sort by date descending (newest first)
                 publishedPosts.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -324,7 +363,7 @@ export default function BlogDashboard({ hideFloatingHeader = false }: { hideFloa
                 // Featured: isFeatured flag first, then fallback to first with thumbnail, then first
                 if (publishedPosts.length > 0) {
                     const featured = publishedPosts.find((p: any) => p.isFeatured)
-                        || publishedPosts.find((p: any) => p.thumbnail)
+                        || publishedPosts.find((p: any) => resolveBlogThumbnail(p.thumbnail))
                         || publishedPosts[0];
                     setFeaturedPost(featured);
                 }

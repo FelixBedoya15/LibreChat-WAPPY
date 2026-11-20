@@ -1,19 +1,20 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { BlogPost } = require('~/models/BlogPost');
+const { formatBlogEditorialHtml, extractBlogSummary } = require('~/server/utils/blogEditorialFormatter');
 
 /**
  * BlogEditor Tool
  * Permite al agente crear, leer, listar, editar o eliminar borradores de artículos de blog.
  * Todos los artículos creados se guardan en estado de borrador (isPublished = false)
- * para que el usuario pueda revisarlos en el panel administrativo antes de publicarlos.
+ * con formato unificado WAPPY Editorial HTML v2 para revisión en el panel administrativo.
  */
 class BlogEditor extends Tool {
   constructor(fields = {}) {
     super();
     this.name = 'blog_editor';
     this.description =
-      'Crea, edita, lee, lista o elimina borradores de artículos del blog corporativo en la base de datos. Los artículos nuevos siempre se guardan como borradores (isPublished = false) para revisión humana. El contenido debe redactarse en formato HTML enriquecido y profesional (usando h1, h2, h3, p, strong, ul, ol, li, tablas, etc.) sin bloques de código markdown.';
+      'Crea, edita, lee, lista o elimina borradores de artículos del blog corporativo en la base de datos. Los artículos nuevos siempre se guardan como borradores (isPublished = false) para revisión humana. Redacta el contenido en formato WAPPY Editorial HTML v2 (HTML puro sin bloques Markdown ni <h1> duplicado del título): incluye tarjeta de Resumen Ejecutivo (class="wappy-lead-card"), encabezados <h2> y <h3>, listas en tarjetas (class="wappy-list-card"), tablas responsivas (class="wappy-table-wrap"), bloques destacados (<blockquote class="wappy-callout">) y tarjeta final CTA WAPPY IA (class="wappy-cta-card"), sin colores fijos oscuros (#333/#000) ni fondos blancos fijos.';
     this.req = fields.req;
 
     this.schema = z.object({
@@ -32,13 +33,13 @@ class BlogEditor extends Tool {
       description: z
         .string()
         .optional()
-        .describe('Breve descripción, subtítulo o resumen introductorio del artículo.'),
+        .describe('Breve descripción, subtítulo o resumen introductorio del artículo (si se omite, se extrae automáticamente del Resumen Ejecutivo).'),
 
       content: z
         .string()
         .optional()
         .describe(
-          'Contenido completo del artículo estructurado con etiquetas HTML (<h1>, <h2>, <h3>, <p>, <strong>, <ul>, <li>, etc.). NO uses bloques de código markdown como ```html. Obligatorio al crear.',
+          'Contenido completo del artículo en formato WAPPY Editorial HTML v2: HTML puro sin bloques ```html ni <h1> duplicado (el visor ya muestra el título). Estructura sugerida: Resumen Ejecutivo (<div class="wappy-lead-card">), secciones <h2>/<h3>, listas en tarjetas (<div class="wappy-list-card"><ul>...</ul></div>), tablas responsivas (<div class="wappy-table-wrap"><table>...</table></div>), alertas/ideas clave (<blockquote class="wappy-callout">) y cierre CTA (<div class="wappy-cta-card">). Usa fondos translúcidos rgba(...) y herencia de color para modo claro y oscuro. Obligatorio al crear.',
         ),
 
       tags: z
@@ -74,11 +75,21 @@ class BlogEditor extends Tool {
           return JSON.stringify({ error: 'El campo "content" es obligatorio para la acción "crear".' });
         }
 
+        const safeTags = Array.isArray(tags) ? tags : [];
+        const formattedContent = formatBlogEditorialHtml(content, {
+          title,
+          tags: safeTags,
+        });
+        const resolvedDescription =
+          typeof description === 'string' && description.trim()
+            ? description.trim()
+            : extractBlogSummary(formattedContent);
+
         const newPost = new BlogPost({
           title,
-          description: description || '',
-          content,
-          tags: tags || [],
+          description: resolvedDescription,
+          content: formattedContent,
+          tags: safeTags,
           isPublished: false, // Forzar a borrador para revisión e imagen
           isFeatured: false,
           author: userId,
@@ -152,10 +163,25 @@ class BlogEditor extends Tool {
           });
         }
 
+        const effectiveTitle = title !== undefined ? title : post.title;
+        const effectiveTags = Array.isArray(tags) ? tags : (post.tags || []);
+
         const updates = {};
         if (title !== undefined) updates.title = title;
-        if (description !== undefined) updates.description = description;
-        if (content !== undefined) updates.content = content;
+        if (content !== undefined) {
+          updates.content = formatBlogEditorialHtml(content, {
+            title: effectiveTitle || '',
+            tags: effectiveTags,
+          });
+        }
+        if (description !== undefined) {
+          updates.description =
+            typeof description === 'string' && description.trim()
+              ? description.trim()
+              : extractBlogSummary(updates.content !== undefined ? updates.content : post.content || '');
+        } else if (updates.content !== undefined && (!post.description || !String(post.description).trim())) {
+          updates.description = extractBlogSummary(updates.content);
+        }
         if (tags !== undefined) updates.tags = tags;
 
         const updatedPost = await BlogPost.findByIdAndUpdate(
