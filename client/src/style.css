@@ -3659,24 +3659,17 @@ html {
 }
 
 @container tenshi-tool (max-width: 760px) {
-  /* 1. Collapse desktop multi-column grids to clean 1-column */
-  .tenshi-tool-cq .grid.md\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.xl\:grid-cols-2:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  /* 1. Collapse desktop multi-column grids (md/lg/xl/2xl, including xl:grid-cols-12) to clean 1-column */
+  .tenshi-tool-cq .grid[class*='md:grid-cols-']:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']):not(.sm\:grid-cols-4),
+  .tenshi-tool-cq .grid[class*='lg:grid-cols-']:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']):not(.sm\:grid-cols-4),
+  .tenshi-tool-cq .grid[class*='xl:grid-cols-']:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']):not(.sm\:grid-cols-4),
+  .tenshi-tool-cq .grid[class*='2xl:grid-cols-']:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']):not(.sm\:grid-cols-4),
   .tenshi-tool-cq .grid.sm\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.md\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.xl\:grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.md\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.xl\:grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-5:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.xl\:grid-cols-5:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-6:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.md\:grid-cols-12:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.lg\:grid-cols-12:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
   .tenshi-tool-cq .grid.grid-cols-3:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
-  .tenshi-tool-cq .grid.grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']) {
+  .tenshi-tool-cq .grid.grid-cols-4:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.grid-cols-5:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.grid-cols-6:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']),
+  .tenshi-tool-cq .grid.grid-cols-12:not([data-tenshi-keep-grid='true']):not([data-tenshi-grid-2='true']) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
@@ -3698,7 +3691,8 @@ html {
   /* 2. Re-stack desktop side-by-side flex containers cleanly (never touching buttons / WAPPY ExpandableButton) */
   .tenshi-tool-cq .flex-col.md\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn),
   .tenshi-tool-cq .flex-col.lg\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn),
-  .tenshi-tool-cq .flex-col.xl\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn) {
+  .tenshi-tool-cq .flex-col.xl\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn),
+  .tenshi-tool-cq .flex-col.2xl\:flex-row:not([data-tenshi-keep-row='true']):not(button):not(.wappy-expand-btn) {
     flex-direction: column !important;
     align-items: stretch !important;
   }
@@ -3714,7 +3708,8 @@ html {
   .tenshi-tool-cq .xl\:w-80:not(button):not(.wappy-expand-btn),
   .tenshi-tool-cq .lg\:w-96:not(button):not(.wappy-expand-btn),
   .tenshi-tool-cq [class*='md:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td),
-  .tenshi-tool-cq [class*='lg:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td) {
+  .tenshi-tool-cq [class*='lg:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td),
+  .tenshi-tool-cq [class*='xl:min-w-']:not(button):not(.wappy-expand-btn):not(th):not(td) {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
