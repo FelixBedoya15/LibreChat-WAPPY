@@ -189,5 +189,18 @@
     "date_added": "2026-11-11",
     "agents": ["wappy-workflow-architect", "wappy-backend-api", "wappy-frontend-ui"],
     "tags": ["workflows", "n8n", "dag", "automatizaciones", "sgsst", "logic-validation", "deduplication"]
+  },
+  {
+    "id": "wappy-harness-audit",
+    "path": "skills/wappy-harness-audit/SKILL.md",
+    "category": "devops-and-governance",
+    "bundle": "wappy-ops-and-governance",
+    "name": "wappy-harness-audit",
+    "description": "Audita la salud integral de la agencia WAPPY IA (.agents/skills, .agents/agents, .agents/rules, .agents/hooks.json y memoria procedural), ejecuta stocktake determinista, diagnóstico de 12 capas y evaluaciones Capability/Regression (EDD).",
+    "risk": "safe",
+    "source": "self",
+    "date_added": "2026-11-20",
+    "agents": ["wappy-qa-devops", "wappy-backend-api", "wappy-live-tester"],
+    "tags": ["audit", "harness", "stocktake", "eval", "hooks", "rules", "memory", "governance", "12-layer"]
   }
 ]
