@@ -83,6 +83,7 @@ import {
   type TenshiWidgetPayload,
 } from './TenshiGenerativeWidget';
 import TenshiSessionControls, {
+  TenshiModelPickerPill,
   loadTenshiSessionPrefs,
   saveTenshiSessionPrefs,
   type TenshiSessionPrefs,
@@ -10954,12 +10955,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       />
                     </div>
 
-                    <span
-                      title={`Modelo IA activo: ${sessionPrefs.model}`}
-                      className="hidden lg:inline-flex max-w-[140px] truncate rounded-lg border border-slate-200/80 dark:border-zinc-700/80 bg-slate-50/90 dark:bg-zinc-900/80 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-zinc-400"
-                    >
-                      {sessionPrefs.model}
-                    </span>
+                    <TenshiModelPickerPill
+                      model={sessionPrefs.model}
+                      onSelectModel={(nextModel) =>
+                        setSessionPrefs((prev) => ({ ...prev, model: nextModel }))
+                      }
+                    />
                   </div>
                 </div>
               </div>
@@ -12074,6 +12075,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                         onExternalModalToggle={setIsExternalModalOpen}
                       />
                     </div>
+
+                    <TenshiModelPickerPill
+                      model={sessionPrefs.model}
+                      compact={true}
+                      onSelectModel={(nextModel) =>
+                        setSessionPrefs((prev) => ({ ...prev, model: nextModel }))
+                      }
+                    />
                   </div>
                 </div>
 

@@ -580,6 +580,19 @@ const GoogleMulticolorIcon = () => (
   </svg>
 );
 
+/* ─── Cross-Popover Coordination Event ───────────────────────────────────── */
+
+export const TENSHI_POPOVER_EVENT = 'wappy-tenshi-popover-open';
+
+export function announceTenshiPopoverOpen(source: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new CustomEvent(TENSHI_POPOVER_EVENT, { detail: { source } }));
+  } catch {
+    // ignore dispatch errors
+  }
+}
+
 /* ─── Viewport-Safe Floating Popover Position Hook ───────────────────────── */
 
 interface FloatingCoords {
@@ -594,6 +607,7 @@ function computeUpwardPopoverCoords(
   triggerEl: HTMLElement | null,
   desiredWidth: number,
   desiredMaxHeight = 520,
+  align: 'left' | 'right' = 'left',
 ): FloatingCoords | null {
   if (!triggerEl || typeof window === 'undefined') return null;
   const rect = triggerEl.getBoundingClientRect();
@@ -602,7 +616,7 @@ function computeUpwardPopoverCoords(
   const margin = 12;
   const width = Math.min(desiredWidth, vw - margin * 2);
 
-  let left = rect.left;
+  let left = align === 'right' ? rect.right - width : rect.left;
   if (left + width > vw - margin) {
     left = vw - margin - width;
   }
@@ -628,6 +642,235 @@ function computeUpwardPopoverCoords(
     width,
     maxHeight: Math.max(200, Math.min(desiredMaxHeight, spaceBelow - 8)),
   };
+}
+
+/* ─── Interactive Model Picker Pill (Direct Composer Selector) ──────────── */
+
+export interface TenshiModelPickerPillProps {
+  model: TenshiModelId;
+  onSelectModel: (model: TenshiModelId) => void;
+  compact?: boolean;
+}
+
+export function TenshiModelPickerPill({
+  model,
+  onSelectModel,
+  compact = false,
+}: TenshiModelPickerPillProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [coords, setCoords] = useState<FloatingCoords | null>(null);
+
+  const activeModelMeta =
+    TENSHI_ALLOWED_MODELS.find((m) => m.id === model) || TENSHI_ALLOWED_MODELS[0];
+  const isNonDefaultModel = model !== DEFAULT_TENSHI_MODEL;
+
+  const updatePosition = useCallback(() => {
+    if (!isOpen) {
+      setCoords(null);
+      return;
+    }
+    setCoords(computeUpwardPopoverCoords(triggerRef.current, 304, 380, 'right'));
+  }, [isOpen]);
+
+  useEffect(() => {
+    updatePosition();
+    if (!isOpen) return;
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  // Cierre mutuo cuando otro popover de Tenshi se abre
+  useEffect(() => {
+    const handleOtherPopoverOpen = (e: Event) => {
+      const source = (e as CustomEvent)?.detail?.source;
+      if (source !== 'model-picker') {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+    return () => window.removeEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+  }, []);
+
+  // Cierre al hacer clic fuera o presionar Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (popoverRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setIsOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleToggle = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        announceTenshiPopoverOpen('model-picker');
+      }
+      return next;
+    });
+  };
+
+  const handlePick = (nextModel: TenshiModelId) => {
+    onSelectModel(nextModel);
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={`Cambiar modelo IA de Tenshi (actual: ${model})`}
+        title={`Cambiar modelo IA · Actual: ${model} (${activeModelMeta.badge})`}
+        onClick={handleToggle}
+        className={cn(
+          'inline-flex h-8 min-w-0 shrink-0 items-center gap-1 rounded-xl border px-2 text-[11px] font-bold transition-all duration-200 ease-in-out sm:hover:-rotate-1 sm:hover:scale-[1.03] active:scale-95 cursor-pointer',
+          compact ? 'max-w-[140px]' : 'max-w-[165px] sm:max-w-[195px]',
+          isOpen
+            ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/30'
+            : isNonDefaultModel
+              ? 'border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/25'
+              : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20',
+        )}
+      >
+        <Cpu className="h-3.5 w-3.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+        <span className="truncate">{model}</span>
+        <ChevronDown
+          className={cn(
+            'h-3 w-3 flex-shrink-0 opacity-75 transition-transform duration-200',
+            isOpen && 'rotate-180 opacity-100',
+          )}
+        />
+      </button>
+
+      {isOpen &&
+        coords &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="listbox"
+            aria-label="Seleccionar modelo IA de Tenshi"
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: `${coords.left}px`,
+              ...(coords.bottom !== undefined
+                ? { bottom: `${coords.bottom}px` }
+                : { top: `${coords.top ?? 12}px` }),
+              width: `${coords.width}px`,
+              maxWidth: 'calc(100vw - 24px)',
+              maxHeight: `${coords.maxHeight}px`,
+              zIndex: 2147483646,
+            }}
+            className={cn(
+              'flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-700/80',
+              'bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl shadow-black/20',
+              'animate-in fade-in-0 zoom-in-95 duration-150',
+            )}
+          >
+            {/* Cabecera del selector */}
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/70 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/70 px-3 py-2">
+              <div className="flex items-center gap-1.5">
+                <Cpu className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">
+                  Modelo IA de Tenshi
+                </span>
+              </div>
+              <span className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+                {activeModelMeta.badge}
+              </span>
+            </div>
+
+            {/* Lista de los 4 modelos permitidos */}
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+              {TENSHI_ALLOWED_MODELS.map((m) => {
+                const isSelected = m.id === model;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => handlePick(m.id)}
+                    className={cn(
+                      'flex w-full items-start gap-2 rounded-xl border px-2.5 py-2 text-left transition-all cursor-pointer',
+                      isSelected
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 shadow-2xs'
+                        : 'border-transparent text-slate-700 dark:text-zinc-200 hover:border-slate-200/80 dark:hover:border-zinc-700/80 hover:bg-slate-100/80 dark:hover:bg-zinc-800/80',
+                    )}
+                  >
+                    <Check
+                      className={cn(
+                        'mt-0.5 h-3.5 w-3.5 flex-shrink-0',
+                        isSelected
+                          ? 'text-emerald-600 dark:text-emerald-400 opacity-100'
+                          : 'opacity-0',
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="truncate text-xs font-bold">{m.label}</span>
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold',
+                            isSelected
+                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400',
+                          )}
+                        >
+                          {m.badge}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] leading-snug text-slate-500 dark:text-zinc-400">
+                        {m.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {isNonDefaultModel && (
+              <div className="shrink-0 border-t border-slate-200/70 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => handlePick(DEFAULT_TENSHI_MODEL)}
+                  className="text-[11px] font-bold text-teal-600 dark:text-teal-400 underline-offset-2 hover:underline cursor-pointer"
+                >
+                  Restablecer a {DEFAULT_TENSHI_MODEL}
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
 }
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
@@ -849,6 +1092,19 @@ export default function TenshiSessionControls({
       window.removeEventListener('scroll', updatePosition, true);
     };
   }, [openMenu, updatePosition]);
+
+  // Cierre mutuo cuando otro popover de Tenshi (model-picker / conversation-switcher) se abre
+  useEffect(() => {
+    const handleOtherPopoverOpen = (e: Event) => {
+      const source = (e as CustomEvent)?.detail?.source;
+      if (source !== 'session-controls') {
+        setOpenMenu('none');
+        setIsModelDropdownOpen(false);
+      }
+    };
+    window.addEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+    return () => window.removeEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+  }, []);
 
   // Click outside & Escape handling
   useEffect(() => {
@@ -1667,7 +1923,13 @@ export default function TenshiSessionControls({
           title={`Modelo: ${prefs.model} · ${prefs.enabledTools.length} herramienta(s) activa(s)`}
           onClick={() => {
             setIsModelDropdownOpen(false);
-            setOpenMenu((prev) => (prev === 'tools' ? 'none' : 'tools'));
+            setOpenMenu((prev) => {
+              const next = prev === 'tools' ? 'none' : 'tools';
+              if (next !== 'none') {
+                announceTenshiPopoverOpen('session-controls');
+              }
+              return next;
+            });
           }}
           className={cn(
             'relative inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border px-2 text-xs font-bold transition-all duration-200 ease-in-out sm:hover:-rotate-2 sm:hover:scale-105 active:scale-95 cursor-pointer',
@@ -1699,6 +1961,7 @@ export default function TenshiSessionControls({
             if (openMenu === 'connectors' && connectorsTab === 'connectors') {
               setOpenMenu('none');
             } else {
+              announceTenshiPopoverOpen('session-controls');
               setConnectorsTab('connectors');
               setOpenMenu('connectors');
               fetchAntigravityStatus();
@@ -1734,6 +1997,7 @@ export default function TenshiSessionControls({
               if (openMenu === 'connectors' && connectorsTab === 'notebooks') {
                 setOpenMenu('none');
               } else {
+                announceTenshiPopoverOpen('session-controls');
                 setConnectorsTab('notebooks');
                 setOpenMenu('connectors');
                 if (availableNotebooks.length === 0 && !isLoadingNotebooks) {

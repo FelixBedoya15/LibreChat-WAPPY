@@ -16,6 +16,7 @@ import {
 import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import { cn } from '~/utils';
 import { safeGetItem, safeSetItem } from '~/utils/safeStorage';
+import { TENSHI_POPOVER_EVENT, announceTenshiPopoverOpen } from './TenshiSessionControls';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -495,6 +496,18 @@ export default function TenshiConversationSwitcher({
     }
   }, [editingId]);
 
+  // Cierre mutuo cuando otro popover de Tenshi se abre
+  useEffect(() => {
+    const handleOtherPopoverOpen = (e: Event) => {
+      const source = (e as CustomEvent)?.detail?.source;
+      if (source !== 'conversation-switcher') {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+    return () => window.removeEventListener(TENSHI_POPOVER_EVENT, handleOtherPopoverOpen);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       setEditingId(null);
@@ -823,7 +836,15 @@ export default function TenshiConversationSwitcher({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           title={`Chat activo: ${displayTitle}`}
-          onClick={() => setIsOpen((v) => !v)}
+          onClick={() => {
+            setIsOpen((prev) => {
+              const next = !prev;
+              if (next) {
+                announceTenshiPopoverOpen('conversation-switcher');
+              }
+              return next;
+            });
+          }}
           className={cn(
             'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-all active:scale-95 cursor-pointer',
             fullWidthOnMobile ? 'flex-1 sm:flex-initial' : '',
