@@ -1654,13 +1654,14 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <div className="flex items-start gap-4 min-w-0">
+        <div className="relative z-10 flex flex-col gap-4">
+          {/* NIVEL 1: Identidad + Descripción a ancho completo */}
+          <div className="flex items-start gap-4 min-w-0 w-full">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 shadow-lg shadow-teal-500/10">
               <Compass className="h-7 w-7" />
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent">
                   Contexto y Partes Interesadas (DOFA / Stakeholders)
@@ -1675,150 +1676,159 @@ export const ContextoPartesInteresadasWorkspace: React.FC = () => {
                 </span>
               </div>
 
-              <p className="text-xs text-text-secondary max-w-3xl leading-relaxed">
+              <p className="text-xs text-text-secondary w-full leading-relaxed">
                 Comprensión sistemática del contexto interno/externo (PESTEL/DOFA), necesidades vinculantes de grupos de interés y articulación directa con Riesgos y Oportunidades SST (Cl. 6.1) y el Centro de Control ACPM.
               </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${dofaList.length} Factores DOFA Registrados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
-                >
-                  <Layers className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {dofaList.length} Factores DOFA
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  title={`${stakeholders.length} Partes Interesadas Identificadas`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
-                >
-                  <Users className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {stakeholders.length} Partes Interesadas
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  title={`${totalStrategies} Cruces Estratégicos (FO, DO, FA, DA)`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
-                >
-                  <Workflow className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {totalStrategies} Cruces Estratégicos
-                    </span>
-                  </div>
-                </div>
-
-                <SGSSTLegalBadge
-                  standardCode="4.1"
-                  label="ISO 45001 Num. 4.1 / 4.2 · Res. 0312 Est. 2.1.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Cláusulas 4.1 y 4.2 (Contexto de la Organización y Partes Interesadas) · Res. 0312/2019 Est. 2.1.1 y Dec. 1072/15 Art. 2.2.4.6.8"
-                  moduleName="Contexto y Partes Interesadas"
-                />
-              </div>
             </div>
           </div>
 
-          {/* BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Grupo 9 (blue): Alimentar desde Ecosistema 360° SST */}
-            <ExpandableButton
-              onClick={handleSyncEcosystem}
-              disabled={isSyncingEcosystem}
-              variant="blue"
-              icon={
-                isSyncingEcosystem ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Database className="h-4 w-4" />
-                )
-              }
-              label={
-                isSyncingEcosystem
-                  ? 'Sincronizando 360°...'
-                  : 'Alimentar desde Ecosistema 360° SST'
-              }
-              title="Alimentar Contexto DOFA, Stakeholders y Estrategias desde Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad Cargo-Persona (FIT), 0312, GTC-45, PESV, SGA, OWAS y ATEL"
-            />
+          {/* NIVEL 2: BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM (Riel dedicado anti-salto) */}
+          <div
+            data-sgsst-toolbar-rail
+            className="w-full border-t border-teal-500/15 pt-3.5"
+          >
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]">
+              {/* Grupo 9 (blue): Alimentar desde Ecosistema 360° SST */}
+              <ExpandableButton
+                onClick={handleSyncEcosystem}
+                disabled={isSyncingEcosystem}
+                variant="blue"
+                icon={
+                  isSyncingEcosystem ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Database className="h-4 w-4" />
+                  )
+                }
+                label={
+                  isSyncingEcosystem
+                    ? 'Sincronizando 360°...'
+                    : 'Alimentar desde Ecosistema 360° SST'
+                }
+                title="Alimentar Contexto DOFA, Stakeholders y Estrategias desde Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad Cargo-Persona (FIT), 0312, GTC-45, PESV, SGA, OWAS y ATEL"
+              />
 
-            {/* Grupo 6 (purple): Generar Matriz con IA */}
-            <ExpandableButton
-              onClick={handleGenerateMatrixAI}
-              disabled={isGeneratingMatrix}
-              variant="purple"
-              icon={
-                isGeneratingMatrix ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )
-              }
-              label={isGeneratingMatrix ? 'Analizando Empresa...' : 'Generar Matriz con IA'}
-              title="Generar Matriz DOFA/PESTEL, Stakeholders y Cruces con IA desde los datos reales de la empresa"
-            />
+              {/* Grupo 6 (purple): Generar Matriz con IA */}
+              <ExpandableButton
+                onClick={handleGenerateMatrixAI}
+                disabled={isGeneratingMatrix}
+                variant="purple"
+                icon={
+                  isGeneratingMatrix ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )
+                }
+                label={isGeneratingMatrix ? 'Analizando Empresa...' : 'Generar Matriz con IA'}
+                title="Generar Matriz DOFA/PESTEL, Stakeholders y Cruces con IA desde los datos reales de la empresa"
+              />
 
-            {/* Grupo 5 (cyan): Derivar a Riesgos y Oportunidades (6.1) */}
-            <ExpandableButton
-              onClick={handleSendToOportunidades}
-              disabled={isSendingOportunidades}
-              variant="cyan"
-              icon={
-                isSendingOportunidades ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )
-              }
-              label="Derivar a Riesgos y Oportunidades (6.1)"
-              title="Sincronizar Fortalezas/Oportunidades y Debilidades/Amenazas hacia Riesgos y Oportunidades SST (Cl. 6.1)"
-            />
+              {/* Grupo 5 (cyan): Derivar a Riesgos y Oportunidades (6.1) */}
+              <ExpandableButton
+                onClick={handleSendToOportunidades}
+                disabled={isSendingOportunidades}
+                variant="cyan"
+                icon={
+                  isSendingOportunidades ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )
+                }
+                label="Derivar a Riesgos y Oportunidades (6.1)"
+                title="Sincronizar Fortalezas/Oportunidades y Debilidades/Amenazas hacia Riesgos y Oportunidades SST (Cl. 6.1)"
+              />
 
-            {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
-            <ExpandableButton
-              onClick={handleLoadDummy}
-              variant="amber"
-              icon={<Bot className="h-4 w-4" />}
-              label="Datos de Prueba (Dummy)"
-              title="Cargar set completo de prueba con DOFA PESTEL, Partes Interesadas y Cruces Estratégicos"
-            />
+              {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
+              <ExpandableButton
+                onClick={handleLoadDummy}
+                variant="amber"
+                icon={<Bot className="h-4 w-4" />}
+                label="Datos de Prueba (Dummy)"
+                title="Cargar set completo de prueba con DOFA PESTEL, Partes Interesadas y Cruces Estratégicos"
+              />
 
-            {/* Grupo 10 (green): Compilar Informe Oficial */}
-            <ExpandableButton
-              onClick={handleCompileReport}
-              disabled={isCompilingReport}
-              variant="green"
-              icon={
-                isCompilingReport ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )
-              }
-              label={isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}
-              title="Compilar informe oficial con encabezado corporativo WAPPY y firmas digitales"
-            />
+              {/* Grupo 10 (green): Compilar Informe Oficial */}
+              <ExpandableButton
+                onClick={handleCompileReport}
+                disabled={isCompilingReport}
+                variant="green"
+                icon={
+                  isCompilingReport ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )
+                }
+                label={isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}
+                title="Compilar informe oficial con encabezado corporativo WAPPY y firmas digitales"
+              />
 
-            {/* Grupo 3 (teal): Guardar Datos */}
-            <ExpandableButton
-              onClick={handleSaveData}
-              disabled={isSavingData}
-              variant="teal"
-              icon={
-                isSavingData ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )
-              }
-              label="Guardar Datos"
-              title="Guardar Matriz DOFA, Partes Interesadas y Cruces Estratégicos en el servidor"
+              {/* Grupo 3 (teal): Guardar Datos */}
+              <ExpandableButton
+                onClick={handleSaveData}
+                disabled={isSavingData}
+                variant="teal"
+                icon={
+                  isSavingData ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )
+                }
+                label="Guardar Datos"
+                title="Guardar Matriz DOFA, Partes Interesadas y Cruces Estratégicos en el servidor"
+              />
+            </div>
+          </div>
+
+          {/* NIVEL 3: INSIGNIAS / CONTADORES / CUMPLIMIENTO LEGAL (Riel dedicado inferior) */}
+          <div
+            data-sgsst-badges-rail
+            className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]"
+          >
+            <div
+              title={`${dofaList.length} Factores DOFA Registrados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
+            >
+              <Layers className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {dofaList.length} Factores DOFA
+                </span>
+              </div>
+            </div>
+
+            <div
+              title={`${stakeholders.length} Partes Interesadas Identificadas`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
+            >
+              <Users className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {stakeholders.length} Partes Interesadas
+                </span>
+              </div>
+            </div>
+
+            <div
+              title={`${totalStrategies} Cruces Estratégicos (FO, DO, FA, DA)`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
+            >
+              <Workflow className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {totalStrategies} Cruces Estratégicos
+                </span>
+              </div>
+            </div>
+
+            <SGSSTLegalBadge
+              standardCode="4.1"
+              label="ISO 45001 Num. 4.1 / 4.2 · Res. 0312 Est. 2.1.1: CUMPLE"
+              tooltip="ISO 45001:2018 Cláusulas 4.1 y 4.2 (Contexto de la Organización y Partes Interesadas) · Res. 0312/2019 Est. 2.1.1 y Dec. 1072/15 Art. 2.2.4.6.8"
+              moduleName="Contexto y Partes Interesadas"
             />
           </div>
         </div>

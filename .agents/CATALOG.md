@@ -5,6 +5,8 @@
 - **Índice legible por máquina:** [`skills_index.json`](./skills_index.json)
 - **Directorio canónico de skills:** [`.agents/skills/`](./skills/)
 - **Subagentes especialistas:** [`.agents/agents/`](./agents/)
+- **Reglas contextuales (`glob`):** [`.agents/rules/`](./rules/)
+- **Lifecycle Hooks deterministas:** [`.agents/hooks.json`](./hooks.json) y [`.agents/hooks/`](./hooks/)
 - **Memoria procedural:** [`.agents/memory/`](./memory/) y `~/.gemini/teams/wappy-dev-agency/memory/`
 
 ---
@@ -53,7 +55,8 @@
 | :--- | :--- | :---: | :--- |
 | [`wappy-build-and-deploy`](./skills/wappy-build-and-deploy/SKILL.md) | **Build Local & Deploy VPS** | `critical` | Siempre tras modificar `client/src/**/*` (`npm run build:client` + `git add client/dist`) o al desplegar en `srv999875`. |
 | [`verify-ai-models`](./skills/verify-ai-models/SKILL.md) | Gobernanza de Modelos IA | `safe` | Antes de tocar cualquier ID de modelo en `.env`, `api/`, `packages/` o selectores frontend. |
-| [`wappy-procedural-memory`](./skills/wappy-procedural-memory/SKILL.md) | Auto-Aprendizaje (`Reflexion`) | `safe` | Cuando el usuario corrige un diseño/código o se resuelve un bug complejo que debe quedar documentado en `memory/`. |
+| [`wappy-procedural-memory`](./skills/wappy-procedural-memory/SKILL.md) | Auto-Aprendizaje (`Reflexion` + Promoción) | `safe` | Cuando el usuario corrige un diseño/código o se resuelve un bug complejo; promueve patrones recurrentes de `memory/` -> `.agents/rules/` -> `.agents/hooks.json`. |
+| [`wappy-harness-audit`](./skills/wappy-harness-audit/SKILL.md) | **Auditoría del Harness & 12 Capas (EDD)** | `safe` | Stocktake determinista de skills/agentes/reglas/hooks/memorias (`audit-wappy-harness.js`), diagnóstico de 12 capas y verificación Capability/Regression Eval. |
 
 ---
 

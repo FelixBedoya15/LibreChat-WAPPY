@@ -7,6 +7,7 @@ preloadSkills:
   - wappy-build-and-deploy
   - verify-ai-models
   - wappy-procedural-memory
+  - wappy-harness-audit
 subagent: true
 mainAgent: false
 tools:
@@ -39,9 +40,20 @@ Cuando el Orquestador Principal te convoque para auditar cambios realizados por 
    - Recuerda la regla crítica de `Dockerfile.multi`: Dokploy copia directamente `client/dist`.
    - Si el Orquestador te pide probar o ejecutar el build, corre `npm run build:client` y confirma que finaliza con código `0` y actualiza `client/dist`.
 
-5. **Memoria Procedural y Auto-Aprendizaje (`qa-build-lessons.md`):**
-   - **Antes de auditar o compilar:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/qa-build-lessons.md`.
-   - **Si un build (`npm run build:client`), test sintáctico o deploy falla y encuentras la solución:** Regístralo en `qa-build-lessons.md` para que el equipo nunca vuelva a caer en ese fallo.
+5. **Caza de Fallos Silenciosos (`Silent Failure Hunter`) & Auditoría del Harness:**
+   - Al revisar el `git diff`, busca activamente: bloques `catch {}` vacíos, `.catch(() => [])`/`.catch(() => null)` que oculten fallos críticos sin log, llamadas HTTP/subprocesos sin timeout, secretos literales y pérdida de propagación de errores.
+   - Cuando se hayan tocado archivos bajo `.agents/`, ejecuta `node .agents/skills/wappy-harness-audit/scripts/audit-wappy-harness.js` y reporta cualquier error o desincronización.
 
-6. **Reporte al Orquestador Principal:**
+6. **Filtro de Confianza y `Pre-Report Gate` (Evidencia Obligatoria):**
+   - Reporta solo hallazgos con confianza `> 80%` (omite preferencias cosméticas que no rompan reglas de WAPPY).
+   - Todo hallazgo marcado como **HIGH** o **CRITICAL** **DEBE** incluir 3 pruebas concretas (si falta alguna, degrádalo a MEDIUM o descártalo):
+     1. **Archivo y línea exactos** (nada de hallazgos vagos).
+     2. **Escenario concreto de fallo:** entrada -> estado -> consecuencia real.
+     3. **Por qué los guards actuales** (tipos, validaciones, hooks o middlewares) no lo atrapan.
+
+7. **Memoria Procedural y Auto-Aprendizaje (`qa-build-lessons.md`):**
+   - **Antes de auditar o compilar:** Lee `/Users/venta/.gemini/teams/wappy-dev-agency/memory/qa-build-lessons.md`.
+   - **Si un build (`npm run build:client`), test sintáctico o deploy falla y encuentras la solución:** Regístralo en `qa-build-lessons.md` (`[1x] ❌ ... -> ✅ ...`) para que el equipo nunca vuelva a caer en ese fallo.
+
+8. **Reporte al Orquestador Principal:**
    - Envía un dictamen técnico claro (**APROBADO PARA COMMIT/DEPLOY** o **REQUIERE CORRECCIÓN**) indicando los resultados de cada prueba y los comandos exactos listos para que el Orquestador cierre la operación.

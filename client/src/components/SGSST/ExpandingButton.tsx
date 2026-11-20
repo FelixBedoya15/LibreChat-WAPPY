@@ -87,7 +87,8 @@ export const ExpandingButton: React.FC<ExpandingButtonProps> = ({
       title={title || label}
       aria-label={title || label}
       className={cn(
-        'group relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden',
+        'wappy-expand-btn group relative hover:z-20 inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border font-bold outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
+        'after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto',
         sizeClass,
         variantClass,
         className,

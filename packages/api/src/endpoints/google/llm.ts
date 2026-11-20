@@ -109,21 +109,22 @@ export function getGoogleConfig(
     web_search,
     thinking = googleSettings.thinking.default,
     thinkingBudget = googleSettings.thinkingBudget.default,
+    thinkingLevel: rawThinkingLevel,
     ...modelOptions
-  } = options.modelOptions || {};
+  } = (options.modelOptions || {}) as Record<string, unknown>;
 
   const llmConfig: GoogleClientOptions | VertexAIClientOptions = removeNullishValues({
     ...(modelOptions || {}),
-    model: modelOptions?.model ?? '',
+    model: (modelOptions?.model as string | undefined) ?? '',
     maxRetries: 2,
-    topP: modelOptions?.topP ?? undefined,
-    topK: modelOptions?.topK ?? undefined,
-    temperature: modelOptions?.temperature ?? undefined,
+    topP: (modelOptions?.topP as number | undefined) ?? undefined,
+    topK: (modelOptions?.topK as number | undefined) ?? undefined,
+    temperature: (modelOptions?.temperature as number | undefined) ?? undefined,
     maxOutputTokens:
       modelOptions?.maxOutputTokens != null
         ? modelOptions.maxOutputTokens === 8192
           ? 65536
-          : modelOptions.maxOutputTokens
+          : (modelOptions.maxOutputTokens as number)
         : googleSettings.maxOutputTokens.default,
   });
 
@@ -153,23 +154,56 @@ export function getGoogleConfig(
     );
   }
 
-  const isGemini4Model = /gemini-4|hydrogen/i.test(String(llmConfig.model || ''));
-  const shouldEnableThinking =
-    !isGemini4Model &&
-    thinking &&
-    thinkingBudget != null &&
-    (thinkingBudget > 0 || thinkingBudget === -1);
+  const normalizedModel = String(llmConfig.model || '')
+    .replace(/^models\//i, '')
+    .trim();
+  const isGemini3Or4Model = /^gemini-[34]|hydrogen/i.test(normalizedModel);
+  const isGemini25Model = /^gemini-2\.5/i.test(normalizedModel);
 
-  if (shouldEnableThinking && provider === Providers.GOOGLE) {
-    (llmConfig as GoogleClientOptions).thinkingConfig = {
-      thinkingBudget: thinking ? thinkingBudget : googleSettings.thinkingBudget.default,
-      includeThoughts: Boolean(thinking),
-    };
-  } else if (shouldEnableThinking && provider === Providers.VERTEXAI) {
-    (llmConfig as VertexAIClientOptions).thinkingBudget = thinking
-      ? thinkingBudget
-      : googleSettings.thinkingBudget.default;
-    (llmConfig as VertexAIClientOptions).includeThoughts = Boolean(thinking);
+  // Strip any inherited thinkingBudget/thinkingLevel keys at root
+  delete (llmConfig as Record<string, unknown>).thinkingBudget;
+  delete (llmConfig as Record<string, unknown>).thinkingLevel;
+
+  if (isGemini3Or4Model) {
+    const nestedLevel =
+      modelOptions?.thinkingConfig && typeof modelOptions.thinkingConfig === 'object'
+        ? (modelOptions.thinkingConfig as Record<string, unknown>).thinkingLevel
+        : undefined;
+    const requestedLevel = rawThinkingLevel ?? nestedLevel;
+    const resolvedThinkingLevel =
+      typeof requestedLevel === 'string' && requestedLevel.trim()
+        ? requestedLevel.trim().toUpperCase()
+        : 'LOW';
+
+    if (provider === Providers.GOOGLE) {
+      (llmConfig as GoogleClientOptions).thinkingConfig = {
+        thinkingLevel: resolvedThinkingLevel,
+        includeThoughts: Boolean(thinking),
+      } as unknown as GoogleClientOptions['thinkingConfig'];
+    } else if (provider === Providers.VERTEXAI) {
+      delete (llmConfig as Record<string, unknown>).thinkingConfig;
+      (llmConfig as VertexAIClientOptions).includeThoughts = Boolean(thinking);
+    }
+  } else if (isGemini25Model) {
+    const budgetNum = typeof thinkingBudget === 'number' ? thinkingBudget : Number(thinkingBudget);
+    const shouldEnableThinking =
+      Boolean(thinking) && !Number.isNaN(budgetNum) && (budgetNum > 0 || budgetNum === -1);
+
+    if (shouldEnableThinking && provider === Providers.GOOGLE) {
+      (llmConfig as GoogleClientOptions).thinkingConfig = {
+        thinkingBudget: thinking ? budgetNum : googleSettings.thinkingBudget.default,
+        includeThoughts: Boolean(thinking),
+      };
+    } else if (shouldEnableThinking && provider === Providers.VERTEXAI) {
+      (llmConfig as VertexAIClientOptions).thinkingBudget = thinking
+        ? budgetNum
+        : googleSettings.thinkingBudget.default;
+      (llmConfig as VertexAIClientOptions).includeThoughts = Boolean(thinking);
+    } else {
+      delete (llmConfig as Record<string, unknown>).thinkingConfig;
+    }
+  } else {
+    delete (llmConfig as Record<string, unknown>).thinkingConfig;
   }
 
   /*

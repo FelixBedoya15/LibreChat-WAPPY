@@ -282,7 +282,7 @@ export const SGSSTLegalBadge: React.FC<SGSSTLegalBadgeProps> = ({
           type="button"
           onClick={handleClick}
           aria-label={`${displayLabel} - ${isCompliant ? 'Cumplido en Diagnóstico' : 'Hacer clic para marcar cumplido'}`}
-          className={`group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 sm:px-3 outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 ${activeStyles} ${className}`}
+          className={`wappy-expand-btn group relative hover:z-20 flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 sm:px-3 outline-none transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto ${activeStyles} ${className}`}
         >
           <div className="relative flex flex-shrink-0 items-center justify-center">
             {isLoading ? (

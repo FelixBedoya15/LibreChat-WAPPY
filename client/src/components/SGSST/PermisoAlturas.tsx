@@ -632,7 +632,7 @@ const PermisoAlturas = () => {
                 exportFileName="Permiso_Alturas"
                 onDummy={handleDummyData}
                 customSections={[
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
                         <ExpandableButton
                             variant="cyan"
                             size="md"

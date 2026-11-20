@@ -217,6 +217,10 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
     // Session model override
     if (ephemeralAgent.model && typeof ephemeralAgent.model === 'string') {
       agent.model = ephemeralAgent.model;
+      if (!agent.model_parameters || typeof agent.model_parameters !== 'object') {
+        agent.model_parameters = {};
+      }
+      agent.model_parameters.model = ephemeralAgent.model;
     }
   }
 

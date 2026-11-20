@@ -2,12 +2,42 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { Newspaper, Shield, Edit, Trash2, Plus, ArrowLeft, Star } from 'lucide-react';
+import { Newspaper, Shield, Edit, Trash2, Plus, ArrowLeft, Star, Lock, ExternalLink } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import ExpandableButton from '~/components/Common/ExpandableButton';
 import BlogPostEditor from './BlogPostEditor';
+import { resolveBlogThumbnail } from './blogThumbnail';
 
-export default function BlogAdminDashboard() {
-    const [posts, setPosts] = useState([]);
+const AdminPostThumbnail = ({ thumbnail, title }: { thumbnail?: string; title?: string }) => {
+    const [imgError, setImgError] = useState(false);
+    const src = resolveBlogThumbnail(thumbnail);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [thumbnail]);
+
+    return (
+        <div className="flex-shrink-0 h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded-lg relative overflow-hidden flex items-center justify-center">
+            {src && !imgError ? (
+                <img
+                    src={src}
+                    alt={title || ''}
+                    className="h-10 w-10 object-cover"
+                    onError={() => setImgError(true)}
+                />
+            ) : (
+                <Newspaper className="h-5 w-5 text-gray-400" />
+            )}
+        </div>
+    );
+};
+
+export default function BlogAdminDashboard({
+    embedded = false,
+}: {
+    embedded?: boolean;
+} = {}) {
+    const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [settingFeatured, setSettingFeatured] = useState<string | null>(null);
     const { showToast } = useToastContext();
@@ -20,12 +50,16 @@ export default function BlogAdminDashboard() {
 
     useEffect(() => {
         if (!isAdmin) {
-            navigate('/academia?tab=blog');
+            if (!embedded) {
+                navigate('/academia?tab=blog');
+            } else {
+                setLoading(false);
+            }
             return;
         }
 
         fetchPosts();
-    }, [isAdmin, navigate]);
+    }, [isAdmin, embedded, navigate]);
 
     const fetchPosts = async () => {
         try {
@@ -71,6 +105,34 @@ export default function BlogAdminDashboard() {
         }
     };
 
+    if (embedded && !isAdmin) {
+        return (
+            <div className="flex h-full w-full items-center justify-center p-6 bg-surface-secondary/30">
+                <div className="w-full max-w-md rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm p-6 sm:p-8 text-center shadow-sm">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                        <Lock className="h-6 w-6" />
+                    </div>
+                    <h2 className="text-base sm:text-lg font-extrabold text-text-primary">
+                        Gestor de Blog SEO
+                    </h2>
+                    <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+                        La administración y publicación de artículos SEO del Blog de WAPPY IA es exclusiva para cuentas con rol de <strong>Administrador</strong>.
+                    </p>
+                    <div className="mt-5 flex justify-center">
+                        <ExpandableButton
+                            type="button"
+                            variant="blue"
+                            size="sm"
+                            icon={<ExternalLink className="h-4 w-4" />}
+                            label="Explorar Blog Público"
+                            onClick={() => navigate('/academia?tab=blog')}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-full min-h-[50vh]">
@@ -83,20 +145,22 @@ export default function BlogAdminDashboard() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-            <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
+            <div className={embedded ? 'flex-none p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700' : 'flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700'}>
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/academia?tab=blog')}
-                            className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
-                            aria-label="Volver a Academia"
-                        >
-                            <ArrowLeft className="w-4 h-4 flex-shrink-0" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-200">
-                                Volver
-                            </span>
-                        </button>
+                    <div className="flex items-center gap-4 min-w-0">
+                        {!embedded && (
+                            <button
+                                onClick={() => navigate('/academia?tab=blog')}
+                                className="group flex items-center h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] px-2.5 sm:px-3 border rounded-xl bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 shadow-xs  rounded-xl transition-all duration-300 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+                                aria-label="Volver a Academia"
+                            >
+                                <ArrowLeft className="w-4 h-4 flex-shrink-0" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-200">
+                                    Volver
+                                </span>
+                            </button>
+                        )}
                         <div className="flex flex-col">
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <Shield className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
@@ -156,13 +220,7 @@ export default function BlogAdminDashboard() {
                                         <tr key={post._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center">
-                                                    <div className="flex-shrink-0 h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded relative overflow-hidden flex items-center justify-center">
-                                                        {post.thumbnail ? (
-                                                            <img src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} alt="" className="h-10 w-10 object-cover" />
-                                                        ) : (
-                                                            <Newspaper className="h-5 w-5 text-gray-400" />
-                                                        )}
-                                                    </div>
+                                                    <AdminPostThumbnail thumbnail={post.thumbnail} title={post.title} />
                                                     <div className="ml-4">
                                                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{post.title || '(Sin título)'}</div>
                                                         <div className="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-1 mt-0.5">

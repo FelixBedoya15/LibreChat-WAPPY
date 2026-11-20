@@ -1,5 +1,70 @@
 require('events').EventEmitter.defaultMaxListeners = 100;
+const path = require('path');
 const { logger } = require('@librechat/data-schemas');
+
+/**
+ * Runtime guard: ensures LangChain / @librechat/agents recognize Gemini 3 & Gemini 4 / Hydrogen
+ * models as multimodal (images/PDFs) without relying on patching node_modules.
+ */
+function ensureGeminiMultimodalRuntimePatch() {
+  if (global.__wappyGeminiMultimodalPatched) {
+    return;
+  }
+  const classesToPatch = [];
+  try {
+    const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
+    if (ChatGoogleGenerativeAI?.prototype) {
+      classesToPatch.push(ChatGoogleGenerativeAI);
+    }
+  } catch (_) {}
+  try {
+    const agentsMain = require.resolve('@librechat/agents');
+    const googleIdxPath = path.join(path.dirname(agentsMain), 'llm', 'google', 'index.cjs');
+    const googleMod = require(googleIdxPath);
+    if (googleMod?.CustomChatGoogleGenerativeAI?.prototype) {
+      classesToPatch.push(googleMod.CustomChatGoogleGenerativeAI);
+    }
+  } catch (_) {
+    try {
+      for (const mod of Object.values(require.cache)) {
+        if (
+          mod?.exports?.CustomChatGoogleGenerativeAI?.prototype &&
+          !classesToPatch.includes(mod.exports.CustomChatGoogleGenerativeAI)
+        ) {
+          classesToPatch.push(mod.exports.CustomChatGoogleGenerativeAI);
+        }
+      }
+    } catch (__) {}
+  }
+
+  for (const Cls of classesToPatch) {
+    try {
+      const proto = Cls.prototype;
+      if (Object.prototype.hasOwnProperty.call(proto, '__wappyMultimodalPatched')) {
+        continue;
+      }
+      const desc = Object.getOwnPropertyDescriptor(proto, '_isMultimodalModel');
+      const origGetter = desc?.get;
+      Object.defineProperty(proto, '_isMultimodalModel', {
+        configurable: true,
+        enumerable: false,
+        get() {
+          const cleanModel = String(this.model || '').replace(/^models\//i, '').trim();
+          if (/^gemini-[34]|hydrogen/i.test(cleanModel)) {
+            return true;
+          }
+          if (typeof origGetter === 'function') {
+            return origGetter.call(this);
+          }
+          return cleanModel.includes('vision') || /^gemini-[2-9]|hydrogen/i.test(cleanModel);
+        },
+      });
+      proto.__wappyMultimodalPatched = true;
+    } catch (_) {}
+  }
+  global.__wappyGeminiMultimodalPatched = true;
+}
+ensureGeminiMultimodalRuntimePatch();
 const { DynamicStructuredTool } = require('@langchain/core/tools');
 const { getBufferString, HumanMessage } = require('@langchain/core/messages');
 const {
@@ -1957,7 +2022,8 @@ ${availablePreview}
       const isCanvasTask = !isDedicatedPanelTask && !isTroubleshootingComplaint && hasCanvasTrigger && (!isPureExplanation || hasCreationIntent);
 
       const isComplexTask = isMatrixOrDocTask;
-      const userExplicitModel = this.options.req?.body?.model;
+      const userExplicitModel =
+        this.options.req?.body?.ephemeralAgent?.model || this.options.req?.body?.model;
       let primaryAgentModel = this.options.agent?.model_parameters?.model || this.options.agent?.model || '';
       let rawFallbacks = [];
 
@@ -2026,9 +2092,11 @@ ${availablePreview}
           break;
         }
         const currentModel = agentModelFallbacks[mi];
-        const isCurrentGemini4 = /gemini-4|hydrogen/i.test(currentModel);
+        const isCurrentGemini3Or4 = /^gemini-[34]|hydrogen/i.test(
+          String(currentModel || '').replace(/^models\//i, '').trim(),
+        );
         const isModelChanged = this.options.agent.model !== currentModel || this.options.agent.model_parameters?.model !== currentModel;
-        if (isModelChanged || mi > 0 || isCurrentGemini4) {
+        if (isModelChanged || mi > 0 || isCurrentGemini3Or4) {
           if (mi > 0) {
             logger.warn(`[AgentClient] Quota/Overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
           } else if (isModelChanged) {
@@ -2039,18 +2107,35 @@ ${availablePreview}
           }
           this.options.agent.model_parameters.model = currentModel;
           this.options.agent.model_parameters.maxRetries = 0;
-          if (isCurrentGemini4) {
-            delete this.options.agent.model_parameters.thinkingConfig;
+          if (isCurrentGemini3Or4) {
+            const existingIncludeThoughts = Boolean(
+              this.options.agent.model_parameters.thinkingConfig?.includeThoughts ??
+                this.options.agent.model_parameters.thinking,
+            );
+            const existingLevel =
+              this.options.agent.model_parameters.thinkingConfig?.thinkingLevel ||
+              this.options.agent.model_parameters.thinkingLevel;
+            this.options.agent.model_parameters.thinkingConfig = {
+              thinkingLevel:
+                typeof existingLevel === 'string' && existingLevel.trim()
+                  ? existingLevel.trim().toUpperCase()
+                  : 'LOW',
+              includeThoughts: existingIncludeThoughts,
+            };
             delete this.options.agent.model_parameters.thinkingBudget;
+            delete this.options.agent.model_parameters.thinkingLevel;
           }
           this.options.agent.model = currentModel;
           this.model = currentModel;
           if (config?.configurable?.endpointOption?.model_parameters) {
             config.configurable.endpointOption.model_parameters.model = currentModel;
             config.configurable.endpointOption.model_parameters.maxRetries = 0;
-            if (isCurrentGemini4) {
-              delete config.configurable.endpointOption.model_parameters.thinkingConfig;
+            if (isCurrentGemini3Or4) {
+              config.configurable.endpointOption.model_parameters.thinkingConfig = {
+                ...this.options.agent.model_parameters.thinkingConfig,
+              };
               delete config.configurable.endpointOption.model_parameters.thinkingBudget;
+              delete config.configurable.endpointOption.model_parameters.thinkingLevel;
             }
           }
           if (config?.configurable?.endpointOption) {
@@ -2063,9 +2148,12 @@ ${availablePreview}
               if (secondaryAg.model_parameters) {
                 secondaryAg.model_parameters.model = currentModel;
                 secondaryAg.model_parameters.maxRetries = 0;
-                if (isCurrentGemini4) {
-                  delete secondaryAg.model_parameters.thinkingConfig;
+                if (isCurrentGemini3Or4) {
+                  secondaryAg.model_parameters.thinkingConfig = {
+                    ...this.options.agent.model_parameters.thinkingConfig,
+                  };
                   delete secondaryAg.model_parameters.thinkingBudget;
+                  delete secondaryAg.model_parameters.thinkingLevel;
                 }
               }
               secondaryAg.model = currentModel;
@@ -2183,8 +2271,33 @@ ${availablePreview}
               err?.message?.includes('undici');
             const isFunctionCallSequenceError = err?.message?.includes('function call turn comes immediately after a user turn') ||
               err?.message?.includes('function response turn');
+            const errMsgLower = String(err?.message || '').toLowerCase();
+            const isHttp400 =
+              err?.status === 400 ||
+              errMsgLower.includes('400') ||
+              errMsgLower.includes('invalid_argument');
+            const isThinkingOrToolArgError =
+              isHttp400 &&
+              (errMsgLower.includes('thought_signature') ||
+                errMsgLower.includes('thoughtsignature') ||
+                errMsgLower.includes('thinkingbudget') ||
+                errMsgLower.includes('thinking_budget') ||
+                errMsgLower.includes('thinkinglevel') ||
+                errMsgLower.includes('thinking_level') ||
+                errMsgLower.includes('invalid_argument') ||
+                errMsgLower.includes('function_declarations') ||
+                errMsgLower.includes('function call'));
 
-            const isRetryable = isDailyQuotaExceeded || isQuotaEvent || isGenericQuota || isInvalidKey || isNotFound || isServiceUnavailable || isNetworkError || isFunctionCallSequenceError;
+            const isRetryable =
+              isDailyQuotaExceeded ||
+              isQuotaEvent ||
+              isGenericQuota ||
+              isInvalidKey ||
+              isNotFound ||
+              isServiceUnavailable ||
+              isNetworkError ||
+              isFunctionCallSequenceError ||
+              isThinkingOrToolArgError;
 
             const retryDelayMs = extractRetryDelayMs(err);
 
@@ -2196,11 +2309,22 @@ ${availablePreview}
               isDailyLimit: isDailyQuotaExceeded,
             });
 
-            if (isFunctionCallSequenceError) {
-              logger.warn('[AgentClient] Detected function call sequence violation from Google Gemini. Sanitizing payload to remove orphaned tool calls before retry...');
+            if (isFunctionCallSequenceError || isThinkingOrToolArgError) {
+              logger.warn(
+                `[AgentClient] Detected Gemini 400/sequence/thinking error (${isThinkingOrToolArgError ? 'thinking/tool 400' : 'function_call sequence'}) on "${currentModel}". Sanitizing payload and thinkingConfig before retry/rotation...`,
+              );
               payload = sanitizeGeminiPayload(payload);
               if (continuationPayload) {
                 continuationPayload = sanitizeGeminiPayload(continuationPayload);
+              }
+              if (isThinkingOrToolArgError && this.options.agent?.model_parameters) {
+                delete this.options.agent.model_parameters.thinkingBudget;
+                if (errMsgLower.includes('thinkinglevel') || errMsgLower.includes('thinking_level')) {
+                  delete this.options.agent.model_parameters.thinkingConfig;
+                  if (config?.configurable?.endpointOption?.model_parameters) {
+                    delete config.configurable.endpointOption.model_parameters.thinkingConfig;
+                  }
+                }
               }
             }
 
@@ -2312,6 +2436,10 @@ ${availablePreview}
                 : 'Failed to parse stream (stream unparseable/overload)';
               overloadedModelCooldowns.set(currentModel, Date.now() + OVERLOAD_COOLDOWN_MS);
               logger.warn(`[AgentClient] Model "${currentModel}" is experiencing high demand (${reason}). Rotating immediately to next fallback model...`);
+              rotateToNextModel = true;
+              break;
+            } else if (isThinkingOrToolArgError && mi < agentModelFallbacks.length - 1) {
+              logger.warn(`[AgentClient] Model "${currentModel}" returned 400 thinking/tool INVALID_ARGUMENT. Payload sanitized; rotating to next fallback model...`);
               rotateToNextModel = true;
               break;
             } else if (isNotFound && i < prioritizedKeys.length - 1) {

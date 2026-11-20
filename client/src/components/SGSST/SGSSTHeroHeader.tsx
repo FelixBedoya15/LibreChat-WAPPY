@@ -172,13 +172,14 @@ export const SGSSTHeroHeader: React.FC<SGSSTHeroHeaderProps> = ({
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-      <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        <div className="flex items-start gap-4 min-w-0">
+      <div className="relative z-10 flex flex-col gap-4">
+        {/* NIVEL 1: Identidad + Descripción a ancho completo */}
+        <div className="flex items-start gap-4 min-w-0 w-full">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 shadow-lg shadow-teal-500/10">
             {icon}
           </div>
 
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent">
                 {title}
@@ -197,22 +198,41 @@ export const SGSSTHeroHeader: React.FC<SGSSTHeroHeaderProps> = ({
             </div>
 
             {effectiveDescription && (
-              <div className="text-xs text-text-secondary max-w-3xl leading-relaxed">
+              <div className="text-xs text-text-secondary w-full leading-relaxed">
                 {effectiveDescription}
               </div>
             )}
-
-            {badges && <div className="flex flex-wrap items-center gap-2 pt-1">{badges}</div>}
           </div>
         </div>
 
-        {/* BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0 empty:hidden">
-          {actions}
-          {!disableToolbarSlot && (
-            <div data-sgsst-hero-toolbar-slot className="contents" />
-          )}
-        </div>
+        {/* NIVEL 2: BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM (Riel dedicado anti-salto) */}
+        {(actions || !disableToolbarSlot) && (
+          <div
+            data-sgsst-toolbar-rail
+            className={cn(
+              'w-full border-t border-teal-500/15 pt-3.5',
+              !actions &&
+                'hidden has-[button]:block has-[a]:block has-[select]:block has-[input]:block',
+            )}
+          >
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin] [&>div]:shrink-0">
+              {actions}
+              {!disableToolbarSlot && (
+                <div data-sgsst-hero-toolbar-slot className="contents [&>div]:shrink-0" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* NIVEL 3: INSIGNIAS / CONTADORES / CUMPLIMIENTO LEGAL (Riel dedicado inferior) */}
+        {badges && (
+          <div
+            data-sgsst-badges-rail
+            className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]"
+          >
+            {badges}
+          </div>
+        )}
       </div>
 
       {children && <div className="relative z-10 mt-5">{children}</div>}

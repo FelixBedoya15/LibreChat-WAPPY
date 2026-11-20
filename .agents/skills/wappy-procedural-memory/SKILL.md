@@ -66,15 +66,20 @@ Siempre que durante una tarea ocurra cualquiera de estos eventos:
 - Un comando, build o render falle y se descubra la causa raíz técnica.
 - Se logre una solución de diseño o animación que el usuario apruebe con entusiasmo.
 
-El subagente (o el Orquestador) **DEBE** abrir el archivo `memory/<especialidad>-lessons.md` correspondiente con `edit_file` y añadir una nueva línea numerada con el formato ultra-compacto de **1 sola línea**:
+El subagente (o el Orquestador) **DEBE** abrir el archivo `memory/<especialidad>-lessons.md` correspondiente con `edit_file` y añadir una nueva línea numerada con el formato ultra-compacto de **1 sola línea** con etiqueta de madurez/recurrencia (`[1x]`, `[2x]`, `[3x+]`):
 ```markdown
-N. **[Categoría Corta]** ❌ <Error o anti-patrón cometido> -> ✅ <Procedimiento exacto o regla definitiva para hacerlo bien a la primera>.
+N. **[Categoría Corta]** `[1x]` ❌ <Error o anti-patrón cometido> -> ✅ <Procedimiento exacto o regla definitiva para hacerlo bien a la primera>.
 ```
+- Si un error ya registrado vuelve a ocurrir o se confirma en otra tarea, **no dupliques la entrada**: sube su contador (`[1x]` ➔ `[2x]` ➔ `[3x+]`).
 
-#### Paso 3: Regla de Compactación y Destilación (Tope Máximo: 50 Reglas)
-Para garantizar que los archivos de memoria nunca se vuelvan lentos ni consuman tokens de más:
-- Cada bitácora tiene un **límite estricto de 50 reglas**.
-- Si al añadir una lección el archivo supera las 50 entradas, el agente debe **fusionar puntos similares** y mover las reglas más permanentes a la `SKILL.md` maestra de esa área (`wappy-ui-design-system`, `protocolo-produccion-videos`, `wappy-sgsst-tools` o `wappy-build-and-deploy`).
+#### Paso 3: Escalera de Promoción y Compactación Automática (Tope Máximo: 50 Reglas)
+Para evitar que las memorias crezcan sin control o que un fallo crítico dependa solo de la memoria del LLM:
+- Cada bitácora tiene un **límite estricto de 50 reglas** (vigilado por `node .agents/skills/wappy-harness-audit/scripts/audit-wappy-harness.js`).
+- **Ruta de promoción por madurez (inspirada en *Instincts*):**
+  1. **`[1x]`–`[2x]` (Lección activa):** permanece en `memory/<especialidad>-lessons.md`.
+  2. **`[3x+]` o regla estructural de dominio:** promover a una regla contextual `.agents/rules/<area>.md` (`trigger: glob`) o a la `SKILL.md` maestra (`wappy-ui-design-system`, `protocolo-produccion-videos`, `wappy-sgsst-tools`, `wappy-google-connectors` o `wappy-build-and-deploy`) y compactar la bitácora.
+  3. **Invariante determinista crítica** (ej. olvidar `client/dist`, romper `inputAudioTranscription: {}`, inyectar modelos ausentes de `.env` o errores `node --check`): promover a un guardrail ejecutable en `.agents/hooks.json` para que se bloquee automáticamente en tiempo real.
+- Si el auditor detecta archivos legacy/duplicados fuera de las 6 bitácoras oficiales, fusionar únicamente las reglas aún vigentes y archivar/retirar duplicados.
 
 ---
 

@@ -37,6 +37,7 @@ interface LiveEditorPanelProps {
   title?: string;
   emptyStateTitle?: string;
   emptyStateMessage?: React.ReactNode;
+  embeddedInTenshi?: boolean;
 }
 
 const POLL_INTERVAL_MS = 2500;
@@ -273,7 +274,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   conversationId, 
   title = 'Editor Live',
   emptyStateTitle = 'Sin documento activo',
-  emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.'
+  emptyStateMessage = 'Empieza a redactar o pídele a Wappy que genere un documento para verlo aquí.',
+  embeddedInTenshi = false,
 }) => {
   const { token, user } = useAuthContext();
   const userId = user?.id || (user as any)?._id;
@@ -285,7 +287,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
+  const [recoilMaximized, setRecoilMaximized] = useRecoilState(store.ipevarMaximized);
+  const [localMaximized, setLocalMaximized] = useState(false);
+  const isMaximized = embeddedInTenshi ? localMaximized : recoilMaximized;
+  const setIsMaximized = embeddedInTenshi ? setLocalMaximized : setRecoilMaximized;
 
   const [history, setHistory] = useState<any[]>([]);
   const [version, setVersion] = useState<number>(1);
@@ -501,7 +506,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
 
   useEffect(() => {
     const convoIdChanged = prevConvoIdRef.current !== conversationId;
-    const convoObjChanged = prevConvoRef.current !== conversation;
+    const convoObjChanged = !embeddedInTenshi && prevConvoRef.current !== conversation;
 
     if (convoIdChanged || convoObjChanged) {
       const isTransitionFromNewToReal = (prevConvoIdRef.current === 'new' || !prevConvoIdRef.current) && (conversationId && conversationId !== 'new');
@@ -529,7 +534,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
     
     // Fetch document for the new conversation ID immediately after cleanup/checks
     fetchDocument(true);
-  }, [conversationId, conversation, userId, token, fetchDocument]);
+  }, [conversationId, conversation, userId, token, fetchDocument, embeddedInTenshi]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {

@@ -121,7 +121,11 @@ async function main() {
     { title: '¡API KEY FÁCIL! Conecta Google Gemini a WAPPY IA', path: '/images/cursos/curso_gemini_api.jpg' },
     { title: 'EL SECRETO DE WAPPY IA: Datos Organizacionales', path: '/images/cursos/curso_datos_org.jpg' },
     { title: '¿CANSADO DE EXCEL? Deja que la Inteligencia Artificial de WAPPY cree tu Matriz IPEVAR', path: '/images/cursos/curso_matriz_ipevar.jpg' },
-    { title: '¡RIT Actualizado con IA! ✅ Diseño Rápido y Legal 2026', path: '/images/cursos/curso_rit.jpg' }
+    { title: '¡RIT Actualizado con IA! ✅ Diseño Rápido y Legal 2026', path: '/images/cursos/curso_rit.jpg' },
+    { title: 'WAPPY IA SE ACTUALIZA', path: '/images/cursos/curso_wappy_actualiza.png' },
+    { title: 'Maestría en Wappy: Automatización y Ventas Estratégicas', path: '/images/cursos/curso_maestria_wappy_ventas.jpg' },
+    { title: 'Perfil del Cargo', path: '/images/cursos/curso_perfil_del_cargo.jpg' },
+    { title: 'Investigación de Accidentes Laborales con WAPPY IA', path: '/images/cursos/curso_investigacion_accidentes.jpg' }
   ];
 
   for (const mapping of courseMappings) {
@@ -135,6 +139,22 @@ async function main() {
 
   // Mapeos de Blog Posts a sus nuevas rutas públicas
   const blogMappings = [
+    { title: '2027: El año en que Colombia rediseñará la Seguridad y Salud en el Trabajo', path: '/images/blog/blog_agenda_regulatoria_sst_2027.jpg' },
+    { title: 'Lo más bestial de la IA está por venir', path: '/images/blog/blog_lo_mas_bestial_ia.png' },
+    { title: ' El costoso error de gobernar AI en empresas', path: '/images/blog/blog_error_gobernar_ai.png' },
+    { title: 'La IA no tiene licencia: Por qué el futuro de la Seguridad y Salud en el Trabajo no está en los documentos, sino en la gestión inteligente', path: '/images/blog/blog_ia_no_tiene_licencia.jpg' },
+    { title: 'IA o Extinción Profesional: Lo que la VP de Google le advierte a los prevencionistas que aún no se han pellizcado', path: '/images/blog/blog_ia_o_extincion_profesional.jpg' },
+    { title: 'El Guardián de la Mente Operativa: Homenaje al Dr. Efraín Butrón Palacio y la Revolución de la Neuroseguridad', path: '/images/blog/blog_neuroseguridad_efrain_butron.jpg' },
+    { title: 'GPT-6 Astra: El amanecer de la AGI y el fin de los ordenadores tal como los conocemos', path: '/images/blog/blog_gpt6_astra_agi.jpg' },
+    { title: 'El ChatGPT que conocías ha muerto: 5 verdades sobre la nueva "Era Agéntica" (y cómo WAPPY IA está liderando el cambio)', path: '/images/blog/blog_era_agentica_wappy.jpg' },
+    { title: 'Resiliencia en Acción: Lo que el Piloto "Juntos por Colombia" en Caldas nos enseña sobre levantarse tras el sismo', path: '/images/blog/blog_resiliencia_caldas_sismo.jpg' },
+    { title: '¿Limpieza jurídica o retroceso social? 5 claves para entender la anulación de las circulares laborales en Colombia', path: '/images/blog/blog_anulacion_circulares_laborales.jpg' },
+    { title: 'La cuenta regresiva del 25 de junio: Lo que tu empresa (realmente) debe cambiar para no quedar fuera de la ley', path: '/images/blog/blog_cuenta_regresiva_25_junio.jpg' },
+    { title: 'Gestión del Retorno Laboral Post-Sismo: Guía Práctica para el Profesional SST', path: '/images/blog/blog_retorno_laboral_post_sismo.jpg' },
+    { title: 'Más allá del sismo: 5 derechos laborales sorprendentes que todo colombiano debe conocer en tiempos de crisis', path: '/images/blog/blog_derechos_laborales_sismo.jpg' },
+    { title: 'Más allá de la oficina: 6 cambios radicales del nuevo Decreto 1040 sobre acoso y violencia laboral en Colombia', path: '/images/blog/blog_decreto_1040_acoso_laboral.jpg' },
+    { title: 'La IA Te Está Reemplazando', path: '/images/blog/blog_ia_te_esta_reemplazando.jpg' },
+    { title: '50% Mano de Obra Local: El Cambio de Reglas que Debes Conocer sobre la Inversión en Colombia', path: '/images/blog/blog_50_mano_obra_local.jpg' },
     { title: 'Circular Externa 20261300000087 de 2026 Ministerio de Transporte', path: '/images/blog/blog_circular_transporte.jpg' },
     { title: 'Circular 0027 de 2026 - Autoevaluación de Estándares Mínimos del SG-SST', path: '/images/blog/blog_circular_0027.png' },
     { title: 'Circular 0048 de 2026 - Debido Proceso Disciplinario en Empresas Privadas', path: '/images/blog/blog_circular_0048.png' },

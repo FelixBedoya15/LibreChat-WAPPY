@@ -361,8 +361,27 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
       mergedGenConfig.responseMimeType = safeOpts.responseMimeType;
     }
 
-    if (/gemini-4|hydrogen/i.test(targetModel) && mergedGenConfig.thinkingConfig) {
-      delete mergedGenConfig.thinkingConfig;
+    const normalizedTargetModel = String(targetModel || '')
+      .replace(/^models\//i, '')
+      .trim();
+    if (/^gemini-[34]|hydrogen/i.test(normalizedTargetModel)) {
+      const existingThinkingCfg =
+        mergedGenConfig.thinkingConfig && typeof mergedGenConfig.thinkingConfig === 'object'
+          ? { ...mergedGenConfig.thinkingConfig }
+          : {};
+      delete existingThinkingCfg.thinkingBudget;
+      delete mergedGenConfig.thinkingBudget;
+      const callerThinkingLevel =
+        safeOpts.thinkingLevel ||
+        safeOpts.generationConfig?.thinkingConfig?.thinkingLevel ||
+        existingThinkingCfg.thinkingLevel;
+      mergedGenConfig.thinkingConfig = {
+        ...existingThinkingCfg,
+        thinkingLevel:
+          typeof callerThinkingLevel === 'string' && callerThinkingLevel.trim()
+            ? callerThinkingLevel.trim().toUpperCase()
+            : 'LOW',
+      };
     }
 
     const modelParams = { model: targetModel, generationConfig: mergedGenConfig };

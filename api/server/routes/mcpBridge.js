@@ -92,6 +92,7 @@ const EstudioPuestoTrabajo = mongoose.models.EstudioPuestoTrabajo || require('~/
 const MarketplaceProduct = mongoose.models.MarketplaceProduct || require('~/models/MarketplaceProduct');
 const MarketplaceOrder = mongoose.models.MarketplaceOrder || require('~/models/MarketplaceOrder');
 const BlogPost = mongoose.models.BlogPost || require('~/models/BlogPost').BlogPost;
+const { formatBlogEditorialHtml, extractBlogSummary } = require('~/server/utils/blogEditorialFormatter');
 const Event = mongoose.models.Event || require('~/models/Event').Event;
 const Partner = mongoose.models.Partner || require('~/models/Partner');
 const PartnerCommission = mongoose.models.PartnerCommission || require('~/models/PartnerCommission');
@@ -6518,6 +6519,7 @@ router.get('/blog', requireApiKeyOrJwt, async (req, res) => {
         id: p._id.toString(),
         title: p.title,
         description: p.description || '',
+        thumbnail: p.thumbnail || '',
         tags: p.tags || [],
         isPublished: !!p.isPublished,
         isFeatured: !!p.isFeatured,
@@ -6573,17 +6575,29 @@ router.get('/blog/:id', requireApiKeyOrJwt, async (req, res) => {
 router.post('/blog', requireApiKeyOrJwt, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, description, content, tags, isPublished, isFeatured } = req.body;
+    const { title, description, content, thumbnail, tags, isPublished, isFeatured } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'title y content son obligatorios.' });
     }
 
+    const cleanTitle = String(title).trim();
+    const safeTags = Array.isArray(tags) ? tags : [];
+    const formattedContent = formatBlogEditorialHtml(String(content).trim(), {
+      title: cleanTitle,
+      tags: safeTags,
+    });
+    const resolvedDescription =
+      typeof description === 'string' && description.trim()
+        ? description.trim()
+        : extractBlogSummary(formattedContent);
+
     const post = new BlogPost({
-      title: title.trim(),
-      description: description || '',
-      content: content.trim(),
-      tags: Array.isArray(tags) ? tags : [],
+      title: cleanTitle,
+      description: resolvedDescription,
+      content: formattedContent,
+      thumbnail: typeof thumbnail === 'string' ? thumbnail.trim() : (thumbnail || ''),
+      tags: safeTags,
       isPublished: isPublished !== undefined ? !!isPublished : true,
       isFeatured: !!isFeatured,
       author: userId,
@@ -6593,7 +6607,7 @@ router.post('/blog', requireApiKeyOrJwt, async (req, res) => {
 
     return res.status(201).json({
       exito: true,
-      mensaje: `Artículo de blog "${title}" publicado con éxito.`,
+      mensaje: `Artículo de blog "${cleanTitle}" publicado con éxito.`,
       id: post._id.toString(),
       articulo: post,
     });
@@ -6606,11 +6620,39 @@ router.post('/blog', requireApiKeyOrJwt, async (req, res) => {
 router.put('/blog/:id', requireApiKeyOrJwt, async (req, res) => {
   try {
     const targetId = req.params.id;
-    const updates = req.body || {};
+    const rawUpdates = req.body || {};
 
     const post = await BlogPost.findById(targetId);
     if (!post) {
       return res.status(404).json({ error: 'Artículo de blog no encontrado.' });
+    }
+
+    const updates = { ...rawUpdates };
+    delete updates._id;
+    delete updates.author;
+    const forceRestyle = Boolean(updates.forceRestyle);
+    delete updates.forceRestyle;
+
+    const effectiveTitle = updates.title !== undefined ? String(updates.title).trim() : post.title;
+    const effectiveTags = Array.isArray(updates.tags) ? updates.tags : (post.tags || []);
+
+    if (updates.title !== undefined) {
+      updates.title = effectiveTitle;
+    }
+    if (updates.content !== undefined && typeof updates.content === 'string') {
+      updates.content = formatBlogEditorialHtml(updates.content.trim(), {
+        title: effectiveTitle || '',
+        tags: effectiveTags,
+        forceRestyle,
+      });
+    }
+    if (updates.description !== undefined) {
+      updates.description =
+        typeof updates.description === 'string' && updates.description.trim()
+          ? updates.description.trim()
+          : extractBlogSummary(updates.content !== undefined ? updates.content : post.content || '');
+    } else if (updates.content !== undefined && (!post.description || !String(post.description).trim())) {
+      updates.description = extractBlogSummary(updates.content);
     }
 
     Object.assign(post, updates);

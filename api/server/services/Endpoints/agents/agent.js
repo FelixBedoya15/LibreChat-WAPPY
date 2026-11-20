@@ -105,11 +105,27 @@ IMPORTANTE:
   }
   let currentFiles;
 
+  const ephemeralModelOverride =
+    isInitialAgent === true &&
+    typeof req?.body?.ephemeralAgent?.model === 'string' &&
+    req.body.ephemeralAgent.model.trim()
+      ? req.body.ephemeralAgent.model.trim()
+      : null;
+
+  if (ephemeralModelOverride) {
+    agent.model = ephemeralModelOverride;
+    if (!agent.model_parameters || typeof agent.model_parameters !== 'object') {
+      agent.model_parameters = {};
+    }
+    agent.model_parameters.model = ephemeralModelOverride;
+  }
+
   const _modelOptions = structuredClone(
     Object.assign(
       { model: agent.model },
       agent.model_parameters ?? { model: agent.model },
       isInitialAgent === true ? endpointOption?.model_parameters : {},
+      ephemeralModelOverride ? { model: ephemeralModelOverride } : {},
     ),
   );
 

@@ -1320,13 +1320,14 @@ export const OportunidadesWorkspace: React.FC = () => {
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <div className="flex items-start gap-4 min-w-0">
+        <div className="relative z-10 flex flex-col gap-4">
+          {/* NIVEL 1: Identidad + Descripción a ancho completo */}
+          <div className="flex items-start gap-4 min-w-0 w-full">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 shadow-lg shadow-teal-500/10">
               <Sparkles className="h-7 w-7" />
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent">
                   Riesgos del Sistema y Oportunidades de SST
@@ -1341,118 +1342,127 @@ export const OportunidadesWorkspace: React.FC = () => {
                 </span>
               </div>
 
-              <p className="text-xs text-text-secondary max-w-3xl leading-relaxed">
+              <p className="text-xs text-text-secondary w-full leading-relaxed">
                 Planificación estratégica de oportunidades de mejora en seguridad, ergonomía e innovación tecnológica (Cl. 6.1.2.3) y tratamiento proactivo de riesgos para el éxito del SG-SST (Cl. 6.1.1).
               </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <div
-                  title={`${oportunidades.length} Oportunidades de Mejora SST`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
-                >
-                  <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {oportunidades.length} Oportunidades SST
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  title={`${riesgosSistema.length} Riesgos Estratégicos Evaluados`}
-                  className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
-                >
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
-                    <span className="text-xs font-bold tracking-wide">
-                      {riesgosSistema.length} Riesgos del SG-SST
-                    </span>
-                  </div>
-                </div>
-
-                <SGSSTLegalBadge
-                  standardCode="oportunidades"
-                  label="ISO 45001 Num. 6.1.1 / 6.1.2.3 · Res. 0312 Est. 2.4.1: CUMPLE"
-                  tooltip="ISO 45001:2018 Cláusulas 6.1.1 y 6.1.2.3 (Evaluación de oportunidades de SST y riesgos del sistema) · Res. 0312/2019 Estándar 2.4.1 y Dec. 1072/15 Art. 2.2.4.6.8"
-                  moduleName="Riesgos del Sistema y Oportunidades SST"
-                />
-              </div>
             </div>
           </div>
 
-          {/* BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Grupo 6 (purple): Generar con IA (Ecosistema SST) */}
-            <ExpandableButton
-              onClick={handleGenerateAI}
-              disabled={isGeneratingAI}
-              variant="purple"
-              icon={
-                isGeneratingAI ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )
-              }
-              label={isGeneratingAI ? 'Generando con IA...' : 'Generar con IA (Ecosistema SST)'}
-              title="Diagnosticar oportunidades e identificar riesgos del sistema con IA a partir de los datos reales de la empresa"
-            />
+          {/* NIVEL 2: BOTONERA PRINCIPAL WAPPY 14-GROUP DESIGN SYSTEM (Riel dedicado anti-salto) */}
+          <div
+            data-sgsst-toolbar-rail
+            className="w-full border-t border-teal-500/15 pt-3.5"
+          >
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]">
+              {/* Grupo 6 (purple): Generar con IA (Ecosistema SST) */}
+              <ExpandableButton
+                onClick={handleGenerateAI}
+                disabled={isGeneratingAI}
+                variant="purple"
+                icon={
+                  isGeneratingAI ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )
+                }
+                label={isGeneratingAI ? 'Generando con IA...' : 'Generar con IA (Ecosistema SST)'}
+                title="Diagnosticar oportunidades e identificar riesgos del sistema con IA a partir de los datos reales de la empresa"
+              />
 
-            {/* Grupo 5 (cyan): Sincronizar desde Contexto DOFA / Ecosistema 360° */}
-            <ExpandableButton
-              onClick={handleSyncFromContexto}
-              disabled={isSyncingContexto}
-              variant="cyan"
-              icon={
-                isSyncingContexto ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )
-              }
-              label="Alimentar desde Contexto 360° SST"
-              title="Importar y derivar factores desde Contexto DOFA (4.1), Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad FIT, Diagnóstico 0312 y Matriz GTC-45"
-            />
+              {/* Grupo 5 (cyan): Sincronizar desde Contexto DOFA / Ecosistema 360° */}
+              <ExpandableButton
+                onClick={handleSyncFromContexto}
+                disabled={isSyncingContexto}
+                variant="cyan"
+                icon={
+                  isSyncingContexto ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )
+                }
+                label="Alimentar desde Contexto 360° SST"
+                title="Importar y derivar factores desde Contexto DOFA (4.1), Auditoría Interna, Alta Dirección, Capacitaciones, Compatibilidad FIT, Diagnóstico 0312 y Matriz GTC-45"
+              />
 
-            {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
-            <ExpandableButton
-              onClick={handleLoadDummy}
-              variant="amber"
-              icon={<Bot className="h-4 w-4" />}
-              label="Datos de Prueba (Dummy)"
-              title="Cargar conjunto completo de oportunidades de innovación y riesgos estratégicos del SG-SST"
-            />
+              {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
+              <ExpandableButton
+                onClick={handleLoadDummy}
+                variant="amber"
+                icon={<Bot className="h-4 w-4" />}
+                label="Datos de Prueba (Dummy)"
+                title="Cargar conjunto completo de oportunidades de innovación y riesgos estratégicos del SG-SST"
+              />
 
-            {/* Grupo 10 (green): Compilar Informe Oficial */}
-            <ExpandableButton
-              onClick={handleCompileReport}
-              disabled={isCompilingReport}
-              variant="green"
-              icon={
-                isCompilingReport ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )
-              }
-              label={isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}
-              title="Compilar informe oficial ISO 45001 Cl. 6.1 con encabezado corporativo y firmas"
-            />
+              {/* Grupo 10 (green): Compilar Informe Oficial */}
+              <ExpandableButton
+                onClick={handleCompileReport}
+                disabled={isCompilingReport}
+                variant="green"
+                icon={
+                  isCompilingReport ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )
+                }
+                label={isCompilingReport ? 'Compilando...' : 'Compilar Informe Oficial'}
+                title="Compilar informe oficial ISO 45001 Cl. 6.1 con encabezado corporativo y firmas"
+              />
 
-            {/* Grupo 3 (teal): Guardar Datos */}
-            <ExpandableButton
-              onClick={handleSaveData}
-              disabled={isSavingData}
-              variant="teal"
-              icon={
-                isSavingData ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )
-              }
-              label="Guardar Datos"
-              title="Guardar oportunidades y riesgos del sistema en MongoDB"
+              {/* Grupo 3 (teal): Guardar Datos */}
+              <ExpandableButton
+                onClick={handleSaveData}
+                disabled={isSavingData}
+                variant="teal"
+                icon={
+                  isSavingData ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )
+                }
+                label="Guardar Datos"
+                title="Guardar oportunidades y riesgos del sistema en MongoDB"
+              />
+            </div>
+          </div>
+
+          {/* NIVEL 3: INSIGNIAS / CONTADORES / CUMPLIMIENTO LEGAL (Riel dedicado inferior) */}
+          <div
+            data-sgsst-badges-rail
+            className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]"
+          >
+            <div
+              title={`${oportunidades.length} Oportunidades de Mejora SST`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
+            >
+              <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {oportunidades.length} Oportunidades SST
+                </span>
+              </div>
+            </div>
+
+            <div
+              title={`${riesgosSistema.length} Riesgos Estratégicos Evaluados`}
+              className="group flex h-9 min-w-[36px] sm:h-10 sm:min-w-[40px] shrink-0 cursor-default items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2.5 shadow-xs transition-all duration-300 sm:hover:scale-105"
+            >
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="hidden max-w-0 items-center overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-2 group-hover:max-w-[240px] group-hover:opacity-100 sm:flex">
+                <span className="text-xs font-bold tracking-wide">
+                  {riesgosSistema.length} Riesgos del SG-SST
+                </span>
+              </div>
+            </div>
+
+            <SGSSTLegalBadge
+              standardCode="oportunidades"
+              label="ISO 45001 Num. 6.1.1 / 6.1.2.3 · Res. 0312 Est. 2.4.1: CUMPLE"
+              tooltip="ISO 45001:2018 Cláusulas 6.1.1 y 6.1.2.3 (Evaluación de oportunidades de SST y riesgos del sistema) · Res. 0312/2019 Estándar 2.4.1 y Dec. 1072/15 Art. 2.2.4.6.8"
+              moduleName="Riesgos del Sistema y Oportunidades SST"
             />
           </div>
         </div>

@@ -48,6 +48,8 @@ import {
   Upload,
   AlertCircle,
   Music,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import * as XLSX from 'xlsx';
@@ -82,6 +84,21 @@ import {
   TenshiGenerativeWidget,
   type TenshiWidgetPayload,
 } from './TenshiGenerativeWidget';
+import TenshiSessionControls, {
+  TenshiModelPickerPill,
+  loadTenshiSessionPrefs,
+  saveTenshiSessionPrefs,
+  type TenshiSessionPrefs,
+} from './TenshiSessionControls';
+import TenshiConversationSwitcher, {
+  useTenshiConversations,
+} from './TenshiConversationSwitcher';
+import TenshiEmbeddedToolHost, {
+  getActivePanelToolsFromEnabled,
+  resolveTenshiPanelToolId,
+  type TenshiHeroTab,
+  type TenshiPanelToolId,
+} from './TenshiToolPanels';
 import {
   loadTasksVision,
   loadClassicPoseScripts,
@@ -1768,12 +1785,18 @@ export default function TenshiChat() {
   }));
 
   const [isHeroChatOpen, setIsHeroChatOpen] = useState(false);
-  const [heroPanelTab, setHeroPanelTab] = useState<'chat' | 'canvas'>('chat');
+  const [heroPanelTab, setHeroPanelTab] = useState<TenshiHeroTab>('chat');
   const [heroCanvasConvoId, setHeroCanvasConvoId] = useState<string | null>(null);
   const [hasOpenedHeroCanvas, setHasOpenedHeroCanvas] = useState(false);
   const [heroCanvasHasContent, setHeroCanvasHasContent] = useState(false);
   const heroLeftPanelRef = useRef<HTMLDivElement | null>(null);
   const heroAmbientGridRef = useRef<HTMLDivElement | null>(null);
+  const heroTabRailRef = useRef<HTMLDivElement | null>(null);
+  const heroTabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [heroTabScrollState, setHeroTabScrollState] = useState<{
+    canScrollLeft: boolean;
+    canScrollRight: boolean;
+  }>({ canScrollLeft: false, canScrollRight: false });
   const turnCompleteRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const blurElementInside = useCallback((container: HTMLElement | null) => {
@@ -2087,6 +2110,239 @@ export default function TenshiChat() {
   );
   const [viewMode, setViewMode] = useState<'live' | 'chat'>('live');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
+  const [activeCompanyId, setActiveCompanyId] = useState<string>(() => {
+    try {
+      return typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Preferencias de sesión de Tenshi (Modelo IA, Herramientas, Conectores y Cuadernos NotebookLM)
+  const prefsUserKey = String(user?.id || user?.email || 'default').trim() || 'default';
+  const loadedPrefsUserKeyRef = useRef<string>(prefsUserKey);
+  const [sessionPrefs, setSessionPrefs] = useState<TenshiSessionPrefs>(() =>
+    loadTenshiSessionPrefs(prefsUserKey),
+  );
+  const sessionPrefsRef = useRef<TenshiSessionPrefs>(sessionPrefs);
+  sessionPrefsRef.current = sessionPrefs;
+
+  useEffect(() => {
+    if (loadedPrefsUserKeyRef.current !== prefsUserKey) {
+      loadedPrefsUserKeyRef.current = prefsUserKey;
+      const loaded = loadTenshiSessionPrefs(prefsUserKey);
+      sessionPrefsRef.current = loaded;
+      setSessionPrefs(loaded);
+    }
+  }, [prefsUserKey]);
+
+  useEffect(() => {
+    if (loadedPrefsUserKeyRef.current === prefsUserKey) {
+      saveTenshiSessionPrefs(sessionPrefs, prefsUserKey);
+    }
+  }, [sessionPrefs, prefsUserKey]);
+
+  // Herramientas con panel activas en el carril de pestañas (a la derecha de Chat y Canvas)
+  const activePanelToolMetas = useMemo(
+    () => getActivePanelToolsFromEnabled(sessionPrefs.enabledTools),
+    [sessionPrefs.enabledTools],
+  );
+  const showHeroCanvasTab =
+    sessionPrefs.enabledTools.includes('canvas') ||
+    heroCanvasHasContent ||
+    Boolean(streamingCanvas?.content) ||
+    heroPanelTab === 'canvas';
+  const totalVisibleHeroTabs = 1 + (showHeroCanvasTab ? 1 : 0) + activePanelToolMetas.length;
+
+  const updateHeroTabScrollIndicators = useCallback(() => {
+    const el = heroTabRailRef.current;
+    if (!el) {
+      setHeroTabScrollState((prev) =>
+        prev.canScrollLeft || prev.canScrollRight
+          ? { canScrollLeft: false, canScrollRight: false }
+          : prev,
+      );
+      return;
+    }
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const canScrollLeft = el.scrollLeft > 4;
+    const canScrollRight = maxScroll - el.scrollLeft > 4;
+    setHeroTabScrollState((prev) =>
+      prev.canScrollLeft === canScrollLeft && prev.canScrollRight === canScrollRight
+        ? prev
+        : { canScrollLeft, canScrollRight },
+    );
+  }, []);
+
+  const scrollHeroTabIntoView = useCallback(
+    (tabId: string) => {
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => {
+        const btn = heroTabButtonRefs.current[tabId];
+        if (btn && typeof btn.scrollIntoView === 'function') {
+          btn.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        }
+        window.setTimeout(updateHeroTabScrollIndicators, 220);
+      });
+    },
+    [updateHeroTabScrollIndicators],
+  );
+
+  const scrollHeroTabRailBy = useCallback(
+    (delta: number) => {
+      const el = heroTabRailRef.current;
+      if (!el) return;
+      el.scrollBy({ left: delta, behavior: 'smooth' });
+      window.setTimeout(updateHeroTabScrollIndicators, 220);
+    },
+    [updateHeroTabScrollIndicators],
+  );
+
+  // Recalcular flechas/fade del carril horizontal cuando cambian pestañas o tamaño del viewport
+  useEffect(() => {
+    if (!isHeroChatOpen && !isMobileHeroMode) return;
+    const rafId = window.requestAnimationFrame(updateHeroTabScrollIndicators);
+    const timerId = window.setTimeout(updateHeroTabScrollIndicators, 180);
+    const el = heroTabRailRef.current;
+    let ro: ResizeObserver | null = null;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => updateHeroTabScrollIndicators());
+      ro.observe(el);
+    }
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timerId);
+      ro?.disconnect();
+    };
+  }, [
+    activePanelToolMetas.length,
+    showHeroCanvasTab,
+    isHeroChatOpen,
+    isMobileHeroMode,
+    heroPanelTab,
+    viewportSize.width,
+    updateHeroTabScrollIndicators,
+  ]);
+
+  // Auto-scroll hacia la pestaña activa al cambiar de tab
+  useEffect(() => {
+    if (isHeroChatOpen) {
+      scrollHeroTabIntoView(heroPanelTab);
+    }
+  }, [heroPanelTab, isHeroChatOpen, scrollHeroTabIntoView]);
+
+  // Si el usuario desactiva en ⚙️ Herramientas el toggle de la pestaña abierta, regresar a Chat
+  useEffect(() => {
+    if (heroPanelTab === 'chat') return;
+    if (heroPanelTab === 'canvas') {
+      if (
+        !sessionPrefs.enabledTools.includes('canvas') &&
+        !heroCanvasHasContent &&
+        !Boolean(streamingCanvas?.content)
+      ) {
+        setHeroPanelTab('chat');
+      }
+      return;
+    }
+    if (!sessionPrefs.enabledTools.includes(heroPanelTab)) {
+      setHeroPanelTab('chat');
+    }
+  }, [heroPanelTab, sessionPrefs.enabledTools, heroCanvasHasContent, streamingCanvas?.content]);
+
+  // Helper único para abrir cualquier herramienta con panel (o Canvas) dentro de Tenshi
+  const openToolTabInTenshi = useCallback(
+    (rawToolName: string): 'canvas' | TenshiPanelToolId | null => {
+      const resolved = resolveTenshiPanelToolId(rawToolName);
+      if (!resolved) return null;
+
+      try {
+        tenshiAudio.playBlip();
+      } catch (_) {}
+
+      setSessionPrefs((prev) => {
+        if (prev.enabledTools.includes(resolved)) return prev;
+        return {
+          ...prev,
+          enabledTools: [...prev.enabledTools, resolved],
+        };
+      });
+
+      if (resolved === 'canvas') {
+        setHasOpenedHeroCanvas(true);
+      }
+
+      if (!isMobileHeroModeRef.current) {
+        hasExitedHeroInMountRef.current = false;
+        if (typeof window !== 'undefined') {
+          safeRemoveItem('tenshi_mobile_hero_minimized', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_hero_exited', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_just_logged_in', window.sessionStorage);
+          safeSetItem('tenshi_mobile_hero_forced', 'true', window.sessionStorage);
+        }
+        setIsMobileHeroMode(true);
+        setIsOpen(false);
+      }
+
+      blurElementInside(heroAmbientGridRef.current);
+      setHeroPanelTab(resolved);
+      setIsHeroChatOpen(true);
+      scrollHeroTabIntoView(resolved);
+
+      return resolved;
+    },
+    [blurElementInside, scrollHeroTabIntoView],
+  );
+
+  const openToolTabInTenshiRef = useRef(openToolTabInTenshi);
+  openToolTabInTenshiRef.current = openToolTabInTenshi;
+
+  const handleToolPanelActivated = useCallback(
+    (toolId: string) => {
+      if (toolId === 'canvas') {
+        setHasOpenedHeroCanvas(true);
+      }
+      scrollHeroTabIntoView(toolId);
+    },
+    [scrollHeroTabIntoView],
+  );
+
+  // Escuchar evento global para abrir una pestaña de herramienta directamente en Tenshi
+  useEffect(() => {
+    const handleOpenPanelEvent = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const rawTool =
+        typeof detail === 'string'
+          ? detail
+          : detail?.toolId || detail?.herramienta || detail?.tool || '';
+      if (rawTool) {
+        openToolTabInTenshiRef.current(String(rawTool));
+      }
+    };
+    window.addEventListener('wappy-open-tenshi-tool-panel', handleOpenPanelEvent);
+    return () => window.removeEventListener('wappy-open-tenshi-tool-panel', handleOpenPanelEvent);
+  }, []);
+
+  // Multi-Chat de Tenshi (crear, cambiar, renombrar y eliminar chats por empresa)
+  const {
+    conversations: tenshiConversations,
+    activeConversationId,
+    activeConversationIdRef,
+    isLoadingConversations: isLoadingTenshiConversations,
+    isMutatingConversations: isMutatingTenshiConversations,
+    setActiveConversationId,
+    refreshConversations: refreshTenshiConversations,
+    createConversation: createTenshiConversation,
+    renameConversation: renameTenshiConversation,
+    deleteConversation: deleteTenshiConversation,
+    syncConversationFromChatResponse,
+  } = useTenshiConversations({
+    token,
+    isAuthenticated,
+    activeCompanyId,
+  });
+  const lastMergedConvoKeyRef = useRef<string>('');
+
   const [messages, setMessages] = useState<TenshiChatMessage[]>([
     {
       role: 'assistant',
@@ -3011,6 +3267,7 @@ export default function TenshiChat() {
   const handleSelectPersonality = useCallback((mode: 'express' | 'consultor' | 'auditor') => {
     tenshiAudio.playBlip();
     setPersonalityMode(mode);
+    setHoveredPersonality(null);
     safeSetItem('wappy_tenshi_personality', mode);
     if (sendPersonalityRef.current) {
       sendPersonalityRef.current(mode);
@@ -3514,7 +3771,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       axios
         .post(
           '/api/tenshi/message',
-          { role: 'assistant', content: summaryText },
+          {
+            role: 'assistant',
+            content: summaryText,
+            conversationId: activeConversationIdRef.current || undefined,
+          },
           { headers: { Authorization: `Bearer ${token}` } },
         )
         .then(() => refetchHistoryRef.current?.())
@@ -4297,6 +4558,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   content: msgContent,
                   htmlReport: res.informeOriginalHtml || undefined,
                   file: fileObj,
+                  conversationId: activeConversationIdRef.current || undefined,
                 })
                 .catch(() => {});
             }
@@ -4304,34 +4566,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const tool = (action.args?.herramienta || '').toLowerCase().trim();
             const params = action.args?.parametros || {};
 
-            if (tool.includes('canvas')) {
-              if (isMobileHeroModeRef.current) {
-                setHasOpenedHeroCanvas(true);
-                setHeroPanelTab('canvas');
-                setIsHeroChatOpen(true);
-              } else {
-                setIsCanvasActive(true);
-              }
-            }
-
-            if (tool.includes('gtc45') || tool.includes('ipevar')) {
-              navigate('/sgsst?hito=hito4&module=peligros');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'peligros' } }));
-            } else if (tool.includes('pesv')) {
-              navigate('/sgsst?hito=hito5&module=vehicles_pesv');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'vehicles_pesv' } }));
-            } else if (tool.includes('quimic') || tool.includes('compatib')) {
-              navigate('/sgsst?hito=hito5&module=chemical_registry');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'chemical_registry' } }));
-            } else if (tool.includes('auto') || tool.includes('cron')) {
-              navigate('/sgsst?hito=hito8&module=predictivo');
-              window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module: 'predictivo' } }));
+            const openedPanel = openToolTabInTenshiRef.current(tool);
+            if (!openedPanel && tool.includes('canvas')) {
+              setIsCanvasActive(true);
             }
 
             window.dispatchEvent(
               new CustomEvent('wappy-herramienta-activada', { detail: { herramienta: tool, parametros: params } })
             );
-            resultMsg = `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
+            resultMsg = openedPanel
+              ? `Herramienta "${tool}" abierta en la pestaña integrada de Tenshi (${openedPanel}).`
+              : `Herramienta de agente "${tool}" activada con éxito en la plataforma.`;
           } else if (action.name === 'wappy_generar_analisis_aplicativo') {
             const rawApp = (action.args?.aplicativo || action.args?.modulo || '').toLowerCase().trim();
             const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawApp, '');
@@ -4391,6 +4636,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   content: msgContent,
                   file: fileObj,
                   htmlReport: format === 'html' ? content : undefined,
+                  conversationId: activeConversationIdRef.current || undefined,
                 })
                 .catch(() => {});
               if (isMobileHeroModeRef.current) {
@@ -4849,6 +5095,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       role: 'assistant',
                       content: voiceEvContent,
                       evidenceFiles: liveEvidences,
+                      conversationId: activeConversationIdRef.current || undefined,
                     })
                     .catch(() => {});
                 }
@@ -5132,6 +5379,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               content: msgContent,
               file: fileObj,
               htmlReport: html,
+              conversationId: activeConversationIdRef.current || undefined,
             })
             .catch(() => {});
           setIsVisionExpanded(false);
@@ -5232,13 +5480,15 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
   sendScreenContextRef.current = sendScreenContext;
 
-  // Sincronizar el contexto visual de la pantalla y el estado Hero Mode con la sesión de voz
+  // Sincronizar el contexto visual de la pantalla, multi-chat Tenshi, cuadernos NotebookLM y estado Hero Mode con la sesión de voz
   useEffect(() => {
     if (isVoiceActive && sendScreenContextRef.current) {
       const effectiveAgentId = conversation?.agent_id || activeConsultationAgentIdRef.current;
       const activeAgent = effectiveAgentId ? agentsRef.current.find(a => a.id === effectiveAgentId) : null;
       sendScreenContextRef.current({
         conversationId: conversation?.conversationId,
+        tenshiConversationId: activeConversationId || undefined,
+        selectedTenshiNotebooks: sessionPrefs.selectedNotebooks,
         agentId: effectiveAgentId,
         agentName: activeAgent?.name || activeConsultationAgentNameRef.current || conversation?.title,
         route: `${location.pathname}${location.search}`,
@@ -5250,6 +5500,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     isVoiceConnected,
     voiceStatus,
     isMobileHeroMode,
+    activeConversationId,
+    sessionPrefs.selectedNotebooks,
     conversation?.conversationId,
     conversation?.agent_id,
     conversation?.title,
@@ -5598,6 +5850,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               role: 'user',
               content: isFisio ? `[FOTO DE INSPECCIÓN ERGONÓMICA]: ${label}` : `[FOTO DE INSPECCIÓN VISUAL SST]: ${label}`,
               image: dataUrl,
+              conversationId: activeConversationIdRef.current || undefined,
             },
             { headers: { Authorization: `Bearer ${token}` } },
           )
@@ -6233,7 +6486,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         top: `${top}px`,
         width: `${chatW}px`,
         height: `${chatH}px`,
-        zIndex: 2147483644,
+        zIndex: isExternalModalOpen ? 50 : 2147483644,
       };
     }
 
@@ -6273,7 +6526,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       top: `${top}px`,
       width: `${chatW}px`,
       height: `${chatH}px`,
-      zIndex: 2147483644,
+      zIndex: isExternalModalOpen ? 50 : 2147483644,
     };
   };
 
@@ -6377,14 +6630,6 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     setIsFullscreen(false);
   }, []);
 
-  const [activeCompanyId, setActiveCompanyId] = useState<string>(() => {
-    try {
-      return typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') || '' : '';
-    } catch {
-      return '';
-    }
-  });
-
   const getTenshiUrlWithCompany = useCallback(
     (baseUrl: string, overrideCompanyId?: string) => {
       const cid =
@@ -6398,6 +6643,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       return `${baseUrl}${sep}companyId=${encodeURIComponent(cid)}`;
     },
     [activeCompanyId],
+  );
+
+  const getTenshiHistoryUrl = useCallback(
+    (baseUrl: string, overrideCompanyId?: string, overrideConversationId?: string | null) => {
+      let url = getTenshiUrlWithCompany(baseUrl, overrideCompanyId);
+      const convId =
+        overrideConversationId !== undefined
+          ? overrideConversationId
+          : activeConversationIdRef.current;
+      if (convId && String(convId).trim()) {
+        const sep = url.includes('?') ? '&' : '?';
+        url = `${url}${sep}conversationId=${encodeURIComponent(String(convId).trim())}`;
+      }
+      return url;
+    },
+    [getTenshiUrlWithCompany, activeConversationIdRef],
   );
 
   const cachedInitialConfig = useMemo(
@@ -6460,12 +6721,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   }, [config, isTenshiConfigPlaceholder, activeCompanyId]);
 
   const { data: historyData, refetch: refetchHistory } = useQuery(
-    ['tenshiHistory', token, activeCompanyId],
+    ['tenshiHistory', token, activeCompanyId, activeConversationId],
     async () => {
-      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      return res.data;
+      const res = await axios.get(
+        getTenshiHistoryUrl('/api/tenshi/history', activeCompanyId, activeConversationId),
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+      return Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.messages)
+          ? res.data.messages
+          : [];
     },
     {
       enabled: isAuthenticated,
@@ -6488,6 +6756,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
         '';
 
+      lastMergedConvoKeyRef.current = '';
       setActiveCompanyId(newCompId);
 
       // 1. Limpiar los mensajes en memoria al saludo inicial de Tenshi y recargar el historial exclusivo de la nueva empresa
@@ -6554,13 +6823,43 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   ]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isHeroChatOpen) {
       refetchHistory();
     }
-  }, [isOpen, refetchHistory]);
+  }, [isOpen, isHeroChatOpen, activeConversationId, refetchHistory]);
 
   useEffect(() => {
     if (historyData) {
+      const currentConvoKey = `${activeCompanyId || ''}::${activeConversationId || ''}`;
+      const switchedConversation = lastMergedConvoKeyRef.current !== currentConvoKey;
+      lastMergedConvoKeyRef.current = currentConvoKey;
+
+      if (switchedConversation) {
+        if (historyData.length > 0) {
+          setMessages(
+            historyData.map((h: any) => {
+              const item = { ...h };
+              const normalizedItemEvidences = normalizeTenshiEvidenceFiles(
+                item.evidenceFiles || item.evidencias,
+              );
+              if (normalizedItemEvidences) {
+                item.evidenceFiles = normalizedItemEvidences;
+              }
+              return item;
+            }),
+          );
+        } else {
+          setMessages([
+            {
+              role: 'assistant',
+              content:
+                '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+            },
+          ]);
+        }
+        return;
+      }
+
       if (historyData.length > 0) {
         setMessages((prev) => {
           const getAttachmentSigNames = (m: any): string => {
@@ -6901,22 +7200,69 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         });
       }
     }
-  }, [historyData]);
+  }, [historyData, activeCompanyId, activeConversationId]);
+
+  const resetMessagesToWelcome = useCallback(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content:
+          '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
+      },
+    ]);
+    setGuiSteps([]);
+    setEditingMessageId(null);
+    setEditingText('');
+  }, []);
+
+  const handleSelectTenshiConversation = useCallback(
+    (conversationId: string) => {
+      if (!conversationId || conversationId === activeConversationIdRef.current) return;
+      tenshiAudio.playBlip();
+      lastMergedConvoKeyRef.current = '';
+      setActiveConversationId(conversationId);
+      resetMessagesToWelcome();
+      queryClient.invalidateQueries(['tenshiHistory', token, activeCompanyId, conversationId]);
+    },
+    [activeConversationIdRef, setActiveConversationId, resetMessagesToWelcome, queryClient, token, activeCompanyId],
+  );
+
+  const handleCreateTenshiConversation = useCallback(async () => {
+    tenshiAudio.playBlip();
+    lastMergedConvoKeyRef.current = '';
+    const created = await createTenshiConversation('Nuevo chat');
+    resetMessagesToWelcome();
+    if (created?.id) {
+      lastMergedConvoKeyRef.current = `${activeCompanyId || ''}::${created.id}`;
+      queryClient.invalidateQueries(['tenshiHistory', token, activeCompanyId, created.id]);
+    }
+  }, [createTenshiConversation, resetMessagesToWelcome, activeCompanyId, queryClient, token]);
+
+  const handleDeleteTenshiConversation = useCallback(
+    async (conversationId: string) => {
+      tenshiAudio.playBlip();
+      const wasActive = conversationId === activeConversationIdRef.current;
+      if (wasActive) {
+        lastMergedConvoKeyRef.current = '';
+      }
+      const { nextActiveId } = await deleteTenshiConversation(conversationId);
+      if (wasActive) {
+        resetMessagesToWelcome();
+        queryClient.invalidateQueries(['tenshiHistory', token, activeCompanyId, nextActiveId]);
+      }
+    },
+    [activeConversationIdRef, deleteTenshiConversation, resetMessagesToWelcome, queryClient, token, activeCompanyId],
+  );
 
   const handleClearHistory = async () => {
     if (!confirm('¿Deseas reiniciar la conversación con Tenshi?')) return;
     try {
-      await axios.delete(getTenshiUrlWithCompany('/api/tenshi/history'), {
+      await axios.delete(getTenshiHistoryUrl('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setMessages([
-        {
-          role: 'assistant',
-          content:
-            '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
-        },
-      ]);
+      resetMessagesToWelcome();
       refetchHistory();
+      refreshTenshiConversations();
     } catch (err) {
       console.error('Error clearing Tenshi history:', err);
     }
@@ -6925,13 +7271,18 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const handleDeleteMessage = async (msgId: string) => {
     if (!confirm('¿Deseas eliminar este mensaje y el resto de la conversación a partir de este punto?')) return;
     try {
-      await axios.delete(getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`), {
+      await axios.delete(getTenshiHistoryUrl(`/api/tenshi/message/${msgId}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
+      const res = await axios.get(getTenshiHistoryUrl('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setMessages(res.data.length > 0 ? res.data : [
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.messages)
+          ? res.data.messages
+          : [];
+      setMessages(list.length > 0 ? list : [
         {
           role: 'assistant',
           content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?',
@@ -6953,18 +7304,27 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         activeCompanyId ||
         undefined;
       await axios.put(
-        getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`),
-        { content: newContent, companyId: currentCid },
+        getTenshiHistoryUrl(`/api/tenshi/message/${msgId}`),
+        {
+          content: newContent,
+          companyId: currentCid,
+          conversationId: activeConversationIdRef.current || undefined,
+        },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       
-      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
+      const res = await axios.get(getTenshiHistoryUrl('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setMessages(res.data);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.messages)
+          ? res.data.messages
+          : [];
+      setMessages(list);
       refetchHistory();
       
-      await runChatTurn(res.data);
+      await runChatTurn(list);
     } catch (err) {
       console.error('Error updating message:', err);
       setIsTyping(false);
@@ -6978,17 +7338,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const handleRegenerate = async (msgId: string) => {
     setIsTyping(true);
     try {
-      await axios.delete(getTenshiUrlWithCompany(`/api/tenshi/message/${msgId}`), {
+      await axios.delete(getTenshiHistoryUrl(`/api/tenshi/message/${msgId}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       
-      const res = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
+      const res = await axios.get(getTenshiHistoryUrl('/api/tenshi/history'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setMessages(res.data);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.messages)
+          ? res.data.messages
+          : [];
+      setMessages(list);
       refetchHistory();
 
-      await runChatTurn(res.data);
+      await runChatTurn(list);
     } catch (err) {
       console.error('Error regenerating response:', err);
       setIsTyping(false);
@@ -7033,6 +7398,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           content: msgContent,
           htmlReport: html,
           file: fileObj,
+          conversationId: activeConversationIdRef.current || undefined,
         })
         .catch(() => {});
       refetchHistoryRef.current?.();
@@ -7556,6 +7922,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         (typeof window !== 'undefined' ? localStorage.getItem('wappy_active_company_id') : '') ||
         activeCompanyId ||
         undefined;
+      const currentSessionPrefs = sessionPrefsRef.current;
+      const currentConversationId = activeConversationIdRef.current || undefined;
 
       const response = await axios.post(
         getTenshiUrlWithCompany('/api/tenshi/chat'),
@@ -7563,6 +7931,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
           messages: sanitizedMessages,
           browserState: domState,
           companyId: currentActiveCompId,
+          conversationId: currentConversationId,
+          model: currentSessionPrefs.model,
+          enabledTools: currentSessionPrefs.enabledTools,
+          connectors: currentSessionPrefs.connectors,
+          selectedNotebooks: currentSessionPrefs.selectedNotebooks,
           tenshiKey: typeof window !== 'undefined' ? localStorage.getItem('librechat_user_key_tenshi_google') || undefined : undefined,
         },
         {
@@ -7573,6 +7946,21 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
       const responseData = response.data;
       console.log('[Tenshi Frontend] Received response:', responseData);
+
+      const returnedConversationId =
+        responseData?.conversationId ||
+        responseData?.conversation?.conversationId ||
+        responseData?.conversation?._id ||
+        responseData?.conversation?.id;
+      const returnedConversationTitle =
+        responseData?.conversationTitle ||
+        responseData?.conversation?.title;
+      if (returnedConversationId || returnedConversationTitle) {
+        if (returnedConversationId && String(returnedConversationId).trim()) {
+          lastMergedConvoKeyRef.current = `${currentActiveCompId || ''}::${String(returnedConversationId).trim()}`;
+        }
+        syncConversationFromChatResponse(returnedConversationId, returnedConversationTitle);
+      }
 
       const isLiveEptGui =
         responseData.guiAction?.name === 'wappy_iniciar_estudio_ergonomico_vivo' ||
@@ -7690,6 +8078,32 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             }
             lastResult = { success: true, message: `Control de videollamada ejecutado: ${acc}` };
             setTenshiStatus('');
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_activar_herramienta_agente' ||
+            action.accion === 'activar_herramienta_agente' ||
+            action.action === 'wappy_activar_herramienta_agente'
+          ) {
+            const rawTool = String(
+              action.args?.herramienta || action.herramienta || action.args?.tool || action.tool || '',
+            ).trim();
+            const params = action.args?.parametros || action.parametros || {};
+            const openedPanel = openToolTabInTenshiRef.current(rawTool);
+            window.dispatchEvent(
+              new CustomEvent('wappy-herramienta-activada', {
+                detail: { herramienta: rawTool, parametros: params },
+              }),
+            );
+            lastResult = {
+              success: true,
+              message: openedPanel
+                ? `Herramienta "${rawTool}" abierta en el panel integrado de Tenshi (${openedPanel}).`
+                : `Herramienta "${rawTool}" activada.`,
+            };
+            setTenshiStatus('');
+            index++;
             continue;
           }
 
@@ -7978,14 +8392,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         rawDetails.toLowerCase().includes('timeout')
       ) {
         try {
-          const histRes = await axios.get(getTenshiUrlWithCompany('/api/tenshi/history'), {
+          const histRes = await axios.get(getTenshiHistoryUrl('/api/tenshi/history'), {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             timeout: 10000,
           });
-          if (Array.isArray(histRes.data) && histRes.data.length > 0) {
-            const lastSaved = histRes.data[histRes.data.length - 1];
+          const histList = Array.isArray(histRes.data)
+            ? histRes.data
+            : Array.isArray(histRes.data?.messages)
+              ? histRes.data.messages
+              : [];
+          if (histList.length > 0) {
+            const lastSaved = histList[histList.length - 1];
             if (lastSaved?.role === 'assistant' && lastSaved?.content) {
-              setMessages(histRes.data);
+              setMessages(histList);
               setIsTyping(false);
               setTenshiStatus('');
               return;
@@ -8092,6 +8511,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
 
     await runChatTurn([...messages, userMsg]);
   };
+
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+
+  const handleSendPromptFromEmbeddedTool = useCallback((prompt: string) => {
+    const clean = (prompt || '').trim();
+    if (!clean) return;
+    setHeroPanelTab('chat');
+    setIsHeroChatOpen(true);
+    void handleSendRef.current(clean);
+  }, []);
 
   const renderDragDropOverlay = () => {
     if (!isDragOverComposer) return null;
@@ -9712,7 +10142,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       blurElementInside(heroAmbientGridRef.current);
                       setHeroPanelTab('chat');
                       setIsHeroChatOpen(true);
-                    } else if (heroPanelTab === 'canvas') {
+                    } else if (heroPanelTab !== 'chat') {
                       setHeroPanelTab('chat');
                     } else {
                       blurElementInside(heroLeftPanelRef.current);
@@ -9744,7 +10174,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                       setIsHeroChatOpen(true);
-                    } else if (heroPanelTab === 'chat') {
+                    } else if (heroPanelTab !== 'canvas') {
                       setHasOpenedHeroCanvas(true);
                       setHeroPanelTab('canvas');
                     } else {
@@ -9901,99 +10331,222 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 )}
               >
               {heroPanelTab === 'chat' && renderDragDropOverlay()}
-              {/* Cabecera del Panel Izquierdo Hero (Selector Chat / Canvas) */}
-              <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/85 dark:bg-zinc-900/85 shrink-0">
-                <div
-                  role="tablist"
-                  aria-label="Vista del panel de Tenshi"
-                  className="inline-flex min-w-0 items-center gap-1 p-1 rounded-2xl bg-white/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs shrink-0"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={heroPanelTab === 'chat'}
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      setHeroPanelTab('chat');
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
-                      heroPanelTab === 'chat'
-                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
-                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+              {/* Cabecera del Panel Izquierdo Hero (Carril Deslizable Chat / Canvas / Herramientas + Multi-Chat Tenshi) */}
+              <div className="flex w-full max-w-full min-w-0 flex-col gap-1.5 px-3 sm:px-4 py-2 border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/85 dark:bg-zinc-900/85 shrink-0">
+                <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2">
+                  {/* Carril horizontal deslizable con flechas ‹ / › y degradado indicador */}
+                  <div className="relative flex min-w-0 flex-1 items-center gap-1">
+                    {heroTabScrollState.canScrollLeft && (
+                      <button
+                        type="button"
+                        onClick={() => scrollHeroTabRailBy(-150)}
+                        aria-label="Desplazar pestañas a la izquierda"
+                        title="Desplazar pestañas a la izquierda"
+                        className="hidden sm:inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-800/95 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                    <span>Chat</span>
-                  </button>
 
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={heroPanelTab === 'canvas'}
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      setHasOpenedHeroCanvas(true);
-                      setHeroPanelTab('canvas');
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
-                      heroPanelTab === 'canvas'
-                        ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
-                        : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200'
+                    <div className="relative min-w-0 flex-1">
+                      <div
+                        ref={heroTabRailRef}
+                        role="tablist"
+                        aria-label="Vista del panel de Tenshi"
+                        onScroll={updateHeroTabScrollIndicators}
+                        className="flex w-full min-w-0 items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth p-1 rounded-2xl bg-white/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 shadow-2xs"
+                      >
+                        <button
+                          ref={(el) => {
+                            heroTabButtonRefs.current.chat = el;
+                          }}
+                          type="button"
+                          role="tab"
+                          aria-selected={heroPanelTab === 'chat'}
+                          onClick={() => {
+                            tenshiAudio.playBlip();
+                            setHeroPanelTab('chat');
+                          }}
+                          className={cn(
+                            'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                            heroPanelTab === 'chat'
+                              ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                              : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                          )}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                          <span>Chat</span>
+                        </button>
+
+                        {showHeroCanvasTab && (
+                          <button
+                            ref={(el) => {
+                              heroTabButtonRefs.current.canvas = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            aria-selected={heroPanelTab === 'canvas'}
+                            onClick={() => {
+                              tenshiAudio.playBlip();
+                              setHasOpenedHeroCanvas(true);
+                              setHeroPanelTab('canvas');
+                            }}
+                            className={cn(
+                              'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                              heroPanelTab === 'canvas'
+                                ? 'bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-300 shadow-2xs'
+                                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                            )}
+                          >
+                            <FileEdit className="w-3.5 h-3.5 shrink-0" />
+                            <span>Canvas</span>
+                            {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse"
+                                title="Documento cargado en Canvas"
+                              />
+                            )}
+                          </button>
+                        )}
+
+                        {activePanelToolMetas.map((toolMeta) => {
+                          const ToolIcon = toolMeta.icon;
+                          const isSelected = heroPanelTab === toolMeta.id;
+                          return (
+                            <button
+                              key={toolMeta.id}
+                              ref={(el) => {
+                                heroTabButtonRefs.current[toolMeta.id] = el;
+                              }}
+                              type="button"
+                              role="tab"
+                              aria-selected={isSelected}
+                              title={toolMeta.fullLabel}
+                              onClick={() => {
+                                tenshiAudio.playBlip();
+                                setHeroPanelTab(toolMeta.id);
+                              }}
+                              className={cn(
+                                'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                                isSelected
+                                  ? toolMeta.activeTabClass
+                                  : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                              )}
+                            >
+                              <ToolIcon
+                                className={cn(
+                                  'w-3.5 h-3.5 shrink-0',
+                                  !isSelected && toolMeta.iconClass,
+                                )}
+                              />
+                              <span>{toolMeta.shortLabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {heroTabScrollState.canScrollRight && (
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-1 right-1 w-8 rounded-r-xl bg-gradient-to-l from-white/95 via-white/75 to-transparent dark:from-zinc-800/95 dark:via-zinc-800/75"
+                        />
+                      )}
+                    </div>
+
+                    {heroTabScrollState.canScrollRight && (
+                      <button
+                        type="button"
+                        onClick={() => scrollHeroTabRailBy(150)}
+                        aria-label="Desplazar pestañas a la derecha"
+                        title="Desplazar pestañas a la derecha"
+                        className="hidden sm:inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-800/95 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                  >
-                    <FileEdit className="w-3.5 h-3.5 shrink-0" />
-                    <span>Canvas</span>
-                    {(Boolean(streamingCanvas?.content) || heroCanvasHasContent) && (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse"
-                        title="Documento cargado en Canvas"
+                  </div>
+
+                  {/* Multi-Chat de Tenshi inline en escritorio cuando solo hay <= 2 pestañas */}
+                  {heroPanelTab === 'chat' && totalVisibleHeroTabs <= 2 && (
+                    <div className="hidden sm:flex min-w-0 max-w-[230px] items-center shrink">
+                      <TenshiConversationSwitcher
+                        conversations={tenshiConversations}
+                        activeConversationId={activeConversationId}
+                        isLoading={isLoadingTenshiConversations}
+                        isMutating={isMutatingTenshiConversations}
+                        fullWidthOnMobile={false}
+                        onSelectConversation={handleSelectTenshiConversation}
+                        onCreateConversation={handleCreateTenshiConversation}
+                        onRenameConversation={renameTenshiConversation}
+                        onDeleteConversation={handleDeleteTenshiConversation}
                       />
-                    )}
-                  </button>
-                </div>
+                    </div>
+                  )}
 
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {heroPanelTab === 'chat' ? (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {heroPanelTab === 'chat' ? (
+                      <ExpandableButton
+                        type="button"
+                        variant="neutral"
+                        size="sm"
+                        icon={<RotateCcw className="h-3.5 w-3.5" />}
+                        label="Reiniciar"
+                        onClick={handleClearHistory}
+                        title="Reiniciar chat"
+                      />
+                    ) : (
+                      heroPanelTab === 'canvas' &&
+                      streamingCanvas?.fileType === 'html' &&
+                      Boolean(streamingCanvas?.content) && (
+                        <ExpandableButton
+                          type="button"
+                          variant="fuchsia"
+                          size="sm"
+                          icon={<ExternalLink className="h-3.5 w-3.5" />}
+                          label="Abrir en pestaña"
+                          onClick={() => openHtmlReport(streamingCanvas.content)}
+                          title="Abrir informe HTML en nueva pestaña"
+                        />
+                      )
+                    )}
                     <ExpandableButton
                       type="button"
                       variant="neutral"
                       size="sm"
-                      icon={<RotateCcw className="h-3.5 w-3.5" />}
-                      label="Reiniciar"
-                      onClick={handleClearHistory}
-                      title="Reiniciar chat"
+                      icon={<X className="h-3.5 w-3.5" />}
+                      label="Cerrar"
+                      onClick={() => {
+                        tenshiAudio.playBlip();
+                        blurElementInside(heroLeftPanelRef.current);
+                        setIsHeroChatOpen(false);
+                        setCanvasMaximized(false);
+                      }}
+                      title={heroPanelTab === 'chat' ? 'Cerrar chat' : 'Cerrar panel'}
                     />
-                  ) : (
-                    streamingCanvas?.fileType === 'html' &&
-                    Boolean(streamingCanvas?.content) && (
-                      <ExpandableButton
-                        type="button"
-                        variant="fuchsia"
-                        size="sm"
-                        icon={<ExternalLink className="h-3.5 w-3.5" />}
-                        label="Abrir en pestaña"
-                        onClick={() => openHtmlReport(streamingCanvas.content)}
-                        title="Abrir informe HTML en nueva pestaña"
-                      />
-                    )
-                  )}
-                  <ExpandableButton
-                    type="button"
-                    variant="neutral"
-                    size="sm"
-                    icon={<X className="h-3.5 w-3.5" />}
-                    label="Cerrar"
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      blurElementInside(heroLeftPanelRef.current);
-                      setIsHeroChatOpen(false);
-                      setCanvasMaximized(false);
-                    }}
-                    title={heroPanelTab === 'canvas' ? 'Cerrar panel' : 'Cerrar chat'}
-                  />
+                  </div>
                 </div>
+
+                {/* Sub-fila ordenada para Multi-Chat en móvil o en escritorio cuando hay >= 3 pestañas */}
+                {heroPanelTab === 'chat' && (
+                  <div
+                    className={cn(
+                      'w-full min-w-0',
+                      totalVisibleHeroTabs <= 2 ? 'sm:hidden' : 'block',
+                    )}
+                  >
+                    <TenshiConversationSwitcher
+                      conversations={tenshiConversations}
+                      activeConversationId={activeConversationId}
+                      isLoading={isLoadingTenshiConversations}
+                      isMutating={isMutatingTenshiConversations}
+                      fullWidthOnMobile={true}
+                      onSelectConversation={handleSelectTenshiConversation}
+                      onCreateConversation={handleCreateTenshiConversation}
+                      onRenameConversation={renameTenshiConversation}
+                      onDeleteConversation={handleDeleteTenshiConversation}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Cuerpo Chat (se mantiene montado para conservar historial, scroll y borrador al alternar pestañas) */}
@@ -10004,29 +10557,36 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 )}
               >
 
-              {/* Selector de Personalidad Adaptativa (1 Clic - Móvil) con Letrero Estilo WAPPY */}
-              <div className="flex flex-col gap-1.5 border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 shrink-0">
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              {/* Selector de Personalidad Adaptativa (1 Clic - Hero/Móvil) con Tooltip Flotante solo en Hover Desktop */}
+              <div
+                onPointerLeave={() => setHoveredPersonality(null)}
+                className="relative z-20 flex shrink-0 flex-col border-b border-slate-200/50 bg-white/85 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/85 select-none"
+              >
+                <div className="flex min-w-0 items-center justify-between gap-1.5">
+                  <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                     Modo:
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                     {([
-                      { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
-                      { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
-                      { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                      { id: 'express', label: '⚡ Express' },
+                      { id: 'consultor', label: '🛡️ Consultor' },
+                      { id: 'auditor', label: '⚖️ Auditor' },
                     ] as const).map((m) => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => handleSelectPersonality(m.id)}
-                        onMouseEnter={() => setHoveredPersonality(m.id)}
-                        onMouseLeave={() => setHoveredPersonality(null)}
+                        onPointerEnter={(e) => {
+                          if (e.pointerType !== 'touch') {
+                            setHoveredPersonality(m.id);
+                          }
+                        }}
+                        onPointerLeave={() => setHoveredPersonality(null)}
                         className={cn(
-                          'px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 border shadow-2xs',
+                          'px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 border shadow-2xs cursor-pointer',
                           personalityMode === m.id
                             ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
-                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700',
                         )}
                       >
                         {m.label}
@@ -10034,15 +10594,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300">
-                  <span>
-                    {(hoveredPersonality || personalityMode) === 'express'
-                      ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
-                      : (hoveredPersonality || personalityMode) === 'auditor'
-                        ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
-                        : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
-                  </span>
-                </div>
+                {hoveredPersonality && (
+                  <div
+                    role="tooltip"
+                    className="hidden md:flex items-center gap-1.5 absolute left-3.5 right-3.5 top-full mt-1.5 z-30 pointer-events-none rounded-xl border border-teal-500/40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold leading-snug text-teal-700 dark:text-teal-300 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+                  >
+                    <span>
+                      {hoveredPersonality === 'express'
+                        ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                        : hoveredPersonality === 'auditor'
+                          ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                          : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Visor de Tenshi Visión y Telemetría Ergonómica en Chat Móvil / Split PC */}
@@ -10602,111 +11167,137 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 {/* Bandeja multi-archivo y avisos en Hero/Split */}
                 {renderPendingAttachmentTray('tenshi-hero-file-input', false)}
 
-                <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/90 px-2.5 py-1.5 shadow-sm">
-                  <input
-                    type="file"
-                    id="tenshi-hero-file-input"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
-                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
-                    className="hidden"
-                    onChange={handleFileAttachment}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('tenshi-hero-file-input')?.click()}
-                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
-                    className={cn(
-                      'relative shrink-0 p-1 rounded-lg transition-colors',
-                      attachedMediaList.length > 0
-                        ? 'text-teal-600 dark:text-teal-400 bg-teal-500/10'
-                        : 'text-slate-400 hover:text-teal-600 dark:hover:text-teal-400',
-                    )}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                    {attachedMediaList.length > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
-                        {attachedMediaList.length}
-                      </span>
-                    )}
-                  </button>
+                <div className="flex w-full max-w-full min-w-0 flex-col gap-1.5 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/90 px-2.5 py-2 shadow-sm transition-all focus-within:border-teal-500/70 focus-within:ring-2 focus-within:ring-teal-500/15">
+                  {/* Fila 1: Campo de texto + Voz / Colgar / Enviar */}
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      placeholder={isVoiceActive ? 'Habla por micrófono o escribe...' : 'Escribe una actividad o consulta...'}
+                      className="min-w-0 flex-1 border-none bg-transparent px-1 text-xs md:text-sm text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
+                      disabled={isTyping}
+                    />
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      if (isVisionActive) {
-                        stopVision();
-                      } else {
-                        startVision('camera');
-                      }
-                    }}
-                    title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
-                    className={cn(
-                      'p-1 rounded-lg transition-colors',
-                      isVisionActive
-                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50'
-                        : 'text-slate-400 hover:text-teal-600 dark:hover:text-teal-400'
-                    )}
-                  >
-                    {isVisionActive ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
-                  </button>
-
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isVoiceActive ? 'Habla por micrófono o escribe...' : 'Escribe una actividad o consulta...'}
-                    className="flex-1 border-none bg-transparent text-xs md:text-sm text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
-                    disabled={isTyping}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      tenshiAudio.playBlip();
-                      if (isVoiceActive) {
-                        stopVoiceMode();
-                      } else {
-                        startVoiceMode();
-                      }
-                    }}
-                    title={isVoiceActive ? 'Pausar modo voz' : 'Hablar con Tenshi'}
-                    className={cn(
-                      'p-1.5 rounded-xl transition-all active:scale-95',
-                      isVoiceActive
-                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 animate-pulse'
-                        : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
-                    )}
-                  >
-                    <Mic className="h-4 w-4" />
-                  </button>
-
-                  {(isVoiceActive || isVisionActive) && (
                     <button
                       type="button"
                       onClick={() => {
                         tenshiAudio.playBlip();
-                        stopVision();
-                        stopVoiceMode();
+                        if (isVoiceActive) {
+                          stopVoiceMode();
+                        } else {
+                          startVoiceMode();
+                        }
                       }}
-                      title="Colgar llamada"
-                      className="p-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all active:scale-95 shadow-2xs"
+                      title={isVoiceActive ? 'Pausar modo voz' : 'Hablar con Tenshi'}
+                      className={cn(
+                        'shrink-0 p-1.5 rounded-xl transition-all active:scale-95 cursor-pointer',
+                        isVoiceActive
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 animate-pulse'
+                          : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
+                      )}
                     >
-                      <PhoneOff className="h-4 w-4" />
+                      <Mic className="h-4 w-4" />
                     </button>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleSend()}
-                    disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
-                    title="Enviar"
-                    className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-1.5 text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500 active:scale-95 disabled:opacity-40"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                  </button>
+                    {(isVoiceActive || isVisionActive) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          tenshiAudio.playBlip();
+                          stopVision();
+                          stopVoiceMode();
+                        }}
+                        title="Colgar llamada"
+                        className="shrink-0 p-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all active:scale-95 shadow-2xs cursor-pointer"
+                      >
+                        <PhoneOff className="h-4 w-4" />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleSend()}
+                      disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
+                      title="Enviar"
+                      className="shrink-0 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-1.5 text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500 active:scale-95 disabled:opacity-40 cursor-pointer"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Fila 2: Barra limpia de herramientas (Adjuntar, Cámara, Modelo/Tools, Conectores Google & Cuadernos) */}
+                  <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-1.5 border-t border-slate-100 dark:border-zinc-700/60 pt-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1">
+                      <input
+                        type="file"
+                        id="tenshi-hero-file-input"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
+                        title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                        className="hidden"
+                        onChange={handleFileAttachment}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('tenshi-hero-file-input')?.click()}
+                        title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                        className={cn(
+                          'relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition-all active:scale-95 cursor-pointer',
+                          attachedMediaList.length > 0
+                            ? 'border-teal-500/40 bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                            : 'border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300',
+                        )}
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {attachedMediaList.length > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-md bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
+                            {attachedMediaList.length}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          tenshiAudio.playBlip();
+                          if (isVisionActive) {
+                            stopVision();
+                          } else {
+                            startVision('camera');
+                          }
+                        }}
+                        title={isVisionActive ? 'Detener cámara de visión' : 'Activar cámara de visión en vivo'}
+                        className={cn(
+                          'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition-all active:scale-95 cursor-pointer',
+                          isVisionActive
+                            ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : 'border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-300 hover:border-teal-500/40 hover:text-teal-700 dark:hover:text-teal-300',
+                        )}
+                      >
+                        {isVisionActive ? <CameraOff className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
+                      </button>
+
+                      <span className="mx-0.5 h-4 w-px bg-slate-200 dark:bg-zinc-700/80 shrink-0" />
+
+                      <TenshiSessionControls
+                        prefs={sessionPrefs}
+                        onChangePrefs={setSessionPrefs}
+                        onExternalModalToggle={setIsExternalModalOpen}
+                        onOpenToolPanel={openToolTabInTenshi}
+                        onToolPanelActivated={handleToolPanelActivated}
+                        activePanelTab={heroPanelTab}
+                      />
+                    </div>
+
+                    <TenshiModelPickerPill
+                      model={sessionPrefs.model}
+                      onSelectModel={(nextModel) =>
+                        setSessionPrefs((prev) => ({ ...prev, model: nextModel }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
               </div>
@@ -10744,6 +11335,19 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                   </Suspense>
                 </div>
               )}
+
+              {/* Cuerpo de Herramienta con Panel Integrado (1 solo panel extra montado a la vez) */}
+              {heroPanelTab !== 'chat' && heroPanelTab !== 'canvas' && (
+                <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden">
+                  <TenshiEmbeddedToolHost
+                    toolId={heroPanelTab}
+                    userId={user?.id || (user as any)?._id || null}
+                    activeConvoId={activeConversationId || conversation?.conversationId || null}
+                    onBackToChat={() => setHeroPanelTab('chat')}
+                    onSendPromptToTenshi={handleSendPromptFromEmbeddedTool}
+                  />
+                </div>
+              )}
             </div>
           )}
           </div>
@@ -10755,7 +11359,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             <>
               {/* Backdrop para cerrar al hacer clic o tap por fuera */}
               <div
-                style={{ zIndex: 2147483643 }}
+                style={{ zIndex: isExternalModalOpen ? 49 : 2147483643 }}
                 className="fixed inset-0 bg-black/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -10769,7 +11373,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 aria-label="Cerrar chat de Tenshi"
               />
               <div
-                style={isFullscreen ? { zIndex: 2147483644 } : getChatPositionStyle()}
+                style={
+                  isFullscreen
+                    ? { zIndex: isExternalModalOpen ? 50 : 2147483644 }
+                    : getChatPositionStyle()
+                }
                 onDragEnter={handleComposerDragEnter}
                 onDragOver={handleComposerDragOver}
                 onDragLeave={handleComposerDragLeave}
@@ -10883,29 +11491,52 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             </div>
           </div>
 
-          {/* 7. Selector de Personalidad Adaptativa (1 Clic - Desktop) con Letrero Estilo WAPPY */}
-          <div className="flex shrink-0 flex-col gap-1 border-b border-slate-200/50 bg-white/90 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/90 select-none">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
+          {/* Barra compacta Multi-Chat de Tenshi en panel flotante */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/50 bg-white/85 px-3 py-1.5 dark:border-zinc-800/70 dark:bg-zinc-900/80 select-none">
+            <TenshiConversationSwitcher
+              conversations={tenshiConversations}
+              activeConversationId={activeConversationId}
+              isLoading={isLoadingTenshiConversations}
+              isMutating={isMutatingTenshiConversations}
+              compact={true}
+              fullWidthOnMobile={true}
+              onSelectConversation={handleSelectTenshiConversation}
+              onCreateConversation={handleCreateTenshiConversation}
+              onRenameConversation={renameTenshiConversation}
+              onDeleteConversation={handleDeleteTenshiConversation}
+            />
+          </div>
+
+          {/* 7. Selector de Personalidad Adaptativa (1 Clic - Desktop) con Tooltip Flotante solo en Hover Desktop */}
+          <div
+            onPointerLeave={() => setHoveredPersonality(null)}
+            className="relative z-20 flex shrink-0 flex-col border-b border-slate-200/50 bg-white/90 px-3.5 py-2 dark:border-zinc-800/70 dark:bg-zinc-900/90 select-none"
+          >
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
                 Modo:
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                 {([
-                  { id: 'express', label: '⚡ Express', desc: '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases' },
-                  { id: 'consultor', label: '🛡️ Consultor', desc: '🛡️ Consultor Senior: Cálido, explicativo y empático' },
-                  { id: 'auditor', label: '⚖️ Auditor', desc: '⚖️ Auditor Legal: Riguroso en Decreto 1072 y Res. 0312' },
+                  { id: 'express', label: '⚡ Express' },
+                  { id: 'consultor', label: '🛡️ Consultor' },
+                  { id: 'auditor', label: '⚖️ Auditor' },
                 ] as const).map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => handleSelectPersonality(m.id)}
-                    onMouseEnter={() => setHoveredPersonality(m.id)}
-                    onMouseLeave={() => setHoveredPersonality(null)}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType !== 'touch') {
+                        setHoveredPersonality(m.id);
+                      }
+                    }}
+                    onPointerLeave={() => setHoveredPersonality(null)}
                     className={cn(
-                      'px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border shadow-2xs',
+                      'px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border shadow-2xs cursor-pointer',
                       personalityMode === m.id
                         ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-600 dark:text-teal-300'
-                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700'
+                        : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700',
                     )}
                   >
                     {m.label}
@@ -10913,15 +11544,20 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-500/30 px-2.5 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 transition-all">
-              <span className="truncate">
-                {(hoveredPersonality || personalityMode) === 'express'
-                  ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
-                  : (hoveredPersonality || personalityMode) === 'auditor'
-                    ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
-                    : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
-              </span>
-            </div>
+            {hoveredPersonality && (
+              <div
+                role="tooltip"
+                className="hidden md:flex items-center gap-1.5 absolute left-3.5 right-3.5 top-full mt-1.5 z-30 pointer-events-none rounded-xl border border-teal-500/40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold leading-snug text-teal-700 dark:text-teal-300 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+              >
+                <span>
+                  {hoveredPersonality === 'express'
+                    ? '⚡ Directo al grano: Respuestas ejecutivas en 1-2 frases'
+                    : hoveredPersonality === 'auditor'
+                      ? '⚖️ Auditor Legal: Rigor normativo en Decreto 1072 y Res. 0312'
+                      : '🛡️ Consultor Senior: Asesoría cálida, explicativa e integral en SG-SST'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Visor de Tenshi Visión y Telemetría Ergonómica en Desktop */}
@@ -11738,54 +12374,80 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 {/* Bandeja multi-archivo y avisos en Widget Flotante */}
                 {renderPendingAttachmentTray('tenshi-file-input', true)}
 
-                {/* Input Box */}
-                <div className="group flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
-                  <input
-                    type="file"
-                    id="tenshi-file-input"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
-                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
-                    className="hidden"
-                    onChange={handleFileAttachment}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('tenshi-file-input')?.click()}
-                    title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
-                    className={cn(
-                      'relative shrink-0 p-1.5 rounded-xl transition-colors',
-                      attachedMediaList.length > 0
-                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                        : 'text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-700',
-                    )}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                    {attachedMediaList.length > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
-                        {attachedMediaList.length}
-                      </span>
-                    )}
-                  </button>
+                {/* Input Box con barra integrada de herramientas de sesión */}
+                <div className="group flex w-full max-w-full min-w-0 flex-col gap-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 px-2.5 py-2 shadow-2xs transition-all focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-800/80 dark:focus-within:bg-zinc-800">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      placeholder={isVoiceActive ? 'Habla por el micrófono o escribe...' : 'Escribe tu consulta o pide una acción...'}
+                      className="min-w-0 flex-1 border-none bg-transparent px-1 text-xs text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
+                      disabled={isTyping}
+                    />
 
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isVoiceActive ? 'Habla por el micrófono o escribe...' : 'Escribe tu consulta o pide una acción...'}
-                    className="flex-1 border-none bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none focus:outline-none focus:ring-0 dark:text-zinc-100"
-                    disabled={isTyping}
-                  />
+                    <button
+                      onClick={() => handleSend()}
+                      disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
+                      title="Enviar mensaje"
+                      className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-1.5 text-white shadow-sm transition-all hover:from-emerald-500 hover:to-teal-500 active:scale-95 disabled:opacity-40 cursor-pointer"
+                    >
+                      <Send className="ml-0.5 h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
-                  <button
-                    onClick={() => handleSend()}
-                    disabled={isTyping || (!input.trim() && attachedMediaList.length === 0)}
-                    title="Enviar mensaje"
-                    className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-1.5 text-white shadow-sm transition-all hover:from-emerald-500 hover:to-teal-500 active:scale-95 disabled:opacity-40"
-                  >
-                    <Send className="ml-0.5 h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-1.5 border-t border-slate-200/60 dark:border-zinc-700/60 pt-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1">
+                      <input
+                        type="file"
+                        id="tenshi-file-input"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.xml,.yaml,.yml,.rtf,.odt,.ods,.pptx,.ppt,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.ogg,image/*,video/*,audio/*,application/pdf"
+                        title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                        className="hidden"
+                        onChange={handleFileAttachment}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('tenshi-file-input')?.click()}
+                        title="Adjuntar múltiples archivos (Imágenes, Videos, Audio, PDF, Office, Texto)"
+                        className={cn(
+                          'relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition-all active:scale-95 cursor-pointer',
+                          attachedMediaList.length > 0
+                            ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : 'border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-700 dark:hover:text-emerald-300',
+                        )}
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {attachedMediaList.length > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-md bg-emerald-500 px-0.5 text-[9px] font-black text-white leading-none">
+                            {attachedMediaList.length}
+                          </span>
+                        )}
+                      </button>
+
+                      <span className="mx-0.5 h-4 w-px bg-slate-200 dark:bg-zinc-700/80 shrink-0" />
+
+                      <TenshiSessionControls
+                        prefs={sessionPrefs}
+                        onChangePrefs={setSessionPrefs}
+                        compact={true}
+                        onExternalModalToggle={setIsExternalModalOpen}
+                        onOpenToolPanel={openToolTabInTenshi}
+                        onToolPanelActivated={handleToolPanelActivated}
+                        activePanelTab={heroPanelTab}
+                      />
+                    </div>
+
+                    <TenshiModelPickerPill
+                      model={sessionPrefs.model}
+                      compact={true}
+                      onSelectModel={(nextModel) =>
+                        setSessionPrefs((prev) => ({ ...prev, model: nextModel }))
+                      }
+                    />
+                  </div>
                 </div>
 
                 {/* Botonera de Control Cápsula WAPPY Design System */}
@@ -11928,13 +12590,13 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                     position: 'fixed',
                     left: `${position.x}px`,
                     top: `${position.y}px`,
-                    zIndex: 2147483645,
+                    zIndex: isExternalModalOpen ? 51 : 2147483645,
                   }
                 : {
                     position: 'fixed',
                     right: '20px',
                     bottom: isMobileScreen ? '108px' : '58px',
-                    zIndex: 2147483645,
+                    zIndex: isExternalModalOpen ? 51 : 2147483645,
                   }
             }
             className="group relative cursor-grab active:cursor-grabbing select-none transition-transform duration-200 md:hover:scale-105 md:active:scale-95 pointer-events-auto"

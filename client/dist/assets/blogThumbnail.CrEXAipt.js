@@ -1,0 +1,1 @@
+function s(i){var e;const t=typeof i=="string"?i.trim():"";if(!t)return"";if(/^(https?:\/\/|data:image\/)/i.test(t)||t.startsWith("/"))return t;if(t.startsWith("images/"))return`/${t}`;const r=((e=t.split("/").pop())==null?void 0:e.trim())||"";return r?`/images/${r}`:""}export{s as r};

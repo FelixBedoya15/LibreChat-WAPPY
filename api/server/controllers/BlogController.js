@@ -4,6 +4,15 @@ const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { syncToRag } = require('../services/RagService');
 const { ADMIN_EMAILS } = require('../middleware/roles/admin');
+const {
+    WAPPY_BLOG_EDITORIAL_PROMPT,
+    formatBlogEditorialHtml,
+    extractBlogSummary,
+    getWappyEditorialStarterTemplate,
+} = require('../utils/blogEditorialFormatter');
+
+const DEFAULT_BLOG_AI_MODEL = 'gemini-3.8-flash';
+const BLOG_AI_TIMEOUT_MS = 90000;
 
 const isUserAdmin = (user) => {
     if (!user) return false;
@@ -37,18 +46,33 @@ const getBlogPostById = async (req, res) => {
 
 const createBlogPost = async (req, res) => {
     try {
-        const { title, content, thumbnail, tags, attachments, isPublished } = req.body;
+        const { title, description, content, thumbnail, tags, attachments, isPublished, isFeatured } = req.body;
         const userId = req.user._id || req.user.id;
+        const safeTags = Array.isArray(tags) ? tags : [];
+        const formattedContent = content
+            ? formatBlogEditorialHtml(content, { title: title || '', tags: safeTags })
+            : '';
+        const resolvedDescription =
+            typeof description === 'string' && description.trim()
+                ? description.trim()
+                : extractBlogSummary(formattedContent);
 
-        const newPost = new BlogPost({
+        const postData = {
             title,
-            content: content || '',
+            description: resolvedDescription,
+            content: formattedContent,
             thumbnail,
-            tags: tags || [],
+            tags: safeTags,
             attachments: attachments || [],
             isPublished: isPublished || false,
             author: userId
-        });
+        };
+
+        if (isFeatured !== undefined) {
+            postData.isFeatured = Boolean(isFeatured);
+        }
+
+        const newPost = new BlogPost(postData);
 
         await newPost.save();
 
@@ -73,11 +97,44 @@ const createBlogPost = async (req, res) => {
 const updateBlogPost = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, content, thumbnail, tags, attachments, isPublished } = req.body;
+        const { title, description, content, thumbnail, tags, attachments, isPublished, isFeatured } = req.body;
+
+        const existingPost = await BlogPost.findById(id).select('title description content tags').lean();
+        if (!existingPost) {
+            return res.status(404).json({ message: 'Blog post not found' });
+        }
+
+        const effectiveTitle = title !== undefined ? title : existingPost.title;
+        const effectiveTags = Array.isArray(tags) ? tags : (existingPost.tags || []);
+
+        const updateFields = {};
+        if (title !== undefined) updateFields.title = title;
+        if (content !== undefined) {
+            updateFields.content = formatBlogEditorialHtml(content, {
+                title: effectiveTitle || '',
+                tags: effectiveTags,
+            });
+        }
+        if (description !== undefined) {
+            updateFields.description =
+                typeof description === 'string' && description.trim()
+                    ? description.trim()
+                    : extractBlogSummary(updateFields.content !== undefined ? updateFields.content : existingPost.content);
+        } else if (
+            updateFields.content !== undefined &&
+            (!existingPost.description || !String(existingPost.description).trim())
+        ) {
+            updateFields.description = extractBlogSummary(updateFields.content);
+        }
+        if (thumbnail !== undefined) updateFields.thumbnail = thumbnail;
+        if (tags !== undefined) updateFields.tags = tags;
+        if (attachments !== undefined) updateFields.attachments = attachments;
+        if (isPublished !== undefined) updateFields.isPublished = isPublished;
+        if (isFeatured !== undefined) updateFields.isFeatured = Boolean(isFeatured);
 
         const post = await BlogPost.findByIdAndUpdate(
             id,
-            { title, content, thumbnail, tags, attachments, isPublished },
+            updateFields,
             { new: true, runValidators: true }
         );
 
@@ -121,7 +178,10 @@ const deleteBlogPost = async (req, res) => {
 
 const generateBlogPost = async (req, res) => {
     try {
-        const { prompt, modelName, type, sources } = req.body;
+        const { prompt, modelName, type, sources, tags } = req.body;
+        if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+            return res.status(400).json({ error: 'Debe indicar un tema o prompt para generar el artículo.' });
+        }
 
         let resolvedApiKey;
         try {
@@ -133,7 +193,7 @@ const generateBlogPost = async (req, res) => {
                 resolvedApiKey = storedKey;
             }
         } catch (e) {
-            console.log('No user google key', e.message);
+            console.log('[BlogController] No user google key, falling back to server key:', e.message);
         }
         if (!resolvedApiKey) {
             resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
@@ -145,85 +205,94 @@ const generateBlogPost = async (req, res) => {
             return res.status(400).json({ error: 'No se configuró API Key de Google.' });
         }
 
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        const requestedModel = typeof modelName === 'string' ? modelName.trim() : '';
+        const resolvedModel =
+            !requestedModel || /^gemini-3-flash-preview$/i.test(requestedModel)
+                ? DEFAULT_BLOG_AI_MODEL
+                : requestedModel;
 
-        let systemPrompt = "";
-        if (type === 'blog') {
-            systemPrompt = `Actúa como un experto creador de contenido y blogger en temas de seguridad y salud en el trabajo.
-Tu tarea es escribir un artículo de blog altamente atractivo y estructurado basado en la solicitud del usuario.
-REGLA CRÍTICA Y ABSOLUTA: 
-Tu respuesta DEBE SER ÚNICA Y EXCLUSIVAMENTE código HTML válido y puro. 
-- NO uses formato Markdown (nada de asteriscos ni numerales). 
-- Los títulos deben ser con etiquetas <h1>, <h2>. 
-- Los párrafos con <p>. 
-- Las listas con <ul> y <li>. 
-- Las negritas con <strong>.
-- NO envuelvas la respuesta en bloques de código (\`\`\`html).
-Empieza directamente con <div> o <h1> y termina con el cierre correspondiente.`;
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: resolvedModel });
+
+        let systemPrompt = '';
+        if (!type || type === 'blog') {
+            systemPrompt = WAPPY_BLOG_EDITORIAL_PROMPT;
         }
 
-        let fullPrompt = `${systemPrompt}\n\nTema / Solicitud del usuario: ${prompt}`;
-        if (sources && sources.length > 0) {
+        let fullPrompt = `${systemPrompt}\n\nTema / Solicitud del usuario: ${prompt.trim()}`;
+        if (Array.isArray(sources) && sources.length > 0) {
             fullPrompt += `\n\nPor favor, ten en cuenta las siguientes referencias proporcionadas por el usuario:\n${sources.join('\n')}`;
         }
 
-        const result = await model.generateContent(fullPrompt);
-        let responseText = result.response.text();
-
-        // 1. Remove markdown wrappers
-        responseText = responseText.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
-
-        // 2. Strip full HTML document structure if AI still generates it
-        const bodyMatch = responseText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        if (bodyMatch) {
-            responseText = bodyMatch[1].trim();
+        const abortController = new AbortController();
+        let timeoutHandle;
+        let result;
+        try {
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    abortController.abort();
+                    reject(new Error('Tiempo de espera agotado al generar el artículo con Gemini.'));
+                }, BLOG_AI_TIMEOUT_MS);
+            });
+            result = await Promise.race([
+                model.generateContent(fullPrompt, { signal: abortController.signal }),
+                timeoutPromise,
+            ]);
+        } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
         }
 
-        // 3. Remove DOCTYPE, html, head, style tags because LiveEditor cannot parse them and glitches out
-        responseText = responseText
-            .replace(/<!DOCTYPE[^>]*>/gi, '')
-            .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
-            .replace(/<head>[\s\S]*?<\/head>/gi, '')
-            .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
-            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-            .trim();
+        const responseText = result.response.text();
+        const formattedHtml = formatBlogEditorialHtml(responseText, {
+            title: prompt.trim(),
+            tags: Array.isArray(tags) ? tags : [],
+            forceRestyle: true,
+        });
 
-        // Convert common markdown elements to basic HTML manually if the model disobeyed
-        if (responseText.includes('#') || responseText.includes('**') || /^[-*]\s/m.test(responseText)) {
-            console.log("Markdown detectado en BlogController, forzando a HTML.");
-            let htmlText = responseText;
-
-            // Reemplazar headers
-            htmlText = htmlText.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-            htmlText = htmlText.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-            htmlText = htmlText.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-            // Reemplazar negritas y cursivas
-            htmlText = htmlText.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-            htmlText = htmlText.replace(/\*(.*?)\*/gim, '<em>$1</em>');
-
-            // Reemplazar saltos de línea dobles
-            htmlText = htmlText.replace(/\n\n/g, '</p><p>');
-
-            // Envolver todo en <p> de forma sencilla si no empezó con tag (muy rudimentario, pero evita que sea un bloque único)
-            if (!htmlText.startsWith('<')) {
-                htmlText = `<p>${htmlText}</p>`;
-            }
-
-            responseText = htmlText;
-        }
-
-        // Final sanity check, ensure newlines translate to <br> if it's still missing tags
-        if (!responseText.includes('<p>') && !responseText.includes('<br>')) {
-            responseText = responseText.replace(/\n/g, '<br>');
-        }
-
-        res.json({ data: responseText });
-
+        res.json({
+            data: formattedHtml,
+            description: extractBlogSummary(formattedHtml),
+            modelUsed: resolvedModel,
+        });
     } catch (error) {
-        console.error('Error generating blog content:', error);
+        console.error('[BlogController] Error generating blog content:', error);
         res.status(500).json({ error: `Error al generar contenido: ${error.message || 'Asegúrese de detallar mejor su solicitud'}` });
+    }
+};
+
+const beautifyBlogContent = async (req, res) => {
+    try {
+        const { content, title = '', tags = [], forceRestyle } = req.body || {};
+        const safeTitle = typeof title === 'string' ? title.trim() : '';
+        const safeTags = Array.isArray(tags) ? tags : [];
+        const shouldForceRestyle = forceRestyle !== undefined ? Boolean(forceRestyle) : true;
+
+        if (!content || typeof content !== 'string' || !content.trim()) {
+            const starterHtml = getWappyEditorialStarterTemplate(safeTitle);
+            return res.status(200).json({
+                success: true,
+                data: starterHtml,
+                description: extractBlogSummary(starterHtml),
+            });
+        }
+
+        const formattedHtml = formatBlogEditorialHtml(content, {
+            title: safeTitle,
+            tags: safeTags,
+            forceRestyle: shouldForceRestyle,
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: formattedHtml,
+            description: extractBlogSummary(formattedHtml),
+        });
+    } catch (error) {
+        console.error('[BlogController] Error in beautifyBlogContent:', error);
+        return res.status(500).json({
+            success: false,
+            error: `Error al aplicar formato editorial: ${error.message || 'Error interno'}`,
+        });
     }
 };
 
@@ -262,5 +331,6 @@ module.exports = {
     updateBlogPost,
     deleteBlogPost,
     generateBlogPost,
+    beautifyBlogContent,
     setFeaturedPost
 };

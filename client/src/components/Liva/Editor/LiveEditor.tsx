@@ -2134,8 +2134,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                 .live-editor-content h1 {
                     color: #004d99;
                     text-align: center;
-                    margin-bottom: 6px;
-                    font-size: 1.5em;
+                    margin-top: 4px;
+                    margin-bottom: 10px;
+                    font-size: 1.48em;
+                    font-weight: 800;
                     border-bottom: 2px solid #004d99;
                     padding-bottom: 6px;
                 }
@@ -2143,14 +2145,56 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(
                     color: #004d99;
                     border-bottom: 2px solid #004d99;
                     padding-bottom: 4px;
-                    font-size: 1.25em;
-                    margin-top: 14px;
-                    margin-bottom: 6px;
+                    font-size: 1.24em;
+                    font-weight: 700;
+                    margin-top: 18px;
+                    margin-bottom: 8px;
                 }
                 .live-editor-content h3 {
-                    color: #333;
-                    font-size: 1.1em;
+                    color: #0c4a6e;
+                    font-size: 1.08em;
+                    font-weight: 700;
+                    margin-top: 14px;
+                    margin-bottom: 6px;
+                    line-height: 1.35;
+                }
+                .live-editor-content h3:not([style]) {
+                    border-left: 3px solid #004d99;
+                    padding-left: 9px;
+                }
+                .live-editor-content h4 {
+                    color: #1e3a5f;
+                    font-size: 0.98em;
+                    font-weight: 700;
                     margin-top: 10px;
+                    margin-bottom: 4px;
+                    line-height: 1.35;
+                }
+                .live-editor-content ul {
+                    list-style-type: disc;
+                    padding-left: 1.5rem;
+                    margin-top: 6px;
+                    margin-bottom: 10px;
+                }
+                .live-editor-content ol {
+                    list-style-type: decimal;
+                    padding-left: 1.5rem;
+                    margin-top: 6px;
+                    margin-bottom: 10px;
+                }
+                .live-editor-content li {
+                    display: list-item;
+                    margin-bottom: 4px;
+                    line-height: 1.55;
+                }
+                .live-editor-content ul ul {
+                    list-style-type: circle;
+                    margin-top: 4px;
+                    margin-bottom: 4px;
+                }
+                .live-editor-content ol ol {
+                    list-style-type: lower-alpha;
+                    margin-top: 4px;
                     margin-bottom: 4px;
                 }
                 /* Recuadros internos y tarjetas de sección: contener siempre el desbordamiento horizontal */
