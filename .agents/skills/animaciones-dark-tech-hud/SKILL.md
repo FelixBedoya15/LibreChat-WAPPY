@@ -1,6 +1,6 @@
 ---
 name: animaciones-dark-tech-hud
-description: Sistema maestro de animación y motion graphics estilo Dark Tech Cyberpunk / HUD Glassmorphism para Reels y vídeos verticales de WAPPY (9:16). Incluye paleta cósmica oscura (#0c192e a #020409), rejilla cyber-grid, haz láser de escaneo (scanline-beam), radar holográfico SVG rotatorio, esquinas tácticas (corner-bracket), ecualizador reactivo, entradas cinéticas escalonadas desde los laterales (slide-in stagger L/R), diseño de núcleo central rodeado por satélites orbitales conectados por láser (como la Huella Biocéntrica), y tipografía de gran escala optimizada para pantallas de móvil.
+description: "Sistema maestro de animación y motion graphics estilo Dark Tech Cyberpunk / HUD Glassmorphism para Reels y vídeos verticales de WAPPY (9:16). Incluye paleta cósmica oscura (#0c192e a #020409), rejilla cyber-grid, haz láser de escaneo (scanline-beam), radar holográfico SVG rotatorio, esquinas tácticas (corner-bracket), ecualizador reactivo, entradas cinéticas escalonadas desde los laterales (slide-in stagger L/R), diseño de núcleo central rodeado por satélites orbitales conectados por láser (como la Huella Biocéntrica), y tipografía de gran escala optimizada para pantallas de móvil."
 ---
 
 # Animaciones Dark Tech HUD · WAPPY Motion Design System
