@@ -152,12 +152,15 @@ ESTRUCTURA EDITORIAL OBLIGATORIA (envuelta en <div class="wappy-editorial-articl
      </table>
    </div>
 
-6. **Tarjeta Final CTA WAPPY IA (class="wappy-cta-card"):**
-   Cierra siempre con una invitación práctica contextualizada al tema del artículo:
+6. **Tarjeta Final CTA WAPPY IA + Instagram (class="wappy-cta-card"):**
+   Cierra siempre con una invitación práctica contextualizada al tema del artículo y el botón oficial para seguir a WAPPY IA en Instagram:
    <div class="wappy-cta-card" style="${EDITORIAL_STYLES.ctaCard}">
      <span style="${EDITORIAL_STYLES.ctaPill}">⚡ WAPPY IA · COPILOTO SG-SST</span>
      <p style="margin:0;font-weight:700;font-size:1.05rem;line-height:1.45;">Título breve orientado a la acción con WAPPY IA</p>
      <p style="margin:0;opacity:0.9;line-height:1.65;">Cómo aplicar este contenido hoy mismo usando los agentes, matrices y documentos en vivo de WAPPY IA.</p>
+     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin-top:0.35rem;">
+       <a href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:0.45rem;padding:0.55rem 1.15rem;border-radius:999px;background:linear-gradient(135deg,#f59e0b 0%,#ec4899 52%,#8b5cf6 100%);color:#ffffff;font-weight:800;font-size:0.86rem;text-decoration:none;box-shadow:0 6px 18px rgba(236,72,153,0.28);">📸 Síguenos en Instagram @wappy_ia →</a>
+     </div>
    </div>
 
 Empieza directamente con <div class="wappy-editorial-article" data-wappy-editorial="v2" style="line-height: 1.75;"> y termina con </div>.`;
@@ -1875,6 +1878,19 @@ function maybeHighlightConclusionAndAppendCta(root, tags = []) {
           createElement('strong', {}, [createText('WAPPY IA')]),
           createText('.'),
         ]),
+        createElement('div', { style: 'display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin-top:0.35rem;' }, [
+          createElement(
+            'a',
+            {
+              href: 'https://www.instagram.com/wappy_ia/',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              style:
+                'display:inline-flex;align-items:center;gap:0.45rem;padding:0.55rem 1.15rem;border-radius:999px;background:linear-gradient(135deg,#f59e0b 0%,#ec4899 52%,#8b5cf6 100%);color:#ffffff;font-weight:800;font-size:0.86rem;text-decoration:none;box-shadow:0 6px 18px rgba(236,72,153,0.28);',
+            },
+            [createText('📸 Síguenos en Instagram @wappy_ia →')],
+          ),
+        ]),
       ],
     );
     root.children.push(ctaNode);
@@ -2109,6 +2125,9 @@ function getWappyEditorialStarterTemplate(title = '') {
   <span style="${EDITORIAL_STYLES.ctaPill}">⚡ WAPPY IA · COPILOTO SG-SST</span>
   <p style="margin:0;font-weight:700;font-size:1.05rem;line-height:1.45;">Aplica esta guía en minutos con los Agentes de WAPPY IA</p>
   <p style="margin:0;opacity:0.9;line-height:1.65;">Automatiza matrices, diagnósticos normativos, planes de trabajo y documentos en vivo para tu Sistema de Gestión desde tu espacio en <strong>WAPPY</strong>.</p>
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin-top:0.35rem;">
+    <a href="https://www.instagram.com/wappy_ia/" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:0.45rem;padding:0.55rem 1.15rem;border-radius:999px;background:linear-gradient(135deg,#f59e0b 0%,#ec4899 52%,#8b5cf6 100%);color:#ffffff;font-weight:800;font-size:0.86rem;text-decoration:none;box-shadow:0 6px 18px rgba(236,72,153,0.28);">📸 Síguenos en Instagram @wappy_ia →</a>
+  </div>
 </div>
 </div>`;
 }
