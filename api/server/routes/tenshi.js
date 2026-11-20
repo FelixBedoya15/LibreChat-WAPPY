@@ -45,6 +45,7 @@ const {
     buildCompanyScopeFilter,
     ensureLegacyTenshiConversation,
     evaluateSafeSstCalculator,
+    isPureGreetingOrSmallTalk,
 } = require('./voice/tenshiSessionHelpers');
 const TenshiPendingAction = require('../../models/TenshiPendingAction');
 const TenshiProceduralMemory = require('../../models/TenshiProceduralMemory');
@@ -3756,6 +3757,49 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 - CAPACIDAD DE ACCIÓN EN LOTE (PARALELO): Puedes llamar a la herramienta 'operar_interfaz_visual' múltiples veces en la misma respuesta (en paralelo) si deseas ejecutar una secuencia de pasos lógicos seguidos (ej: hacer clic en una tarjeta, escribir en un campo, y luego hacer clic en guardar). Esto ahorra tiempo de red y ejecuta todo de una vez. Preferible usar esto para rellenar formularios rápidamente.`;
         }
 
+        const currentTurnRawLastAttachments = normalizeIncomingMediaList(lastUserMsgPayload);
+        const hasAnyCurrentTurnAttachment = Boolean(
+            userAttachments.length > 0 ||
+            reqBodyAttachments.length > 0 ||
+            currentTurnRawLastAttachments.length > 0 ||
+            lastUserMsgPayload?.hasAttachment ||
+            lastUserMsgPayload?.image ||
+            req.body?.image ||
+            (Array.isArray(lastUserMsgPayload?.images) && lastUserMsgPayload.images.length > 0) ||
+            (Array.isArray(req.body?.images) && req.body.images.length > 0) ||
+            lastUserMsgPayload?.fileData ||
+            req.body?.fileData ||
+            lastUserMsgPayload?.inlineData ||
+            req.body?.inlineData ||
+            lastUserMsgPayload?.media ||
+            req.body?.media ||
+            (Array.isArray(lastUserMsgPayload?.files) && lastUserMsgPayload.files.length > 0) ||
+            (Array.isArray(req.body?.files) && req.body.files.length > 0) ||
+            (Array.isArray(lastUserMsgPayload?.attachments) && lastUserMsgPayload.attachments.length > 0) ||
+            (Array.isArray(req.body?.attachments) && req.body.attachments.length > 0) ||
+            (Array.isArray(lastUserMsgPayload?.mediaList) && lastUserMsgPayload.mediaList.length > 0) ||
+            (Array.isArray(req.body?.mediaList) && req.body.mediaList.length > 0) ||
+            (Array.isArray(lastUserMsgPayload?.parts) &&
+                lastUserMsgPayload.parts.some((p) => p && (p.inlineData || p.fileData)))
+        );
+        const lastUserRawTextForGreeting =
+            typeof lastUserMsgPayload?.content === 'string'
+                ? lastUserMsgPayload.content
+                : typeof userQuery === 'string'
+                  ? userQuery
+                  : '';
+        const isPureGreeting = isPureGreetingOrSmallTalk(lastUserRawTextForGreeting, {
+            hasAttachments: hasAnyCurrentTurnAttachment,
+            assistantName: effectiveAvatar?.name || '',
+        });
+
+        if (isPureGreeting) {
+            systemMessage += `\n\n[TURNO DE SALUDO SIMPLE]: El usuario solo envió un saludo o cortesía breve sin pedir ninguna acción ni documento. Responde únicamente con un saludo cálido y breve (máximo 2 frases) preguntando en qué le puedes ayudar hoy. PROHIBIDO retomar, crear o ejecutar informes, tareas o acciones de turnos anteriores a menos que el usuario lo solicite explícitamente.`;
+            logger.info(
+                `[Tenshi Backend] Pure greeting detected ("${lastUserRawTextForGreeting.trim().slice(0, 80)}") -> tools omitted & system guard applied.`
+            );
+        }
+
         // format messages for the LLM
         const formattedMessages = [
             { role: 'system', content: systemMessage },
@@ -5655,19 +5699,23 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                     /\b(nodo|nodos|flujo|flujos|automatizaci|tareas|lienzo|disparador|extractor|rethus|adres|incapacidad|gu[ií]a\s+de\s+nodos)\b/i.test(lastUserLower)
             );
 
-            let toolsToAttach = selectTenshiTools({
-                declarationRegistry,
-                baseDeclarations: baseFunctionDeclarations,
-                dynamicToolsMap,
-                activeTools,
-                enabledTools,
-                connectors: normalizedConnectors,
-                isAdminUser,
-                isInlineWidgetIntent,
-                lastUserLower,
-                forceGestorAuto,
-            });
-            logger.info(`[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}, mode=${Array.isArray(enabledTools) ? 'explicit' : 'legacy'}): ${toolsToAttach.map(t => t.name).join(', ')}`);
+            let toolsToAttach = isPureGreeting
+                ? []
+                : selectTenshiTools({
+                      declarationRegistry,
+                      baseDeclarations: baseFunctionDeclarations,
+                      dynamicToolsMap,
+                      activeTools,
+                      enabledTools,
+                      connectors: normalizedConnectors,
+                      isAdminUser,
+                      isInlineWidgetIntent,
+                      lastUserLower,
+                      forceGestorAuto,
+                  });
+            logger.info(
+                `[Tenshi Backend] Herramientas adjuntas a Gemini (${toolsToAttach.length}, mode=${isPureGreeting ? 'pure_greeting' : Array.isArray(enabledTools) ? 'explicit' : 'legacy'}): ${toolsToAttach.map(t => t.name).join(', ') || '(ninguna)'}`
+            );
 
             // Rotation loop: outer = models, inner = api keys
             let lastError = null;
@@ -5711,7 +5759,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             // Fast-Path determinista para generación directa de imagen/video (Antigravity Local -> Google Flow Studio):
             // Opera de forma independiente a Gemini Texto (inmune a 503/timeouts) e incluye recuperación del prompt desde historial en reintentos cortos ("inténtalo nuevamente", "hazla con antigravity").
-            const fastPathMediaIntent = !isGuiResultTurn && allowVisualMediaFastPath
+            const fastPathMediaIntent = !isGuiResultTurn && !isPureGreeting && allowVisualMediaFastPath
                 ? detectVisualMediaGenerationIntent(lastUserMsg, messages, {
                       allowCompound: false,
                       hasCurrentAttachment: currentTurnHasAttachments,
@@ -5810,16 +5858,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         `[Tenshi Synthesis Retry] ${labelTag} falló (${synthErr.message}). Reintento rápido en ${PRIMARY_TEXT_MODEL} rotando a clave #${retryKeyIdx + 1}/${apiKeys.length} (timeout=${timeoutMs}ms)...`
                     );
                     const retryGenAI = new GoogleGenerativeAI(retryApiKey);
-                    const retryModel = retryGenAI.getGenerativeModel({
+                    const retryModelConfig = {
                         model: PRIMARY_TEXT_MODEL,
                         systemInstruction: systemMessage,
-                        tools: [{ functionDeclarations: toolsToAttach }],
                         generationConfig: buildTenshiGenerationConfig(PRIMARY_TEXT_MODEL, {
                             hasTools: toolsToAttach.length > 0,
                             temperature: 0.7,
                             maxOutputTokens: 65536,
                         }),
-                    });
+                    };
+                    if (toolsToAttach.length > 0) {
+                        retryModelConfig.tools = [{ functionDeclarations: toolsToAttach }];
+                    }
+                    const retryModel = retryGenAI.getGenerativeModel(retryModelConfig);
                     const retryRes = await withGeminiTimeout(
                         retryModel.generateContent({ contents }),
                         timeoutMs,
@@ -5873,16 +5924,19 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                         );
                         const genAI = new GoogleGenerativeAI(apiKey);
 
-                        const geminiModel = genAI.getGenerativeModel({
+                        const geminiModelConfig = {
                             model: currentModel,
                             systemInstruction: systemMessage,
-                            tools: [{ functionDeclarations: toolsToAttach }],
                             generationConfig: buildTenshiGenerationConfig(currentModel, {
                                 hasTools: toolsToAttach.length > 0,
                                 temperature: 0.7,
                                 maxOutputTokens: 65536,
                             }),
-                        });
+                        };
+                        if (toolsToAttach.length > 0) {
+                            geminiModelConfig.tools = [{ functionDeclarations: toolsToAttach }];
+                        }
+                        const geminiModel = genAI.getGenerativeModel(geminiModelConfig);
 
                         const userParts = [...baseUserParts];
 
@@ -5899,7 +5953,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                             `Tenshi Chat (${currentModel}) initial`
                         );
                         let candidate = responseResult.response.candidates && responseResult.response.candidates[0];
-                        let calls = responseResult.response.functionCalls();
+                        let calls = toolsToAttach.length > 0 ? responseResult.response.functionCalls() : null;
                         logger.info(`[Tenshi Backend] Gemini initial response function calls: ${JSON.stringify(calls)}`);
                         let loops = 0;
                         let activeTurnCanvasConvoId = null;
@@ -7465,7 +7519,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             // [Tenshi 503 Rescue — Prioridad #1: Generación Determinista de Imagen/Video (Antigravity -> Google Flow)]
             // Se ejecuta ANTES del rescate de flujos SG-SST/ARL para que un pedido visual NUNCA caiga por error a un flujo de portales.
             const lastUserMessageTextForRescue = String(lastMsgObj?.content || userQuery || '').trim();
-            if (!succeeded && lastError && !directMediaAttempted && !isGuiResultTurn && allowVisualMediaFastPath) {
+            if (!succeeded && lastError && !directMediaAttempted && !isGuiResultTurn && !isPureGreeting && allowVisualMediaFastPath) {
                 const rescueMediaIntent = detectVisualMediaGenerationIntent(
                     lastUserMessageTextForRescue,
                     messages,
@@ -7518,7 +7572,7 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
             }
 
             // [Tenshi 503 Rescue — Prioridad #2: Flujos Tenshi con Validación Textual Estricta Anti-Falsos Positivos]
-            if (!succeeded && lastError && capturedEvidenceFiles.length === 0) {
+            if (!succeeded && lastError && !isPureGreeting && capturedEvidenceFiles.length === 0) {
                 try {
                     const tenshiFlowSvc = require('~/server/services/tenshiFlowService');
                     const getActiveTenshiFlows =

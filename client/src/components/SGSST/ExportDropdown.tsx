@@ -206,7 +206,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 padding: 4px 4px !important;
                 font-size: 7.5pt !important;
             }
-            h1, h2, h3 { page-break-after: avoid; }
+            h1, h2, h3, h4 { page-break-after: avoid; }
         }
         html, body {
             margin: 0;
@@ -229,9 +229,14 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         @media screen and (max-width: 600px) {
             .report-wrapper { padding: 15px 10px; }
         }
-        h1 { color: #004d99; text-align: center; margin-bottom: 5px; font-size: 1.8em; }
-        h2 { color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 5px; font-size: 1.4em; }
-        h3 { color: #333; font-size: 1.2em; }
+        h1 { color: #004d99; text-align: center; margin-bottom: 8px; font-size: 1.65em; font-weight: 800; border-bottom: 2px solid #004d99; padding-bottom: 6px; }
+        h2 { color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 4px; font-size: 1.3em; font-weight: 700; margin-top: 18px; margin-bottom: 8px; }
+        h3 { color: #0c4a6e; font-size: 1.1em; font-weight: 700; margin-top: 14px; margin-bottom: 6px; }
+        h3:not([style]) { border-left: 3px solid #004d99; padding-left: 9px; }
+        h4 { color: #1e3a5f; font-size: 1em; font-weight: 700; margin-top: 10px; margin-bottom: 4px; }
+        ul { list-style-type: disc; padding-left: 1.5rem; margin: 6px 0 10px 0; }
+        ol { list-style-type: decimal; padding-left: 1.5rem; margin: 6px 0 10px 0; }
+        li { margin-bottom: 4px; line-height: 1.55; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -573,11 +578,79 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
 
     root.querySelectorAll('h3').forEach((el) => {
       const existing = parseStyle(el.getAttribute('style') || '');
+      const hasCustomBorder = Boolean(
+        existing['border'] || existing['border-bottom'] || existing['border-left'],
+      );
+      const baseH3: Record<string, string> = {
+        color: '#0c4a6e',
+        'font-size': '13pt',
+        'font-weight': 'bold',
+        margin: '10pt 0 4pt 0',
+      };
+      if (!hasCustomBorder) {
+        baseH3['border-left'] = '3pt solid #004d99';
+        baseH3['padding-left'] = '6pt';
+      }
+      const merged = mergeStyles(baseH3, existing);
+      merged['font-family'] = 'Calibri,Arial,sans-serif';
+      merged['mso-style-name'] = 'Heading3';
+      el.setAttribute('style', serializeStyle(merged));
+    });
+
+    root.querySelectorAll('h4').forEach((el) => {
+      const existing = parseStyle(el.getAttribute('style') || '');
       const merged = mergeStyles(
-        { color: '#333333', 'font-size': '13pt', 'font-weight': 'bold', margin: '8pt 0 4pt 0' },
+        {
+          color: '#1e3a5f',
+          'font-size': '11.5pt',
+          'font-weight': 'bold',
+          margin: '8pt 0 4pt 0',
+        },
         existing,
       );
       merged['font-family'] = 'Calibri,Arial,sans-serif';
+      el.setAttribute('style', serializeStyle(merged));
+    });
+
+    root.querySelectorAll('ol').forEach((el) => {
+      const existing = parseStyle(el.getAttribute('style') || '');
+      const merged = mergeStyles(
+        {
+          'list-style-type': 'decimal',
+          'padding-left': '18pt',
+          margin: '4pt 0 8pt 0',
+        },
+        existing,
+      );
+      merged['font-family'] = 'Calibri,Arial,sans-serif';
+      el.setAttribute('style', serializeStyle(merged));
+    });
+
+    root.querySelectorAll('ul').forEach((el) => {
+      const existing = parseStyle(el.getAttribute('style') || '');
+      const merged = mergeStyles(
+        {
+          'list-style-type': 'disc',
+          'padding-left': '18pt',
+          margin: '4pt 0 8pt 0',
+        },
+        existing,
+      );
+      merged['font-family'] = 'Calibri,Arial,sans-serif';
+      el.setAttribute('style', serializeStyle(merged));
+    });
+
+    root.querySelectorAll('li').forEach((el) => {
+      const existing = parseStyle(el.getAttribute('style') || '');
+      const merged = mergeStyles(
+        {
+          'font-family': 'Calibri,Arial,sans-serif',
+          'font-size': '11pt',
+          margin: '2pt 0',
+          'line-height': '1.5',
+        },
+        existing,
+      );
       el.setAttribute('style', serializeStyle(merged));
     });
 

@@ -928,6 +928,320 @@ function evaluateSafeSstCalculator(args = {}) {
   }
 }
 
+const PURE_GREETING_FORBIDDEN_WORDS = new Set([
+  'informe',
+  'informes',
+  'documento',
+  'documentos',
+  'word',
+  'pdf',
+  'excel',
+  'canvas',
+  'lienzo',
+  'crea',
+  'crear',
+  'creame',
+  'haz',
+  'hacer',
+  'hazlo',
+  'hazme',
+  'genera',
+  'generar',
+  'generame',
+  'continua',
+  'continuar',
+  'sigue',
+  'seguir',
+  'retoma',
+  'retomar',
+  'pendiente',
+  'pendientes',
+  'verifica',
+  'verificar',
+  'busca',
+  'buscar',
+  'consulta',
+  'consultar',
+  'calcula',
+  'calcular',
+  'revisa',
+  'revisar',
+  'analiza',
+  'analizar',
+  'abre',
+  'abrir',
+  've',
+  'navega',
+  'navegar',
+  'envia',
+  'enviar',
+  'agenda',
+  'agendar',
+  'programa',
+  'programar',
+  'correo',
+  'email',
+  'imagen',
+  'imagenes',
+  'foto',
+  'fotos',
+  'video',
+  'videos',
+  'cuaderno',
+  'cuadernos',
+  'notebook',
+  'notebooklm',
+  'cedula',
+  'nit',
+  'arl',
+  'eps',
+  'trabajador',
+  'trabajadores',
+  'empresa',
+  'matriz',
+  'riesgo',
+  'riesgos',
+  'gtc',
+  'pesv',
+  'intenta',
+  'intentalo',
+  'nuevo',
+  'nuevamente',
+  'otra',
+  'vez',
+  'hiciste',
+  'paso',
+  'pasa',
+  'falta',
+  'esto',
+  'eso',
+  'aquello',
+  'ayuda',
+  'ayudame',
+  'ayudas',
+  'necesito',
+  'quiero',
+  'dame',
+  'muestrame',
+  'dime',
+  'explica',
+  'explicame',
+  'edita',
+  'editar',
+  'elimina',
+  'eliminar',
+  'borra',
+  'borrar',
+  'actualiza',
+  'actualizar',
+  'guarda',
+  'guardar',
+  'descarga',
+  'descargar',
+  'imprime',
+  'exporta',
+  'flujo',
+  'flujos',
+  'tarea',
+  'tareas',
+  'reporte',
+  'reportes',
+  'acta',
+  'politica',
+  'contrato',
+  'auditoria',
+  'certificado',
+  'incapacidad',
+  'si',
+  'ok',
+  'okay',
+  'dale',
+  'listo',
+  'porque',
+]);
+
+const PURE_GREETING_FORBIDDEN_PHRASES = [
+  'por que',
+  'no hiciste',
+  'otra vez',
+  'de nuevo',
+  'que paso',
+  'como asi',
+];
+
+const PURE_GREETING_PRIMARY_ATOMS = [
+  'muchisimas gracias',
+  'buenos dias',
+  'buenas tardes',
+  'buenas noches',
+  'buen dia',
+  'feliz dia',
+  'feliz tarde',
+  'feliz noche',
+  'cordial saludo',
+  'muchas gracias',
+  'mil gracias',
+  'super gracias',
+  'te lo agradezco',
+  'te agradezco',
+  'muy bien gracias',
+  'bien gracias',
+  'muy amable',
+  'como has estado',
+  'como amaneciste',
+  'como amaneces',
+  'como estas',
+  'como te va',
+  'como le va',
+  'como andas',
+  'como vamos',
+  'como vas',
+  'como esta',
+  'que mas pues',
+  'que mas',
+  'que hubo',
+  'que tal',
+  'que cuentas',
+  'todo bien',
+  'quiubo pues',
+  'quiubo',
+  'quihubo',
+  'qhubo',
+  'bien y tu',
+  'bien y vos',
+  'hasta luego',
+  'nos vemos',
+  'saludos',
+  'buenas',
+  'gracias',
+  'hello',
+  'holis',
+  'hola',
+  'holi',
+  'hey',
+  'hi',
+  'alo',
+  'chao',
+  'chau',
+  'adios',
+];
+
+const PURE_GREETING_DEFAULT_VOCATIVES = [
+  'tenshi',
+  'suri',
+  'wappy',
+  'asistente',
+  'amigo',
+  'amiga',
+  'parcero',
+  'parcera',
+  'pues',
+];
+
+function isPureGreetingOrSmallTalk(text, options = {}) {
+  if (options && options.hasAttachments === true) {
+    return false;
+  }
+  if (typeof text !== 'string') {
+    return false;
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 60) {
+    return false;
+  }
+  if (trimmed.startsWith('[RESULTADO_GUI]')) {
+    return false;
+  }
+  // Any digit (e.g. cédulas, NITs, 0312, 2+2) disqualifies pure social greeting
+  if (/\d/.test(trimmed)) {
+    return false;
+  }
+
+  const normalized = trimmed
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\bhola{2,}\b/g, 'hola')
+    .replace(/\bholi{2,}\b/g, 'holi')
+    .replace(/\bhey{2,}\b/g, 'hey')
+    .replace(/\bhi{2,}\b/g, 'hi')
+    .replace(/\bbuenas{2,}\b/g, 'buenas');
+
+  if (!normalized) {
+    return false;
+  }
+
+  const words = normalized.split(' ').filter(Boolean);
+  if (words.length === 0 || words.length > 6) {
+    return false;
+  }
+
+  for (const w of words) {
+    if (PURE_GREETING_FORBIDDEN_WORDS.has(w)) {
+      return false;
+    }
+  }
+  for (const phrase of PURE_GREETING_FORBIDDEN_PHRASES) {
+    if (normalized === phrase || normalized.includes(` ${phrase}`) || normalized.startsWith(`${phrase} `)) {
+      return false;
+    }
+  }
+
+  // Build optional vocatives list (including custom assistantName if provided)
+  const vocatives = [...PURE_GREETING_DEFAULT_VOCATIVES];
+  if (options && typeof options.assistantName === 'string' && options.assistantName.trim()) {
+    const cleanAssistant = options.assistantName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (cleanAssistant && !PURE_GREETING_FORBIDDEN_WORDS.has(cleanAssistant)) {
+      vocatives.push(cleanAssistant);
+      const firstWord = cleanAssistant.split(' ')[0];
+      if (firstWord && firstWord !== cleanAssistant && !PURE_GREETING_FORBIDDEN_WORDS.has(firstWord)) {
+        vocatives.push(firstWord);
+      }
+    }
+  }
+
+  const allAtoms = [
+    ...PURE_GREETING_PRIMARY_ATOMS.map((p) => ({ phrase: p, isPrimary: true })),
+    ...vocatives.map((v) => ({ phrase: v, isPrimary: false })),
+  ].sort((a, b) => b.phrase.length - a.phrase.length);
+
+  let remaining = normalized;
+  let primaryCount = 0;
+
+  while (remaining.length > 0) {
+    let matched = false;
+    for (const atom of allAtoms) {
+      if (remaining === atom.phrase) {
+        remaining = '';
+        if (atom.isPrimary) primaryCount++;
+        matched = true;
+        break;
+      }
+      if (remaining.startsWith(`${atom.phrase} `)) {
+        remaining = remaining.slice(atom.phrase.length + 1).trim();
+        if (atom.isPrimary) primaryCount++;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      return false;
+    }
+  }
+
+  return primaryCount >= 1;
+}
+
 module.exports = {
   ALLOWED_TENSHI_MODELS,
   CORE_ALWAYS_ACTIVE_TOOLS,
@@ -947,4 +1261,5 @@ module.exports = {
   ensureLegacyTenshiConversation,
   evaluateSafeArithmeticExpression,
   evaluateSafeSstCalculator,
+  isPureGreetingOrSmallTalk,
 };
