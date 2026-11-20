@@ -17,11 +17,17 @@ const { Course } = require('~/models/Course');
 const { BlogPost } = require('~/models/BlogPost');
 const { syncCompanyMemory } = require('../sgsst/companyInfo');
 const { buildSignatureSection, buildStandardHeader, buildWorkerSubHeader } = require('../sgsst/reportHeader');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const SKILLS_DIR = path.resolve(__dirname, '../../../config/skills');
 const { resolveInspectionProtocol, INSPECTION_PROTOCOLS } = require('./inspectionProtocols');
-const { executeTenshiMcpTool, TOOL_ROUTES } = require('./tenshiMcpDispatcher');
+const {
+    executeTenshiMcpTool,
+    TOOL_ROUTES,
+    isNotebookLmAuthError,
+    markNotebookSessionInvalid,
+} = require('./tenshiMcpDispatcher');
 const { buildTenshiFlowsPromptBlock } = require('~/server/services/tenshiFlowService');
 const {
     isGovernedTool,
@@ -393,12 +399,13 @@ function sanitizeTranscription(text) {
         return '';
     }
 
-    // 4. REJECT FOREIGN LANGUAGE DRIFT (French, German, Portuguese, Romanized Hindi/Urdu)
+    // 4. REJECT FOREIGN LANGUAGE DRIFT (French, German, Portuguese, Romanized Hindi/Urdu, and pure-English ambient phantoms)
     if (
         /\b(qu'est-ce|qu'on|c'est\s+quoi|je\s+suis|avec\s+moi|merci\s+beaucoup)\b/i.test(s) ||
         /\b(händisch|erarbeitet|nicht|auch|wird|haben|einer|einem|diese[rmns]?)\b/i.test(s) ||
         /\b(não|você|vocês|então|isso|tá\s+vendo|a\s+gente\s+tá|acontecer\s+agora|negócio|arrumar|depois\s+que)\b/i.test(s) ||
-        /\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s)
+        /\b(aur|ek\s+chhat|hai\s+na|jo\s+hamara|system\s+hai\s+na)\b/i.test(s) ||
+        /^(?:for\s+\w+\s+is\s+here|claude\s+is\s+here|thanks?\s+for\s+watching|please\s+subscribe|you're\s+welcome|see\s+you\s+(?:soon|later|next\s+time)|i\s+(?:am|will|have|don't|can't)\s+[a-z'\s]+|this\s+is\s+(?:a|the)\s+[a-z'\s]+|it\s+is\s+[a-z'\s]+|that\s+is\s+[a-z'\s]+)\.?$/i.test(s)
     ) {
         logger.warn(`[VoiceSession] Discarding foreign language drift hallucination: "${s}"`);
         return '';
@@ -474,13 +481,17 @@ function sanitizeAccumulatedTranscription(fullText) {
  * Custom dictionary for WAPPY / Tenshi / Antigravity / SG-SST Multimodal Dictation (Wappy Dots Architecture)
  */
 const WAPPY_DICTATION_CUSTOM_VOCABULARY = [
+    'Suri',
+    'Tenshi',
     'WAPPY',
     'Wappy Dots',
-    'Tenshi',
+    'NotebookLM',
+    'Google Flow',
     'Antigravity',
     'SG-SST',
     'SOMOS SST',
     'GTC 45',
+    'IPEVR',
     'Matriz IPEVAR',
     'PESV',
     'COPASST',
@@ -488,8 +499,9 @@ const WAPPY_DICTATION_CUSTOM_VOCABULARY = [
     'FURAT',
     'FUREP',
     'ATEL',
-    'Decreto 1072',
+    'Res. 0312',
     'Resolución 0312',
+    'Decreto 1072',
     'Resolución 1843',
     'Resolución 4272',
     'Resolución 2764',
@@ -501,8 +513,6 @@ const WAPPY_DICTATION_CUSTOM_VOCABULARY = [
     'OCRA',
     'EPP',
     'ACPM',
-    'NotebookLM',
-    'Google Flow',
     'Canvas',
     'LiveEditor',
     'Médico Laboral',
@@ -533,41 +543,60 @@ function calculatePcm16LeRms(pcmBuf) {
  */
 function build16kMonoWavFromPcmChunks(pcmChunks) {
     if (!Array.isArray(pcmChunks) || pcmChunks.length === 0) {
-        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0, reason: 'empty', signature: null };
     }
 
     // Trim leading and trailing silent chunks (keeping 1 chunk margin on each end to preserve initial consonants & final syllables)
     let firstActiveIdx = 0;
-    while (firstActiveIdx < pcmChunks.length && calculatePcm16LeRms(pcmChunks[firstActiveIdx]) < 0.0018) {
+    while (firstActiveIdx < pcmChunks.length && calculatePcm16LeRms(pcmChunks[firstActiveIdx]) < 0.0025) {
         firstActiveIdx++;
     }
     if (firstActiveIdx >= pcmChunks.length) {
-        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+        return { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0, reason: 'all_silent', signature: null };
     }
     let lastActiveIdx = pcmChunks.length - 1;
-    while (lastActiveIdx > firstActiveIdx && calculatePcm16LeRms(pcmChunks[lastActiveIdx]) < 0.0018) {
+    while (lastActiveIdx > firstActiveIdx && calculatePcm16LeRms(pcmChunks[lastActiveIdx]) < 0.0025) {
         lastActiveIdx--;
     }
 
     const startIdx = Math.max(0, firstActiveIdx - 1);
     const endIdx = Math.min(pcmChunks.length - 1, lastActiveIdx + 1);
     const trimmedPcm = Buffer.concat(pcmChunks.slice(startIdx, endIdx + 1));
+    const durationSec = +(trimmedPcm.length / 32000).toFixed(2);
 
     // Minimum ~100ms of 16kHz 16-bit mono PCM (3200 bytes)
     if (trimmedPcm.length < 3200) {
-        return { silent: true, rms: 0, wavBase64: null, byteLength: trimmedPcm.length, durationSec: 0 };
+        return { silent: true, rms: 0, wavBase64: null, byteLength: trimmedPcm.length, durationSec, reason: 'too_short', signature: null };
     }
 
     const rms = calculatePcm16LeRms(trimmedPcm);
-    if (rms < 0.0025) {
+    if (rms < 0.003) {
         return {
             silent: true,
             rms,
             wavBase64: null,
             byteLength: trimmedPcm.length,
-            durationSec: +(trimmedPcm.length / 32000).toFixed(2),
+            durationSec,
+            reason: 'below_min_rms',
+            signature: null,
         };
     }
+
+    // Filtro anti-ruido corto (respiración, suspiro, clic, golpe de micrófono):
+    // Si dura < 0.45s y RMS < 0.06, o tiene < 16000 bytes PCM (~0.50s) con energía marginal (< 0.055), descartar como ruido de fondo
+    if ((durationSec < 0.45 && rms < 0.06) || (trimmedPcm.length < 16000 && rms < 0.055)) {
+        return {
+            silent: true,
+            rms,
+            wavBase64: null,
+            byteLength: trimmedPcm.length,
+            durationSec,
+            reason: 'short_low_energy_noise',
+            signature: null,
+        };
+    }
+
+    const signature = crypto.createHash('sha1').update(trimmedPcm).digest('hex').slice(0, 16);
 
     const wavHeader = Buffer.alloc(44);
     wavHeader.write('RIFF', 0);
@@ -590,7 +619,9 @@ function build16kMonoWavFromPcmChunks(pcmChunks) {
         rms,
         wavBase64: wavBuffer.toString('base64'),
         byteLength: trimmedPcm.length,
-        durationSec: +(trimmedPcm.length / 32000).toFixed(2),
+        durationSec,
+        reason: null,
+        signature,
     };
 }
 
@@ -950,12 +981,16 @@ class VoiceSession {
         this.pendingHangupAfterTurn = false; // Cierre diferido tras terminar locución de despedida
         this.hangupFarewellAlreadySpoken = false;
         this.pendingHangupTimer = null;
-        // Wappy Dots 4-Step Multimodal 16kHz WAV Audio Capture Buffers
+        // Wappy Dots 4-Step Multimodal 16kHz WAV Audio Capture Buffers & Deduplication
         this.currentTurnPcmChunks = [];
         this.currentTurnPcmBytes = 0;
         this.currentTurnPreRollChunks = [];
         this.currentTurnSpeechDetected = false;
+        this.currentAudioTurnId = 0;
         this.earlyCorrectionPromise = null;
+        this.wavTranscriptionCache = new Map();
+        this.wavTranscriptionInFlight = new Map();
+        this.activeToolCount = 0;
         this.lastUserAudioAt = 0;
         this.userMeta = null;
         this.activeCompanyId = config?.companyId ? String(config.companyId) : null;
@@ -3446,11 +3481,16 @@ Cuando el usuario te diga "genera el informe", "haz el informe", "saca el report
 
                     if (nbSess && Array.isArray(nbSess.cookies) && nbSess.cookies.length > 0) {
                         const cachedNbs = Array.isArray(nbSess.cachedNotebooks) ? nbSess.cachedNotebooks : [];
-                        companyAndMemoryPrompt += `\n\n[ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n` +
-                            `- Tenshi tiene acceso TOTAL a TODOS los cuadernos de Google NotebookLM del usuario.\n`;
-                        if (cachedNbs.length > 0) {
-                            companyAndMemoryPrompt += `- Cuadernos disponibles (${cachedNbs.length}): ` +
-                                cachedNbs.slice(0, 8).map((nb) => `${nb.emoji || '📓'} "${nb.title}" (ID: ${nb.id}, ${nb.sources_count || 0} fuentes)`).join(' | ') + `.\n`;
+                        if (nbSess.isValid === false) {
+                            companyAndMemoryPrompt += `\n\n[ESTADO DE GOOGLE NOTEBOOKLM (SESIÓN CADUCADA)]:\n` +
+                                `- La sesión privada de Google NotebookLM del usuario figura como CADUCADA (isValid=false). Si pide consultar un cuaderno, puedes intentar la herramienta una vez o avisarle con honestidad que su sesión de NotebookLM expiró y debe reconectarla en 1 clic desde la píldora "Cuadernos".\n`;
+                        } else {
+                            companyAndMemoryPrompt += `\n\n[ACCESO TOTAL DE TENSHI A GOOGLE NOTEBOOKLM (SEGUNDO CEREBRO)]:\n` +
+                                `- Tenshi tiene acceso TOTAL a TODOS los cuadernos de Google NotebookLM del usuario.\n`;
+                            if (cachedNbs.length > 0) {
+                                companyAndMemoryPrompt += `- Cuadernos disponibles (${cachedNbs.length}): ` +
+                                    cachedNbs.slice(0, 8).map((nb) => `${nb.emoji || '📓'} "${nb.title}" (ID: ${nb.id}, ${nb.sources_count || 0} fuentes)`).join(' | ') + `.\n`;
+                            }
                         }
                     }
 
@@ -3843,12 +3883,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
-            this.bargeInSuppressAiAudioUntil = 0;
-            this.isAiSpeaking = false;
             const safeChunk = sanitizeStreamingChunk(text);
             if (!safeChunk || !safeChunk.trim()) {
                 return;
             }
+            // Proteger la burbuja real del usuario mientras una herramienta está ejecutándose ante suspiros/ruidos cortos
+            if (this.activeToolCount > 0 && (this.currentTurnPcmBytes || 0) < 16000) {
+                logger.info(`[VoiceSession] Ignoring short streaming STT fragment while ${this.activeToolCount} tool(s) are running (${this.currentTurnPcmBytes || 0}B PCM): "${safeChunk.trim()}"`);
+                return;
+            }
+            this.bargeInSuppressAiAudioUntil = 0;
+            this.isAiSpeaking = false;
             this.toolCalledThisTurn = false;
 
             const now = Date.now();
@@ -4004,6 +4049,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             this.triggerEarlyUserTranscriptionCorrection('tool_call');
 
             if (toolCall.functionCalls) {
+                this.activeToolCount = (this.activeToolCount || 0) + 1;
+                try {
                 const userMeta = await this._loadUserMetaOnce();
                 const resolvedCompId = (userMeta.isSubUser && userMeta.assignedCompany)
                     ? userMeta.assignedCompany
@@ -4152,6 +4199,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         wappy_activar_empresa: '🏢 Activando empresa...',
                         wappy_delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
                         delegar_orden_antigravity: '🚀 Delegando orden a Antigravity...',
+                        wappy_buscar_historial_instantaneo: '🔎 Buscando en tu historial instantáneo...',
                         operar_interfaz_visual: '✨ Tenshi operando tu pantalla...',
                         gestor_automatizaciones: fc.args?.accion === 'ejecutar_tenshi'
                             ? '⚡ Ejecutando flujo instantáneo...'
@@ -4296,7 +4344,90 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                 mappedArgs = { notebook: fc.args?.cuaderno || fc.args?.notebook || '', task_id: fc.args?.task_id || '' };
                             }
                             const nbResult = await executeTenshiMcpTool(mappedTool, mappedArgs, this.userId);
-                            logger.info(`[VoiceSession] NotebookLM tool "${fc.name}" executed successfully.`);
+                            const nbErrText =
+                                (nbResult && typeof nbResult === 'object'
+                                    ? String(nbResult.error || nbResult.result?.error || '')
+                                    : typeof nbResult === 'string' && /^error\b/i.test(nbResult.trim())
+                                    ? nbResult
+                                    : ''
+                                ).trim();
+                            const nbAuthExpired =
+                                Boolean(nbResult && typeof nbResult === 'object' && nbResult.authExpired) ||
+                                isNotebookLmAuthError(nbErrText || (typeof nbResult === 'string' ? nbResult : ''));
+                            const nbFailed =
+                                !nbResult ||
+                                (typeof nbResult === 'object' && nbResult.ok === false) ||
+                                Boolean(nbErrText) ||
+                                nbAuthExpired;
+
+                            if (nbAuthExpired) {
+                                logger.warn(`[VoiceSession] 🔐 Google NotebookLM auth expired during "${fc.name}" (mapped="${mappedTool}"): ${nbErrText || 'sesión expirada'}`);
+                                try {
+                                    const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
+                                    await markNotebookSessionInvalid(NotebookSession, this.userId);
+                                } catch (_) {}
+                                const authExpiredMsg =
+                                    (nbResult && typeof nbResult === 'object' && nbResult.mensaje) ||
+                                    'Tu sesión de Google NotebookLM caducó. Reconecta tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.';
+                                this.sendToClient({
+                                    type: 'status',
+                                    data: { status: 'idle', message: '' },
+                                });
+                                this.sendToClient({
+                                    type: 'notebooklm_auth_expired',
+                                    data: {
+                                        toolName: fc.name,
+                                        mappedTool,
+                                        authExpired: true,
+                                        isValid: false,
+                                        reason: nbErrText || 'Sesión de Google NotebookLM caducada (token CSRF o cookies expiradas)',
+                                        message: authExpiredMsg,
+                                    },
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            ok: false,
+                                            authExpired: true,
+                                            mensaje: `${authExpiredMsg} [INSTRUCCIÓN CRÍTICA DE HONESTIDAD EN ESPAÑOL]: La consulta a Google NotebookLM falló porque la sesión de Google caducó. ESTÁ PROHIBIDO afirmar que consultaste el cuaderno o que entregaste un artefacto. Informa claramente en español que la sesión de Google NotebookLM expiró y que puede reconectarla en 1 clic desde la píldora "Cuadernos".`,
+                                        },
+                                    }]);
+                                }
+                                continue;
+                            }
+
+                            if (nbFailed) {
+                                logger.warn(`[VoiceSession] ⚠️ NotebookLM tool "${fc.name}" failed: ${nbErrText || 'sin resultado'}`);
+                                this.sendToClient({
+                                    type: 'status',
+                                    data: { status: 'idle', message: '' },
+                                });
+                                const failMsg =
+                                    (nbResult && typeof nbResult === 'object' && nbResult.mensaje) ||
+                                    nbErrText ||
+                                    'No se pudo completar la consulta en Google NotebookLM.';
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            ok: false,
+                                            authExpired: false,
+                                            error: failMsg,
+                                            mensaje: `${failMsg} [INSTRUCCIÓN CRÍTICA DE HONESTIDAD EN ESPAÑOL]: NO digas que la operación se completó ni que entregaste un artefacto. Informa brevemente el error real en español.`,
+                                        },
+                                    }]);
+                                }
+                                continue;
+                            }
+
+                            logger.info(`[VoiceSession] ✅ NotebookLM tool "${fc.name}" executed successfully.`);
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'idle', message: '' },
+                            });
                             this.sendToClient({
                                 type: 'wappy_action',
                                 data: { id: fc.id, name: fc.name, args: fc.args, result: nbResult }
@@ -4310,11 +4441,49 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             }
                         } catch (nbErr) {
                             logger.error(`[VoiceSession] Error executing NotebookLM tool "${fc.name}":`, nbErr);
-                            if (this.geminiClient) {
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'idle', message: '' },
+                            });
+                            const caughtAuthExpired = isNotebookLmAuthError(nbErr?.message);
+                            if (caughtAuthExpired) {
+                                try {
+                                    const NotebookSession = mongoose.models.NotebookSession || require('~/models/NotebookSession');
+                                    await markNotebookSessionInvalid(NotebookSession, this.userId);
+                                } catch (_) {}
+                                const authExpiredMsg =
+                                    'Tu sesión de Google NotebookLM caducó. Reconecta tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.';
+                                this.sendToClient({
+                                    type: 'notebooklm_auth_expired',
+                                    data: {
+                                        toolName: fc.name,
+                                        authExpired: true,
+                                        isValid: false,
+                                        reason: nbErr?.message || 'Sesión de Google NotebookLM caducada',
+                                        message: authExpiredMsg,
+                                    },
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            ok: false,
+                                            authExpired: true,
+                                            mensaje: `${authExpiredMsg} [INSTRUCCIÓN CRÍTICA DE HONESTIDAD EN ESPAÑOL]: Informa claramente en español que la sesión de Google NotebookLM expiró y que debe reconectarla en 1 clic desde la píldora "Cuadernos".`,
+                                        },
+                                    }]);
+                                }
+                            } else if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
                                     name: fc.name,
-                                    response: { error: `No se pudo consultar Google NotebookLM: ${nbErr.message}` }
+                                    response: {
+                                        ok: false,
+                                        authExpired: false,
+                                        error: `No se pudo consultar Google NotebookLM: ${nbErr.message}`,
+                                        mensaje: `No se pudo consultar Google NotebookLM: ${nbErr.message}`,
+                                    },
                                 }]);
                             }
                         }
@@ -6335,16 +6504,85 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         continue;
                     }
 
+                    // Búsqueda Instantánea de Historial (< 5ms, estilo BM25 en MongoDB)
+                    // DEBE ejecutarse ANTES del bloque genérico `fc.name.startsWith('wappy_')` para no delegarse a tenshiMcpDispatcher
+                    if (fc.name === 'wappy_buscar_historial_instantaneo') {
+                        logger.info(`[VoiceSession] Gemini Live invoked "wappy_buscar_historial_instantaneo" with args:`, JSON.stringify(fc.args));
+                        try {
+                            const activeCompId = await resolveActiveCompanyId(this.userId);
+                            const histRes = await searchInstantHistory(fc.args || {}, this.userId, activeCompId);
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'idle', message: '' },
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: JSON.stringify(histRes) }
+                                }]);
+                            }
+                        } catch (histErr) {
+                            logger.error('[VoiceSession] Error in wappy_buscar_historial_instantaneo:', histErr);
+                            this.sendToClient({
+                                type: 'status',
+                                data: { status: 'idle', message: '' },
+                            });
+                            if (this.geminiClient) {
+                                this.sendGeminiToolResponse([{
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { error: histErr.message }
+                                }]);
+                            }
+                        }
+                        continue;
+                    }
+
                     // Manejo universal de operaciones MCP de WAPPY (las 41 herramientas oficiales)
                     const isMcpCall =
                         fc.name === 'wappy_mcp_sst' ||
                         fc.name in TOOL_ROUTES ||
                         (fc.name.startsWith('wappy_') &&
-                            !['wappy_navegar', 'wappy_seleccionar_empresa', 'wappy_diligenciar_formulario', 'wappy_abrir_chat_agente', 'wappy_iniciar_estudio_ergonomico_vivo'].includes(fc.name));
+                            ![
+                                'wappy_navegar',
+                                'wappy_seleccionar_empresa',
+                                'wappy_diligenciar_formulario',
+                                'wappy_abrir_chat_agente',
+                                'wappy_iniciar_estudio_ergonomico_vivo',
+                                'wappy_buscar_historial_instantaneo',
+                            ].includes(fc.name));
 
                     if (isMcpCall) {
                         const targetTool = fc.name === 'wappy_mcp_sst' ? (fc.args?.herramienta || fc.args?.tool) : fc.name;
                         const targetArgs = fc.name === 'wappy_mcp_sst' ? (fc.args?.parametros || fc.args?.args || fc.args || {}) : (fc.args || {});
+
+                        if (targetTool === 'wappy_buscar_historial_instantaneo') {
+                            logger.info(`[VoiceSession] Redirecting wappy_mcp_sst -> "wappy_buscar_historial_instantaneo" with args:`, JSON.stringify(targetArgs));
+                            try {
+                                const activeCompId = await resolveActiveCompanyId(this.userId);
+                                const histRes = await searchInstantHistory(targetArgs || {}, this.userId, activeCompId);
+                                this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { result: JSON.stringify(histRes) },
+                                    }]);
+                                }
+                            } catch (histErr) {
+                                logger.error('[VoiceSession] Error in redirected wappy_buscar_historial_instantaneo:', histErr);
+                                this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: { error: histErr.message },
+                                    }]);
+                                }
+                            }
+                            continue;
+                        }
 
                         logger.info(`[VoiceSession] Gemini Live invoked WAPPY MCP tool "${targetTool}" with args:`, JSON.stringify(targetArgs));
 
@@ -6447,6 +6685,37 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             }
 
                             const result = await executeTenshiMcpTool(targetTool, targetArgs, this.userId);
+
+                            // Honestidad para alias wappy_notebooklm_* / wappy_consultar_cuaderno* cuando caduca la sesión de NotebookLM
+                            if (result && typeof result === 'object' && result.authExpired) {
+                                logger.warn(`[VoiceSession] 🔐 NotebookLM alias "${targetTool}" auth expired: ${result.error || 'sesión expirada'}`);
+                                const authExpiredMsg =
+                                    result.mensaje ||
+                                    'Tu sesión de Google NotebookLM caducó. Reconecta tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.';
+                                this.sendToClient({ type: 'status', data: { status: 'idle', message: '' } });
+                                this.sendToClient({
+                                    type: 'notebooklm_auth_expired',
+                                    data: {
+                                        toolName: targetTool,
+                                        authExpired: true,
+                                        isValid: false,
+                                        reason: result.error || 'Sesión de Google NotebookLM caducada',
+                                        message: authExpiredMsg,
+                                    },
+                                });
+                                if (this.geminiClient) {
+                                    this.sendGeminiToolResponse([{
+                                        id: fc.id,
+                                        name: fc.name,
+                                        response: {
+                                            ok: false,
+                                            authExpired: true,
+                                            mensaje: `${authExpiredMsg} [INSTRUCCIÓN CRÍTICA DE HONESTIDAD EN ESPAÑOL]: NO digas que consultaste el cuaderno ni que entregaste un artefacto. Indica claramente en español que la sesión de Google NotebookLM caducó y debe reconectarse en 1 clic desde la píldora "Cuadernos".`,
+                                        },
+                                    }]);
+                                }
+                                continue;
+                            }
 
                             let rawHtml = '';
                             if (result && typeof result === 'object') {
@@ -6722,32 +6991,6 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             }
                         }, 4000);
                         this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
-                        continue;
-                    }
-
-                    // Búsqueda Instantánea de Historial (< 5ms, estilo BM25)
-                    if (fc.name === 'wappy_buscar_historial_instantaneo') {
-                        logger.info(`[VoiceSession] Gemini Live invoked "wappy_buscar_historial_instantaneo" with args:`, JSON.stringify(fc.args));
-                        try {
-                            const activeCompId = await resolveActiveCompanyId(this.userId);
-                            const histRes = await searchInstantHistory(fc.args || {}, this.userId, activeCompId);
-                            if (this.geminiClient) {
-                                this.sendGeminiToolResponse([{
-                                    id: fc.id,
-                                    name: fc.name,
-                                    response: { result: JSON.stringify(histRes) }
-                                }]);
-                            }
-                        } catch (histErr) {
-                            logger.error('[VoiceSession] Error in wappy_buscar_historial_instantaneo:', histErr);
-                            if (this.geminiClient) {
-                                this.sendGeminiToolResponse([{
-                                    id: fc.id,
-                                    name: fc.name,
-                                    response: { error: histErr.message }
-                                }]);
-                            }
-                        }
                         continue;
                     }
 
@@ -7112,6 +7355,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     }, 3000);
                     this.pendingToolCalls.set(fc.id, { timeoutId, name: fc.name });
                 }
+                } finally {
+                    this.activeToolCount = Math.max(0, (this.activeToolCount || 1) - 1);
+                }
             }
         });
 
@@ -7154,6 +7400,15 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
         // Listen for Interrupted (User Barge-In)
         this.geminiClient.on('interrupted', () => {
+            if (this.activeToolCount > 0) {
+                logger.info(`[VoiceSession] ========== USER INTERRUPTED (while ${this.activeToolCount} tool(s) running — preserving active user turn) ==========`);
+                this.isAiSpeaking = false;
+                if (this.aiSpeakingTimeout) {
+                    clearTimeout(this.aiSpeakingTimeout);
+                    this.aiSpeakingTimeout = null;
+                }
+                return;
+            }
             logger.info('[VoiceSession] ========== USER INTERRUPTED RESPONSE ==========');
             this.isAiSpeaking = false;
             this.bargeInSuppressAiAudioUntil = 0;
@@ -7243,6 +7498,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
         });
 
         // Limpiar cliente previo
+        this.activeToolCount = 0;
         if (this.geminiClient) {
             try {
                 this.geminiClient.removeAllListeners();
@@ -7686,6 +7942,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             case 'barge_in':
                 logger.info('[VoiceSession] 🗣️ Barge-in recibido del cliente → interrumpiendo salida de IA y habilitando voz del usuario');
                 this.isAiSpeaking = false;
+                this.activeToolCount = 0;
                 this.suppressClientAudioUntil = null;
                 this.bargeInSuppressAiAudioUntil = Date.now() + 900;
                 if (this.aiSpeakingTimeout) {
@@ -7699,8 +7956,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                // No reenviar audio mientras la IA habla salvo que el cliente haya emitido previamente 'barge_in'
-                if (this.isAiSpeaking) {
+                // No reenviar audio mientras la IA habla o mientras una herramienta está ejecutándose (salvo barge_in explícito previo)
+                if (this.isAiSpeaking || this.activeToolCount > 0) {
                     break;
                 }
                 // Suprimir reenvío de audio del micrófono brevemente tras inyección de texto para permitir que Gemini Live sintetice la respuesta sin ser cancelado por ruido ambiental
@@ -7724,6 +7981,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         this.currentTurnPcmBytes = 0;
                         this.currentTurnPreRollChunks = [];
                         this.currentTurnSpeechDetected = false;
+                        this.currentAudioTurnId = (this.currentAudioTurnId || 0) + 1;
                     }
                     this.lastUserAudioAt = nowAudio;
 
@@ -7732,7 +7990,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         if (pcmBuf.length >= 2) {
                             const chunkRms = calculatePcm16LeRms(pcmBuf);
                             if (!this.currentTurnSpeechDetected) {
-                                if (chunkRms >= 0.0025) {
+                                if (chunkRms >= 0.003) {
                                     this.currentTurnSpeechDetected = true;
                                     if (Array.isArray(this.currentTurnPreRollChunks) && this.currentTurnPreRollChunks.length > 0) {
                                         for (const pre of this.currentTurnPreRollChunks) {
@@ -7767,14 +8025,32 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
             case 'speech_end':
                 // El cliente detectó fin de voz real. Ejecutamos la transcripción multimodal Wappy Dots (16kHz WAV)
-                // y enviamos audioStreamEnd si hay habla acumulada.
+                // y enviamos audioStreamEnd si hay habla real acumulada (descartando ruido corto < 0.45s / baja energía).
                 if (!this.isActive || !this.geminiClient || !this.geminiClient.setupCompleted) {
                     break;
                 }
-                if (this.isAiSpeaking || this.turnHadAiOutput || this.toolCalledThisTurn) {
+                if (this.isAiSpeaking || this.turnHadAiOutput || this.toolCalledThisTurn || this.activeToolCount > 0) {
                     break;
                 }
                 this.bargeInSuppressAiAudioUntil = 0;
+                if (Array.isArray(this.currentTurnPcmChunks) && this.currentTurnPcmChunks.length > 0) {
+                    const endWavCheck = build16kMonoWavFromPcmChunks(this.currentTurnPcmChunks);
+                    if (endWavCheck.silent) {
+                        logger.info(
+                            `[VoiceSession] 🔇 Ignorando speech_end por ruido corto/silencio (${endWavCheck.durationSec}s, RMS=${endWavCheck.rms.toFixed(4)}, ${this.currentTurnPcmBytes || 0}B PCM, reason=${endWavCheck.reason})`
+                        );
+                        this.currentTurnPcmChunks = [];
+                        this.currentTurnPcmBytes = 0;
+                        this.currentTurnPreRollChunks = [];
+                        this.currentTurnSpeechDetected = false;
+                        this.currentAudioTurnId = (this.currentAudioTurnId || 0) + 1;
+                        if (!this.userTranscriptionText || this.userTranscriptionText.trim().length < 18) {
+                            this.userTranscriptionText = '';
+                            this.rawUserTranscriptionStream = '';
+                        }
+                        break;
+                    }
+                }
                 this.triggerEarlyUserTranscriptionCorrection('speech_end');
                 if (
                     ((this.userTranscriptionText && this.userTranscriptionText.trim().length > 0) ||
@@ -8385,8 +8661,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
      * Stop the session
      */
     /**
-     * Ejecuta transcripción multimodal Wappy Dots (16kHz Mono WAV + Pool de 6 Claves con gemini-3.5-flash-lite)
-     * apenas el usuario termina de hablar (~300-600ms), actualizando inmediatamente la burbuja del usuario en pantalla.
+     * Ejecuta transcripción multimodal Wappy Dots (16kHz Mono WAV + Pool de Claves con gemini-3.5-flash-lite -> gemini-3.6-flash)
+     * apenas el usuario termina de hablar (~300-600ms), deduplicada por firma SHA-1 del buffer WAV para 0 llamadas duplicadas.
      */
     triggerEarlyUserTranscriptionCorrection(reason = 'stream_pause') {
         if (this.earlyCorrectionTimer) {
@@ -8401,6 +8677,7 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             ? [...this.currentTurnPcmChunks]
             : [];
         const pcmBytesSnapshot = this.currentTurnPcmBytes || 0;
+        const turnIdSnapshot = this.currentAudioTurnId || 0;
         const hasRealSpeechAudio = this.currentTurnSpeechDetected && pcmBytesSnapshot >= 9600;
 
         // Omitir llamadas por ruido breve o silencios en pausa
@@ -8411,47 +8688,103 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
             return;
         }
 
+        // Pre-filtro anti-ruido corto antes de llamar a Gemini o pintar burbuja fantasma (ej. respiración 0.32s RMS=0.0476 -> "3 meses.")
+        let prebuiltWavInfo = null;
+        if (pcmChunksSnapshot.length > 0) {
+            prebuiltWavInfo = build16kMonoWavFromPcmChunks(pcmChunksSnapshot);
+            if (prebuiltWavInfo.silent) {
+                logger.info(
+                    `[VoiceSession] 🔇 Descartando ruido corto/silencio antes de transcribir WAV (${reason}, ${prebuiltWavInfo.durationSec}s, RMS=${prebuiltWavInfo.rms.toFixed(4)}, ${pcmBytesSnapshot}B PCM, reason=${prebuiltWavInfo.reason}, raw="${rawSnapshot}")`
+                );
+                const silentSnapshot = {
+                    resolved: true,
+                    raw: rawSnapshot,
+                    corrected: '',
+                    isSilence: true,
+                    pcmBytes: pcmBytesSnapshot,
+                    pcmSignature: null,
+                    turnId: turnIdSnapshot,
+                    timestamp: Date.now(),
+                };
+                this.earlyCorrectedSnapshot = silentSnapshot;
+                if (rawSnapshot && (this.userTranscriptionText || '').trim() === rawSnapshot) {
+                    this.userTranscriptionText = '';
+                    this.rawUserTranscriptionStream = '';
+                }
+                return Promise.resolve(silentSnapshot);
+            }
+        }
+
+        const wavSignature = prebuiltWavInfo?.signature || null;
+
         // Deduplicar llamadas concurrentes en el mismo turno para evitar cascada sobre el pool
         if (this.earlyCorrectionPromise) {
             return this.earlyCorrectionPromise;
         }
 
-        // Si ya tenemos una corrección reciente para casi el mismo buffer de audio/texto del turno, reutilizarla
+        // Si ya tenemos un resultado calculado para la misma firma WAV o el mismo turno/buffer (incluyendo silencio confirmado), reutilizarlo con 0 llamadas extra
         if (
             this.earlyCorrectedSnapshot &&
-            this.earlyCorrectedSnapshot.raw === rawSnapshot &&
-            Math.abs(pcmBytesSnapshot - (this.earlyCorrectedSnapshot.pcmBytes || 0)) < 16000
+            ((wavSignature && this.earlyCorrectedSnapshot.pcmSignature === wavSignature) ||
+                (this.earlyCorrectedSnapshot.turnId === turnIdSnapshot &&
+                    Math.abs(pcmBytesSnapshot - (this.earlyCorrectedSnapshot.pcmBytes || 0)) <= 4096))
         ) {
-            return Promise.resolve(this.earlyCorrectedSnapshot.corrected);
+            return Promise.resolve(this.earlyCorrectedSnapshot);
         }
 
         const toolCallsSnapshot = Array.isArray(this.currentTurnToolCalls) ? [...this.currentTurnToolCalls] : [];
-        const bucketPcmKb = Math.floor(pcmBytesSnapshot / 16000);
-        const cacheKey = `${rawSnapshot}::${bucketPcmKb}`;
-        if (this.earlyCorrectedSnapshot && this.earlyCorrectedSnapshot.cacheKey === cacheKey) {
-            return Promise.resolve(this.earlyCorrectedSnapshot.corrected);
-        }
+        const cacheKey = wavSignature
+            ? `wav:${wavSignature}`
+            : `txt:${turnIdSnapshot}:${rawSnapshot}:${Math.floor(pcmBytesSnapshot / 8192)}`;
+
         if (this.earlyCorrectionInFlightKey === cacheKey) {
-            return;
+            return this.earlyCorrectionPromise;
         }
         this.earlyCorrectionInFlightKey = cacheKey;
 
-        const promise = this.correctTranscription(rawSnapshot, this.aiResponseText || '', toolCallsSnapshot, pcmChunksSnapshot)
+        const promise = this.correctTranscription(
+            rawSnapshot,
+            this.aiResponseText || '',
+            toolCallsSnapshot,
+            pcmChunksSnapshot,
+            prebuiltWavInfo
+        )
             .then((corrected) => {
                 const cleanCorrected = (corrected || '').trim();
-                const currentActiveRaw = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
-                if (!cleanCorrected) {
-                    return '';
-                }
-                this.earlyCorrectedSnapshot = {
+                const isSilence = !cleanCorrected;
+                const snapshot = {
+                    resolved: true,
                     raw: rawSnapshot,
                     corrected: cleanCorrected,
-                    toolCount: toolCallsSnapshot.length,
+                    isSilence,
                     pcmBytes: pcmBytesSnapshot,
+                    pcmSignature: wavSignature,
+                    turnId: turnIdSnapshot,
                     cacheKey,
+                    timestamp: Date.now(),
                 };
+                // Guardar SIEMPRE el snapshot (tanto texto real como [SILENCIO] verificado) para que TURN COMPLETE reutilice con 0 llamadas duplicadas
+                if ((this.currentAudioTurnId || 0) === turnIdSnapshot) {
+                    this.earlyCorrectedSnapshot = snapshot;
+                }
+
+                const currentActiveRaw = (this.userTranscriptionText || this.rawUserTranscriptionStream || '').trim();
+                if (isSilence) {
+                    // Si el transcriptor WAV confirmó silencio/ruido, limpiar alucinación cruda sin reemplazar la burbuja real previa
+                    if (
+                        (this.currentAudioTurnId || 0) === turnIdSnapshot &&
+                        rawSnapshot &&
+                        currentActiveRaw === rawSnapshot
+                    ) {
+                        this.userTranscriptionText = '';
+                        this.rawUserTranscriptionStream = '';
+                    }
+                    return snapshot;
+                }
+
                 // Si seguimos en el mismo turno de habla del usuario, actualizar en vivo la burbuja inmediatamente
                 if (
+                    (this.currentAudioTurnId || 0) === turnIdSnapshot &&
                     (currentActiveRaw === rawSnapshot || !currentActiveRaw || currentActiveRaw === this.userTranscriptionText) &&
                     cleanCorrected !== rawSnapshot
                 ) {
@@ -8467,9 +8800,17 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         },
                     });
                 }
-                return cleanCorrected;
+                return snapshot;
             })
-            .catch(() => '')
+            .catch(() => ({
+                resolved: false,
+                raw: rawSnapshot,
+                corrected: '',
+                isSilence: false,
+                pcmBytes: pcmBytesSnapshot,
+                pcmSignature: wavSignature,
+                turnId: turnIdSnapshot,
+            }))
             .finally(() => {
                 if (this.earlyCorrectionInFlightKey === cacheKey) {
                     this.earlyCorrectionInFlightKey = null;
@@ -8485,25 +8826,56 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
 
     /**
      * Transcripción Multimodal de Voz 16kHz WAV con el Pool de Gemini (Arquitectura Wappy Dots):
-     * 1. Convierte los chunks PCM 16kHz 16-bit mono a un archivo WAV en memoria (con filtro de silencio RMS >= 0.0025).
-     * 2. Inyecta el Diccionario Personalizado de WAPPY (Tenshi, Antigravity, SG-SST, GTC 45, PESV, etc.).
-     * 3. Envía el audio real (inlineData audio/wav) a gemini-3.5-flash-lite (con respaldo a gemini-3.8-flash y gemini-3.6-flash rotando las 6 claves API).
-     * 4. Elimina muletillas ("eh", "este", "mmm") y aplica puntuación perfecta en español.
+     * 1. Convierte los chunks PCM 16kHz 16-bit mono a WAV en memoria con filtro anti-ruido corto (<0.45s & RMS<0.06) y firma SHA-1.
+     * 2. Deduplica por firma SHA-1 del buffer recortado (0 llamadas duplicadas entre speech_end/tool_call y TURN COMPLETE).
+     * 3. Envía EXCLUSIVAMENTE el audio WAV 16kHz (SIN pasar rawLiveText ni aiReplyHint al prompt para eliminar sesgo de alucinaciones)
+     *    a gemini-3.5-flash-lite con rotación limpia a gemini-3.6-flash (modelos activos de GOOGLE_MODELS en .env) ante 503/timeout.
+     * 4. Devuelve exactamente [SILENCIO] -> '' si solo hay ruido ambiental, respiración o audio ininteligible.
+     *    Solo usa rawLiveText como último respaldo si fallan todos los intentos al API WAV.
      */
-    async correctTranscription(userText, aiResponseText, toolCalls = [], pcmChunks = null) {
+    async correctTranscription(userText, aiResponseText, toolCalls = [], pcmChunks = null, prebuiltWavInfo = null) {
         try {
             const rawInput = typeof userText === 'string' ? userText : '';
             const sanitized = sanitizeAccumulatedTranscription(rawInput).trim();
-            const wavInfo = Array.isArray(pcmChunks) && pcmChunks.length > 0
+            const hasPcmChunks = Array.isArray(pcmChunks) && pcmChunks.length > 0;
+            const wavInfo = prebuiltWavInfo || (hasPcmChunks
                 ? build16kMonoWavFromPcmChunks(pcmChunks)
-                : { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0 };
+                : { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0, reason: 'no_pcm', signature: null });
+
+            // Si recibimos audio real de micrófono y el filtro RMS / anti-ruido corto determinó silencio/ruido,
+            // descartar SIEMPRE sin gastar tokens y sin filtrar alucinaciones de rawLiveText (ej. "3 meses.")
+            if (hasPcmChunks && wavInfo.silent) {
+                logger.info(
+                    `[VoiceSession] 🔇 Audio descartado en correctTranscription (${wavInfo.durationSec}s, RMS=${wavInfo.rms.toFixed(4)}, ${wavInfo.byteLength}B, reason=${wavInfo.reason}, raw="${rawInput}")`
+                );
+                return '';
+            }
 
             // Si no hay audio con voz real NI texto válido, descartar sin gastar tokens
             if (wavInfo.silent && !sanitized) {
                 return '';
             }
 
-            // Fast-path para respuestas cortas exactas (0ms latencia, solo si el audio dura menos de 1.8s)
+            // Deduplicación estricta por firma SHA-1 del WAV (caché de 60s + deduplicación de promesas en vuelo)
+            if (!this.wavTranscriptionCache) this.wavTranscriptionCache = new Map();
+            if (!this.wavTranscriptionInFlight) this.wavTranscriptionInFlight = new Map();
+
+            const wavSig = wavInfo.signature;
+            if (wavSig) {
+                const cached = this.wavTranscriptionCache.get(wavSig);
+                if (cached && Date.now() - cached.at < 60000) {
+                    logger.info(
+                        `[VoiceSession] ♻️ Reutilizando transcripción WAV cacheada (sig=${wavSig}, ${wavInfo.durationSec}s): "${cached.text}"`
+                    );
+                    return cached.text;
+                }
+                if (this.wavTranscriptionInFlight.has(wavSig)) {
+                    logger.info(`[VoiceSession] ♻️ Esperando transcripción WAV ya en vuelo (sig=${wavSig})`);
+                    return await this.wavTranscriptionInFlight.get(wavSig);
+                }
+            }
+
+            // Fast-path para respuestas cortas exactas SOLO si no hubo audio PCM (o si el audio real es corto y tiene energía clara)
             const lower = sanitized.toLowerCase().replace(/[.,!¡?¿]/g, '').trim();
             const quickPhrases = {
                 'listo': 'Listo.',
@@ -8520,7 +8892,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 'entendido': 'Entendido.',
                 'hola': 'Hola.',
                 'hola tenshi': 'Hola, Tenshi.',
+                'hola suri': 'Hola, Suri.',
                 'tenshi hola': 'Tenshi, hola.',
+                'suri hola': 'Suri, hola.',
                 'haz el informe': 'Haz el informe.',
                 'genera el informe': 'Genera el informe.',
                 'generar el informe': 'Generar el informe.',
@@ -8529,8 +8903,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 'si haz el informe': 'Sí, haz el informe.',
             };
 
-            if (quickPhrases[lower] && (wavInfo.silent || wavInfo.durationSec < 1.8)) {
+            if (quickPhrases[lower] && (!hasPcmChunks || (wavInfo.durationSec < 1.6 && wavInfo.rms >= 0.06))) {
                 logger.info(`[VoiceSession] Transcription fast-path matched: "${rawInput}" -> "${quickPhrases[lower]}"`);
+                if (wavSig) {
+                    this.wavTranscriptionCache.set(wavSig, { text: quickPhrases[lower], at: Date.now() });
+                }
                 return quickPhrases[lower];
             }
 
@@ -8540,45 +8917,43 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                 return '';
             }
 
-            const correctionModelName = 'gemini-3.5-flash-lite';
-            const customVocab = [
+            // Escalera de modelos estrictamente alineada con GOOGLE_MODELS de .env (verify-ai-models):
+            // 1) gemini-3.5-flash-lite  2) gemini-3.6-flash (rotación limpia ante 503/429/timeout)
+            const envActiveTextModels = (process.env.GOOGLE_MODELS || '')
+                .split(',')
+                .map((m) => m.trim().replace(/^models\//i, ''))
+                .filter((m) => m && !/live|native-audio|tts|transcribe/i.test(m));
+            const wavModelLadder = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'].filter(
+                (m) => envActiveTextModels.length === 0 || envActiveTextModels.includes(m)
+            );
+            const modelsToTry = wavModelLadder.length > 0 ? wavModelLadder : ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+
+            const customVocab = Array.from(new Set([
                 ...WAPPY_DICTATION_CUSTOM_VOCABULARY,
                 ...(this.user?.name ? [this.user.name] : []),
                 ...(this.initialBriefingSummary?.companyName ? [this.initialBriefingSummary.companyName] : []),
-            ].filter(Boolean);
-            const vocabLine = `\nDiccionario de palabras clave y nombres propios a priorizar si suenan parecido: ${customVocab.join(', ')}.`;
+            ].filter(Boolean)));
+            const vocabLine = `\nGlosario de nombres propios y siglas técnicas SST/WAPPY a escribir exactamente así si se escuchan en el audio: ${customVocab.join(', ')}.`;
 
-            const toolCallsHint = Array.isArray(toolCalls) && toolCalls.length > 0
-                ? `\nAcciones/herramientas ejecutadas en este turno: ${JSON.stringify(toolCalls).substring(0, 400)}`
-                : '';
-            const aiReplyHint = aiResponseText && aiResponseText.trim()
-                ? `\nRespuesta que dio Tenshi a este turno: "${aiResponseText.trim().substring(0, 350)}"`
-                : '';
-
-            // ── CAMINO 1 (PRINCIPAL - ARQUITECTURA WAPPY DOTS): Lectura Multimodal directa del Audio WAV 16kHz ──
+            // ── CAMINO 1 (PRINCIPAL - ARQUITECTURA WAPPY DOTS): Lectura Multimodal EXCLUSIVA del Audio WAV 16kHz ──
+            // PROHIBIDO inyectar rawLiveText o aiReplyHint aquí (evita repetir alucinaciones como "3 meses." o "For Claude is here.")
             if (!wavInfo.silent && wavInfo.wavBase64) {
-                logger.info(
-                    `[VoiceSession] 🎙️ Transcribiendo audio WAV 16kHz multimodal (${wavInfo.durationSec}s, RMS=${wavInfo.rms.toFixed(4)}) con Pool Gemini (${correctionModelName})...`
-                );
+                const runWavTranscription = async () => {
+                    const systemInstruction =
+                        `Eres el motor de transcripción de voz de ultra-alta precisión de WAPPY IA y Suri/Tenshi (arquitectura Wappy Dots). ` +
+                        `Escucha EXCLUSIVAMENTE el archivo de audio adjunto (16kHz Mono WAV) y transcribe literalmente lo que pronuncia la voz humana en español de Colombia/Latinoamérica, ` +
+                        `con ortografía perfecta, signos de interrogación/exclamación (¿...?, ¡...!), comas, puntos y mayúsculas adecuadas. ` +
+                        `Elimina únicamente muletillas involuntarias ('eh', 'este', 'mmm') conservando el 100% del mensaje real. ` +
+                        `REGLA ANTI-ALUCINACIÓN ESTRICTA: Si en el audio NO hay voz humana inteligible hablando en español ` +
+                        `(solo silencio, ruido ambiental, ventilador, respiración, suspiros, tos, clics o murmullo ininteligible), ` +
+                        `devuelve EXACTAMENTE y ÚNICAMENTE el token: [SILENCIO] (prohibido inventar saludos, cifras, frases en inglés o palabras que no estén claramente pronunciadas en el audio). ` +
+                        `NO respondas al usuario ni agregues explicaciones: devuelve SOLO la transcripción exacta o [SILENCIO].` +
+                        vocabLine;
 
-                const systemInstruction =
-                    `Eres el motor de transcripción de voz de ultra-alta precisión de WAPPY IA y Tenshi (estilo Wispr Flow / Wappy Dots). ` +
-                    `Tu única tarea es escuchar el archivo de audio adjunto (16kHz WAV) y devolver EXACTAMENTE lo que el usuario dijo en español de Colombia/Latinoamérica, ` +
-                    `con ortografía perfecta, signos de interrogación/exclamación correctos (¿...?, ¡...!), comas, puntos y mayúsculas adecuadas. ` +
-                    `Elimina muletillas involuntarias ('eh', 'este', 'mmm') o falsos comienzos tartamudeados, pero conserva el 100% del mensaje real. ` +
-                    `REGLA ANTI-ALUCINACIÓN ESTRICTA: Si en el audio NO hay ninguna voz humana clara hablando (solo silencio, respiración, soplidos, clics o ruido de fondo ininteligible), ` +
-                    `devuelve única y exclusivamente la palabra: __SILENCIO__ (ten absolutamente prohibido inventar saludos, preguntas o frases que no estén en el audio). ` +
-                    `NO respondas a la pregunta del usuario ni agregues comentarios: devuelve SOLO el texto transcrito.` +
-                    vocabLine;
+                    const userPrompt =
+                        `Transcribe exclusivamente lo que escuchas en el audio WAV adjunto en español (Colombia/LatAm) con puntuación perfecta. ` +
+                        `Si solo hay ruido de fondo, respiración o audio ininteligible, responde exactamente: [SILENCIO]`;
 
-                const userPrompt = sanitized
-                    ? `Transcribe el audio adjunto en español con puntuación perfecta. Borrador fonético orientativo (puede tener errores de idioma o palabras deformadas; guíate por lo que escuchas realmente en el audio): "${sanitized}".${toolCallsHint}${aiReplyHint}\nDevuelve SOLO la transcripción final (o __SILENCIO__ si no hay voz humana):`
-                    : `Transcribe el audio adjunto en español con puntuación perfecta.${toolCallsHint}${aiReplyHint}\nDevuelve SOLO la transcripción final (o __SILENCIO__ si no hay voz humana):`;
-
-                try {
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Multimodal WAV transcription timeout')), 4200)
-                    );
                     const multimodalParts = [
                         {
                             inlineData: {
@@ -8590,78 +8965,127 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             text: userPrompt,
                         },
                     ];
-                    const correctionPromise = generateWithKeyRotation(
-                        correctionModelName,
-                        this.userId,
-                        multimodalParts,
-                        {
-                            systemInstruction,
-                            fastFallback: true,
-                            timeoutMs: 3600,
-                            generationConfig: { maxOutputTokens: 256, temperature: 0.1 },
+
+                    let lastWavErr = null;
+                    for (let i = 0; i < modelsToTry.length; i++) {
+                        const candidateModel = modelsToTry[i];
+                        const attemptTimeoutMs = i === 0 ? 3400 : 4200;
+                        logger.info(
+                            `[VoiceSession] 🎙️ Transcribiendo audio WAV 16kHz multimodal (${wavInfo.durationSec}s, RMS=${wavInfo.rms.toFixed(4)}, sig=${wavSig}) con Pool Gemini (${candidateModel}, intento ${i + 1}/${modelsToTry.length})...`
+                        );
+                        try {
+                            const timeoutPromise = new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error(`Multimodal WAV transcription timeout (${candidateModel})`)), attemptTimeoutMs + 400)
+                            );
+                            const correctionPromise = generateWithKeyRotation(
+                                candidateModel,
+                                this.userId,
+                                multimodalParts,
+                                {
+                                    systemInstruction,
+                                    fastFallback: true,
+                                    timeoutMs: attemptTimeoutMs,
+                                    generationConfig: { maxOutputTokens: 256, temperature: 0.0 },
+                                }
+                            );
+                            const result = await Promise.race([correctionPromise, timeoutPromise]);
+                            const rawOut = (result?.response?.text?.() || '')
+                                .replace(/^["'«»]+|["'«»]+$/g, '')
+                                .trim();
+
+                            if (
+                                !rawOut ||
+                                /(\[SILENCIO\]|__SILENCIO__|\[DESCARTAR\]|^silencio\.?$|sin\s+audio|no\s+hay\s+voz)/i.test(rawOut)
+                            ) {
+                                logger.info(`[VoiceSession] 🔇 Multimodal WAV transcriber (${candidateModel}) devolvió [SILENCIO] (descartado raw="${rawInput}")`);
+                                return { ok: true, text: '' };
+                            }
+
+                            const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
+                            logger.info(`[VoiceSession] ✅ Multimodal 16kHz WAV transcription (${candidateModel}): "${rawInput}" -> "${correctedText}"`);
+                            return { ok: true, text: correctedText };
+                        } catch (wavErr) {
+                            lastWavErr = wavErr;
+                            logger.warn(
+                                `[VoiceSession] ⚠️ Multimodal WAV transcription falló en "${candidateModel}" (${wavErr.message})${i + 1 < modelsToTry.length ? ` — rotando a "${modelsToTry[i + 1]}"...` : ''}`
+                            );
                         }
-                    );
-                    const result = await Promise.race([correctionPromise, timeoutPromise]);
-                    const rawOut = (result?.response?.text?.() || '')
-                        .replace(/^["'«»]+|["'«»]+$/g, '')
-                        .trim();
-
-                    if (
-                        !rawOut ||
-                        /(__SILENCIO__|\[DESCARTAR\]|sin\s+audio|no\s+hay\s+voz)/i.test(rawOut)
-                    ) {
-                        logger.info(`[VoiceSession] Multimodal WAV transcriber detected silence/noise (discarded: "${rawInput}")`);
-                        return '';
                     }
+                    throw lastWavErr || new Error('All WAV transcription models failed');
+                };
 
-                    const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
-                    logger.info(`[VoiceSession] ✅ Multimodal 16kHz WAV transcription result: "${rawInput}" -> "${correctedText}"`);
-                    return correctedText;
-                } catch (wavErr) {
-                    logger.warn(`[VoiceSession] Multimodal WAV transcription fallback (${wavErr.message})`);
-                    if (!sanitized) return '';
+                const wavPromise = runWavTranscription()
+                    .then((res) => {
+                        const finalStr = res?.text || '';
+                        if (wavSig) {
+                            this.wavTranscriptionCache.set(wavSig, { text: finalStr, at: Date.now() });
+                            if (this.wavTranscriptionCache.size > 16) {
+                                const oldestKey = this.wavTranscriptionCache.keys().next().value;
+                                if (oldestKey) this.wavTranscriptionCache.delete(oldestKey);
+                            }
+                        }
+                        return finalStr;
+                    })
+                    .catch((allWavErr) => {
+                        logger.warn(`[VoiceSession] Multimodal WAV transcription exhausted all models (${allWavErr.message}); using rawLiveText last-resort fallback`);
+                        return sanitized || '';
+                    })
+                    .finally(() => {
+                        if (wavSig && this.wavTranscriptionInFlight.get(wavSig) === wavPromise) {
+                            this.wavTranscriptionInFlight.delete(wavSig);
+                        }
+                    });
+
+                if (wavSig) {
+                    this.wavTranscriptionInFlight.set(wavSig, wavPromise);
                 }
+                return await wavPromise;
             }
 
-            // ── CAMINO 2 (RESPALDO TEXTO): Corrección contextual si no hubo buffer WAV disponible ──
+            // ── CAMINO 2 (ÚLTIMO RESPALDO SIN AUDIO WAV): Corrección textual solo si no existía buffer WAV ──
             if (!sanitized) return '';
-            logger.info(`[VoiceSession] Starting text fallback transcription correction for: "${sanitized}"`);
+            logger.info(`[VoiceSession] Starting text-only fallback transcription correction (no WAV buffer): "${sanitized}"`);
             const userNameHint = this.user?.name ? `Nombre real del usuario: "${this.user.name}".` : '';
-            const prompt = `Eres un corrector fonético, ortográfico y contextual experto en español de Colombia/Latinoamérica para el ecosistema WAPPY (asistente de voz "Tenshi", agente de escritorio "Antigravity", plataforma de Seguridad y Salud en el Trabajo SG-SST).
+            const toolCallsHint = Array.isArray(toolCalls) && toolCalls.length > 0
+                ? `\nAcciones/herramientas ejecutadas en este turno: ${JSON.stringify(toolCalls).substring(0, 400)}`
+                : '';
+            const prompt = `Eres un corrector fonético, ortográfico y contextual experto en español de Colombia/Latinoamérica para el ecosistema WAPPY (asistente de voz "Suri" / "Tenshi", agente de escritorio "Antigravity", plataforma SG-SST).
 ${userNameHint}
 ${vocabLine}
 ${toolCallsHint}
-${aiReplyHint}
 TRANSCRIPCIÓN CRUDA A CORREGIR:
 """
 ${sanitized}
 """
-Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación perfecta (¿...?), o [DESCARTAR] si es ruido/alucinación. Sin comillas ni explicaciones.`;
+Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación perfecta (¿...?), o [SILENCIO] si es ruido/alucinación. Sin comillas ni explicaciones.`;
 
-            try {
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Transcription text fallback timeout')), 2500)
-                );
-                const correctionPromise = generateWithKeyRotation(
-                    correctionModelName,
-                    this.userId,
-                    prompt,
-                    { fastFallback: true, timeoutMs: 2400, generationConfig: { maxOutputTokens: 256, temperature: 0.1 } }
-                );
-                const result = await Promise.race([correctionPromise, timeoutPromise]);
-                const rawOut = (result?.response?.text?.() || '').replace(/^["'«»]+|["'«»]+$/g, '').trim();
+            for (let i = 0; i < modelsToTry.length; i++) {
+                const candidateModel = modelsToTry[i];
+                try {
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error(`Transcription text fallback timeout (${candidateModel})`)), 2600)
+                    );
+                    const correctionPromise = generateWithKeyRotation(
+                        candidateModel,
+                        this.userId,
+                        prompt,
+                        { fastFallback: true, timeoutMs: 2400, generationConfig: { maxOutputTokens: 256, temperature: 0.0 } }
+                    );
+                    const result = await Promise.race([correctionPromise, timeoutPromise]);
+                    const rawOut = (result?.response?.text?.() || '').replace(/^["'«»]+|["'«»]+$/g, '').trim();
 
-                if (!rawOut || /(__SILENCIO__|\[DESCARTAR\])/i.test(rawOut)) {
-                    return '';
+                    if (!rawOut || /(\[SILENCIO\]|__SILENCIO__|\[DESCARTAR\])/i.test(rawOut)) {
+                        return '';
+                    }
+
+                    const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
+                    logger.info(`[VoiceSession] Text fallback correction (${candidateModel}): "${rawInput}" -> "${correctedText}"`);
+                    return correctedText;
+                } catch (err) {
+                    logger.debug(`[VoiceSession] Text fallback failed on "${candidateModel}" (${err.message})`);
                 }
-
-                const correctedText = applyDomainPhoneticCorrections(rawOut).trim();
-                logger.info(`[VoiceSession] Text fallback correction result: "${rawInput}" -> "${correctedText}"`);
-                return correctedText;
-            } catch (err) {
-                logger.debug(`[VoiceSession] Transcription fast fallback to sanitized (${err.message})`);
-                return sanitized;
             }
+            return sanitized;
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);
             return sanitizeAccumulatedTranscription(userText);
@@ -11067,7 +11491,11 @@ ${workerSubHeaderHtml}
             ? [...this.currentTurnPcmChunks]
             : [];
         const turnPcmBytes = this.currentTurnPcmBytes || 0;
-        const turnHadSpeechAudio = Boolean(this.currentTurnSpeechDetected && turnPcmBytes >= 6400);
+        const turnAudioId = this.currentAudioTurnId || 0;
+        const turnWavInfo = turnPcmChunks.length > 0
+            ? build16kMonoWavFromPcmChunks(turnPcmChunks)
+            : { silent: true, rms: 0, wavBase64: null, byteLength: 0, durationSec: 0, reason: 'no_pcm', signature: null };
+        const turnHadSpeechAudio = Boolean(this.currentTurnSpeechDetected && turnPcmBytes >= 6400 && !turnWavInfo.silent);
         const inFlightEarlyPromise = this.earlyCorrectionPromise;
         let earlySnapshot = this.earlyCorrectedSnapshot;
 
@@ -11083,6 +11511,7 @@ ${workerSubHeaderHtml}
         this.currentTurnPcmBytes = 0;
         this.currentTurnPreRollChunks = [];
         this.currentTurnSpeechDetected = false;
+        this.currentAudioTurnId = turnAudioId + 1;
 
         if (!currentUserText.trim() && !turnHadSpeechAudio && !currentAiText.trim() && currentAudioCount === 0 && !this.lastGeneratedCanvasFile) {
             return;
@@ -11094,52 +11523,68 @@ ${workerSubHeaderHtml}
             return;
         }
 
-        // Si había una transcripción multimodal temprana en vuelo (speech_end / ai_audio_start), esperarla brevemente para reutilizar su resultado exacto
+        // Si había una transcripción multimodal temprana en vuelo (speech_end / tool_call / ai_audio_start),
+        // esperarla para reutilizar su resultado exacto (incluyendo [SILENCIO]) sin duplicar la llamada a Gemini WAV
         if (inFlightEarlyPromise) {
             try {
                 const earlyResult = await Promise.race([
                     inFlightEarlyPromise,
-                    new Promise((resolve) => setTimeout(() => resolve(''), 2600)),
+                    new Promise((resolve) => setTimeout(() => resolve(null), 4800)),
                 ]);
-                if (earlyResult && typeof earlyResult === 'string' && earlyResult.trim()) {
+                if (earlyResult && typeof earlyResult === 'object' && earlyResult.resolved) {
+                    earlySnapshot = earlyResult;
+                } else if (typeof earlyResult === 'string' && earlyResult.trim()) {
                     earlySnapshot = {
+                        resolved: true,
                         raw: currentUserText.trim(),
                         corrected: earlyResult.trim(),
-                        toolCount: turnToolCalls.length,
+                        isSilence: false,
                         pcmBytes: turnPcmBytes,
+                        pcmSignature: turnWavInfo.signature || null,
+                        turnId: turnAudioId,
                     };
-                } else if (this.earlyCorrectedSnapshot) {
-                    earlySnapshot = this.earlyCorrectedSnapshot;
                 }
             } catch (_) {}
         }
+
+        const canReuseEarlySnapshot = Boolean(
+            earlySnapshot &&
+            earlySnapshot.resolved &&
+            (
+                (turnWavInfo.signature && earlySnapshot.pcmSignature === turnWavInfo.signature) ||
+                (earlySnapshot.turnId === turnAudioId &&
+                    Math.abs((earlySnapshot.pcmBytes || 0) - turnPcmBytes) <= 8192)
+            )
+        );
 
         // MODO TENSHI: Copiloto oficial en ventana flotante/widget.
         // NUNCA crear conversaciones en LibreChat sidebar (Conversation collection).
         // Pero SÍ persistir en el modelo TenshiMessage para que el widget mantenga su historial sincronizado.
         if (this.config.mode === 'tenshi_voice') {
             let finalUserText = currentUserText.trim();
+            let verifiedSilence = false;
             const isInternalPrompt = /^\[SISTEMA INTERNO WAPPY/i.test(finalUserText);
-            if (!isInternalPrompt && (finalUserText || turnHadSpeechAudio)) {
-                // Si la transcripción multimodal temprana ya procesó el audio completo de este turno y las herramientas, reutilizarla al instante
-                if (
-                    earlySnapshot &&
-                    earlySnapshot.corrected &&
-                    (earlySnapshot.corrected === finalUserText || earlySnapshot.raw === finalUserText || !finalUserText) &&
-                    earlySnapshot.toolCount >= turnToolCalls.length &&
-                    (!turnPcmBytes || (earlySnapshot.pcmBytes || 0) >= turnPcmBytes - 4096)
-                ) {
-                    finalUserText = earlySnapshot.corrected;
+            if (!isInternalPrompt && (finalUserText || turnHadSpeechAudio || turnPcmChunks.length > 0)) {
+                // Reutilizar SIEMPRE la transcripción multimodal temprana del mismo buffer WAV (0 llamadas duplicadas)
+                if (canReuseEarlySnapshot) {
+                    finalUserText = (earlySnapshot.corrected || '').trim();
+                    verifiedSilence = Boolean(earlySnapshot.isSilence || !finalUserText);
+                } else if (turnPcmChunks.length > 0 && turnWavInfo.silent) {
+                    // Audio grabado del turno es silencio o ruido corto (<0.45s & RMS<0.06): descartar sin llamar a Gemini ni guardar burbuja fantasma
+                    finalUserText = '';
+                    verifiedSilence = true;
                 } else {
                     const corrected = await this.correctTranscription(
                         finalUserText,
                         currentAiText,
                         turnToolCalls,
-                        turnPcmChunks
+                        turnPcmChunks,
+                        turnPcmChunks.length > 0 ? turnWavInfo : null
                     );
                     finalUserText = (corrected || '').trim();
+                    verifiedSilence = !finalUserText;
                 }
-                // Actualizar en vivo la burbuja del usuario en el chat de Tenshi con la transcripción multimodal 16kHz WAV
+                // Actualizar en vivo la burbuja del usuario SOLO si hubo voz humana válida diferente al crudo
                 if (finalUserText && finalUserText !== currentUserText.trim()) {
                     this.lastUserTranscription = finalUserText;
                     this.sendToClient({
@@ -11153,8 +11598,10 @@ ${workerSubHeaderHtml}
                 }
             }
 
-            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${finalUserText}" (raw: "${currentUserText}", pcmBytes: ${turnPcmBytes}), AI: "${currentAiText}"`);
-            this.handleTenshiVoiceFailsafe(finalUserText || currentUserText, currentAiText);
+            logger.info(`[VoiceSession] [Tenshi Voice] Turn completed (${source}). User: "${finalUserText}" (raw: "${currentUserText}", pcmBytes: ${turnPcmBytes}${verifiedSilence ? ', verifiedSilence=true' : ''}), AI: "${currentAiText}"`);
+            if (finalUserText || !verifiedSilence) {
+                this.handleTenshiVoiceFailsafe(finalUserText || (verifiedSilence ? '' : currentUserText), currentAiText);
+            }
 
             try {
                 const TenshiMessage = require('~/models/TenshiMessage');
@@ -11340,22 +11787,25 @@ ${workerSubHeaderHtml}
                 logger.error('[VoiceSession] Failed to persist Tenshi voice turn to TenshiMessage:', err);
             }
 
-            // Acumular el turno en la memoria de la sesión para que Tenshi mantenga contexto
-            const currentTurnContext = `Usuario: ${finalUserText || currentUserText}\nAsistente: ${currentAiText}`;
-            if (!this.conversationTurns) {
-                this.conversationTurns = [];
+            // Acumular el turno en la memoria de la sesión para que Tenshi mantenga contexto (sin inyectar silencios/alucinaciones descartadas)
+            const effectiveTurnUserText = finalUserText || (verifiedSilence ? '' : currentUserText);
+            if (effectiveTurnUserText || (currentAiText && currentAiText.trim())) {
+                const currentTurnContext = `Usuario: ${effectiveTurnUserText}\nAsistente: ${currentAiText}`;
+                if (!this.conversationTurns) {
+                    this.conversationTurns = [];
+                }
+                this.conversationTurns.push(currentTurnContext);
+                if (this.conversationTurns.length > 10) {
+                    this.conversationTurns.shift();
+                }
+                this.config.conversationContext = this.conversationTurns.join('\n');
             }
-            this.conversationTurns.push(currentTurnContext);
-            if (this.conversationTurns.length > 10) {
-                this.conversationTurns.shift();
-            }
-            this.config.conversationContext = this.conversationTurns.join('\n');
 
             // Fast-track trigger de informe en Tenshi si el usuario lo solicitó verbalmente o la IA lo confirmó
             if (!this.isGeneratingReport) {
                 const userReportRegex = /\b(genera(r)?|haz|compil(a|ar)|dame|quiero|entreg(a|ar)|sacar?)\s+(el\s+|un\s+)?(informe|reporte)\b/i;
                 const aiReportRegex = /\b(estoy\s+compilando|generando\s+el\s+informe\s+t[eé]cnico|informe técnico compilado y en pantalla)\b/i;
-                const userRequested = userReportRegex.test(finalUserText || currentUserText);
+                const userRequested = Boolean(effectiveTurnUserText) && userReportRegex.test(effectiveTurnUserText);
                 const aiConfirmed = (this.conversationTurns && this.conversationTurns.length >= 2) && (aiReportRegex.test(currentAiText) || aiReportRegex.test(currentAiBufferSnapshot));
                 if (userRequested || aiConfirmed) {
                     logger.info(`[VoiceSession] Tenshi voice turn triggered report compilation. userRequested: ${userRequested}, aiConfirmed: ${aiConfirmed}`);
@@ -11440,20 +11890,17 @@ ${workerSubHeaderHtml}
         // Save user message FIRST
         if (currentUserText.trim() || turnHadSpeechAudio) {
             let textToSave = currentUserText.trim();
-            if (
-                earlySnapshot &&
-                earlySnapshot.corrected &&
-                (earlySnapshot.corrected === textToSave || earlySnapshot.raw === textToSave || !textToSave) &&
-                earlySnapshot.toolCount >= turnToolCalls.length &&
-                (!turnPcmBytes || (earlySnapshot.pcmBytes || 0) >= turnPcmBytes - 4096)
-            ) {
-                textToSave = earlySnapshot.corrected;
+            if (canReuseEarlySnapshot) {
+                textToSave = (earlySnapshot.corrected || '').trim();
+            } else if (turnPcmChunks.length > 0 && turnWavInfo.silent) {
+                textToSave = '';
             } else {
                 textToSave = await this.correctTranscription(
                     textToSave,
                     currentAiText.trim() || '🎤 [Respuesta de voz]',
                     turnToolCalls,
-                    turnPcmChunks
+                    turnPcmChunks,
+                    turnPcmChunks.length > 0 ? turnWavInfo : null
                 );
             }
             if (textToSave && textToSave.trim() !== currentUserText.trim()) {
@@ -11700,6 +12147,7 @@ Has asumido el rol de la Especialista en Ergonomía y Fisioterapeuta Laboral en 
     async stop() {
         if (!this.isActive) return;
         this.isActive = false;
+        this.activeToolCount = 0;
         this.pendingHangupAfterTurn = false;
         this.hangupFarewellAlreadySpoken = false;
         this.hangupToolSentAt = 0;

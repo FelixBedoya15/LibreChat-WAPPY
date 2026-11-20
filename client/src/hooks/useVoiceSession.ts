@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched' | 'tenshi_report_delivered' | 'canvas_file_generated';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated' | 'report' | 'wappy_action' | 'agent_switched' | 'tenshi_report_delivered' | 'canvas_file_generated' | 'notebooklm_auth_expired';
     data: any;
 }
 
@@ -12,6 +12,7 @@ interface UseVoiceSessionOptions {
     onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[], conversationId?: string, isNewReport?: boolean) => void;
     onWappyAction?: (action: { id: string; name: string; args: any }) => void;
     onAgentSwitched?: (data: { agentName: string; agentId: string; isBiomechanics: boolean; isFisioMode: boolean; conversationId?: string; badge?: string }) => void;
+    onNotebookLmAuthExpired?: (data: { toolName?: string; mappedTool?: string; authExpired: boolean; isValid: boolean; reason?: string; message?: string }) => void;
     onStatusChange?: (status: string, message?: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
@@ -63,9 +64,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
     const isStartingAudioRef = useRef(false);
     const listeningStartTimeRef = useRef(0);
-    const noiseFloorRef = useRef<number>(0.003);
-    const activeSpeechChunksRef = useRef<number>(0);
-    const bargeInFramesRef = useRef<number>(0);
+    const noiseFloorRef = useRef<number>(0.005);
+    const activeSpeechDurationMsRef = useRef<number>(0);
+    const onsetSpeechMsRef = useRef<number>(0);
+    const bargeInDurationMsRef = useRef<number>(0);
+    const recentWindowPeakRmsRef = useRef<number>(0);
+    const recentWindowStartAtRef = useRef<number>(0);
     const bargeInIgnoreAudioUntilRef = useRef<number>(0);
     const lastVoiceTimeRef = useRef<number>(0);
     const speechStartTimeRef = useRef<number>(0);
@@ -204,14 +208,15 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
                 if (dataToEncode.length === 0) return;
 
-                // Normalización suave de presencia vocal (AGC ligero con limitador hiperbólico para micrófonos bajos)
+                // Normalización suave de presencia vocal SOLO sobre voz real (jamás amplificar ruido ambiente/piso)
                 let chunkSumSq = 0;
                 for (let j = 0; j < dataToEncode.length; j++) {
                     chunkSumSq += dataToEncode[j] * dataToEncode[j];
                 }
                 const chunkRms = Math.sqrt(chunkSumSq / dataToEncode.length);
-                const gain = (chunkRms > 0.008 && chunkRms < 0.09)
-                    ? Math.min(2.1, 0.095 / chunkRms)
+                const agcMinVoiceRms = Math.max(0.020, noiseFloorRef.current * 2.0);
+                const gain = (chunkRms > agcMinVoiceRms && chunkRms < 0.09)
+                    ? Math.min(1.65, 0.09 / chunkRms)
                     : 1.0;
 
                 const int16Data = new Int16Array(dataToEncode.length);
@@ -248,12 +253,18 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 // Si el usuario silenció manualmente su micrófono (Mute físico/botón), no procesar ni interrumpir
                 if (isHardwareMutedRef.current) {
                     isTransmittingSpeechRef.current = false;
-                    bargeInFramesRef.current = 0;
+                    bargeInDurationMsRef.current = 0;
+                    onsetSpeechMsRef.current = 0;
+                    activeSpeechDurationMsRef.current = 0;
                     return;
                 }
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-                // ── Voice Activity Detection (VAD) con Barge-In Anti-Eco y Cierre Rápido ──
+                const effectiveSampleRate = audioContext?.sampleRate || 16000;
+                const chunkDurationMs = (float32Array.length / effectiveSampleRate) * 1000;
+                const maxPreRollChunks = Math.max(5, Math.ceil(360 / chunkDurationMs));
+
+                // ── Voice Activity Detection (VAD) con Barge-In Anti-Suspiro (>=380ms) y Piso Adaptativo Anti-Ruido ──
                 // Calcular energía RMS (Root Mean Square) del chunk de audio
                 let sumSquare = 0;
                 for (let k = 0; k < float32Array.length; k++) {
@@ -262,29 +273,30 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
                 const rms = Math.sqrt(sumSquare / float32Array.length);
 
-                // Si Tenshi está hablando actualmente, evaluar Barge-In (interrupción natural por voz del usuario)
+                // Si Suri/Tenshi está hablando actualmente, evaluar Barge-In (interrupción natural por voz humana sostenida)
                 if (isPlayingAudioRef.current || isAutoMutedRef.current) {
-                    // Conservar los últimos 6 chunks (~380ms) en pre-roll para no perder la primera sílaba al interrumpir
+                    const maxBargeInPreRoll = Math.max(6, Math.ceil(420 / chunkDurationMs));
                     preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > 6) {
+                    if (preRollChunksRef.current.length > maxBargeInPreRoll) {
                         preRollChunksRef.current.shift();
                     }
 
-                    // Umbral anti-eco: exige voz humana clara por encima del residuo de cancelación de eco durante 3 chunks (~190ms)
-                    const bargeInThreshold = Math.max(0.030, noiseFloorRef.current * 3.0);
+                    // Umbral anti-eco / anti-suspiro: exige habla humana sostenida >= 380ms (bloquea suspiros/ruidos < 350ms independientemente del sampleRate)
+                    const bargeInThreshold = Math.max(0.045, noiseFloorRef.current * 3.6);
                     if (rms >= bargeInThreshold) {
-                        bargeInFramesRef.current += 1;
+                        bargeInDurationMsRef.current += chunkDurationMs;
                     } else {
-                        bargeInFramesRef.current = Math.max(0, bargeInFramesRef.current - 1);
+                        bargeInDurationMsRef.current = Math.max(0, bargeInDurationMsRef.current - chunkDurationMs * 1.5);
                     }
 
-                    if (bargeInFramesRef.current < 3) {
+                    if (bargeInDurationMsRef.current < 380) {
                         return;
                     }
 
-                    // 🗣️ Barge-In confirmado: callar a Tenshi en 0ms y abrir el canal para la nueva frase del usuario
-                    console.log('[VoiceSession] 🗣️ Barge-in detectado → deteniendo voz de Tenshi y escuchando al usuario');
-                    bargeInFramesRef.current = 0;
+                    // 🗣️ Barge-In confirmado (>= 380ms de voz humana clara): callar a Suri y abrir canal con pre-roll completo
+                    console.log(`[VoiceSession] 🗣️ Barge-in confirmado (${Math.round(bargeInDurationMsRef.current)}ms, RMS=${rms.toFixed(4)}) → deteniendo voz de Suri`);
+                    const confirmedMs = bargeInDurationMsRef.current;
+                    bargeInDurationMsRef.current = 0;
                     serverFinishedRef.current = true;
                     isPlayingAudioRef.current = false;
                     isAutoMutedRef.current = false;
@@ -295,43 +307,102 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     }
                     statusRef.current = 'listening';
                     setStatus('listening');
+                    // Pre-confirmar onset para que la frase de interrupción entre sin demora
+                    onsetSpeechMsRef.current = Math.max(160, confirmedMs);
+                    activeSpeechDurationMsRef.current = Math.max(160, confirmedMs);
                     try {
                         wsRef.current.send(JSON.stringify({ type: 'barge_in' }));
                     } catch (_) {}
                     optionsRef.current.onStatusChange?.('interrupted');
                 } else {
-                    bargeInFramesRef.current = 0;
+                    bargeInDurationMsRef.current = 0;
                 }
 
-                // Umbral de activación vocal ultra-sensible (no recorta consonantes suaves iniciales como "T-", "p-", "s-")
-                const voiceThreshold = Math.max(0.0045, noiseFloorRef.current * 1.65);
+                // Umbrales con histéresis sobre piso adaptativo (permite aprender ruido ambiente constante hasta 0.032 sin bloquear habla humana)
+                const openThreshold = Math.max(0.012, noiseFloorRef.current * 2.15);
+                const holdThreshold = Math.max(0.0085, noiseFloorRef.current * 1.55);
                 const now = Date.now();
                 const continuousSpeechMs = isTransmittingSpeechRef.current && speechStartTimeRef.current
                     ? (now - speechStartTimeRef.current)
                     : 0;
 
-                const isSteadyBackgroundNoise = continuousSpeechMs > 15000 && rms < voiceThreshold * 1.3;
-                const isSpeechNow = rms >= voiceThreshold && !isSteadyBackgroundNoise;
+                // Rastrear picos de envolvente cada 2.5s para detectar ruido de fondo plano constante (ej. ventilador/AC en 0.025-0.035)
+                if (isTransmittingSpeechRef.current) {
+                    if (!recentWindowStartAtRef.current || now - recentWindowStartAtRef.current > 2500) {
+                        recentWindowStartAtRef.current = now;
+                        recentWindowPeakRmsRef.current = rms;
+                    } else if (rms > recentWindowPeakRmsRef.current) {
+                        recentWindowPeakRmsRef.current = rms;
+                    }
+                }
 
-                // Adaptación asimétrica del piso de ruido:
+                const isSteadyBackgroundNoise =
+                    isTransmittingSpeechRef.current &&
+                    continuousSpeechMs > 5500 &&
+                    rms < Math.max(0.038, noiseFloorRef.current * 2.4) &&
+                    recentWindowPeakRmsRef.current < Math.max(0.042, noiseFloorRef.current * 2.6);
+
+                if (isSteadyBackgroundNoise) {
+                    // Recalibrar el piso de ruido al nivel real del ambiente para impedir bucles de 30s de ruido
+                    noiseFloorRef.current = Math.min(0.032, Math.max(noiseFloorRef.current, rms * 1.08));
+                }
+
+                const activeThreshold = isTransmittingSpeechRef.current ? holdThreshold : openThreshold;
+                const isSpeechNow = !isSteadyBackgroundNoise && rms >= activeThreshold;
+
+                // Adaptación asimétrica del piso de ruido (0.003 – 0.032):
                 if (rms < noiseFloorRef.current) {
                     // Baja rápido hacia el silencio real
-                    noiseFloorRef.current = noiseFloorRef.current * 0.85 + rms * 0.15;
-                } else if (rms < 0.016) {
-                    // Energía baja o siseo residual del AGC al callar: se adapta suavemente
-                    noiseFloorRef.current = noiseFloorRef.current * 0.94 + rms * 0.06;
-                } else {
-                    // Durante voz clara: casi fijo para NO elevar el umbral mientras el usuario habla
-                    noiseFloorRef.current = noiseFloorRef.current * 0.998 + rms * 0.002;
+                    noiseFloorRef.current = noiseFloorRef.current * 0.88 + rms * 0.12;
+                } else if (!isTransmittingSpeechRef.current && rms < 0.038) {
+                    // Con compuerta cerrada: aprender ruido ambiente sostenido (AC, ventilador, oficina) en ~1.5s
+                    noiseFloorRef.current = noiseFloorRef.current * 0.95 + rms * 0.05;
+                } else if (!isSteadyBackgroundNoise) {
+                    // Durante voz humana activa: casi fijo para NO elevar el umbral mientras el usuario habla
+                    noiseFloorRef.current = noiseFloorRef.current * 0.997 + rms * 0.003;
                 }
-                noiseFloorRef.current = Math.min(0.011, Math.max(0.001, noiseFloorRef.current));
+                noiseFloorRef.current = Math.min(0.032, Math.max(0.003, noiseFloorRef.current));
 
+                // Con compuerta cerrada: confirmar al menos 160ms sostenidos de voz antes de abrir y vaciar pre-roll (~360ms).
+                // Evita que clics de teclado, golpes o suspiros breves abran el canal hacia Gemini Live sin recortar consonantes iniciales.
+                if (!isTransmittingSpeechRef.current) {
+                    if (isSpeechNow) {
+                        onsetSpeechMsRef.current += chunkDurationMs;
+                        lastVoiceTimeRef.current = now;
+                    } else {
+                        onsetSpeechMsRef.current = Math.max(0, onsetSpeechMsRef.current - chunkDurationMs * 1.5);
+                    }
+
+                    if (onsetSpeechMsRef.current < 160) {
+                        preRollChunksRef.current.push(new Float32Array(float32Array));
+                        if (preRollChunksRef.current.length > maxPreRollChunks) {
+                            preRollChunksRef.current.shift();
+                        }
+                        return;
+                    }
+
+                    // Compuerta abierta: voz humana confirmada
+                    isTransmittingSpeechRef.current = true;
+                    speechStartTimeRef.current = now - onsetSpeechMsRef.current;
+                    activeSpeechDurationMsRef.current = onsetSpeechMsRef.current;
+                    recentWindowStartAtRef.current = now;
+                    recentWindowPeakRmsRef.current = rms;
+
+                    if (preRollChunksRef.current.length > 0) {
+                        const flushed = [...preRollChunksRef.current];
+                        preRollChunksRef.current = [];
+                        for (const pastChunk of flushed) {
+                            encodeAndSend(pastChunk);
+                        }
+                    }
+                    encodeAndSend(float32Array);
+                    return;
+                }
+
+                // Compuerta abierta: acumular tiempo de voz real
                 if (isSpeechNow) {
                     lastVoiceTimeRef.current = now;
-                    activeSpeechChunksRef.current += 1;
-                    if (!isTransmittingSpeechRef.current) {
-                        speechStartTimeRef.current = now;
-                    }
+                    activeSpeechDurationMsRef.current += chunkDurationMs;
                 }
 
                 // Cola acústica continua de 550ms para NO cortar pausas entre palabras dentro de una misma oración,
@@ -342,49 +413,37 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 const shouldTransmitAudio = isSpeechNow || isInNaturalTail;
 
                 if (!shouldTransmitAudio) {
-                    // Guardar siempre los últimos 10 chunks (~420ms) en pre-roll para no cortar nunca la primera sílaba
                     preRollChunksRef.current.push(new Float32Array(float32Array));
-                    if (preRollChunksRef.current.length > 10) {
+                    if (preRollChunksRef.current.length > maxPreRollChunks) {
                         preRollChunksRef.current.shift();
                     }
 
-                    // Mientras estamos en la ventana de cierre (900ms - 1350ms tras hablar), enviar silencio digital limpio
-                    // al VAD de Gemini Live y emitir speech_end una única vez si hubo habla real (>= 6 chunks)
-                    if (isInSilenceFlushWindow && isTransmittingSpeechRef.current) {
+                    // Mientras estamos en la ventana de cierre (550ms - 800ms tras hablar), enviar silencio digital limpio
+                    // al VAD de Gemini Live para cerrar el turno con fluidez
+                    if (isInSilenceFlushWindow) {
                         encodeAndSend(new Float32Array(float32Array.length));
                         return;
                     }
 
-                    if (isTransmittingSpeechRef.current) {
-                        const hadRealSpeech = activeSpeechChunksRef.current >= 6;
-                        isTransmittingSpeechRef.current = false;
-                        speechStartTimeRef.current = 0;
-                        activeSpeechChunksRef.current = 0;
-                        bargeInIgnoreAudioUntilRef.current = 0;
-                        if (hadRealSpeech) {
-                            try {
-                                wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
-                                console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
-                            } catch (e) {
-                                console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
-                            }
+                    const hadRealSpeech = !isSteadyBackgroundNoise && activeSpeechDurationMsRef.current >= 320;
+                    isTransmittingSpeechRef.current = false;
+                    speechStartTimeRef.current = 0;
+                    activeSpeechDurationMsRef.current = 0;
+                    onsetSpeechMsRef.current = 0;
+                    recentWindowPeakRmsRef.current = 0;
+                    recentWindowStartAtRef.current = 0;
+                    bargeInIgnoreAudioUntilRef.current = 0;
+                    if (hadRealSpeech) {
+                        try {
+                            wsRef.current.send(JSON.stringify({ type: 'speech_end' }));
+                            console.log('[VoiceSession] Fin de voz detectado → speech_end enviado');
+                        } catch (e) {
+                            console.warn('[VoiceSession] No se pudo enviar speech_end:', e);
                         }
+                    } else if (isSteadyBackgroundNoise) {
+                        console.log(`[VoiceSession] Ruido ambiente constante detectado → compuerta cerrada (noiseFloor=${noiseFloorRef.current.toFixed(4)})`);
                     }
                     return;
-                }
-
-                if (!isTransmittingSpeechRef.current) {
-                    speechStartTimeRef.current = now;
-                }
-                isTransmittingSpeechRef.current = true;
-
-                // Si acabamos de detectar voz tras silencio o pausa, vaciar primero el pre-roll buffer (~240ms previos)
-                if (preRollChunksRef.current.length > 0) {
-                    const flushed = [...preRollChunksRef.current];
-                    preRollChunksRef.current = [];
-                    for (const pastChunk of flushed) {
-                        encodeAndSend(pastChunk);
-                    }
                 }
 
                 encodeAndSend(float32Array);
@@ -546,7 +605,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         lastVoiceTimeRef.current = 0;
         preRollChunksRef.current = [];
         isTransmittingSpeechRef.current = false;
-        noiseFloorRef.current = 0.003;
+        noiseFloorRef.current = 0.005;
+        activeSpeechDurationMsRef.current = 0;
+        onsetSpeechMsRef.current = 0;
+        bargeInDurationMsRef.current = 0;
+        recentWindowPeakRmsRef.current = 0;
+        recentWindowStartAtRef.current = 0;
         // Detener tracks del micrófono
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -766,7 +830,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                         break;
                     }
                     isTransmittingSpeechRef.current = false;
-                    activeSpeechChunksRef.current = 0;
+                    activeSpeechDurationMsRef.current = 0;
+                    onsetSpeechMsRef.current = 0;
+                    recentWindowPeakRmsRef.current = 0;
+                    recentWindowStartAtRef.current = 0;
                     statusRef.current = 'speaking';
                     setStatus('speaking');
                     isAutoMutedRef.current = true;
@@ -918,6 +985,25 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (typeof window !== 'undefined' && message.data) {
                     window.dispatchEvent(
                         new CustomEvent('tenshi-canvas-file-generated', { detail: message.data })
+                    );
+                }
+                break;
+
+            case 'notebooklm_auth_expired':
+                console.warn('[VoiceSession] 🔐 NotebookLM auth expired event received:', message.data);
+                optionsRef.current.onNotebookLmAuthExpired?.(message.data);
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(
+                        new CustomEvent('notebooklm_auth_expired', { detail: message.data })
+                    );
+                    window.dispatchEvent(
+                        new CustomEvent('wappy-notebooklm-updated', {
+                            detail: {
+                                ...(message.data || {}),
+                                authExpired: true,
+                                isValid: false,
+                            },
+                        })
                     );
                 }
                 break;

@@ -203,6 +203,13 @@ def _has_psidts(cookies: List[Dict[str, Any]]) -> bool:
     )
 
 
+def _has_dbsc_cookies(cookies: List[Dict[str, Any]]) -> bool:
+    return any(
+        isinstance(c, dict) and "PSIDRTS" in str(c.get("name", "")).upper() and c.get("value")
+        for c in cookies
+    )
+
+
 def _merge_preserving_rotated_cookies(
     incoming: List[Dict[str, Any]],
     existing: List[Dict[str, Any]],
@@ -298,7 +305,13 @@ async def _evict_cached_client(profile_name: str) -> None:
         logger.debug(f"[Cache Evict] Aviso cerrando cliente previo de '{profile_name}': {e}")
 
 
-def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Path) -> None:
+def _sync_disk_cookies_to_mongo(
+    user_id: str,
+    user_email: str,
+    storage_file: Path,
+    psidts_rotated: bool = False,
+    verified: bool = False,
+) -> None:
     """Sincroniza de vuelta hacia MongoDB (NotebookSession y GoogleFlowSession) las cookies rotadas en disco."""
     if not user_id or not storage_file.exists() or storage_file.stat().st_size == 0:
         return
@@ -307,8 +320,21 @@ def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Pat
         cookies = data.get("cookies", [])
         if not cookies or not _has_psidts(cookies):
             return
+        dbsc_bound = _has_dbsc_cookies(cookies)
+        # Evitar llamadas repetitivas a MongoDB en sesiones DBSC cuando solo cambió SIDCC y NO se renovó __Secure-1PSIDTS
+        if dbsc_bound and not psidts_rotated and not verified:
+            logger.debug(
+                f"[PSIDTS Sync] Omitiendo sincronización en MongoDB para '{user_id}': sesión con bloqueo DBSC (PSIDRTS) sin rotación real de __Secure-1PSIDTS."
+            )
+            return
         email = user_email or ""
-        payload = json.dumps({"cookies": cookies, "email": email}).encode("utf-8")
+        payload = json.dumps({
+            "cookies": cookies,
+            "email": email,
+            "psidtsRotated": bool(psidts_rotated),
+            "verified": bool(verified),
+            "dbscBound": dbsc_bound,
+        }).encode("utf-8")
         import urllib.request
         for base_host in ["http://LibreChat:3080", "http://api:3080", "http://localhost:3080"]:
             try:
@@ -321,7 +347,9 @@ def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Pat
                 )
                 with urllib.request.urlopen(req, timeout=3) as resp:
                     if resp.status == 200:
-                        logger.info(f"[PSIDTS Sync] Cookies rotadas sincronizadas en MongoDB para '{user_id}' ({len(cookies)} cookies).")
+                        logger.info(
+                            f"[PSIDTS Sync] Cookies sincronizadas en MongoDB para '{user_id}' ({len(cookies)} cookies, psidtsRotated={bool(psidts_rotated)}, verified={bool(verified)})."
+                        )
                         break
             except Exception:
                 continue
@@ -330,7 +358,8 @@ def _sync_disk_cookies_to_mongo(user_id: str, user_email: str, storage_file: Pat
 
 
 def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> bool:
-    """Garantiza que __Secure-1PSIDTS esté fresco en disco rotándolo bajo demanda con las Master Cookies (SID, OSID, SAPISID) sin eliminar el __Secure-1PSIDTS activo."""
+    """Garantiza que __Secure-1PSIDTS esté fresco en disco rotándolo bajo demanda con las Master Cookies (SID, OSID, SAPISID) sin eliminar el __Secure-1PSIDTS activo.
+    Retorna True únicamente cuando __Secure-1PSIDTS o __Secure-3PSIDTS fue realmente renovado por RotateCookies (NO cuando solo cambia SIDCC)."""
     try:
         if not storage_file.exists() or storage_file.stat().st_size == 0:
             return False
@@ -364,10 +393,12 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
 
         from notebooklm._auth import keepalive, psidts_recovery
 
-        # Excluir __Secure-1PSIDTS / __Secure-3PSIDTS caducadas del jar de recuperación para que Google emita una nueva desde SID/SAPISID
+        # Excluir tanto PSIDTS como cookies DBSC (PSIDRTS) del jar de recuperación para que Google emita un __Secure-1PSIDTS nuevo desde SID/SAPISID
         clean_master_cookies = [
             c for c in cookies
-            if isinstance(c, dict) and "PSIDTS" not in str(c.get("name", ""))
+            if isinstance(c, dict)
+            and "PSIDTS" not in str(c.get("name", "")).upper()
+            and "PSIDRTS" not in str(c.get("name", "")).upper()
         ]
         jar = psidts_recovery._build_recovery_jar(clean_master_cookies, psidts_recovery._storage_cookie)
         rotated_cookies = []
@@ -385,7 +416,9 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
             "__Secure-1PSIDCC",
             "__Secure-3PSIDCC",
         }
+        psidts_names = {"__Secure-1PSIDTS", "__Secure-3PSIDTS"}
         updated_any = False
+        psidts_updated = False
         by_identity = {}
         for idx, c in enumerate(cookies):
             if isinstance(c, dict) and c.get("name"):
@@ -408,14 +441,21 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
             if isinstance(rc.expires, (int, float)) and rc.expires > 0:
                 new_entry["expires"] = rc.expires
             if key in by_identity:
-                old_val = cookies[by_identity[key]].get("value")
-                if old_val != rc.value:
+                old_entry = cookies[by_identity[key]]
+                old_val = old_entry.get("value")
+                old_exp = float(old_entry.get("expires") or 0)
+                new_exp = float(rc.expires) if isinstance(rc.expires, (int, float)) else 0.0
+                if old_val != rc.value or (rc.name in psidts_names and new_exp > old_exp + 60):
                     updated_any = True
-                cookies[by_identity[key]] = {**cookies[by_identity[key]], **new_entry}
+                    if rc.name in psidts_names:
+                        psidts_updated = True
+                cookies[by_identity[key]] = {**old_entry, **new_entry}
             else:
                 cookies.append(new_entry)
                 by_identity[key] = len(cookies) - 1
                 updated_any = True
+                if rc.name in psidts_names:
+                    psidts_updated = True
 
         if _has_psidts(cookies):
             data["cookies"] = cookies
@@ -432,9 +472,16 @@ def _ensure_psidts_ready(storage_file: Path, force_refresh: bool = False) -> boo
                 persist_file.write_text(serialized)
             except Exception:
                 pass
-            if updated_any:
-                logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS / SIDCC renovado suavemente en {storage_file}.")
-            return updated_any
+            if psidts_updated:
+                logger.info(f"[PSIDTS Auto-Heal] __Secure-1PSIDTS renovado exitosamente en {storage_file}.")
+            elif updated_any:
+                if _has_dbsc_cookies(cookies):
+                    logger.warning(
+                        f"[PSIDTS Auto-Heal] RotateCookies solo cambió SIDCC y NO renovó __Secure-1PSIDTS en {storage_file} (sesión con bloqueo DBSC __Secure-1PSIDRTS)."
+                    )
+                else:
+                    logger.info(f"[PSIDTS Auto-Heal] RotateCookies solo renovó SIDCC (sin nuevo __Secure-1PSIDTS) en {storage_file}.")
+            return psidts_updated
 
         return False
     except Exception as e:
@@ -637,17 +684,26 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
         )
 
     # Garantizar que __Secure-1PSIDTS exista y esté fresco en disco (ejecutando RotateCookies bajo demanda)
-    healed = await asyncio.to_thread(_ensure_psidts_ready, active_storage_file, force_reinit)
-    if healed:
+    psidts_rotated = await asyncio.to_thread(_ensure_psidts_ready, active_storage_file, force_reinit)
+    if psidts_rotated:
         await _evict_cached_client(selected_profile)
         if user_id:
-            await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, active_storage_file)
+            await asyncio.to_thread(
+                _sync_disk_cookies_to_mongo,
+                user_id,
+                user_email,
+                active_storage_file,
+                True,
+                False,
+            )
     elif force_reinit:
         await _evict_cached_client(selected_profile)
 
     active_sid = ""
+    active_disk_cookies: List[Dict[str, Any]] = []
     try:
-        active_sid = _extract_sid(json.loads(active_storage_file.read_text()).get("cookies", []))
+        active_disk_cookies = json.loads(active_storage_file.read_text()).get("cookies", [])
+        active_sid = _extract_sid(active_disk_cookies)
     except Exception:
         pass
 
@@ -681,8 +737,15 @@ async def get_client_for_request(force_reinit: bool = False) -> NotebookLMClient
         client_instance = await ctx.__aenter__()
         _CLIENT_CACHE[selected_profile] = (client_instance, ctx, active_sid)
 
-    if user_id:
-        await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, active_storage_file)
+    if user_id and (psidts_rotated or not _has_dbsc_cookies(active_disk_cookies)):
+        await asyncio.to_thread(
+            _sync_disk_cookies_to_mongo,
+            user_id,
+            user_email,
+            active_storage_file,
+            bool(psidts_rotated),
+            True,
+        )
 
     return client_instance
 
@@ -2271,11 +2334,18 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
             user_storage_file.write_text(json.dumps(storage_data, indent=2))
 
         force_flag = bool(body.get("force", False))
-        healed = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)
-        if healed:
+        psidts_rotated = await asyncio.to_thread(_ensure_psidts_ready, user_storage_file, force_flag)
+        if psidts_rotated:
             await _evict_cached_client(safe_profile)
             if user_id:
-                await asyncio.to_thread(_sync_disk_cookies_to_mongo, user_id, user_email, user_storage_file)
+                await asyncio.to_thread(
+                    _sync_disk_cookies_to_mongo,
+                    user_id,
+                    user_email,
+                    user_storage_file,
+                    True,
+                    False,
+                )
 
         final_cookies: List[Dict[str, Any]] = []
         if user_storage_file.exists() and user_storage_file.stat().st_size > 0:
@@ -2286,7 +2356,9 @@ async def refresh_cookies_handler(request: Request) -> JSONResponse:
 
         return JSONResponse({
             "success": True,
-            "healed": healed,
+            "healed": psidts_rotated,
+            "psidtsRotated": psidts_rotated,
+            "dbscBound": _has_dbsc_cookies(final_cookies),
             "cookies": final_cookies,
             "hasPsidts": _has_psidts(final_cookies),
         })

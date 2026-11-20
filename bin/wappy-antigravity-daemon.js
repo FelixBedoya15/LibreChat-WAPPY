@@ -48,6 +48,15 @@ const REQUIRED_WAPPY_CORE_SKILLS = [
   'wappy-copiloto-sgsst-mcp',
   'wappy-ordenes-y-entregables-tenshi',
 ];
+const REQUIRED_WAPPY_STUDIO_SKILLS = [
+  'protocolo-produccion-videos',
+  'animaciones-17-efectos-reels',
+  'animaciones-wappy-brand',
+  'animaciones-dark-tech-hud',
+  'animaciones-explicativas-sst',
+  'hyperframes-motion-design',
+  'wappy-ui-design-system',
+];
 const TENSHI_THREAD_TTL_MS = 2 * 60 * 60 * 1000; // 2 horas de continuidad de hilo en el mismo chat de Tenshi / Wappy Studio / Agentes SST
 const HEALTHCHECK_THREAD_TTL_MS = 14 * 60 * 60 * 1000; // 14 horas de continuidad para el hilo de Bitácora Cron Conectores (Mañana / Noche)
 const AUTOMATION_THREAD_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de continuidad por empresa para Tareas Programadas
@@ -55,6 +64,8 @@ const IMAGE_THREAD_TTL_MS = 4 * 60 * 60 * 1000; // 4 horas de continuidad para e
 const DAEMON_VERSION = '2.7.0';
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // Rotación automática del log a los 5 MB
 const OWNER_PRIMARY_KEY_PREFIXES = ['wpy_live_f487a9da', 'wpy_live_2be8885'];
+const CHROME_ANTI_DBSC_FLAG =
+  '--disable-features=BoundSessionCredentials,EnableBoundSessionCredentials,DeviceBoundSessions,DeviceBoundSessionsFederatedRegistration,UseUnexportableKeyServiceInBrowserProcess';
 
 function isOwnerPrimaryKey(rawKey) {
   const clean = String(rawKey || '').trim();
@@ -712,6 +723,49 @@ async function ensureOsintPortalsFileAsync(wappyUrl, apiKey, { force = false } =
   return fs.existsSync(OSINT_PORTALS_DEST) ? OSINT_PORTALS_DEST : null;
 }
 
+function hasValidSkillFrontmatter(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return false;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+    if (!match) return false;
+    const fm = match[1];
+    const hasName = /^name:\s*\S+/m.test(fm);
+    const hasDescription = /^description:\s*\S+/m.test(fm);
+    return hasName && hasDescription;
+  } catch (_) {
+    return false;
+  }
+}
+
+function ensureSkillMarkdownFrontmatter(content, id, description = '') {
+  const raw = String(content || '').replace(/^\uFEFF/, '');
+  const safeId = String(id || 'wappy-skill').trim() || 'wappy-skill';
+  const rawDesc = String(description || '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const fallbackDesc = rawDesc || `Skill oficial de WAPPY IA (${safeId}).`;
+  const quotedDesc = JSON.stringify(fallbackDesc);
+
+  const existingMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
+  if (existingMatch) {
+    const fm = existingMatch[1];
+    const hasName = /^name:\s*\S+/m.test(fm);
+    const hasDesc = /^description:\s*\S+/m.test(fm);
+    if (hasName && hasDesc) {
+      return raw;
+    }
+    const additions = [];
+    if (!hasName) additions.push(`name: ${safeId}`);
+    if (!hasDesc) additions.push(`description: ${quotedDesc}`);
+    const rest = raw.slice(existingMatch[0].length);
+    return `---\n${additions.join('\n')}\n${fm.trim()}\n---\n${rest}`;
+  }
+
+  return `---\nname: ${safeId}\ndescription: ${quotedDesc}\n---\n\n${raw.trimStart()}`;
+}
+
 function isLocalWappyEcosystemComplete() {
   try {
     if (!fs.existsSync(ECOSYSTEM_VERSION_FILE)) return false;
@@ -723,11 +777,15 @@ function isLocalWappyEcosystemComplete() {
     for (const root of [path.join(CONFIG_DIR, 'skills'), path.join(AGY_DIR, 'skills')]) {
       for (const id of REQUIRED_WAPPY_CORE_SKILLS) {
         const skDir = path.join(root, id);
-        if (!fs.existsSync(path.join(skDir, 'SKILL.md'))) return false;
+        if (!hasValidSkillFrontmatter(path.join(skDir, 'SKILL.md'))) return false;
         const scriptsDir = path.join(skDir, 'scripts');
         if (!fs.existsSync(scriptsDir)) return false;
         const hasJs = fs.readdirSync(scriptsDir).some((f) => f.endsWith('.js'));
         if (!hasJs) return false;
+      }
+      for (const studioId of REQUIRED_WAPPY_STUDIO_SKILLS) {
+        const studioSkillMd = path.join(root, studioId, 'SKILL.md');
+        if (!hasValidSkillFrontmatter(studioSkillMd)) return false;
       }
     }
     return true;
@@ -738,11 +796,16 @@ function isLocalWappyEcosystemComplete() {
 
 function writeSkillPackEntryToDisk(sk) {
   if (!sk || !sk.id || !sk.skillMd) return false;
+  const normalizedSkillMd = ensureSkillMarkdownFrontmatter(
+    sk.skillMd,
+    sk.id,
+    sk.description || sk.name,
+  );
   const skillRoots = [path.join(CONFIG_DIR, 'skills'), path.join(AGY_DIR, 'skills')];
   for (const rootDir of skillRoots) {
     const skDir = path.join(rootDir, sk.id);
     fs.mkdirSync(skDir, { recursive: true });
-    fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.skillMd, 'utf8');
+    fs.writeFileSync(path.join(skDir, 'SKILL.md'), normalizedSkillMd, 'utf8');
 
     if (Array.isArray(sk.scripts) && sk.scripts.length > 0) {
       const sDir = path.join(skDir, 'scripts');
@@ -882,7 +945,12 @@ async function syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, { force = false
             if (!sk?.id || !sk.content) continue;
             const skDir = path.join(rootDir, sk.id);
             fs.mkdirSync(skDir, { recursive: true });
-            fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.content, 'utf8');
+            const normalizedStudioMd = ensureSkillMarkdownFrontmatter(
+              sk.content,
+              sk.id,
+              sk.description || sk.name,
+            );
+            fs.writeFileSync(path.join(skDir, 'SKILL.md'), normalizedStudioMd, 'utf8');
           }
         }
         for (const agRoot of [path.join(CONFIG_DIR, 'agents'), path.join(AGY_DIR, 'agents')]) {
@@ -907,7 +975,10 @@ async function syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, { force = false
 
       // 5) Guardar estado de sincronización cuando los componentes esenciales están listos
       const coreComplete = REQUIRED_WAPPY_CORE_SKILLS.every((reqId) =>
-        fs.existsSync(path.join(AGY_DIR, 'skills', reqId, 'SKILL.md')),
+        hasValidSkillFrontmatter(path.join(AGY_DIR, 'skills', reqId, 'SKILL.md')),
+      );
+      const studioComplete = REQUIRED_WAPPY_STUDIO_SKILLS.every((reqId) =>
+        hasValidSkillFrontmatter(path.join(AGY_DIR, 'skills', reqId, 'SKILL.md')),
       );
       if (osintPath && coreComplete) {
         fs.writeFileSync(
@@ -919,6 +990,7 @@ async function syncOfficialWappyEcosystemAsync(wappyUrl, apiKey, { force = false
               syncedAt: new Date().toISOString(),
               coreSkills: installedCoreIds,
               studioSkillsCount,
+              studioSkillsValid: studioComplete,
               osintEngineReady: true,
             },
             null,
@@ -978,6 +1050,17 @@ function runLocalConnector(service, wappyUrl, token, detach = false, fallbackUrl
             body = body.replace(
               /\(c\)\s*=>\s*c\.domain\s*&&\s*c\.domain\.includes\('google\.com'\)/g,
               "(c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google'))"
+            );
+          }
+          // Blindaje anti-DBSC en el script descargado (defensa en profundidad para --notebooklm y --googleflow)
+          if (!body.includes('BoundSessionCredentials')) {
+            body = body.replace(
+              /'--no-default-browser-check',/g,
+              `'--no-default-browser-check',\n    '${CHROME_ANTI_DBSC_FLAG}',`
+            );
+            body = body.replace(
+              /--no-default-browser-check --window-size=1080,780/g,
+              `--no-default-browser-check "${CHROME_ANTI_DBSC_FLAG}" --window-size=1080,780`
             );
           }
           fs.writeFileSync(destScript, body, { encoding: 'utf8', mode: 0o755 });
@@ -5133,6 +5216,7 @@ async function captureWebOrHtmlEvidence({
           `--user-data-dir=${profileDir}`,
           '--no-first-run',
           '--no-default-browser-check',
+          CHROME_ANTI_DBSC_FLAG,
           `--print-to-pdf=${pdfPath}`,
           '--no-pdf-header-footer',
         ];
@@ -6629,6 +6713,11 @@ module.exports = {
   installAndStartDaemon,
   installAndStart: installAndStartDaemon,
   syncOfficialWappyEcosystemAsync,
+  isLocalWappyEcosystemComplete,
+  hasValidSkillFrontmatter,
+  ensureSkillMarkdownFrontmatter,
+  REQUIRED_WAPPY_CORE_SKILLS,
+  REQUIRED_WAPPY_STUDIO_SKILLS,
   ensureOsintPortalsFileAsync,
   resolveCredentials,
   resolveAllCredentials,

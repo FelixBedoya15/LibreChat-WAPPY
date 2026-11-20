@@ -59,6 +59,35 @@ async function findSessionForCompany(Model, userId, companyId) {
 const OUTPUT_MEDIA_DIR =
   paths.imageOutput || path.resolve(__dirname, '../../../client/public/images');
 
+const CHROME_ANTI_DBSC_FLAG =
+  '--disable-features=BoundSessionCredentials,EnableBoundSessionCredentials,DeviceBoundSessions,DeviceBoundSessionsFederatedRegistration,UseUnexportableKeyServiceInBrowserProcess';
+
+const DBSC_WARNING_MESSAGE =
+  'Tu sesión actual fue exportada con bloqueo de hardware DBSC de Chrome (__Secure-1PSIDRTS), por lo que Google la caduca cada ~30–60 minutos. Reconecta una sola vez usando el Conector Automático 1-Clic actualizado para obtener una sesión permanente sin desconexiones.';
+
+function hasDbscBoundCookies(cookies = []) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  return cookies.some((c) => c && /PSIDRTS/i.test(String(c.name || '')));
+}
+
+async function markGoogleFlowSessionInvalid(userId, activeCompId) {
+  if (!userId) return;
+  const now = new Date();
+  try {
+    const existing = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    if (existing?._id) {
+      await GoogleFlowSession.findOneAndUpdate(
+        { _id: existing._id },
+        { $set: { isValid: false, lastTestedAt: now } }
+      ).catch(() => {});
+    }
+    await GoogleFlowSession.findOneAndUpdate(
+      { user: userId, companyId: activeCompId || null },
+      { $set: { companyId: activeCompId || null, isValid: false, lastTestedAt: now } }
+    ).catch(() => {});
+  } catch (_) {}
+}
+
 /**
  * Normaliza una cookie al formato estándar
  */
@@ -541,6 +570,7 @@ async function resolveGoogleFlowCredentials(userId, explicitCompanyId = null) {
     apiKeys,
     email: flowSession?.email || notebookSession?.email || '',
     hasFlowSession: Boolean(flowSession),
+    hasFlowApiKey: Boolean(flowSession?.apiKey && flowSession.apiKey.length > 5),
     hasNotebookSession: Boolean(notebookSession?.cookies?.length > 0),
   };
 }
@@ -762,6 +792,7 @@ async function executeFlowNativeStudioAction({
       '--no-default-browser-check',
       '--password-store=basic',
       '--use-mock-keychain',
+      CHROME_ANTI_DBSC_FLAG,
       '--disable-blink-features=AutomationControlled',
       '--window-size=1440,900',
       `--user-agent=${ua}`,
@@ -1200,6 +1231,7 @@ async function executeFlowImageGeneration({
   let mimeType = 'image/png';
   let modelUsed = '';
   let sessionWasAuthenticated = false;
+  let flowCookieAuthFailed = false;
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Nano Banana 2 Lite / 2.1)
   const cookieSetsToTry =
@@ -1269,9 +1301,14 @@ async function executeFlowImageGeneration({
           currentCookies = await refreshGoogleCookiesOnDemand(userId, currentCookies, creds.email || '', true);
           continue;
         }
+        flowCookieAuthFailed = true;
         logger.warn(`[GoogleFlow] Aviso en generación nativa flow.google.com: ${flowErr.message}`);
       }
     }
+  }
+
+  if (!imageBuffer && !sessionWasAuthenticated && flowCookieAuthFailed && userId && !creds.hasFlowApiKey) {
+    await markGoogleFlowSessionInvalid(userId, creds.activeCompId);
   }
 
   // INTENTO 2: Google Gemini Native Image API (gemini-3.1-flash-lite-image / gemini-nano-banana-2.1 / gemini-3.1-flash-image)
@@ -1449,6 +1486,7 @@ async function executeFlowVideoGeneration({
   let posterBuffer = null;
   let modelUsed = '';
   let vidSessionWasAuthenticated = false;
+  let vidCookieAuthFailed = false;
 
   // INTENTO 1: Generación Nativa en Google Flow Studio (flow.google.com • Veo 3.1 Lite)
   const vidCookieSetsToTry =
@@ -1535,9 +1573,14 @@ async function executeFlowVideoGeneration({
           currentVidCookies = await refreshGoogleCookiesOnDemand(userId, currentVidCookies, creds.email || '', true);
           continue;
         }
+        vidCookieAuthFailed = true;
         logger.warn(`[GoogleFlow] Aviso en generación de video en flow.google.com: ${flowVidErr.message}`);
       }
     }
+  }
+
+  if (!videoBuffer && !vidSessionWasAuthenticated && vidCookieAuthFailed && userId && !creds.hasFlowApiKey) {
+    await markGoogleFlowSessionInvalid(userId, creds.activeCompId);
   }
 
   // INTENTO 2: Google Veo oficial vía Gemini API (:predictLongRunning)
@@ -1748,6 +1791,7 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     if (!session) {
       return res.json({
         connected: false,
+        dbscBound: false,
         canSyncFromNotebookLM,
         notebookEmail: nbSession?.email || '',
         message: 'Sin vincular. Conecta tu cuenta privada de Google Flow / Labs.',
@@ -1759,6 +1803,7 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     const hasApiKey = Boolean(session.apiKey && session.apiKey.length > 5);
     const isValid = session.isValid ?? true;
     const lastTestedAt = session.lastTestedAt || session.updatedAt || null;
+    const dbscBound = hasDbscBoundCookies(session.cookies || []);
 
     return res.json({
       connected: true,
@@ -1766,6 +1811,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
       cookieCount,
       hasApiKey,
       isValid,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       lastTestedAt,
       canSyncFromNotebookLM,
       notebookEmail: nbSession?.email || '',
@@ -1819,6 +1866,9 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
       }
     }
 
+    const syncIsValid = Boolean(fxSession.ok);
+    const dbscBound = hasDbscBoundCookies(finalCookies);
+
     await GoogleFlowSession.findOneAndUpdate(
       { user: userId, companyId: activeCompId || null },
       {
@@ -1826,18 +1876,28 @@ router.post('/sync-from-notebooklm', requireJwtAuth, async (req, res) => {
         email: effectiveEmail,
         cookies: finalCookies,
         cookieCount: finalCookies.length,
-        isValid: true,
+        isValid: syncIsValid,
         lastTestedAt: new Date(),
         source: 'notebooklm-sync',
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    if (!syncIsValid) {
+      await markGoogleFlowSessionInvalid(userId, activeCompId);
+    }
+
     return res.json({
-      success: true,
+      success: syncIsValid,
+      isValid: syncIsValid,
+      sessionExpired: !syncIsValid,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       email: effectiveEmail,
-      cookieCount: nbSession.cookies.length,
-      message: `¡Cuenta privada de Google (${effectiveEmail}) vinculada con éxito a Google Flow!`,
+      cookieCount: finalCookies.length,
+      message: syncIsValid
+        ? `¡Cuenta privada de Google (${effectiveEmail}) vinculada con éxito a Google Flow!`
+        : 'Las cookies sincronizadas desde NotebookLM han expirado en Google Flow. Reconecta con el Conector 1-Clic.',
     });
   } catch (error) {
     logger.error('[GoogleFlow] Error sincronizando desde NotebookLM:', error);
@@ -1942,7 +2002,7 @@ router.post('/session', requireJwtAuth, async (req, res) => {
             email: effectiveEmail,
             cookies: mergedNbCookies,
             cookieCount: mergedNbCookies.length,
-            isValid: true,
+            isValid: testResult.success,
             lastTestedAt: new Date(),
             source: source || 'googleflow-sync',
           },
@@ -1951,13 +2011,18 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       } catch (_) {}
     }
 
-    logger.info(`[GoogleFlow] Sesión guardada para usuario ${userId} (Email: ${effectiveEmail})`);
+    const dbscBound = hasDbscBoundCookies(cookies);
+    logger.info(`[GoogleFlow] Sesión guardada para usuario ${userId} (Email: ${effectiveEmail}, isValid: ${testResult.success}, dbscBound: ${dbscBound})`);
 
     return res.json({
       success: true,
       email: effectiveEmail,
-      message: `¡Sesión privada de Google Flow (${effectiveEmail}) vinculada con éxito!`,
+      message: testResult.success
+        ? `¡Sesión privada de Google Flow (${effectiveEmail}) vinculada con éxito!`
+        : `Sesión guardada, pero Google rechazó las cookies: ${testResult.reason || 'Sesión expirada'}`,
       isValid: testResult.success,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       cookieCount: updateData.cookieCount || 0,
       hasApiKey: Boolean(updateData.apiKey),
     });
@@ -2065,8 +2130,24 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    if (!isValid) {
+      if (session?._id) {
+        await GoogleFlowSession.findOneAndUpdate(
+          { _id: session._id },
+          { $set: { isValid: false, lastTestedAt } }
+        ).catch(() => {});
+      }
+    }
+
+    const dbscBound = hasDbscBoundCookies(session.cookies || []);
+
     return res.json({
       success: isValid,
+      isValid,
+      sessionExpired: !isValid,
+      email: session.email || '',
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       reason: isValid ? null : message,
       message,
       lastTestedAt,
@@ -2271,6 +2352,8 @@ function cleanupStaleProfile(profileDir) {
   } catch (_) {}
 }
 
+const ANTI_DBSC_FLAG = '${CHROME_ANTI_DBSC_FLAG}';
+
 function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl) {
   const args = [
     \`--remote-debugging-port=\${debugPort}\`,
@@ -2278,12 +2361,13 @@ function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl) {
     \`--user-data-dir=\${profileDir}\`,
     '--no-first-run',
     '--no-default-browser-check',
+    ANTI_DBSC_FLAG,
     '--window-size=1080,780',
     \`--app=\${targetUrl}\`,
   ];
   if (os.platform() === 'win32') {
     try {
-      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check --window-size=1080,780 --app=\${targetUrl}\`;
+      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check "\${ANTI_DBSC_FLAG}" --window-size=1080,780 --app=\${targetUrl}\`;
       const c = spawn('cmd.exe', ['/d', '/s', '/c', \`"\${cmdLine}"\`], {
         windowsVerbatimArguments: true,
         detached: true,
@@ -2459,6 +2543,12 @@ async function uploadCookies(cookies, email = '') {
   const start = Date.now();
   let cdpConnectedOnce = false;
   let clearedDeadCookiesOnce = false;
+  let checkedInitialDbsc = false;
+  let clearedDbscOnce = false;
+
+  const hasDbscCookiesInList = (list) =>
+    Array.isArray(list) &&
+    list.some((c) => c && (c.name === '__Secure-1PSIDRTS' || c.name === '__Secure-3PSIDRTS' || /PSIDRTS/i.test(c.name || '')));
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -2471,6 +2561,38 @@ async function uploadCookies(cookies, email = '') {
         cdpConnectedOnce = true;
         console.log('🟢 Ventana del navegador activa. Esperando inicio de sesión en Google Flow...');
       }
+
+      // Auto-limpieza temprana de sesiones viejas con bloqueo DBSC (__Secure-1PSIDRTS / __Secure-3PSIDRTS)
+      if (!checkedInitialDbsc && !clearedDbscOnce) {
+        const anyPage = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
+        if (anyPage) {
+          checkedInitialDbsc = true;
+          let initCookies = [];
+          try {
+            const netInit = await cdpSend(anyPage.webSocketDebuggerUrl, 'Network.getAllCookies');
+            initCookies = netInit?.result?.cookies || [];
+          } catch (_) {}
+          if (!initCookies.length) {
+            try {
+              const stInit = await cdpSend(anyPage.webSocketDebuggerUrl, 'Storage.getCookies');
+              initCookies = stInit?.result?.cookies || [];
+            } catch (_) {}
+          }
+          if (hasDbscCookiesInList(initCookies)) {
+            clearedDbscOnce = true;
+            console.log('🧹 Detectada sesión temporal con bloqueo DBSC de Chrome; reiniciando ventana en modo permanente sin DBSC...');
+            try {
+              await cdpSend(anyPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+              await cdpSend(anyPage.webSocketDebuggerUrl, 'Page.navigate', {
+                url: 'https://accounts.google.com/ServiceLogin?continue=https://flow.google.com/',
+              });
+            } catch (_) {}
+            await new Promise((r) => setTimeout(r, 3000));
+            continue;
+          }
+        }
+      }
+
       const flowPage = pages.find(
         (p) =>
           p.webSocketDebuggerUrl &&
@@ -2494,6 +2616,18 @@ async function uploadCookies(cookies, email = '') {
       }
 
       const googleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
+      if (hasDbscCookiesInList(googleCookies) && !clearedDbscOnce) {
+        clearedDbscOnce = true;
+        console.log('🧹 Detectada sesión temporal con bloqueo DBSC de Chrome; reiniciando ventana en modo permanente sin DBSC...');
+        try {
+          await cdpSend(flowPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+          await cdpSend(flowPage.webSocketDebuggerUrl, 'Page.navigate', {
+            url: 'https://accounts.google.com/ServiceLogin?continue=https://flow.google.com/',
+          });
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {

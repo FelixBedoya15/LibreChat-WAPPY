@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   X,
@@ -16,10 +16,19 @@ import {
   ChevronUp,
   Terminal,
   Sparkles,
-  Copy,
   Check,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
+
+interface NotebookLMStatus {
+  connected?: boolean;
+  isValid?: boolean;
+  dbscBound?: boolean;
+  dbscWarning?: string | null;
+  email?: string;
+  cookieCount?: number;
+}
 
 interface NotebookLMModalProps {
   isOpen: boolean;
@@ -33,21 +42,38 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
   onStatusChange,
 }) => {
   const { token } = useAuthContext();
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<NotebookLMStatus | null>(null);
+  const [savedDbscInfo, setSavedDbscInfo] = useState<{ bound: boolean; warning: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [manualJson, setManualJson] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [copiedAg, setCopiedAg] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const serverOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://app.wappy.club';
   const terminalCommand = `mkdir -p ~/.gemini/antigravity && curl -fsSL "${serverOrigin}/api/mcp-bridge/antigravity/daemon.js" -o ~/.gemini/antigravity/wappy-push-daemon.js && node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
   const agCliCommand = `node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm --url="${serverOrigin}" --token="${token || ''}"`;
   const antigravityPrompt = `Ejecuta en la terminal mi conector local de WAPPY:\n\n\`\`\`bash\n${agCliCommand}\n\`\`\``;
+
+  const notifyStatusUpdated = () => {
+    if (onStatusChange) {
+      onStatusChange();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wappy-notebooklm-updated', { detail: { refresh: true } }));
+    }
+  };
+
+  const clearPollTimer = () => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  };
 
   const fetchStatus = async () => {
     if (!token) return;
@@ -57,8 +83,11 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        const data = await res.json();
+        const data: NotebookLMStatus = await res.json();
         setStatus(data);
+        if (!data?.connected || data?.dbscBound === false) {
+          setSavedDbscInfo(null);
+        }
       }
     } catch (e: any) {
       console.error('Error fetching NotebookLM status:', e);
@@ -69,15 +98,24 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setSavedDbscInfo(null);
       fetchStatus();
       setFeedback(null);
+    } else {
+      clearPollTimer();
     }
+    return () => {
+      clearPollTimer();
+    };
   }, [isOpen, token]);
 
   const handleCopyAg = async () => {
-    navigator.clipboard.writeText(antigravityPrompt);
+    try {
+      await navigator.clipboard?.writeText(antigravityPrompt);
+    } catch (_) {}
     setCopiedAg(true);
     setTimeout(() => setCopiedAg(false), 3000);
+    const wasDbscBound = Boolean(status?.dbscBound === true || savedDbscInfo?.bound);
     try {
       const res = await fetch('/api/mcp-bridge/antigravity/launch-connector', {
         method: 'POST',
@@ -96,13 +134,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
         setFeedback({
           type: 'success',
           message:
-            '✨ ¡Orden enviada directamente a tu computador! La ventana de conexión se abrirá sola en unos segundos (también se copió el comando al portapapeles).',
+            '✨ ¡Orden enviada directamente a tu computador! Se abrirá Chrome sin DBSC en unos segundos para vincular tu sesión de forma estable (también se copió el comando al portapapeles).',
         });
+        clearPollTimer();
         let checks = 0;
-        const timer = setInterval(async () => {
+        pollTimerRef.current = setInterval(async () => {
           checks += 1;
-          if (checks > 10) {
-            clearInterval(timer);
+          if (checks > 12) {
+            clearPollTimer();
             return;
           }
           try {
@@ -110,11 +149,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
               headers: { Authorization: `Bearer ${token}` },
             });
             if (stRes.ok) {
-              const stData = await stRes.json();
-              if (stData?.connected) {
-                setStatus(stData);
-                onStatusChange?.();
-                clearInterval(timer);
+              const stData: NotebookLMStatus = await stRes.json();
+              setStatus(stData);
+              if (stData?.connected && stData?.isValid !== false && (!wasDbscBound || stData?.dbscBound === false)) {
+                if (stData?.dbscBound === false) {
+                  setSavedDbscInfo(null);
+                }
+                notifyStatusUpdated();
+                clearPollTimer();
               }
             }
           } catch (_) {}
@@ -125,18 +167,20 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
     setFeedback({
       type: 'success',
       message:
-        '📋 ¡Comando limpio copiado! Pégalo en el chat de tu Google Antigravity o en tu Terminal para abrir la ventana de conexión.',
+        '📋 ¡Comando limpio copiado! Pégalo en el chat de tu Google Antigravity o en tu Terminal para abrir el Conector Automático sin DBSC.',
     });
   };
 
   const handleCopyCmd = () => {
-    navigator.clipboard.writeText(terminalCommand);
+    try {
+      navigator.clipboard?.writeText(terminalCommand);
+    } catch (_) {}
     setCopiedCmd(true);
     setTimeout(() => setCopiedCmd(false), 3000);
   };
 
   const handleSaveManual = async () => {
-    if (!manualJson.trim()) {
+    if (!manualJson?.trim()) {
       setFeedback({ type: 'error', message: 'Por favor pega el JSON o las cookies de sesión.' });
       return;
     }
@@ -152,23 +196,41 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
         },
         body: JSON.stringify({ raw: manualJson, source: 'manual' }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
+        const hasDbsc = data?.dbscBound === true;
+        const warningMsg =
+          typeof data?.dbscWarning === 'string' && data.dbscWarning.trim()
+            ? data.dbscWarning.trim()
+            : null;
+        if (hasDbsc) {
+          setSavedDbscInfo({ bound: true, warning: warningMsg });
+        } else {
+          setSavedDbscInfo(null);
+        }
+
         setFeedback({
-          type: data.isValid === false ? 'error' : 'success',
-          message: data.message || '¡Sesión privada de NotebookLM vinculada con éxito!',
+          type: data?.isValid === false ? 'error' : hasDbsc ? 'warning' : 'success',
+          message:
+            data?.message ||
+            (data?.isValid === false
+              ? 'Las cookies guardadas están expiradas o inválidas. Usa el Conector Automático 1-Clic.'
+              : '¡Sesión privada de NotebookLM vinculada con éxito!'),
         });
+        if (data?.isValid !== false) {
+          setManualJson('');
+        }
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
         setFeedback({
           type: 'error',
-          message: data.error || data.message || 'Error al guardar la sesión.',
+          message: data?.error || data?.message || 'Error al guardar la sesión.',
         });
       }
     } catch (err: any) {
-      setFeedback({ type: 'error', message: 'Error de conexión: ' + err.message });
+      setFeedback({ type: 'error', message: 'Error de conexión: ' + (err?.message || 'Error desconocido') });
     } finally {
       setIsSaving(false);
     }
@@ -189,10 +251,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success) {
         await fetchStatus();
-        onStatusChange?.();
+        notifyStatusUpdated();
         setFeedback({
           type: 'success',
-          message: data.message || '✓ ¡Sesión sincronizada y activa!',
+          message: data?.message || '✓ ¡Sesión sincronizada y activa!',
         });
       } else {
         await fetchStatus();
@@ -221,10 +283,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
       if (res.ok && data?.success) {
         setFeedback({
           type: 'success',
-          message: data.message || '✓ ¡Conexión privada con Google NotebookLM verificada con éxito!',
+          message: data?.message || '✓ ¡Conexión privada con Google NotebookLM verificada con éxito!',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
         setFeedback({
           type: 'error',
@@ -235,10 +297,10 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
             'Aún no hay una sesión activa vinculada o la sesión expiró. Haz clic en Reconectar o usa la Opción A.',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       }
     } catch (err: any) {
-      setFeedback({ type: 'error', message: 'Error al probar: ' + err.message });
+      setFeedback({ type: 'error', message: 'Error al probar: ' + (err?.message || 'Error desconocido') });
     } finally {
       setIsTesting(false);
     }
@@ -256,20 +318,21 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
+        setSavedDbscInfo(null);
         setFeedback({
           type: 'info',
           message: 'Sesión privada desvinculada correctamente.',
         });
         await fetchStatus();
-        if (onStatusChange) onStatusChange();
+        notifyStatusUpdated();
       } else {
-        setFeedback({ type: 'error', message: data.error || 'Error al desvincular.' });
+        setFeedback({ type: 'error', message: data?.error || 'Error al desvincular.' });
       }
     } catch (err: any) {
-      setFeedback({ type: 'error', message: 'Error al desvincular: ' + err.message });
+      setFeedback({ type: 'error', message: 'Error al desvincular: ' + (err?.message || 'Error desconocido') });
     } finally {
       setIsDeleting(false);
     }
@@ -278,70 +341,93 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
   if (!isOpen) return null;
 
   const isConnected = Boolean(status?.connected);
-  const isValid = status?.isValid !== false;
+  const isExpired = isConnected && status?.isValid === false;
+  const isValid = isConnected && status?.isValid !== false;
+  const isDbscBound = Boolean((isConnected && status?.dbscBound === true) || savedDbscInfo?.bound);
+  const dbscWarningText =
+    (typeof status?.dbscWarning === 'string' && status.dbscWarning.trim()) ||
+    (typeof savedDbscInfo?.warning === 'string' && savedDbscInfo.warning.trim()) ||
+    null;
+  const displayEmail = status?.email?.trim() || 'tu cuenta privada de Google';
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
       <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-zinc-800/80 px-6 py-4 bg-slate-50/50 dark:bg-zinc-900/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 dark:border-zinc-800/80 px-4 sm:px-6 py-4 bg-slate-50/50 dark:bg-zinc-900/50">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100 break-words">
                 Google NotebookLM & Gemini Notebook (100% Privado)
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 break-words">
                 Vincula tu propia cuenta sin compartir tus cuadernos con correos externos.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="h-8 px-2 min-w-[32px] flex items-center justify-center rounded-xl border border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
+            className="h-8 px-2 min-w-[32px] shrink-0 flex items-center justify-center rounded-xl border border-slate-300/60 dark:border-zinc-700 bg-slate-500/10 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95"
             title="Cerrar"
+            aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4 sm:space-y-5">
           {/* Status Banner */}
-          <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {isConnected && isValid ? (
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <div
+            className={`p-4 rounded-2xl border transition-colors ${
+              isExpired
+                ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-rose-500/10 dark:from-amber-950/25 dark:to-rose-950/25'
+                : isValid
+                  ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/15'
+                  : 'border-slate-200/80 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40'
+            }`}
+          >
+            <div className="flex flex-col items-start gap-3">
+              <div className="flex items-start gap-3 w-full min-w-0">
+                {isValid ? (
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                ) : isConnected && !isValid ? (
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                ) : isExpired ? (
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                 ) : (
-                  <div className="w-9 h-9 rounded-xl bg-slate-500/10 text-slate-600 dark:text-zinc-400 flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-slate-500/10 border border-slate-300/60 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 flex items-center justify-center shrink-0">
                     <Lock className="w-5 h-5" />
                   </div>
                 )}
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center flex-wrap gap-2">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                      {isConnected && isValid
+                    <h4
+                      className={`text-xs font-bold break-words ${
+                        isExpired
+                          ? 'text-rose-700 dark:text-rose-300'
+                          : 'text-slate-900 dark:text-zinc-100'
+                      }`}
+                    >
+                      {isValid
                         ? 'Sesión Privada Activa'
-                        : isConnected && !isValid
-                        ? 'Sesión de Google Expirada'
-                        : 'Sin Vincular (Privacidad Total por Usuario)'}
+                        : isExpired
+                          ? 'Sesión expirada — Reconectar'
+                          : 'Sin Vincular (Privacidad Total por Usuario)'}
                     </h4>
-                    {isConnected && isValid ? (
+                    {isValid ? (
                       <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
                         {status?.cookieCount || 0} cookies activas
                       </span>
-                    ) : isConnected && !isValid ? (
-                      <span className="text-[10px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg">
-                        Requiere actualizar
+                    ) : isExpired ? (
+                      <span className="text-[10px] font-extrabold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 rounded-lg">
+                        Sesión expirada
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 bg-slate-500/10 border border-slate-300/60 dark:border-zinc-700 px-2 py-0.5 rounded-lg">
@@ -349,161 +435,184 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                    {isConnected && isValid
-                      ? `Conectado como: ${status.email}. Solo tú y tus agentes en tu sesión pueden consultar tus cuadernos.`
-                      : isConnected && !isValid
-                      ? 'Google rotó las credenciales de seguridad de tu navegador. Vuelve a vincular abajo en 1 clic.'
-                      : 'Tus cuadernos nunca se comparten con cuentas centrales. Vincula tu propio Google NotebookLM para que Tenshi consulte tus fuentes privadas.'}
+                  <p
+                    className={`text-[11px] mt-1 break-words ${
+                      isExpired
+                        ? 'text-amber-900/90 dark:text-amber-200/90'
+                        : 'text-slate-500 dark:text-zinc-400'
+                    }`}
+                  >
+                    {isValid
+                      ? `Conectado como: ${displayEmail}. Solo tú y tus agentes en tu sesión pueden consultar tus cuadernos.`
+                      : isExpired
+                        ? `Google expiró o rotó las credenciales de seguridad de tu navegador${status?.email?.trim() ? ` (${status.email.trim()})` : ''}. Reconecta con el Conector Automático 1-Clic para restablecer el acceso.`
+                        : 'Tus cuadernos nunca se comparten con cuentas centrales. Vincula tu propio Google NotebookLM para que Tenshi consulte tus fuentes privadas.'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-start gap-2 w-full">
+                <ExpandableButton
+                  size="sm"
+                  variant={isExpired ? 'amber' : 'cyan'}
                   onClick={handleReconnectAndRefresh}
                   disabled={isLoading}
-                  className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
-                  title="Reconectar / Actualizar sesión"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide">Reconectar</span>
-                  </div>
-                </button>
+                  icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+                  badge={isExpired ? 'Reconectar' : undefined}
+                  label={isExpired ? 'Conector Automático 1-Clic' : 'Reconectar'}
+                  title={isExpired ? 'Sesión expirada — Reconectar sesión' : 'Reconectar / Actualizar sesión'}
+                />
 
-                <button
-                  type="button"
+                <ExpandableButton
+                  size="sm"
+                  variant="teal"
                   onClick={handleTestConnection}
                   disabled={isTesting}
-                  className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+                  icon={<CheckCircle2 className={`w-3.5 h-3.5 ${isTesting ? 'animate-pulse' : ''}`} />}
+                  label={isTesting ? 'Probando...' : 'Probar'}
                   title="Probar sesión en vivo con Google"
-                >
-                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isTesting ? 'animate-pulse' : ''}`} />
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-xs font-bold tracking-wide">{isTesting ? 'Probando...' : 'Probar'}</span>
-                  </div>
-                </button>
+                />
 
                 {isConnected && (
-                  <button
-                    type="button"
+                  <ExpandableButton
+                    size="sm"
+                    variant="danger"
                     onClick={handleDeleteSession}
                     disabled={isDeleting}
-                    className="group flex h-8 px-2 min-w-[32px] items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50"
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
+                    label="Desvincular"
                     title="Desvincular sesión"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                      <span className="text-xs font-bold tracking-wide">Desvincular</span>
-                    </div>
-                  </button>
+                  />
                 )}
               </div>
             </div>
           </div>
 
+          {/* DBSC Temporary Cookie Lock Warning Banner (Grupo 8) */}
+          {isDbscBound && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 flex flex-col items-start gap-2.5">
+              <div className="flex items-start gap-2.5 w-full min-w-0">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-xs font-bold leading-snug break-words">
+                    Cookies con bloqueo temporal DBSC de Chrome (~1 hora)
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-200/90 break-words">
+                    Estas cookies están vinculadas al dispositivo en Chrome (DBSC) y pueden caducar en ~1 hora. Te recomendamos usar el{' '}
+                    <strong className="font-bold">Conector Automático 1-Clic</strong> (que abre Chrome sin DBSC) para mantener tu sesión estable durante meses.
+                  </p>
+                  {dbscWarningText && (
+                    <p className="text-[10px] leading-snug text-amber-700/90 dark:text-amber-300/85 break-words">
+                      {dbscWarningText}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-start gap-2 w-full">
+                <ExpandableButton
+                  size="sm"
+                  variant="amber"
+                  onClick={handleCopyAg}
+                  icon={copiedAg ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  badge="1-Clic"
+                  label={copiedAg ? '¡Conector lanzado!' : 'Conector Automático (sin DBSC)'}
+                  title="Lanzar Conector Automático 1-Clic (abre Chrome sin DBSC)"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Feedback message */}
           {feedback && (
             <div
-              className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+              className={`p-3 rounded-xl text-xs flex items-start gap-2 break-words ${
                 feedback.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800'
+                  ? 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/30 dark:text-emerald-300'
                   : feedback.type === 'error'
-                  ? 'bg-red-50 text-red-800 border border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800'
-                  : 'bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800'
+                    ? 'bg-rose-500/10 text-rose-800 border border-rose-500/30 dark:text-rose-300'
+                    : feedback.type === 'warning'
+                      ? 'bg-amber-500/10 text-amber-800 border border-amber-500/30 dark:text-amber-200'
+                      : 'bg-blue-500/10 text-blue-800 border border-blue-500/30 dark:text-blue-300'
               }`}
             >
               {feedback.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              ) : feedback.type === 'warning' ? (
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle className="w-4 h-4 shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               )}
-              <span>{feedback.message}</span>
+              <span className="min-w-0 flex-1 break-words">{feedback.message}</span>
             </div>
           )}
 
           {/* Opción 1: Vinculación Directa desde PC / Antigravity (Sin instalar extensión) */}
-          <div className="p-5 rounded-2xl border border-purple-500/25 bg-purple-500/5 dark:bg-purple-950/10 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-extrabold tracking-wide uppercase text-purple-700 dark:text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-md">
-                  Opción A &bull; Sin Instalar Extensiones
+          <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/25 bg-purple-500/5 dark:bg-purple-950/10 space-y-3">
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-full min-w-0">
+                <span className="inline-block text-[10px] font-extrabold tracking-wide uppercase text-purple-700 dark:text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-md">
+                  Opción A &bull; Conector Automático 1-Clic (Sin DBSC)
                 </span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1.5">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1.5 break-words">
                   Vinculación Directa desde tu PC o Antigravity
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-zinc-400">
-                  Abre una ventana segura de Google en tu computador, detecta tu NotebookLM y lo vincula automáticamente a tu cuenta privada.
+                <p className="text-xs text-slate-600 dark:text-zinc-400 break-words">
+                  Abre una ventana segura de Chrome sin bloqueo DBSC en tu computador, detecta tu NotebookLM y mantiene tu sesión estable durante meses.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-start gap-2.5 w-full">
+                <ExpandableButton
+                  size="md"
+                  variant="purple"
                   onClick={handleCopyAg}
-                  title="Copiar instrucción para Antigravity"
-                  className="group flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  {copiedAg ? <Check className="w-4 h-4 shrink-0" /> : <Sparkles className="w-4 h-4 shrink-0" />}
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-sm font-bold tracking-wide">
-                      {copiedAg ? '¡Copiado para Antigravity!' : 'Copiar para Antigravity'}
-                    </span>
-                  </div>
-                  <span className="sm:hidden text-xs font-bold ml-1.5">
-                    {copiedAg ? '¡Copiado!' : 'Antigravity'}
-                  </span>
-                </button>
+                  icon={copiedAg ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                  badge="1-Clic"
+                  label={copiedAg ? '¡Copiado para Antigravity!' : 'Conector Automático 1-Clic'}
+                  title="Lanzar o copiar instrucción del Conector Automático 1-Clic para Antigravity"
+                />
 
-                <button
-                  type="button"
+                <ExpandableButton
+                  size="md"
+                  variant="fuchsia"
                   onClick={handleCopyCmd}
+                  icon={copiedCmd ? <Check className="w-4 h-4" /> : <Terminal className="w-4 h-4" />}
+                  label={copiedCmd ? '¡Comando Copiado!' : 'Copiar Comando Terminal'}
                   title="Copiar comando para Terminal"
-                  className="group flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  {copiedCmd ? <Check className="w-4 h-4 shrink-0" /> : <Terminal className="w-4 h-4 shrink-0" />}
-                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                    <span className="text-sm font-bold tracking-wide">
-                      {copiedCmd ? '¡Comando Copiado!' : 'Copiar Comando Terminal'}
-                    </span>
-                  </div>
-                  <span className="sm:hidden text-xs font-bold ml-1.5">
-                    {copiedCmd ? '¡Copiado!' : 'Terminal'}
-                  </span>
-                </button>
+                />
               </div>
             </div>
           </div>
 
           {/* Opción 2: Extensión WAPPY Connect */}
-          <div className="p-5 rounded-2xl border border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/10 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-extrabold tracking-wide uppercase text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/40 px-2 py-0.5 rounded-md">
+          <div className="p-4 sm:p-5 rounded-2xl border border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/10 space-y-3">
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-full min-w-0">
+                <span className="inline-block text-[10px] font-extrabold tracking-wide uppercase text-teal-600 dark:text-teal-400 bg-teal-500/10 border border-teal-500/30 px-2 py-0.5 rounded-md">
                   Opción B &bull; Extensión de Navegador
                 </span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1.5">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1.5 break-words">
                   Extensión Oficial WAPPY Connect (Chrome / Brave / Edge)
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-zinc-400">
+                <p className="text-xs text-slate-600 dark:text-zinc-400 break-words">
                   Vincula tu sesión privada desde el navegador con un solo clic.
                 </p>
               </div>
 
-              <a
-                href="/extension/wappy-connect.zip"
-                download="wappy-connect.zip"
-                title="Descargar Extensión (.zip)"
-                className="group flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0"
-              >
-                <Download className="w-4 h-4 shrink-0" />
-                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                  <span className="text-sm font-bold tracking-wide">Descargar Extensión (.zip)</span>
-                </div>
-                <span className="sm:hidden text-xs font-bold ml-1.5">Descargar Extensión (.zip)</span>
-              </a>
+              <div className="flex flex-wrap items-center justify-start gap-2.5 w-full">
+                <a
+                  href="/extension/wappy-connect.zip"
+                  download="wappy-connect.zip"
+                  title="Descargar Extensión (.zip)"
+                  className="wappy-expand-btn group relative flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 hover:bg-green-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 shrink-0"
+                >
+                  <Download className="w-4 h-4 shrink-0" />
+                  <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide">Descargar Extensión (.zip)</span>
+                  </div>
+                  <span className="sm:hidden text-xs font-bold ml-1.5">Descargar (.zip)</span>
+                </a>
+              </div>
             </div>
 
             {/* Pasos de instalación */}
@@ -528,18 +637,18 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
             <button
               type="button"
               onClick={() => setShowManual(!showManual)}
-              className="flex w-full items-center justify-between text-left text-xs font-bold text-slate-800 dark:text-zinc-200 hover:text-teal-600 transition-colors"
+              className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-slate-800 dark:text-zinc-200 hover:text-teal-600 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Clipboard className="w-4 h-4 text-slate-500" />
-                <span>Opción C: Pegar Clave o JSON de Cookies Manualmente</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Clipboard className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="truncate">Opción C: Pegar Clave o JSON de Cookies Manualmente</span>
               </div>
-              {showManual ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showManual ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
             </button>
 
             {showManual && (
               <div className="pt-2 space-y-3">
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400 break-words">
                   Si copiaste tus cookies desde otro navegador o extensión (como Cookie-Editor), pega el contenido aquí:
                 </p>
 
@@ -551,20 +660,16 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
                   className="w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 p-3 text-xs font-mono text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
+                <div className="flex flex-wrap items-center justify-start gap-2">
+                  <ExpandableButton
+                    size="md"
+                    variant="teal"
                     onClick={handleSaveManual}
                     disabled={isSaving}
+                    icon={isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    label={isSaving ? 'Guardando...' : 'Guardar y Vincular'}
                     title="Guardar y Vincular"
-                    className="group flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
-                  >
-                    {isSaving ? <RefreshCw className="w-4 h-4 animate-spin shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-                    <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                      <span className="text-sm font-bold tracking-wide">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
-                    </div>
-                    <span className="sm:hidden text-xs font-bold ml-1.5">{isSaving ? 'Guardando...' : 'Guardar y Vincular'}</span>
-                  </button>
+                  />
                 </div>
               </div>
             )}
@@ -572,7 +677,7 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-zinc-800/80 px-6 py-3.5 bg-slate-50/50 dark:bg-zinc-900/50">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 dark:border-zinc-800/80 px-4 sm:px-6 py-3.5 bg-slate-50/50 dark:bg-zinc-900/50">
           <a
             href="https://notebooklm.google.com"
             target="_blank"
@@ -583,18 +688,14 @@ export const NotebookLMModal: React.FC<NotebookLMModalProps> = ({
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
-          <button
-            type="button"
+          <ExpandableButton
+            size="md"
+            variant="neutral"
             onClick={onClose}
+            icon={<X className="w-4 h-4" />}
+            label="Cerrar"
             title="Cerrar"
-            className="group flex h-9 px-2.5 min-w-[36px] sm:h-10 sm:px-3 sm:min-w-[40px] items-center justify-center rounded-xl bg-slate-500/10 dark:bg-zinc-800/80 border border-slate-300/60 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-500/20 transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 cursor-pointer shrink-0"
-          >
-            <X className="w-4 h-4 shrink-0" />
-            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[260px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-              <span className="text-sm font-bold tracking-wide">Cerrar</span>
-            </div>
-            <span className="sm:hidden text-xs font-bold ml-1.5">Cerrar</span>
-          </button>
+          />
         </div>
       </div>
     </div>,

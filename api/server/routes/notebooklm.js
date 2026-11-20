@@ -62,6 +62,74 @@ const OUTPUT_MEDIA_DIR =
   paths.imageOutput || path.resolve(__dirname, '../../../client/public/images');
 const MEDIA_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
 
+const CHROME_ANTI_DBSC_FLAG =
+  '--disable-features=BoundSessionCredentials,EnableBoundSessionCredentials,DeviceBoundSessions,DeviceBoundSessionsFederatedRegistration,UseUnexportableKeyServiceInBrowserProcess';
+
+const DBSC_WARNING_MESSAGE =
+  'Tu sesión actual fue exportada con bloqueo de hardware DBSC de Chrome (__Secure-1PSIDRTS), por lo que Google la caduca cada ~30–60 minutos. Reconecta una sola vez usando el Conector Automático 1-Clic actualizado para obtener una sesión permanente sin desconexiones.';
+
+function hasDbscBoundCookies(cookies = []) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  return cookies.some((c) => c && /PSIDRTS/i.test(String(c.name || '')));
+}
+
+function isNotebookAuthFailureError(errMsg = '') {
+  const lower = String(errMsg || '').toLowerCase();
+  if (!lower) return false;
+  return /(unauthenticated|csrf|snlm0e|wzsz1e|cookiemismatch|cookie\s*mismatch|sesi[oó]n\s+expirad|caducad|expired|autenticaci[oó]n|401|403|signin|servicelogin|login\s*required|redirect.*accounts\.google)/i.test(
+    lower
+  );
+}
+
+function getPsidtsMeta(cookies = []) {
+  if (!Array.isArray(cookies)) return { value: '', expires: 0 };
+  const c =
+    cookies.find((x) => x && x.name === '__Secure-1PSIDTS' && x.value) ||
+    cookies.find((x) => x && x.name === '__Secure-3PSIDTS' && x.value);
+  return {
+    value: c ? String(c.value) : '',
+    expires: c && typeof c.expires === 'number' && Number.isFinite(c.expires) ? c.expires : 0,
+  };
+}
+
+async function markNotebookAndLinkedFlowInvalid(userId, activeCompId, email = '') {
+  if (!userId) return;
+  const now = new Date();
+  try {
+    const existingNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
+    if (existingNb?._id) {
+      await NotebookSession.findOneAndUpdate(
+        { _id: existingNb._id },
+        { $set: { isValid: false, lastTestedAt: now } }
+      ).catch(() => {});
+    }
+    await NotebookSession.findOneAndUpdate(
+      { user: userId, companyId: activeCompId || null },
+      { $set: { companyId: activeCompId || null, isValid: false, lastTestedAt: now } }
+    ).catch(() => {});
+  } catch (_) {}
+
+  try {
+    const GoogleFlowSession = require('~/models/GoogleFlowSession');
+    const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
+    if (existingFlow && !existingFlow.apiKey) {
+      const nbEmailNorm = String(email || '').trim().toLowerCase();
+      const flowEmailNorm = String(existingFlow.email || '').trim().toLowerCase();
+      const sameEmailOrCompany =
+        !nbEmailNorm ||
+        !flowEmailNorm ||
+        nbEmailNorm === flowEmailNorm ||
+        String(existingFlow.companyId || '') === String(activeCompId || '');
+      if (sameEmailOrCompany) {
+        await GoogleFlowSession.findOneAndUpdate(
+          { _id: existingFlow._id },
+          { $set: { isValid: false, lastTestedAt: now } }
+        ).catch(() => {});
+      }
+    }
+  } catch (_) {}
+}
+
 /**
  * Limpia automáticamente de /images/ los recursos descargados de Google Flow (flow_*)
  * y Google NotebookLM (nlm_*) que tengan más de 30 días de antigüedad.
@@ -298,16 +366,44 @@ router.post('/internal/session/:userId', async (req, res) => {
     const mergedNb = mergeGoogleCookiesByDomain(incomingCookies, existingNb?.cookies || []);
     const effectiveEmail = req.body?.email || existingNb?.email || `${userId}@wappy.internal`;
 
+    const prevNbPsidts = getPsidtsMeta(existingNb?.cookies || []);
+    const incPsidts = getPsidtsMeta(incomingCookies);
+    const hasNewerNbPsidts = Boolean(
+      incPsidts.value &&
+        (incPsidts.value !== prevNbPsidts.value ||
+          (incPsidts.expires > 0 && incPsidts.expires > prevNbPsidts.expires))
+    );
+    const psidtsRotated = req.body?.psidtsRotated === true;
+    const psidtsExplicitlyFalse = req.body?.psidtsRotated === false;
+    const verified = req.body?.verified === true;
+
+    let nextNbIsValid;
+    if (!existingNb) {
+      nextNbIsValid = !psidtsExplicitlyFalse || verified;
+    } else if (psidtsExplicitlyFalse && !verified) {
+      nextNbIsValid = existingNb.isValid ?? false;
+    } else if (existingNb.isValid === false && !verified && !(psidtsRotated && hasNewerNbPsidts)) {
+      nextNbIsValid = false;
+    } else if (psidtsRotated || verified) {
+      nextNbIsValid = true;
+    } else {
+      nextNbIsValid = existingNb.isValid === false ? hasNewerNbPsidts : existingNb.isValid ?? true;
+    }
+
+    const nbUpdateDoc = {
+      companyId: activeCompId || null,
+      email: effectiveEmail,
+      cookies: mergedNb,
+      cookieCount: mergedNb.length,
+      isValid: nextNbIsValid,
+    };
+    if (psidtsRotated || verified || !existingNb) {
+      nbUpdateDoc.lastTestedAt = new Date();
+    }
+
     await NotebookSession.findOneAndUpdate(
       { user: userId, companyId: activeCompId || null },
-      {
-        companyId: activeCompId || null,
-        email: effectiveEmail,
-        cookies: mergedNb,
-        cookieCount: mergedNb.length,
-        isValid: true,
-        lastTestedAt: new Date(),
-      },
+      nbUpdateDoc,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -315,21 +411,50 @@ router.post('/internal/session/:userId', async (req, res) => {
       const GoogleFlowSession = require('~/models/GoogleFlowSession');
       const existingFlow = await findSessionForCompany(GoogleFlowSession, userId, activeCompId);
       const mergedFlow = mergeGoogleCookiesByDomain(mergedNb, existingFlow?.cookies || []);
+      const prevFlowPsidts = getPsidtsMeta(existingFlow?.cookies || []);
+      const hasNewerFlowPsidts = Boolean(
+        incPsidts.value &&
+          (incPsidts.value !== prevFlowPsidts.value ||
+            (incPsidts.expires > 0 && incPsidts.expires > prevFlowPsidts.expires))
+      );
+      let nextFlowIsValid;
+      if (!existingFlow) {
+        nextFlowIsValid = !psidtsExplicitlyFalse || verified;
+      } else if (psidtsExplicitlyFalse && !verified) {
+        nextFlowIsValid = existingFlow.isValid ?? false;
+      } else if (existingFlow.isValid === false && !verified && !(psidtsRotated && hasNewerFlowPsidts)) {
+        nextFlowIsValid = false;
+      } else if (psidtsRotated || verified) {
+        nextFlowIsValid = true;
+      } else {
+        nextFlowIsValid =
+          existingFlow.isValid === false ? hasNewerFlowPsidts : existingFlow.isValid ?? true;
+      }
+
+      const flowUpdateDoc = {
+        companyId: activeCompId || null,
+        email: existingFlow?.email || effectiveEmail,
+        cookies: mergedFlow,
+        cookieCount: mergedFlow.length,
+        isValid: nextFlowIsValid,
+      };
+      if (psidtsRotated || verified || !existingFlow) {
+        flowUpdateDoc.lastTestedAt = new Date();
+      }
+
       await GoogleFlowSession.findOneAndUpdate(
         { user: userId, companyId: activeCompId || null },
-        {
-          companyId: activeCompId || null,
-          email: existingFlow?.email || effectiveEmail,
-          cookies: mergedFlow,
-          cookieCount: mergedFlow.length,
-          isValid: true,
-          lastTestedAt: new Date(),
-        },
+        flowUpdateDoc,
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     } catch (_) {}
 
-    return res.json({ success: true, cookieCount: mergedNb.length });
+    return res.json({
+      success: true,
+      cookieCount: mergedNb.length,
+      isValid: nextNbIsValid,
+      dbscBound: hasDbscBoundCookies(mergedNb),
+    });
   } catch (err) {
     logger.error('[NotebookLM Internal] Error updating rotated session:', err);
     return res.status(500).json({ error: err.message });
@@ -502,12 +627,14 @@ router.get('/status', requireJwtAuth, async (req, res) => {
 
     const fileExists = fs.existsSync(primaryStoragePath);
     let diskCookieCount = 0;
+    let diskCookies = [];
     let diskEmail = '';
 
     if (fileExists) {
       try {
         const fileContent = JSON.parse(fs.readFileSync(primaryStoragePath, 'utf8'));
-        diskCookieCount = Array.isArray(fileContent.cookies) ? fileContent.cookies.length : 0;
+        diskCookies = Array.isArray(fileContent.cookies) ? fileContent.cookies : [];
+        diskCookieCount = diskCookies.length;
         diskEmail = fileContent.notebooklm?.account?.email || '';
       } catch (err) {
         logger.warn('[NotebookLM] Error leyendo archivo de sesión en disco:', err.message);
@@ -518,6 +645,7 @@ router.get('/status', requireJwtAuth, async (req, res) => {
       return res.json({
         connected: false,
         usingDefault: false,
+        dbscBound: false,
         message: 'Sin vincular. Conecta tu cuenta privada de Google NotebookLM.',
       });
     }
@@ -526,6 +654,9 @@ router.get('/status', requireJwtAuth, async (req, res) => {
     const cookieCount = session?.cookieCount || diskCookieCount;
     const isValid = session?.isValid ?? true;
     const lastTestedAt = session?.lastTestedAt || session?.updatedAt || null;
+    const activeCookies =
+      Array.isArray(session?.cookies) && session.cookies.length > 0 ? session.cookies : diskCookies;
+    const dbscBound = hasDbscBoundCookies(activeCookies);
 
     return res.json({
       connected: true,
@@ -533,6 +664,8 @@ router.get('/status', requireJwtAuth, async (req, res) => {
       email,
       cookieCount,
       isValid,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       lastTestedAt,
       profileName: getSafeProfileName(userId),
     });
@@ -687,14 +820,23 @@ router.post('/session', requireJwtAuth, async (req, res) => {
       sessionUpdate
     );
 
+    if (!testResult.success) {
+      await markNotebookAndLinkedFlowInvalid(userId, activeCompId, effectiveEmail);
+    }
+
     const latestNb = await findSessionForCompany(NotebookSession, userId, activeCompId);
-    const finalCount = latestNb?.cookieCount || mergedCookies.length;
+    const finalCookies =
+      Array.isArray(latestNb?.cookies) && latestNb.cookies.length > 0 ? latestNb.cookies : mergedCookies;
+    const finalCount = latestNb?.cookieCount || finalCookies.length;
+    const dbscBound = hasDbscBoundCookies(finalCookies);
 
     return res.json({
       success: true,
       email: effectiveEmail,
       cookieCount: finalCount,
       isValid: testResult.success,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       notebooksCount,
       notebooks: detectedNotebooks || latestNb?.cachedNotebooks || [],
       testWarning: testResult.success ? null : testResult.reason,
@@ -851,6 +993,9 @@ router.post('/test', requireJwtAuth, async (req, res) => {
     if (cookies.length === 0) {
       return res.status(200).json({
         success: false,
+        isValid: false,
+        sessionExpired: true,
+        dbscBound: false,
         reason: 'No hay ninguna sesión privada guardada para este usuario. Usa "Conectar en 1 Clic" o el botón Reconectar.',
         error: 'No hay ninguna sesión privada guardada para este usuario.',
       });
@@ -932,8 +1077,19 @@ router.post('/test', requireJwtAuth, async (req, res) => {
       { upsert: true, setDefaultsOnInsert: true }
     );
 
+    const sessionExpired = !liveRes.success && isNotebookAuthFailureError(liveRes.reason || '');
+    if (!liveRes.success && sessionExpired) {
+      await markNotebookAndLinkedFlowInvalid(userId, activeCompId, effectiveEmail);
+    }
+
+    const dbscBound = hasDbscBoundCookies(cookies);
+
     return res.json({
       success: liveRes.success,
+      isValid: liveRes.success,
+      sessionExpired,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       notebooksCount: liveRes.notebooksCount,
       notebooks: liveRes.notebooks || [],
       reason: liveRes.reason || null,
@@ -969,6 +1125,8 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
         connected: false,
         email: '',
         isValid: false,
+        sessionExpired: false,
+        dbscBound: false,
         notebooks: [],
         agentNotebooks: {},
         assignedNotebooks: [],
@@ -981,7 +1139,9 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
       : [];
     let notebooksUpdatedAt = session?.notebooksUpdatedAt || null;
     let isValid = session?.isValid ?? true;
+    let sessionExpired = session?.isValid === false;
     let syncWarning = null;
+    const dbscBound = hasDbscBoundCookies(cookies);
 
     const cacheAgeMs = notebooksUpdatedAt
       ? Date.now() - new Date(notebooksUpdatedAt).getTime()
@@ -1001,6 +1161,7 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
         notebooks = normalizeNotebookList(mcpRes.result);
         notebooksUpdatedAt = new Date();
         isValid = true;
+        sessionExpired = false;
         await NotebookSession.findOneAndUpdate(
           { user: userId, companyId: activeCompId || null },
           {
@@ -1016,6 +1177,11 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
         );
       } else if (mcpRes.error) {
         syncWarning = mcpRes.error;
+        if (isNotebookAuthFailureError(mcpRes.error)) {
+          isValid = false;
+          sessionExpired = true;
+          await markNotebookAndLinkedFlowInvalid(userId, activeCompId, effectiveEmail);
+        }
       }
     }
 
@@ -1053,6 +1219,9 @@ router.get('/notebooks', requireJwtAuth, async (req, res) => {
       connected: true,
       email: effectiveEmail,
       isValid,
+      sessionExpired,
+      dbscBound,
+      ...(dbscBound ? { dbscWarning: DBSC_WARNING_MESSAGE } : {}),
       notebooks,
       notebooksCount: notebooks.length,
       notebooksUpdatedAt,
@@ -1395,6 +1564,8 @@ function cleanupStaleProfile(profileDir) {
   } catch (_) {}
 }
 
+const ANTI_DBSC_FLAG = '${CHROME_ANTI_DBSC_FLAG}';
+
 function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl) {
   const args = [
     \`--remote-debugging-port=\${debugPort}\`,
@@ -1402,12 +1573,13 @@ function launchBrowserVisible(browserBin, profileDir, debugPort, targetUrl) {
     \`--user-data-dir=\${profileDir}\`,
     '--no-first-run',
     '--no-default-browser-check',
+    ANTI_DBSC_FLAG,
     '--window-size=1080,780',
     \`--app=\${targetUrl}\`,
   ];
   if (os.platform() === 'win32') {
     try {
-      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check --window-size=1080,780 --app=\${targetUrl}\`;
+      const cmdLine = \`start "" "\${browserBin}" --remote-debugging-port=\${debugPort} --remote-allow-origins=* --user-data-dir="\${profileDir}" --no-first-run --no-default-browser-check "\${ANTI_DBSC_FLAG}" --window-size=1080,780 --app=\${targetUrl}\`;
       const c = spawn('cmd.exe', ['/d', '/s', '/c', \`"\${cmdLine}"\`], {
         windowsVerbatimArguments: true,
         detached: true,
@@ -1580,6 +1752,12 @@ async function uploadCookies(cookies, email = '') {
   const maxWaitMs = 180000;
   const start = Date.now();
   let clearedDeadCookiesOnce = false;
+  let checkedInitialDbsc = false;
+  let clearedDbscOnce = false;
+
+  const hasDbscCookiesInList = (list) =>
+    Array.isArray(list) &&
+    list.some((c) => c && (c.name === '__Secure-1PSIDRTS' || c.name === '__Secure-3PSIDRTS' || /PSIDRTS/i.test(c.name || '')));
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -1588,6 +1766,38 @@ async function uploadCookies(cookies, email = '') {
       const listRes = await fetch(\`http://127.0.0.1:\${debugPort}/json/list\`);
       const pages = await listRes.json();
       if (!Array.isArray(pages)) continue;
+
+      // Auto-limpieza temprana de sesiones viejas con bloqueo DBSC (__Secure-1PSIDRTS / __Secure-3PSIDRTS)
+      if (!checkedInitialDbsc && !clearedDbscOnce) {
+        const anyPage = pages.find((p) => p.type === 'page' && p.webSocketDebuggerUrl);
+        if (anyPage) {
+          checkedInitialDbsc = true;
+          let initCookies = [];
+          try {
+            const stInit = await cdpSend(anyPage.webSocketDebuggerUrl, 'Storage.getCookies');
+            initCookies = stInit?.result?.cookies || [];
+          } catch (_) {}
+          if (!initCookies.length) {
+            try {
+              const netInit = await cdpSend(anyPage.webSocketDebuggerUrl, 'Network.getAllCookies');
+              initCookies = netInit?.result?.cookies || [];
+            } catch (_) {}
+          }
+          if (hasDbscCookiesInList(initCookies)) {
+            clearedDbscOnce = true;
+            console.log('🧹 Detectada sesión temporal con bloqueo DBSC de Chrome; reiniciando ventana en modo permanente sin DBSC...');
+            try {
+              await cdpSend(anyPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+              await cdpSend(anyPage.webSocketDebuggerUrl, 'Page.navigate', {
+                url: 'https://accounts.google.com/ServiceLogin?continue=https://notebooklm.google.com/',
+              });
+            } catch (_) {}
+            await new Promise((r) => setTimeout(r, 3000));
+            continue;
+          }
+        }
+      }
+
       const nbPage = pages.find(
         (p) =>
           p.webSocketDebuggerUrl &&
@@ -1609,6 +1819,18 @@ async function uploadCookies(cookies, email = '') {
       }
 
       const googleCookies = allCookies.filter((c) => c.domain && (c.domain.includes('google.com') || c.domain.includes('labs.google')));
+      if (hasDbscCookiesInList(googleCookies) && !clearedDbscOnce) {
+        clearedDbscOnce = true;
+        console.log('🧹 Detectada sesión temporal con bloqueo DBSC de Chrome; reiniciando ventana en modo permanente sin DBSC...');
+        try {
+          await cdpSend(nbPage.webSocketDebuggerUrl, 'Network.clearBrowserCookies');
+          await cdpSend(nbPage.webSocketDebuggerUrl, 'Page.navigate', {
+            url: 'https://accounts.google.com/ServiceLogin?continue=https://notebooklm.google.com/',
+          });
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
       const names = new Set(googleCookies.map((c) => c.name));
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
