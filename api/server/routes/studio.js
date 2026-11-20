@@ -4614,6 +4614,34 @@ async function delegateStudioOrderToAntigravityIfConnected(req, targetUserId, or
   }
 }
 
+function ensureSkillMarkdownFrontmatter(content, id, description = '') {
+  const raw = String(content || '').replace(/^\uFEFF/, '');
+  const safeId = String(id || 'wappy-skill').trim() || 'wappy-skill';
+  const rawDesc = String(description || '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const fallbackDesc = rawDesc || `Skill oficial de WAPPY IA (${safeId}).`;
+  const quotedDesc = JSON.stringify(fallbackDesc);
+
+  const existingMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
+  if (existingMatch) {
+    const fm = existingMatch[1];
+    const hasName = /^name:\s*\S+/m.test(fm);
+    const hasDesc = /^description:\s*\S+/m.test(fm);
+    if (hasName && hasDesc) {
+      return raw;
+    }
+    const additions = [];
+    if (!hasName) additions.push(`name: ${safeId}`);
+    if (!hasDesc) additions.push(`description: ${quotedDesc}`);
+    const rest = raw.slice(existingMatch[0].length);
+    return `---\n${additions.join('\n')}\n${fm.trim()}\n---\n${rest}`;
+  }
+
+  return `---\nname: ${safeId}\ndescription: ${quotedDesc}\n---\n\n${raw.trimStart()}`;
+}
+
 /**
  * Lee en vivo los 7 archivos SKILL.md oficiales desde `.agents/skills/` y los 4 Subagentes Oficiales de Wappy Studio
  * para empaquetarlos e instalarlos en Google Antigravity.
@@ -4646,8 +4674,9 @@ function buildWappySkillsBundlePayload(originUrl = 'https://wappy.club') {
         }
       } catch (_) {}
     }
-    const fallbackMd = `---\nname: ${meta.id}\ndescription: "${String(meta.description || '').replace(/"/g, '\\"')}"\n---\n\n# ${meta.name}\n\n${meta.description}`;
-    const baseMd = markdownContent || fallbackMd;
+    const safeDesc = String(meta.description || '').replace(/\r?\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    const fallbackMd = `---\nname: ${meta.id}\ndescription: ${JSON.stringify(safeDesc)}\n---\n\n# ${meta.name}\n\n${meta.description}`;
+    const baseMd = ensureSkillMarkdownFrontmatter(markdownContent || fallbackMd, meta.id, meta.description);
     const enrichedContent = baseMd.includes('Suplemento Oficial Wappy Studio v3.0')
       ? baseMd
       : `${baseMd}${xlAddendum}`;
@@ -5005,6 +5034,29 @@ function fetchUrl(urlStr) {
   });
 }
 
+function ensureSkillMarkdownFrontmatter(content, id, description) {
+  const raw = String(content || '').replace(/^\\uFEFF/, '');
+  const safeId = String(id || 'wappy-skill').trim() || 'wappy-skill';
+  const rawDesc = String(description || '')
+    .replace(/\\r?\\n+/g, ' ')
+    .replace(/\\s+/g, ' ')
+    .trim();
+  const quotedDesc = JSON.stringify(rawDesc || ('Skill oficial de WAPPY IA (' + safeId + ').'));
+  const existingMatch = raw.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---(\\r?\\n|$)/);
+  if (existingMatch) {
+    const fm = existingMatch[1];
+    const hasName = /^name:\\s*\\S+/m.test(fm);
+    const hasDesc = /^description:\\s*\\S+/m.test(fm);
+    if (hasName && hasDesc) return raw;
+    const additions = [];
+    if (!hasName) additions.push('name: ' + safeId);
+    if (!hasDesc) additions.push('description: ' + quotedDesc);
+    const rest = raw.slice(existingMatch[0].length);
+    return '---\\n' + additions.join('\\n') + '\\n' + fm.trim() + '\\n---\\n' + rest;
+  }
+  return '---\\nname: ' + safeId + '\\ndescription: ' + quotedDesc + '\\n---\\n\\n' + raw.trimStart();
+}
+
 (async () => {
   try {
     const cleanOrigin = originUrl.replace(/\\/$/, '');
@@ -5028,7 +5080,11 @@ function fetchUrl(urlStr) {
         if (!sk.id || !sk.content) continue;
         const skDir = path.join(rootDir, sk.id);
         fs.mkdirSync(skDir, { recursive: true });
-        fs.writeFileSync(path.join(skDir, 'SKILL.md'), sk.content, 'utf8');
+        fs.writeFileSync(
+          path.join(skDir, 'SKILL.md'),
+          ensureSkillMarkdownFrontmatter(sk.content, sk.id, sk.description || sk.name),
+          'utf8',
+        );
       }
     }
 

@@ -27,3 +27,12 @@ junit.xml
 .*
 /.env
 
+# Re-include ONLY .agents/skills/*/SKILL.md (excludes ~46 MB of media/scripts/assets)
+!.agents
+.agents/*
+!.agents/skills
+.agents/skills/*
+!.agents/skills/*/
+.agents/skills/*/*
+!.agents/skills/*/SKILL.md
+

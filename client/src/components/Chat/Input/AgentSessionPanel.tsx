@@ -5,7 +5,7 @@ import {
     Settings2, Globe, FolderSearch, Notebook as NotebookIcon, TerminalSquare, Wrench, Cpu, Check, ChevronDown,
     FileText, Calculator, Brain, HardHat, ShieldCheck, Palette, BarChart3, Cloud, Calendar, Mail, FileSpreadsheet, Presentation,
     HeartPulse, ShieldAlert, Car, FlaskConical, FileEdit, Scale, BookOpen, UserCheck, Heart, Activity,
-    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin, Clapperboard, RefreshCw, Sparkles, ExternalLink, Link2
+    Search, Youtube, Image, Binary, Compass, CloudSun, GitFork, MapPin, Clapperboard, RefreshCw, Sparkles, ExternalLink, Link2, AlertTriangle
 } from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
@@ -16,6 +16,7 @@ import { useLocalize, useAuthContext } from '~/hooks';
 import { cn, isTextChatModel } from '~/utils';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import { NotebookLMModal } from '~/components/Nav/SettingsTabs/Account/NotebookLMModal';
+import { ExpandableButton } from '~/components/Common/ExpandableButton';
 
 /** Extended version while data-provider package is being rebuilt */
 type TEphemeralAgentExtended = TEphemeralAgent & {
@@ -209,6 +210,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     // Estado de cuadernos de Google NotebookLM y asignación por agente ("Segundo Cerebro")
     const [nbConnected, setNbConnected] = useState(false);
     const [nbEmail, setNbEmail] = useState('');
+    const [notebookSessionExpired, setNotebookSessionExpired] = useState(false);
+    const [nbDbscBound, setNbDbscBound] = useState(false);
     const [availableNotebooks, setAvailableNotebooks] = useState<NotebookLMNotebookItem[]>([]);
     const [assignedNotebooks, setAssignedNotebooks] = useState<NotebookLMNotebookItem[]>([]);
     const [isLoadingNotebooks, setIsLoadingNotebooks] = useState(false);
@@ -296,20 +299,41 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 const res = await fetch(`/api/notebooklm/notebooks?${qs.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                if (!res.ok) return;
-                const data = await res.json();
-                setNbConnected(Boolean(data.connected));
-                setNbEmail(data.email || '');
-                const nbs: NotebookLMNotebookItem[] = Array.isArray(data.notebooks) ? data.notebooks : [];
-                const assigned: NotebookLMNotebookItem[] = Array.isArray(data.assignedNotebooks)
+                const data = await res.json().catch(() => null);
+                if (!res.ok) {
+                    if (data?.sessionExpired === true || data?.isValid === false) {
+                        setNotebookSessionExpired(true);
+                        if (typeof data?.syncWarning === 'string' && data.syncWarning.trim()) {
+                            setNbSyncWarning(data.syncWarning.trim());
+                        }
+                    }
+                    return;
+                }
+                if (!data) return;
+
+                const connected = Boolean(data?.connected);
+                const expired =
+                    data?.sessionExpired === true || (connected && data?.isValid === false);
+                const dbscBound = Boolean(connected && data?.dbscBound === true);
+                const syncWarning =
+                    typeof data?.syncWarning === 'string' && data.syncWarning.trim()
+                        ? data.syncWarning.trim()
+                        : null;
+
+                setNbConnected(connected);
+                setNbEmail(typeof data?.email === 'string' ? data.email.trim() : '');
+                setNotebookSessionExpired(expired);
+                setNbDbscBound(dbscBound);
+                const nbs: NotebookLMNotebookItem[] = Array.isArray(data?.notebooks)
+                    ? data.notebooks
+                    : [];
+                const assigned: NotebookLMNotebookItem[] = Array.isArray(data?.assignedNotebooks)
                     ? data.assignedNotebooks
                     : [];
                 setAvailableNotebooks(nbs);
                 setAssignedNotebooks(assigned);
                 setSessionNotebooklmNotebooks(assigned);
-                if (data.syncWarning) {
-                    setNbSyncWarning(String(data.syncWarning));
-                }
+                setNbSyncWarning(syncWarning);
             } catch (err) {
                 console.error('[AgentSessionPanel] Error fetching NotebookLM notebooks:', err);
             } finally {
@@ -326,24 +350,60 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     }, [token, agentId, fetchNotebooks]);
 
     useEffect(() => {
+        const applyAuthExpiredDetail = (detail?: { reason?: string; message?: string } | null) => {
+            setNotebookSessionExpired(true);
+            const reason =
+                typeof detail?.message === 'string' && detail.message.trim()
+                    ? detail.message.trim()
+                    : typeof detail?.reason === 'string' && detail.reason.trim()
+                      ? detail.reason.trim()
+                      : null;
+            if (reason) {
+                setNbSyncWarning(reason);
+            }
+        };
         const handleExternalUpdate = (e: Event) => {
             const custom = e as CustomEvent;
-            if (custom.detail?.agentId === agentId && Array.isArray(custom.detail?.assignedNotebooks)) {
+            if (custom?.detail?.authExpired === true || custom?.detail?.isValid === false) {
+                applyAuthExpiredDetail(custom?.detail);
+                return;
+            }
+            if (custom?.detail?.agentId === agentId && Array.isArray(custom?.detail?.assignedNotebooks)) {
                 setAssignedNotebooks(custom.detail.assignedNotebooks);
                 setSessionNotebooklmNotebooks(custom.detail.assignedNotebooks);
             } else {
-                fetchNotebooks(false);
+                fetchNotebooks(Boolean(custom?.detail?.refresh));
             }
         };
+        const handleAuthExpired = (e: Event) => {
+            const custom = e as CustomEvent<{ reason?: string; message?: string } | undefined>;
+            applyAuthExpiredDetail(custom?.detail);
+        };
         window.addEventListener('wappy-notebooklm-updated', handleExternalUpdate);
-        return () => window.removeEventListener('wappy-notebooklm-updated', handleExternalUpdate);
+        window.addEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+        window.addEventListener('notebooklm_auth_expired', handleAuthExpired);
+        return () => {
+            window.removeEventListener('wappy-notebooklm-updated', handleExternalUpdate);
+            window.removeEventListener('wappy-notebooklm-auth-expired', handleAuthExpired);
+            window.removeEventListener('notebooklm_auth_expired', handleAuthExpired);
+        };
     }, [agentId, fetchNotebooks, setSessionNotebooklmNotebooks]);
+
+    const safeAvailableNotebooks = useMemo(
+        () => (Array.isArray(availableNotebooks) ? availableNotebooks : []),
+        [availableNotebooks],
+    );
+    const safeAssignedNotebooks = useMemo(
+        () => (Array.isArray(assignedNotebooks) ? assignedNotebooks : []),
+        [assignedNotebooks],
+    );
 
     const saveAssignedNotebooks = useCallback(
         async (nextList: NotebookLMNotebookItem[]) => {
             if (!token || !agentId) return;
-            setAssignedNotebooks(nextList);
-            setSessionNotebooklmNotebooks(nextList);
+            const normalizedList = Array.isArray(nextList) ? nextList : [];
+            setAssignedNotebooks(normalizedList);
+            setSessionNotebooklmNotebooks(normalizedList);
             try {
                 setIsSavingNotebooks(true);
                 const res = await fetch(`/api/notebooklm/agent-notebooks/${encodeURIComponent(agentId)}`, {
@@ -352,13 +412,13 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ notebooks: nextList }),
+                    body: JSON.stringify({ notebooks: normalizedList }),
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    const saved: NotebookLMNotebookItem[] = Array.isArray(data.assignedNotebooks)
+                    const saved: NotebookLMNotebookItem[] = Array.isArray(data?.assignedNotebooks)
                         ? data.assignedNotebooks
-                        : nextList;
+                        : normalizedList;
                     setAssignedNotebooks(saved);
                     setSessionNotebooklmNotebooks(saved);
                     window.dispatchEvent(
@@ -378,20 +438,22 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
     const toggleNotebookForAgent = useCallback(
         (nb: NotebookLMNotebookItem) => {
-            const exists = assignedNotebooks.some((item) => item.id === nb.id);
+            if (!nb?.id) return;
+            const current = Array.isArray(assignedNotebooks) ? assignedNotebooks : [];
+            const exists = current.some((item) => item?.id === nb.id);
             const next = exists
-                ? assignedNotebooks.filter((item) => item.id !== nb.id)
-                : [...assignedNotebooks, nb];
+                ? current.filter((item) => item?.id !== nb.id)
+                : [...current, nb];
             saveAssignedNotebooks(next);
         },
         [assignedNotebooks, saveAssignedNotebooks],
     );
 
     const filteredNotebooks = useMemo(() => {
-        const q = notebookSearch.trim().toLowerCase();
-        if (!q) return availableNotebooks;
-        return availableNotebooks.filter((nb) => (nb.title || '').toLowerCase().includes(q));
-    }, [availableNotebooks, notebookSearch]);
+        const q = (notebookSearch || '').trim().toLowerCase();
+        if (!q) return safeAvailableNotebooks;
+        return safeAvailableNotebooks.filter((nb) => (nb?.title || '').toLowerCase().includes(q));
+    }, [safeAvailableNotebooks, notebookSearch]);
 
     const hasGoogleTools = googleTools.length > 0 || notebookLmTools.length > 0;
     const hasGeneralTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || generalExternalTools.length > 0;
@@ -479,15 +541,26 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z"/>
                         </svg>
                     </div>
-                    {isNotebookLmActive && assignedNotebooks.length > 0 && (
-                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-white shadow-sm">
-                            {assignedNotebooks.length}
+                    {isNotebookLmActive && notebookSessionExpired ? (
+                        <span
+                            title="Sesión de NotebookLM expirada"
+                            className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-md border border-rose-500/50 bg-amber-500/90 px-1 text-[9px] font-extrabold text-amber-950 shadow-sm"
+                        >
+                            !
                         </span>
-                    )}
+                    ) : isNotebookLmActive && safeAssignedNotebooks.length > 0 ? (
+                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/90 px-1 text-[9px] font-bold text-white shadow-sm">
+                            {safeAssignedNotebooks.length}
+                        </span>
+                    ) : null}
                 </Ariakit.MenuButton>
             }
             id="google-tools-panel-button"
-            description="Herramientas de Google & Cuadernos de NotebookLM"
+            description={
+                notebookSessionExpired
+                    ? 'Herramientas de Google · Sesión de NotebookLM expirada'
+                    : 'Herramientas de Google & Cuadernos de NotebookLM'
+            }
         />
     );
 
@@ -709,31 +782,50 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setGoogleMenuTab('notebooks');
-                                            if (availableNotebooks.length === 0 && !isLoadingNotebooks) {
+                                            if (safeAvailableNotebooks.length === 0 && !isLoadingNotebooks) {
                                                 fetchNotebooks(false);
                                             }
                                         }}
+                                        title={
+                                            notebookSessionExpired
+                                                ? 'Sesión de NotebookLM expirada. Haz clic para reconectar'
+                                                : 'Cuadernos de Google NotebookLM'
+                                        }
                                         className={cn(
-                                            'flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all',
-                                            googleMenuTab === 'notebooks'
-                                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-xs border border-emerald-500/30'
-                                                : 'text-text-secondary hover:text-emerald-500 hover:bg-emerald-500/10',
+                                            'flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all min-w-0',
+                                            notebookSessionExpired
+                                                ? googleMenuTab === 'notebooks'
+                                                    ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 shadow-xs border border-amber-500/40'
+                                                    : 'text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
+                                                : googleMenuTab === 'notebooks'
+                                                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-xs border border-emerald-500/30'
+                                                  : 'text-text-secondary hover:text-emerald-500 hover:bg-emerald-500/10',
                                         )}
                                     >
-                                        <NotebookIcon className="h-3.5 w-3.5 text-emerald-500" />
-                                        <span>Cuadernos</span>
-                                        <span
-                                            className={cn(
-                                                'inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold',
-                                                assignedNotebooks.length > 0
-                                                    ? 'bg-emerald-500 text-white'
-                                                    : 'bg-surface-tertiary text-text-secondary',
-                                            )}
-                                        >
-                                            {assignedNotebooks.length > 0
-                                                ? assignedNotebooks.length
-                                                : availableNotebooks.length}
-                                        </span>
+                                        {notebookSessionExpired ? (
+                                            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
+                                        ) : (
+                                            <NotebookIcon className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                                        )}
+                                        <span className="truncate">Cuadernos</span>
+                                        {notebookSessionExpired ? (
+                                            <span className="inline-flex h-4 min-w-[16px] flex-shrink-0 items-center justify-center rounded-md border border-rose-500/40 bg-rose-500/15 px-1 text-[10px] font-extrabold text-rose-700 dark:text-rose-300">
+                                                !
+                                            </span>
+                                        ) : (
+                                            <span
+                                                className={cn(
+                                                    'inline-flex h-4 min-w-[16px] flex-shrink-0 items-center justify-center rounded-md px-1 text-[10px] font-bold',
+                                                    safeAssignedNotebooks.length > 0
+                                                        ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                                        : 'bg-surface-tertiary text-text-secondary',
+                                                )}
+                                            >
+                                                {safeAssignedNotebooks.length > 0
+                                                    ? safeAssignedNotebooks.length
+                                                    : safeAvailableNotebooks.length}
+                                            </span>
+                                        )}
                                     </button>
                                 </div>
                             )}
@@ -780,16 +872,34 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                             {isNotebookLmActive && (
                                                 <div
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="mx-2.5 mb-2 mt-0.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2.5"
+                                                    className={cn(
+                                                        'mx-2.5 mb-2 mt-0.5 rounded-xl border p-2.5',
+                                                        notebookSessionExpired
+                                                            ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-rose-500/10'
+                                                            : 'border-emerald-500/25 bg-emerald-500/5',
+                                                    )}
                                                 >
                                                     <div className="flex items-center justify-between gap-2 mb-1.5">
                                                         <div className="flex items-center gap-1.5 min-w-0">
-                                                            <Brain className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
-                                                            <span className="truncate text-[11px] font-bold text-text-primary">
-                                                                2° Cerebro ({assignedNotebooks.length}/{availableNotebooks.length})
+                                                            {notebookSessionExpired ? (
+                                                                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                                            ) : (
+                                                                <Brain className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                                                            )}
+                                                            <span
+                                                                className={cn(
+                                                                    'truncate text-[11px] font-bold',
+                                                                    notebookSessionExpired
+                                                                        ? 'text-rose-700 dark:text-rose-300'
+                                                                        : 'text-text-primary',
+                                                                )}
+                                                            >
+                                                                {notebookSessionExpired
+                                                                    ? 'NotebookLM expirado'
+                                                                    : `2° Cerebro (${safeAssignedNotebooks.length}/${safeAvailableNotebooks.length})`}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-1 shrink-0">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => fetchNotebooks(true)}
@@ -807,36 +917,65 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setGoogleMenuTab('notebooks')}
-                                                                className="rounded-lg bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                                                                className={cn(
+                                                                    'rounded-lg px-2 py-0.5 text-[10px] font-bold transition-colors',
+                                                                    notebookSessionExpired
+                                                                        ? 'bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-500/25'
+                                                                        : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25',
+                                                                )}
                                                             >
                                                                 Pestaña →
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    {!nbConnected && !isLoadingNotebooks ? (
-                                                        <div className="flex flex-col gap-1.5 pt-0.5">
+                                                    {notebookSessionExpired ? (
+                                                        <div className="flex flex-col items-start gap-2 pt-0.5">
+                                                            <p className="text-[11px] text-amber-800 dark:text-amber-200 leading-snug break-words">
+                                                                {nbSyncWarning ||
+                                                                    'Sesión de NotebookLM expirada. Reconéctala para consultar tus cuadernos.'}
+                                                            </p>
+                                                            <div className="flex w-full flex-wrap items-center justify-start gap-2">
+                                                                <ExpandableButton
+                                                                    size="sm"
+                                                                    variant="amber"
+                                                                    icon={<RefreshCw className="h-3.5 w-3.5" />}
+                                                                    badge="Reconectar"
+                                                                    label="Abrir NotebookLM"
+                                                                    title="Sesión de NotebookLM expirada. Haz clic para reconectar"
+                                                                    onClick={() => {
+                                                                        setIsGoogleOpen(false);
+                                                                        setIsNotebookLMModalOpen(true);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : !nbConnected && !isLoadingNotebooks ? (
+                                                        <div className="flex flex-col items-start gap-2 pt-0.5">
                                                             <p className="text-[11px] text-text-secondary leading-tight">
                                                                 Conecta tu Google NotebookLM para elegir qué cuadernos usará este agente.
                                                             </p>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setIsGoogleOpen(false);
-                                                                    setIsNotebookLMModalOpen(true);
-                                                                }}
-                                                                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-500 transition-colors"
-                                                            >
-                                                                <Link2 className="h-3 w-3" />
-                                                                <span>Vincular mi NotebookLM</span>
-                                                            </button>
+                                                            <div className="flex w-full flex-wrap items-center justify-start gap-2">
+                                                                <ExpandableButton
+                                                                    size="sm"
+                                                                    variant="emerald"
+                                                                    icon={<Link2 className="h-3.5 w-3.5" />}
+                                                                    badge="Vincular"
+                                                                    label="Vincular mi NotebookLM"
+                                                                    title="Vincular mi NotebookLM"
+                                                                    onClick={() => {
+                                                                        setIsGoogleOpen(false);
+                                                                        setIsNotebookLMModalOpen(true);
+                                                                    }}
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    ) : isLoadingNotebooks && availableNotebooks.length === 0 ? (
+                                                    ) : isLoadingNotebooks && safeAvailableNotebooks.length === 0 ? (
                                                         <div className="flex items-center gap-2 py-2 text-[11px] text-text-secondary">
                                                             <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-500" />
                                                             <span>Cargando cuadernos disponibles...</span>
                                                         </div>
-                                                    ) : availableNotebooks.length === 0 ? (
+                                                    ) : safeAvailableNotebooks.length === 0 ? (
                                                         <div className="flex items-center justify-between gap-2 py-1">
                                                             <span className="text-[11px] text-text-tertiary">
                                                                 No se detectaron cuadernos.
@@ -851,9 +990,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                         </div>
                                                     ) : (
                                                         <div className="space-y-1 max-h-[145px] overflow-y-auto pr-0.5">
-                                                            {availableNotebooks.map((nb) => {
-                                                                const isAssigned = assignedNotebooks.some(
-                                                                    (item) => item.id === nb.id,
+                                                            {safeAvailableNotebooks.map((nb) => {
+                                                                const isAssigned = safeAssignedNotebooks.some(
+                                                                    (item) => item?.id === nb?.id,
                                                                 );
                                                                 return (
                                                                     <button
@@ -869,10 +1008,10 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                                     >
                                                                         <div className="flex items-center gap-1.5 min-w-0">
                                                                             <span className="flex-shrink-0 text-sm">
-                                                                                {nb.emoji || '📓'}
+                                                                                {nb?.emoji || '📓'}
                                                                             </span>
                                                                             <span className="truncate text-[11px]">
-                                                                                {nb.title}
+                                                                                {nb?.title || 'Sin título'}
                                                                             </span>
                                                                         </div>
                                                                         <div
@@ -931,23 +1070,50 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             {googleMenuTab === 'notebooks' && (
                                 <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex flex-col p-3"
+                                    className="flex flex-col p-3 overflow-x-hidden"
                                 >
                                     {/* Cabecera del Segundo Cerebro del Agente */}
-                                    <div className="mb-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2.5">
+                                    <div
+                                        className={cn(
+                                            'mb-2.5 rounded-xl border p-2.5',
+                                            notebookSessionExpired
+                                                ? 'border-amber-500/35 bg-amber-500/10'
+                                                : 'border-emerald-500/25 bg-emerald-500/10',
+                                        )}
+                                    >
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-500">
-                                                    <Brain className="h-4 w-4" />
+                                                <div
+                                                    className={cn(
+                                                        'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg',
+                                                        notebookSessionExpired
+                                                            ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                                                            : 'bg-emerald-500/20 text-emerald-500',
+                                                    )}
+                                                >
+                                                    {notebookSessionExpired ? (
+                                                        <AlertTriangle className="h-4 w-4" />
+                                                    ) : (
+                                                        <Brain className="h-4 w-4" />
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="truncate text-xs font-bold text-text-primary">
                                                         2° Cerebro: {agentName || 'Agente Activo'}
                                                     </p>
-                                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                                        {assignedNotebooks.length > 0
-                                                            ? `${assignedNotebooks.length} cuaderno(s) asignado(s) como fuente`
-                                                            : 'Elige cuadernos para este especialista'}
+                                                    <p
+                                                        className={cn(
+                                                            'text-[10px] font-medium break-words',
+                                                            notebookSessionExpired
+                                                                ? 'text-rose-700 dark:text-rose-300'
+                                                                : 'text-emerald-600 dark:text-emerald-400',
+                                                        )}
+                                                    >
+                                                        {notebookSessionExpired
+                                                            ? 'Sesión de NotebookLM expirada — requiere reconectar'
+                                                            : safeAssignedNotebooks.length > 0
+                                                              ? `${safeAssignedNotebooks.length} cuaderno(s) asignado(s) como fuente`
+                                                              : 'Elige cuadernos para este especialista'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -956,7 +1122,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 onClick={() => fetchNotebooks(true)}
                                                 disabled={isLoadingNotebooks}
                                                 title="Actualizar cuadernos desde Google NotebookLM"
-                                                className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-surface-primary px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-emerald-500 hover:text-emerald-500 transition-colors"
+                                                className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-500/30 bg-surface-primary px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-emerald-500 hover:text-emerald-500 transition-colors"
                                             >
                                                 <RefreshCw
                                                     className={cn(
@@ -973,22 +1139,84 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                         </p>
                                     </div>
 
-                                    {!isNotebookLmActive && (
-                                        <div className="mb-2.5 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
-                                            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                                                Google NotebookLM está desactivado en este chat.
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={toggleNotebookLm}
-                                                className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-500"
-                                            >
-                                                Activar
-                                            </button>
+                                    {/* Aviso compacto de sesión expirada con botón directo a reconexión */}
+                                    {notebookSessionExpired && (
+                                        <div className="mb-2.5 flex flex-col items-start gap-2 rounded-xl border border-rose-500/35 bg-gradient-to-r from-amber-500/10 to-rose-500/10 p-2.5">
+                                            <div className="flex w-full min-w-0 items-start gap-2">
+                                                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-[11px] font-bold leading-snug text-rose-700 dark:text-rose-300">
+                                                        Sesión de NotebookLM expirada
+                                                    </p>
+                                                    <p className="mt-0.5 break-words text-[10px] leading-snug text-amber-800 dark:text-amber-200">
+                                                        {nbSyncWarning ||
+                                                            'Google cerró o bloqueó tu sesión anterior. Reconéctala en 1 clic para que Tenshi pueda leer tus cuadernos.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex w-full flex-wrap items-center justify-start gap-2">
+                                                <ExpandableButton
+                                                    size="sm"
+                                                    variant="amber"
+                                                    icon={<RefreshCw className="h-3.5 w-3.5" />}
+                                                    badge="Reconectar"
+                                                    label="Abrir modal de NotebookLM"
+                                                    title="Sesión de NotebookLM expirada. Haz clic para reconectar"
+                                                    onClick={() => {
+                                                        setIsGoogleOpen(false);
+                                                        setIsNotebookLMModalOpen(true);
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
                                     )}
 
-                                    {!nbConnected && !isLoadingNotebooks ? (
+                                    {/* Aviso compacto de cookies DBSC (~1 hora) cuando la sesión aún es válida */}
+                                    {!notebookSessionExpired && nbConnected && nbDbscBound && (
+                                        <div className="mb-2.5 flex flex-col items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-amber-800 dark:text-amber-200">
+                                            <div className="flex w-full min-w-0 items-start gap-2">
+                                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                                <p className="min-w-0 flex-1 break-words text-[10px] leading-snug">
+                                                    Sesión con bloqueo temporal DBSC de Chrome (~1 hora). Usa el{' '}
+                                                    <strong>Conector Automático 1-Clic</strong> para mantenerla estable por meses.
+                                                </p>
+                                            </div>
+                                            <div className="flex w-full flex-wrap items-center justify-start gap-2">
+                                                <ExpandableButton
+                                                    size="sm"
+                                                    variant="amber"
+                                                    icon={<Sparkles className="h-3.5 w-3.5" />}
+                                                    badge="1-Clic"
+                                                    label="Reconectar sin DBSC"
+                                                    title="Abrir modal para reconectar sin bloqueo DBSC"
+                                                    onClick={() => {
+                                                        setIsGoogleOpen(false);
+                                                        setIsNotebookLMModalOpen(true);
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!isNotebookLmActive && (
+                                        <div className="mb-2.5 flex flex-col items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
+                                            <span className="w-full break-words text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                                Google NotebookLM está desactivado en este chat.
+                                            </span>
+                                            <div className="flex w-full flex-wrap items-center justify-start gap-2">
+                                                <ExpandableButton
+                                                    size="sm"
+                                                    variant="emerald"
+                                                    icon={<Check className="h-3.5 w-3.5" />}
+                                                    badge="Activar"
+                                                    label="Activar NotebookLM"
+                                                    onClick={toggleNotebookLm}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!nbConnected && !notebookSessionExpired && !isLoadingNotebooks ? (
                                         <div className="flex flex-col items-center justify-center rounded-xl border border-border-medium/60 bg-surface-secondary/50 p-4 text-center">
                                             <NotebookIcon className="mb-2 h-7 w-7 text-emerald-500" />
                                             <p className="text-xs font-bold text-text-primary">
@@ -997,24 +1225,26 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                             <p className="mt-1 mb-3 text-[11px] text-text-secondary">
                                                 Vincula tu sesión privada para ver tus cuadernos disponibles y asignarlos como Segundo Cerebro a cada agente.
                                             </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setIsGoogleOpen(false);
-                                                    setIsNotebookLMModalOpen(true);
-                                                }}
-                                                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 transition-colors"
-                                            >
-                                                <Link2 className="h-3.5 w-3.5" />
-                                                <span>Conectar Google NotebookLM</span>
-                                            </button>
+                                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                                <ExpandableButton
+                                                    size="md"
+                                                    variant="emerald"
+                                                    icon={<Link2 className="h-4 w-4" />}
+                                                    badge="Conectar"
+                                                    label="Conectar Google NotebookLM"
+                                                    onClick={() => {
+                                                        setIsGoogleOpen(false);
+                                                        setIsNotebookLMModalOpen(true);
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
                                             {/* Buscador y acciones rápidas */}
-                                            {availableNotebooks.length > 0 && (
+                                            {safeAvailableNotebooks.length > 0 && (
                                                 <div className="mb-2 flex items-center gap-1.5">
-                                                    <div className="relative flex-1">
+                                                    <div className="relative flex-1 min-w-0">
                                                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-text-tertiary" />
                                                         <input
                                                             type="text"
@@ -1026,18 +1256,18 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                     </div>
                                                     <button
                                                         type="button"
-                                                        onClick={() => saveAssignedNotebooks(availableNotebooks)}
+                                                        onClick={() => saveAssignedNotebooks(safeAvailableNotebooks)}
                                                         disabled={isSavingNotebooks}
-                                                        className="rounded-lg border border-border-medium bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-emerald-500/50 hover:text-emerald-500 transition-colors"
+                                                        className="shrink-0 rounded-lg border border-border-medium bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-secondary hover:border-emerald-500/50 hover:text-emerald-500 transition-colors"
                                                     >
                                                         Todos
                                                     </button>
-                                                    {assignedNotebooks.length > 0 && (
+                                                    {safeAssignedNotebooks.length > 0 && (
                                                         <button
                                                             type="button"
                                                             onClick={() => saveAssignedNotebooks([])}
                                                             disabled={isSavingNotebooks}
-                                                            className="rounded-lg border border-border-medium bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-tertiary hover:text-red-400 transition-colors"
+                                                            className="shrink-0 rounded-lg border border-border-medium bg-surface-secondary px-2 py-1 text-[10px] font-semibold text-text-tertiary hover:text-red-400 transition-colors"
                                                         >
                                                             Limpiar
                                                         </button>
@@ -1045,8 +1275,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                 </div>
                                             )}
 
-                                            {nbSyncWarning && (
-                                                <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                                            {!notebookSessionExpired && nbSyncWarning && (
+                                                <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[10px] text-amber-700 dark:text-amber-300">
                                                     <span className="truncate">{nbSyncWarning}</span>
                                                     <button
                                                         type="button"
@@ -1063,7 +1293,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
 
                                             {/* Lista de cuadernos disponibles */}
                                             <div className="max-h-[240px] space-y-1.5 overflow-y-auto pr-0.5">
-                                                {isLoadingNotebooks && availableNotebooks.length === 0 ? (
+                                                {isLoadingNotebooks && safeAvailableNotebooks.length === 0 ? (
                                                     <div className="flex flex-col items-center justify-center py-6 text-center">
                                                         <RefreshCw className="mb-2 h-5 w-5 animate-spin text-emerald-500" />
                                                         <p className="text-xs text-text-secondary">
@@ -1075,7 +1305,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                         <p className="text-xs text-text-secondary">
                                                             {notebookSearch
                                                                 ? 'Ningún cuaderno coincide con tu búsqueda.'
-                                                                : 'No se encontraron cuadernos en tu cuenta de NotebookLM.'}
+                                                                : notebookSessionExpired
+                                                                  ? 'Reconecta tu sesión para sincronizar tus cuadernos.'
+                                                                  : 'No se encontraron cuadernos en tu cuenta de NotebookLM.'}
                                                         </p>
                                                         <button
                                                             type="button"
@@ -1088,8 +1320,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                     </div>
                                                 ) : (
                                                     filteredNotebooks.map((nb) => {
-                                                        const isAssigned = assignedNotebooks.some(
-                                                            (item) => item.id === nb.id,
+                                                        const isAssigned = safeAssignedNotebooks.some(
+                                                            (item) => item?.id === nb?.id,
                                                         );
                                                         return (
                                                             <button
@@ -1105,7 +1337,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                             >
                                                                 <div className="flex items-center gap-2 min-w-0">
                                                                     <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-surface-primary text-base shadow-2xs">
-                                                                        {nb.emoji || '📓'}
+                                                                        {nb?.emoji || '📓'}
                                                                     </span>
                                                                     <div className="min-w-0">
                                                                         <p
@@ -1116,11 +1348,11 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                                                                     : 'font-medium text-text-primary',
                                                                             )}
                                                                         >
-                                                                            {nb.title}
+                                                                            {nb?.title || 'Sin título'}
                                                                         </p>
                                                                         <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
                                                                             <span>
-                                                                                {nb.sources_count ?? 0} fuente(s)
+                                                                                {nb?.sources_count ?? 0} fuente(s)
                                                                             </span>
                                                                             {isAssigned && (
                                                                                 <span className="rounded bg-emerald-500/20 px-1 py-0.2 font-semibold text-emerald-600 dark:text-emerald-400">
@@ -1147,20 +1379,34 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                             </div>
 
                                             {/* Pie de pestaña con estado de cuenta y enlace a configuración */}
-                                            <div className="mt-2.5 flex items-center justify-between border-t border-border-medium/40 pt-2 text-[10px] text-text-tertiary">
-                                                <span className="truncate max-w-[180px]">
-                                                    {nbEmail ? `Conectado: ${nbEmail}` : 'Sesión privada activa'}
+                                            <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border-medium/40 pt-2 text-[10px] text-text-tertiary">
+                                                <span
+                                                    className={cn(
+                                                        'truncate max-w-[170px]',
+                                                        notebookSessionExpired && 'font-semibold text-amber-700 dark:text-amber-300',
+                                                    )}
+                                                >
+                                                    {notebookSessionExpired
+                                                        ? `Expirada${nbEmail ? `: ${nbEmail}` : ''}`
+                                                        : nbEmail
+                                                          ? `Conectado: ${nbEmail}`
+                                                          : 'Sesión privada activa'}
                                                 </span>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex shrink-0 items-center gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={() => {
                                                             setIsGoogleOpen(false);
                                                             setIsNotebookLMModalOpen(true);
                                                         }}
-                                                        className="font-semibold text-text-secondary hover:text-emerald-500 transition-colors"
+                                                        className={cn(
+                                                            'font-semibold transition-colors',
+                                                            notebookSessionExpired
+                                                                ? 'text-amber-700 dark:text-amber-300 hover:underline'
+                                                                : 'text-text-secondary hover:text-emerald-500',
+                                                        )}
                                                     >
-                                                        Configurar
+                                                        {notebookSessionExpired ? 'Reconectar' : 'Configurar'}
                                                     </button>
                                                     <a
                                                         href="https://notebooklm.google.com"
@@ -1188,39 +1434,66 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             <button
                                 type="button"
                                 id="notebooklm-quick-tab-button"
-                                aria-label="Cuadernos de Google NotebookLM (Segundo Cerebro)"
+                                title={
+                                    notebookSessionExpired
+                                        ? 'Sesión de NotebookLM expirada. Haz clic para reconectar'
+                                        : safeAssignedNotebooks.length > 0
+                                          ? `Cuadernos (${safeAssignedNotebooks.length}) activos en Segundo Cerebro`
+                                          : 'Abrir pestaña de Cuadernos de NotebookLM'
+                                }
+                                aria-label={
+                                    notebookSessionExpired
+                                        ? 'Sesión de NotebookLM expirada. Haz clic para reconectar'
+                                        : 'Cuadernos de Google NotebookLM (Segundo Cerebro)'
+                                }
                                 onClick={() => {
                                     setGoogleMenuTab('notebooks');
                                     setIsGoogleOpen(true);
-                                    if (availableNotebooks.length === 0 && !isLoadingNotebooks) {
+                                    if (safeAvailableNotebooks.length === 0 && !isLoadingNotebooks) {
                                         fetchNotebooks(false);
                                     }
                                 }}
                                 className={cn(
-                                    'flex h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all duration-150 focus:outline-none',
-                                    assignedNotebooks.length > 0
-                                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-                                        : 'border-border-medium/60 bg-surface-secondary/70 text-text-secondary hover:border-emerald-500/40 hover:text-emerald-500',
+                                    'flex h-8 items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-bold transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 focus:outline-none shrink-0',
+                                    notebookSessionExpired
+                                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-rose-500/25 hover:bg-amber-500/25 hover:border-rose-500/50'
+                                        : safeAssignedNotebooks.length > 0
+                                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                                          : 'border-border-medium/60 bg-surface-secondary/70 text-text-secondary hover:border-emerald-500/40 hover:text-emerald-500',
                                 )}
                             >
-                                <NotebookIcon className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
-                                <span className="hidden sm:inline max-w-[120px] truncate">
-                                    {assignedNotebooks.length > 0
-                                        ? `Cuadernos (${assignedNotebooks.length})`
-                                        : 'Cuadernos'}
-                                </span>
-                                {assignedNotebooks.length > 0 && (
-                                    <span className="sm:hidden inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
-                                        {assignedNotebooks.length}
-                                    </span>
+                                {notebookSessionExpired ? (
+                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                ) : (
+                                    <NotebookIcon className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
                                 )}
+                                <span className="hidden sm:inline max-w-[165px] truncate">
+                                    {notebookSessionExpired
+                                        ? 'Cuadernos (Reconectar)'
+                                        : safeAssignedNotebooks.length > 0
+                                          ? `Cuadernos (${safeAssignedNotebooks.length})`
+                                          : 'Cuadernos'}
+                                </span>
+                                {notebookSessionExpired ? (
+                                    <span className="sm:hidden inline-flex h-4 min-w-[16px] items-center justify-center rounded-md border border-rose-500/40 bg-rose-500/15 px-1 text-[10px] font-extrabold text-rose-700 dark:text-rose-300">
+                                        !
+                                    </span>
+                                ) : safeAssignedNotebooks.length > 0 ? (
+                                    <span className="sm:hidden inline-flex h-4 min-w-[16px] items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/15 px-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                                        {safeAssignedNotebooks.length}
+                                    </span>
+                                ) : null}
                             </button>
                         }
                         id="notebooklm-quick-tab-button"
                         description={
-                            assignedNotebooks.length > 0
-                                ? `Segundo Cerebro (${assignedNotebooks.length}): ${assignedNotebooks.map((n) => n.title).join(', ')}`
-                                : 'Abrir pestaña de Cuadernos de NotebookLM (Segundo Cerebro del Agente)'
+                            notebookSessionExpired
+                                ? 'Sesión de NotebookLM expirada. Haz clic para reconectar'
+                                : safeAssignedNotebooks.length > 0
+                                  ? `Segundo Cerebro (${safeAssignedNotebooks.length}): ${safeAssignedNotebooks
+                                        .map((n) => n?.title?.trim() || 'Cuaderno')
+                                        .join(', ')}${nbDbscBound ? ' · Bloqueo temporal DBSC (~1h)' : ''}`
+                                  : 'Abrir pestaña de Cuadernos de NotebookLM (Segundo Cerebro del Agente)'
                         }
                     />
                 )}

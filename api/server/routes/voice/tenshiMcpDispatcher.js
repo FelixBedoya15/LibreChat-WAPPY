@@ -528,6 +528,32 @@ const TOOL_ROUTES = {
   },
 };
 
+const NOTEBOOKLM_AUTH_ERROR_REGEX =
+  /(unauthenticated|csrf|token\s+csrf|sesi[oó]n\s+(?:de\s+google\s+)?(?:notebooklm\s+)?(?:expirad|caducad|inv[aá]lid)|cookiemismatch|cookie[\s_-]*mismatch|cookies?\s+(?:expirad|caducad|inv[aá]lid|no\s+v[aá]lid)|authentication\s+(?:error|failed|expired|required)|error\s+de\s+autenticaci[oó]n|not\s+authenticated|login\s+required|accounts\.google\.com|re-?autentica|volver\s+a\s+(?:vincular|conectar|iniciar\s+sesi[oó]n))/i;
+
+function isNotebookLmAuthError(errText, httpStatus = 200) {
+  if (httpStatus === 401 || httpStatus === 403) return true;
+  if (!errText) return false;
+  return NOTEBOOKLM_AUTH_ERROR_REGEX.test(String(errText));
+}
+
+async function markNotebookSessionInvalid(NotebookSession, userId, sessionDoc = null) {
+  if (!NotebookSession || !userId) return;
+  const now = new Date();
+  const filter = sessionDoc?._id ? { _id: sessionDoc._id } : { user: userId };
+  await NotebookSession.updateOne(filter, {
+    $set: { isValid: false, lastTestedAt: now },
+  }).catch((upErr) => {
+    logger.warn(`[Tenshi MCP] No se pudo marcar NotebookSession.isValid=false para usuario ${userId}: ${upErr.message}`);
+  });
+  if (sessionDoc?._id) {
+    await NotebookSession.updateMany(
+      { user: userId, isValid: { $ne: false } },
+      { $set: { isValid: false, lastTestedAt: now } }
+    ).catch(() => {});
+  }
+}
+
 async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
   if (!toolName) {
     return { error: 'Nombre de herramienta MCP no especificado.' };
@@ -557,9 +583,10 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       `[Tenshi MCP] Despachando llamada NotebookLM "${targetTool}" para usuario ${userId}${effectiveCompanyId ? ` (companyId=${effectiveCompanyId})` : ''}${effectiveSelectedNotebooks.length > 0 ? ` (selectedNotebooks=${effectiveSelectedNotebooks.length})` : ''}`,
     );
 
+    let NotebookSession = null;
+    let sessionDoc = null;
     try {
-      const NotebookSession = require('~/models/NotebookSession');
-      let sessionDoc = null;
+      NotebookSession = require('~/models/NotebookSession');
       if (userId) {
         if (effectiveCompanyId) {
           sessionDoc = await NotebookSession.findOne({ user: userId, companyId: effectiveCompanyId })
@@ -579,9 +606,14 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
         }
       }
       if (!sessionDoc || !Array.isArray(sessionDoc.cookies) || sessionDoc.cookies.length === 0) {
+        const notLinkedMsg =
+          'Aún no has vinculado tu cuenta privada de Google NotebookLM. Reconecta o vincula tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.';
         return {
-          error:
-            'Aún no has vinculado tu cuenta privada de Google NotebookLM. Ve a Mi Cuenta -> Integraciones -> Google NotebookLM para vincular tu sesión de forma 100% privada.',
+          ok: false,
+          authExpired: true,
+          notLinked: true,
+          error: notLinkedMsg,
+          mensaje: notLinkedMsg,
         };
       }
 
@@ -680,10 +712,40 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) {
-        const errMsg = data?.error || `Error HTTP ${response.status}: ${response.statusText}`;
-        logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}": ${errMsg}`);
-        return { error: errMsg };
+      const nestedResultErr =
+        data?.result && typeof data.result === 'object'
+          ? (data.result.error || (data.result.status === 'error' ? data.result.message || data.result.detail : ''))
+          : typeof data?.result === 'string' && isNotebookLmAuthError(data.result, response.status)
+            ? data.result
+            : '';
+      const rawErrMsg = String(
+        data?.error ||
+          nestedResultErr ||
+          (!response.ok ? `Error HTTP ${response.status}: ${response.statusText}` : '')
+      ).trim();
+      const authExpired =
+        Boolean(data?.authExpired || data?.result?.authExpired) ||
+        isNotebookLmAuthError(rawErrMsg, response.status);
+
+      if (!response.ok || rawErrMsg || authExpired) {
+        const errMsg = rawErrMsg || `Error HTTP ${response.status}: ${response.statusText}`;
+        logger.error(`[Tenshi MCP] Error en NotebookLM "${targetTool}" (authExpired=${authExpired}): ${errMsg}`);
+        if (authExpired) {
+          await markNotebookSessionInvalid(NotebookSession, userId, sessionDoc);
+          return {
+            ok: false,
+            authExpired: true,
+            error: errMsg,
+            mensaje:
+              'Tu sesión privada de Google NotebookLM caducó (cookies o token CSRF expirados). Reconecta tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.',
+          };
+        }
+        return {
+          ok: false,
+          authExpired: false,
+          error: errMsg,
+          mensaje: errMsg,
+        };
       }
 
       if (targetTool === 'notebook_list' && Array.isArray(data?.result) && userId) {
@@ -692,6 +754,8 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
           updateQuery,
           {
             $set: {
+              isValid: true,
+              lastTestedAt: new Date(),
               cachedNotebooks: data.result.map((nb) => ({
                 id: String(nb.id || nb.notebook_id || '').trim(),
                 title: String(nb.title || nb.name || 'Cuaderno sin título').trim(),
@@ -723,7 +787,23 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
       return data.result !== undefined ? data.result : data;
     } catch (nbErr) {
       logger.error(`[Tenshi MCP] Error conectando con NotebookLM para "${targetTool}":`, nbErr);
-      return { error: `No se pudo conectar con el servidor de NotebookLM: ${nbErr.message}` };
+      const authExpired = isNotebookLmAuthError(nbErr?.message);
+      if (authExpired) {
+        await markNotebookSessionInvalid(NotebookSession, userId, sessionDoc);
+        return {
+          ok: false,
+          authExpired: true,
+          error: nbErr.message,
+          mensaje:
+            'Tu sesión privada de Google NotebookLM caducó. Reconecta tu cuenta en 1 clic desde la píldora "Cuadernos" o en Mi Cuenta → Integraciones → Google NotebookLM.',
+        };
+      }
+      return {
+        ok: false,
+        authExpired: false,
+        error: `No se pudo conectar con el servidor de NotebookLM: ${nbErr.message}`,
+        mensaje: `No se pudo conectar con el servidor de NotebookLM: ${nbErr.message}`,
+      };
     }
   }
 
@@ -839,4 +919,6 @@ async function executeTenshiMcpTool(toolName, args = {}, userId, context = {}) {
 module.exports = {
   TOOL_ROUTES,
   executeTenshiMcpTool,
+  isNotebookLmAuthError,
+  markNotebookSessionInvalid,
 };

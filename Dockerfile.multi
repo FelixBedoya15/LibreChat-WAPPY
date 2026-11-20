@@ -58,8 +58,9 @@ COPY presentacion_arl_sura.html ./presentacion_arl_sura.html
 COPY presentacion_arl_colmena.html ./presentacion_arl_colmena.html
 COPY cursowappy01.html ./cursowappy01.html
 COPY matriz_ipvr_gtc45_offline.html ./matriz_ipvr_gtc45_offline.html
-# Agentes Wappy: plantillas de instrucciones para los agentes de IA
+# Agentes Wappy: plantillas de instrucciones para los agentes de IA y SKILL.md de Studio
 COPY Agentes ./Agentes
+COPY .agents/skills ./.agents/skills
 COPY bin ./bin
 
 WORKDIR /app/api

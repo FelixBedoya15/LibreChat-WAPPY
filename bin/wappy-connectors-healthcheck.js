@@ -51,6 +51,13 @@ const OWNER_ALLOWED_EMAILS = new Set([
   'wappyinteractivo@gmail.com',
 ]);
 const LOG_MAX_BYTES = 3 * 1024 * 1024;
+const CHROME_ANTI_DBSC_FLAG =
+  '--disable-features=BoundSessionCredentials,EnableBoundSessionCredentials,DeviceBoundSessions,DeviceBoundSessionsFederatedRegistration,UseUnexportableKeyServiceInBrowserProcess';
+
+function hasDbscBoundCookies(cookies = []) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  return cookies.some((c) => c && /PSIDRTS/i.test(String(c.name || '')));
+}
 
 function isOwnerAdminMac() {
   if (process.platform !== 'darwin') return false;
@@ -91,7 +98,7 @@ function isOwnerPrimaryKey(rawKey) {
 
 function isOwnerAuthorizedEnv() {
   if (isOwnerAdminMac()) return true;
-  if (isCloudLinuxEnv() && isOwnerPrimaryKey(resolveCredentials().apiKey)) {
+  if (isCloudLinuxEnv() && resolveAllCredentials().some((c) => isOwnerPrimaryKey(c.apiKey))) {
     return true;
   }
   return false;
@@ -183,13 +190,37 @@ function resolveAllCredentials() {
   return candidates;
 }
 
-function resolveCredentials() {
+function resolveOwnerCredentialsList() {
   const all = resolveAllCredentials();
+  if (all.length === 0) return [];
+
+  const ordered = [];
+  const usedKeys = new Set();
+
+  // 1. Empezar siempre por las claves prioritarias del propietario en el orden de OWNER_PRIMARY_KEY_PREFIXES
   for (const prefix of OWNER_PRIMARY_KEY_PREFIXES) {
-    const ownerPrimary = all.find((c) => String(c.apiKey || '').startsWith(prefix));
-    if (ownerPrimary) return ownerPrimary;
+    for (const c of all) {
+      if (String(c.apiKey || '').startsWith(prefix) && !usedKeys.has(c.apiKey)) {
+        usedKeys.add(c.apiKey);
+        ordered.push(c);
+      }
+    }
   }
-  return all[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
+
+  // 2. Añadir cualquier otra clave configurada (se filtrará estrictamente por OWNER_ALLOWED_EMAILS antes de operar)
+  for (const c of all) {
+    if (!usedKeys.has(c.apiKey)) {
+      usedKeys.add(c.apiKey);
+      ordered.push(c);
+    }
+  }
+
+  return ordered;
+}
+
+function resolveCredentials() {
+  const ordered = resolveOwnerCredentialsList();
+  return ordered[0] || { wappyUrl: 'https://wappy.club', apiKey: '' };
 }
 
 function httpJson(urlStr, { method = 'GET', headers = {}, body = null, timeoutMs = 20000 } = {}) {
@@ -500,6 +531,19 @@ async function reconnectAntigravity(wappyUrl, apiKey) {
  * 2. PRUEBA DE CONECTIVIDAD DE GOOGLE NOTEBOOKLM
  */
 async function checkNotebookLM(wappyUrl, apiKey) {
+  const statusRes = await httpJson(`${wappyUrl}/api/notebooklm/status`, {
+    method: 'GET',
+    headers: {
+      'x-api-key': apiKey,
+      Authorization: `Bearer ${apiKey}`,
+    },
+    timeoutMs: 10000,
+  }).catch(() => null);
+  const nbEmail = String(statusRes?.data?.email || '').trim();
+  const dbscBound = Boolean(statusRes?.data?.dbscBound);
+  const dbscWarning = String(statusRes?.data?.dbscWarning || '').trim();
+  const dbscNote = dbscBound ? ' ⚠️ [Sesión DBSC ~1h — reconectar con Conector 1-Clic anti-DBSC]' : '';
+
   const mcpRes = await httpJson(`${wappyUrl}/api/mcp-bridge/notebooklm/tool`, {
     method: 'POST',
     headers: {
@@ -513,8 +557,11 @@ async function checkNotebookLM(wappyUrl, apiKey) {
   if (mcpRes.ok && mcpRes.data && !mcpRes.data.error && Array.isArray(mcpRes.data.result)) {
     return {
       ok: true,
+      email: nbEmail,
+      dbscBound,
+      dbscWarning,
       notebooks: mcpRes.data.result,
-      detail: `Sesión privada de Google NotebookLM activa (${mcpRes.data.result.length} cuadernos detectados).`,
+      detail: `Sesión privada de Google NotebookLM activa (${mcpRes.data.result.length} cuadernos detectados).${dbscNote}`,
     };
   }
 
@@ -527,11 +574,18 @@ async function checkNotebookLM(wappyUrl, apiKey) {
     timeoutMs: 25000,
   });
 
+  const finalDbscBound = Boolean(testRes.data?.dbscBound ?? dbscBound);
+  const finalDbscWarning = String(testRes.data?.dbscWarning || dbscWarning || '').trim();
+  const finalDbscNote = finalDbscBound ? ' ⚠️ [Sesión DBSC ~1h — reconectar con Conector 1-Clic anti-DBSC]' : '';
+
   if (testRes.ok && testRes.data?.success) {
     return {
       ok: true,
-      notebooks: [],
-      detail: testRes.data.message || 'Sesión privada de Google NotebookLM activa.',
+      email: nbEmail,
+      dbscBound: finalDbscBound,
+      dbscWarning: finalDbscWarning,
+      notebooks: Array.isArray(testRes.data?.notebooks) ? testRes.data.notebooks : [],
+      detail: `${testRes.data.message || 'Sesión privada de Google NotebookLM activa.'}${finalDbscNote}`,
     };
   }
 
@@ -544,8 +598,11 @@ async function checkNotebookLM(wappyUrl, apiKey) {
 
   return {
     ok: false,
+    email: nbEmail,
+    dbscBound: finalDbscBound,
+    dbscWarning: finalDbscWarning,
     notebooks: [],
-    detail: `Fallo en conexión con Google NotebookLM: ${errReason}`,
+    detail: `Fallo en conexión con Google NotebookLM: ${errReason}${finalDbscNote}`,
   };
 }
 
@@ -564,10 +621,18 @@ async function checkGoogleFlow(wappyUrl, apiKey) {
     timeoutMs: 30000,
   });
 
+  const flowEmail = String(testRes.data?.email || '').trim();
+  const dbscBound = Boolean(testRes.data?.dbscBound);
+  const dbscWarning = String(testRes.data?.dbscWarning || '').trim();
+  const dbscNote = dbscBound ? ' ⚠️ [Sesión DBSC ~1h — reconectar con Conector 1-Clic anti-DBSC]' : '';
+
   if (testRes.ok && testRes.data?.success) {
     return {
       ok: true,
-      detail: testRes.data.message || 'Sesión privada de Google Flow Studio verificada en vivo en el servidor WAPPY.',
+      email: flowEmail,
+      dbscBound,
+      dbscWarning,
+      detail: `${testRes.data.message || 'Sesión privada de Google Flow Studio verificada en vivo en el servidor WAPPY.'}${dbscNote}`,
     };
   }
 
@@ -579,7 +644,10 @@ async function checkGoogleFlow(wappyUrl, apiKey) {
 
   return {
     ok: false,
-    detail: `Fallo en conexión con Google Flow Studio: ${errReason}`,
+    email: flowEmail,
+    dbscBound,
+    dbscWarning,
+    detail: `Fallo en conexión con Google Flow Studio: ${errReason}${dbscNote}`,
   };
 }
 
@@ -748,19 +816,12 @@ async function runFunctionalFlowImageGeneration(wappyUrl, apiKey) {
     'Ingeniero de seguridad y salud en el trabajo con casco blanco e insignias SST supervisando planta moderna iluminada, fotografia 4k';
   log(`🧪 [Prueba Funcional 3/3] Generando imagen real de prueba en Google Flow Studio...`);
 
-  const allCreds = resolveAllCredentials();
-  const keysToTry = [
-    apiKey,
-    ...allCreds.map((c) => c.apiKey).filter((k) => k && k !== apiKey),
-  ].filter(Boolean);
-
   let lastGenRes = null;
   const candidatePrompts = [
     prompt,
     'Inspeccion preventiva de seguridad y salud en el trabajo con casco blanco y chaleco reflectivo en planta moderna iluminada, fotografia 4k',
   ];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const candidateKey = keysToTry[attempt] || apiKey;
     const activePrompt = candidatePrompts[attempt] || prompt;
     if (attempt > 0) {
       log(`🔄 [Prueba Funcional 3/3] Reintentando generación de imagen en Google Flow (intento ${attempt + 1})...`);
@@ -768,7 +829,7 @@ async function runFunctionalFlowImageGeneration(wappyUrl, apiKey) {
     }
     const genRes = await httpJson(`${wappyUrl}/api/googleflow/generate`, {
       method: 'POST',
-      headers: { 'x-api-key': candidateKey, Authorization: `Bearer ${candidateKey}` },
+      headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
       body: {
         type: 'image',
         prompt: activePrompt,
@@ -945,7 +1006,7 @@ function cleanupChromeSingletonLocks(profileDir) {
 async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
   if (!browserBin || !fs.existsSync(profileDir)) return [];
 
-  log(`🔎 Inspeccionando perfil Chrome local ${path.basename(profileDir)} para refrescar cookies Google...`);
+  log(`🔎 Inspeccionando perfil Chrome local ${path.basename(profileDir)} para refrescar cookies Google (modo anti-DBSC)...`);
   cleanupChromeSingletonLocks(profileDir);
   const debugPort = await getFreePort();
   const child = spawn(
@@ -957,12 +1018,14 @@ async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
       `--user-data-dir=${profileDir}`,
       '--no-first-run',
       '--no-default-browser-check',
+      CHROME_ANTI_DBSC_FLAG,
       'https://notebooklm.google.com/',
     ],
     { stdio: 'ignore', detached: true }
   );
 
   let extracted = [];
+  let detectedEmail = '';
   try {
     const start = Date.now();
     let targetsOpened = false;
@@ -988,6 +1051,17 @@ async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
         await new Promise((r) => setTimeout(r, 3000));
       }
 
+      if (!detectedEmail) {
+        try {
+          const evalRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Runtime.evaluate', {
+            expression: '(window.WIZ_global_data && window.WIZ_global_data.oPEP7c) || ""',
+            returnByValue: true,
+          });
+          const val = String(evalRes?.result?.result?.value || '').trim().toLowerCase();
+          if (val && val.includes('@')) detectedEmail = val;
+        } catch (_) {}
+      }
+
       const stRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Storage.getCookies').catch(() => null);
       const netRes = await cdpSendRaw(page.webSocketDebuggerUrl, 'Network.getAllCookies').catch(() => null);
       const combinedMap = new Map();
@@ -1008,6 +1082,11 @@ async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
 
       if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
         extracted = googleCookies;
+        if (hasDbscBoundCookies(extracted)) {
+          log(
+            `⚠️ Perfil local ${path.basename(profileDir)} aún contiene cookies con bloqueo DBSC (__Secure-1PSIDRTS). Ejecuta el conector 1-Clic actualizado para obtener sesión permanente.`
+          );
+        }
         break;
       }
 
@@ -1030,11 +1109,42 @@ async function extractGoogleCookiesFromLocalProfile(browserBin, profileDir) {
     cleanupChromeSingletonLocks(profileDir);
   }
 
+  extracted.detectedEmail = detectedEmail;
   return extracted;
 }
 
-async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
-  log('🔄 Intentando auto-reconectar sesión de Google (NotebookLM + Flow + Labs) desde perfil local y rotación en servidor...');
+async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId, options = {}) {
+  const expectedEmail = String(options.expectedEmail || '').trim().toLowerCase();
+  const tryServerFirst = options.tryServerFirst !== false;
+  const accountLabel = expectedEmail || `${String(apiKey || '').slice(0, 14)}...`;
+
+  log(`🔄 Intentando auto-reconectar sesión de Google (${accountLabel}) mediante rotación en servidor y perfil local...`);
+
+  // 1. Intentar primero rotación/sincronización directa en el servidor WAPPY (seguro para cualquier cuenta sin mezclar perfiles locales)
+  if (tryServerFirst) {
+    const nbPreTest = await httpJson(`${wappyUrl}/api/notebooklm/test`, {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+      timeoutMs: 25000,
+    }).catch(() => null);
+
+    const syncPreRes = await httpJson(`${wappyUrl}/api/googleflow/sync-from-notebooklm`, {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+      timeoutMs: 15000,
+    }).catch(() => null);
+
+    const flowPreTest = await httpJson(`${wappyUrl}/api/googleflow/test`, {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
+      timeoutMs: 30000,
+    }).catch(() => null);
+
+    if (nbPreTest?.data?.success && (syncPreRes?.data?.success || flowPreTest?.data?.success)) {
+      log(`✅ Cuenta ${accountLabel} auto-reparada directamente en servidor WAPPY sin requerir perfil local Chrome.`);
+      return true;
+    }
+  }
 
   let uploaded = false;
   const browserBin = findBrowserExecutable();
@@ -1043,8 +1153,10 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 
   if (browserBin && (fs.existsSync(nbProfileDir) || fs.existsSync(flowProfileDir))) {
     const mergedByKey = new Map();
+    let detectedProfileEmail = '';
     if (fs.existsSync(nbProfileDir)) {
       const nbCookies = await extractGoogleCookiesFromLocalProfile(browserBin, nbProfileDir);
+      if (nbCookies.detectedEmail) detectedProfileEmail = nbCookies.detectedEmail;
       for (const c of nbCookies) {
         mergedByKey.set(`${c.name}@@${c.domain}@@${c.path || '/'}`, c);
       }
@@ -1055,6 +1167,9 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
       );
       if (mergedByKey.size === 0 || !hasLabsCookie) {
         const flowCookies = await extractGoogleCookiesFromLocalProfile(browserBin, flowProfileDir);
+        if (!detectedProfileEmail && flowCookies.detectedEmail) {
+          detectedProfileEmail = flowCookies.detectedEmail;
+        }
         for (const c of flowCookies) {
           mergedByKey.set(`${c.name}@@${c.domain}@@${c.path || '/'}`, c);
         }
@@ -1063,7 +1178,17 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
 
     const googleCookies = Array.from(mergedByKey.values());
     const names = new Set(googleCookies.map((c) => c.name));
-    if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
+    const emailMismatch =
+      Boolean(expectedEmail) &&
+      !expectedEmail.endsWith('@wappy.internal') &&
+      Boolean(detectedProfileEmail) &&
+      expectedEmail !== detectedProfileEmail;
+
+    if (emailMismatch) {
+      log(
+        `ℹ️ Perfil Chrome local pertenece a ${detectedProfileEmail} (distinto de ${expectedEmail}); omitiendo carga cruzada para proteger aislamiento de cuentas.`
+      );
+    } else if (names.has('SID') && (names.has('__Secure-1PSID') || names.has('__Secure-1PSIDTS'))) {
       const s1 = await httpJson(`${wappyUrl}/api/notebooklm/session`, {
         method: 'POST',
         headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
@@ -1077,20 +1202,20 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
         timeoutMs: 15000,
       });
       let s3 = { ok: false };
-      if (userId) {
+      if (userId && s1.ok && s1.data?.isValid !== false) {
         s3 = await httpJson(`${wappyUrl}/api/notebooklm/internal/session/${encodeURIComponent(userId)}`, {
           method: 'POST',
-          body: { cookies: googleCookies },
+          body: { cookies: googleCookies, verified: true },
           timeoutMs: 15000,
         });
       }
-      uploaded = Boolean(s1.ok || s2.ok || s3.ok);
-      log(`✅ Cookies locales extraídas (${googleCookies.length}, incl. google.com + labs.google) y sincronizadas con WAPPY (status: ${uploaded}).`);
+      uploaded = Boolean((s1.ok && s1.data?.isValid !== false) || (s2.ok && s2.data?.isValid !== false) || s3.ok);
+      log(`✅ Cookies locales extraídas (${googleCookies.length}, incl. google.com + labs.google) y sincronizadas para ${accountLabel} (status: ${uploaded}).`);
     } else {
-      log('ℹ️ El perfil local de Chrome no contenía cookies maestras SID activas; ejecutando rotación y sincronización en servidor WAPPY...');
+      log(`ℹ️ El perfil local de Chrome no contenía cookies maestras SID activas para ${accountLabel}; ejecutando rotación y sincronización en servidor WAPPY...`);
     }
   } else {
-    log('ℹ️ Sin perfil local .wappy-notebooklm-auth/.wappy-googleflow-auth; ejecutando rotación y sincronización en servidor WAPPY...');
+    log(`ℹ️ Sin perfil local .wappy-notebooklm-auth/.wappy-googleflow-auth para ${accountLabel}; ejecutando rotación y sincronización en servidor WAPPY...`);
   }
 
   // Rotar y sincronizar en servidor (Master Cookies -> __Secure-1PSIDTS + sync-from-notebooklm + /api/googleflow/test)
@@ -1112,7 +1237,76 @@ async function refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId) {
     timeoutMs: 30000,
   }).catch(() => null);
 
-  return Boolean(uploaded || syncRes?.ok || flowTestRes?.data?.success);
+  return Boolean(uploaded || syncRes?.data?.success || flowTestRes?.data?.success);
+}
+
+/**
+ * 4.B AUDITORÍA Y AUTO-REPARACIÓN DE CUENTAS ADICIONALES DEL PROPIETARIO (MULTI-CUENTA)
+ */
+async function auditAdditionalOwnerAccount(cred) {
+  const keyTag = `${String(cred.apiKey || '').slice(0, 14)}...`;
+  const accAg = await checkAntigravity(cred.wappyUrl, cred.apiKey);
+  if (accAg.abortedForPrivacy) {
+    log(`🔒 [Multi-Cuenta ${keyTag}] Omitiendo clave por privacidad: ${accAg.detail}`);
+    return null;
+  }
+
+  const initNb = await checkNotebookLM(cred.wappyUrl, cred.apiKey);
+  const initFlow = await checkGoogleFlow(cred.wappyUrl, cred.apiKey);
+  const accountEmail =
+    initNb.email ||
+    initFlow.email ||
+    accAg.userEmail ||
+    `Cuenta (${keyTag})`;
+
+  log(
+    `📊 [Multi-Cuenta ${accountEmail} | ${keyTag}] Estado inicial -> Antigravity: ${accAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
+  );
+
+  let finalNb = { ...initNb };
+  let finalFlow = { ...initFlow };
+
+  if (!initNb.ok || !initFlow.ok) {
+    await refreshGoogleSessionFromLocalChrome(cred.wappyUrl, cred.apiKey, accAg.userId || '', {
+      expectedEmail: initNb.email || initFlow.email || accAg.userEmail || '',
+      tryServerFirst: true,
+    });
+    if (!initNb.ok) {
+      finalNb = await checkNotebookLM(cred.wappyUrl, cred.apiKey);
+      log(`🔄 [Multi-Cuenta ${accountEmail}] Resultado reconexión NotebookLM: ${finalNb.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
+    }
+    if (!initFlow.ok) {
+      finalFlow = await checkGoogleFlow(cred.wappyUrl, cred.apiKey);
+      log(`🔄 [Multi-Cuenta ${accountEmail}] Resultado reconexión Google Flow: ${finalFlow.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
+    }
+  }
+
+  return {
+    isPrimary: false,
+    apiKeyPrefix: keyTag,
+    wappyUrl: cred.wappyUrl,
+    userId: accAg.userId || '',
+    userEmail: accountEmail,
+    antigravity: {
+      initialOk: Boolean(accAg.ok),
+      finalOk: Boolean(accAg.ok),
+      detail: accAg.detail || '',
+    },
+    notebooklm: {
+      initialOk: Boolean(initNb.ok),
+      finalOk: Boolean(finalNb.ok),
+      dbscBound: Boolean(finalNb.dbscBound),
+      detail: finalNb.detail || '',
+    },
+    googleflow: {
+      initialOk: Boolean(initFlow.ok),
+      finalOk: Boolean(finalFlow.ok),
+      dbscBound: Boolean(finalFlow.dbscBound),
+      detail: finalFlow.detail || '',
+    },
+    hadInitialErrors: !initNb.ok || !initFlow.ok,
+    allHealthyNow: Boolean(finalNb.ok && finalFlow.ok),
+  };
 }
 
 function isModuleHealthy(key, finalResults, functionalResults, requireFunctional = false) {
@@ -1130,7 +1324,17 @@ function isModuleHealthy(key, finalResults, functionalResults, requireFunctional
 async function sendHealthEmail(
   wappyUrl,
   apiKey,
-  { trigger, initialResults, finalResults, functionalResults = {}, hadInitialErrors, allHealthyNow, requireFunctional = true }
+  {
+    trigger,
+    initialResults,
+    finalResults,
+    functionalResults = {},
+    accountsSummary = [],
+    fallbackCredentials = [],
+    hadInitialErrors,
+    allHealthyNow,
+    requireFunctional = true,
+  }
 ) {
   // Privacidad estricta: el reporte de estado del monitor NUNCA se envía a correos de usuarios,
   // únicamente al buzón administrativo ALERT_EMAIL (grupowappy@gmail.com).
@@ -1147,11 +1351,18 @@ async function sendHealthEmail(
     .filter((k) => !isModuleHealthy(k, finalResults, functionalResults, requireFunctional))
     .map((k) => k.toUpperCase());
 
+  const failedExtraAccounts = Array.isArray(accountsSummary)
+    ? accountsSummary.filter((a) => a && !a.isPrimary && !a.allHealthyNow)
+    : [];
+  if (failedExtraAccounts.length > 0 && !failedNames.includes('MULTI-CUENTA')) {
+    failedNames.push(`MULTI-CUENTA (${failedExtraAccounts.map((a) => a.userEmail).join(', ')})`);
+  }
+
   const subject = !allHealthyNow
     ? `🚨 [WAPPY IA] Solicitud de Reconexión Manual — Fallo en ${failedNames.join(', ') || 'PRUEBA E2E'}`
     : hadInitialErrors
     ? `✅ [WAPPY IA] Conectores Reconectados y Pruebas E2E OK (${trigger})`
-    : `🟢 [WAPPY IA] Reporte Unificado E2E OK (Antigravity + NotebookLM + Flow)`;
+    : `🟢 [WAPPY IA] Reporte Unificado E2E OK (Antigravity + NotebookLM + Flow${accountsSummary.length > 1 ? ` · ${accountsSummary.length} cuentas` : ''})`;
 
   const renderRow = (modKey, label, initRes, finRes, funcRes) => {
     const wasOk = Boolean(initRes?.ok) && !funcRes?.recoveredAfterFailure;
@@ -1186,6 +1397,54 @@ async function sendHealthEmail(
   const nbHealthy = isModuleHealthy('notebooklm', finalResults, functionalResults, requireFunctional);
   const flHealthy = isModuleHealthy('googleflow', finalResults, functionalResults, requireFunctional);
 
+  const multiAccountBlock =
+    Array.isArray(accountsSummary) && accountsSummary.length > 1
+      ? `
+      <div style="margin-top:18px;">
+        <h3 style="margin:0 0 8px 0;font-size:14px;color:#0f172a;">👥 Resumen Consolidado Multi-Cuenta del Propietario (${accountsSummary.length} cuentas verificadas)</h3>
+        <table style="width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:12px;">
+          <thead>
+            <tr style="background:#1e293b;color:#ffffff;text-align:left;">
+              <th style="padding:8px 10px;">Cuenta / Clave</th>
+              <th style="padding:8px 10px;">NotebookLM</th>
+              <th style="padding:8px 10px;">Google Flow</th>
+              <th style="padding:8px 10px;">Diagnóstico / DBSC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${accountsSummary
+              .map((acc) => {
+                const nbBadge = acc.notebooklm?.finalOk
+                  ? acc.notebooklm?.initialOk
+                    ? '<span style="color:#166534;font-weight:700;">🟢 OK</span>'
+                    : '<span style="color:#854d0e;font-weight:700;">🔄 RECONECTADO</span>'
+                  : '<span style="color:#991b1b;font-weight:700;">🔴 FALLO</span>';
+                const flBadge = acc.googleflow?.finalOk
+                  ? acc.googleflow?.initialOk
+                    ? '<span style="color:#166534;font-weight:700;">🟢 OK</span>'
+                    : '<span style="color:#854d0e;font-weight:700;">🔄 RECONECTADO</span>'
+                  : '<span style="color:#991b1b;font-weight:700;">🔴 FALLO</span>';
+                const hasDbsc = Boolean(acc.notebooklm?.dbscBound || acc.googleflow?.dbscBound);
+                const diagText = hasDbsc
+                  ? '⚠️ Sesión con bloqueo DBSC (__Secure-1PSIDRTS, ~1h) — reconectar con Conector 1-Clic actualizado.'
+                  : acc.allHealthyNow
+                  ? 'Sesión permanente operativa sin DBSC.'
+                  : `${!acc.notebooklm?.finalOk ? `NB: ${acc.notebooklm?.detail || 'Fallo'}. ` : ''}${!acc.googleflow?.finalOk ? `Flow: ${acc.googleflow?.detail || 'Fallo'}` : ''}`;
+                return `
+                  <tr>
+                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;"><b>${acc.userEmail || 'Cuenta'}</b>${acc.isPrimary ? ' (Principal)' : ''}<br/><code style="color:#64748b;">${acc.apiKeyPrefix || ''}</code></td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">${nbBadge}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;">${flBadge}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;color:#334155;">${diagText}</td>
+                  </tr>`;
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+      : '';
+
   const manualActionBlock = !allHealthyNow
     ? `
       <div style="margin-top:20px;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#7f1d1d;">
@@ -1197,15 +1456,26 @@ async function sendHealthEmail(
           ${!agHealthy ? '<li><b>Google Antigravity:</b> Abre Antigravity en tu Mac o ejecuta <code>node ~/.gemini/antigravity/wappy-push-daemon.js --install</code></li>' : ''}
           ${!nbHealthy ? '<li><b>Google NotebookLM:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --notebooklm</code> o entra a WAPPY y pulsa Reconectar NotebookLM.</li>' : ''}
           ${!flHealthy ? '<li><b>Google Flow Studio:</b> Ejecuta en terminal <code>node ~/.gemini/antigravity/wappy-push-daemon.js --googleflow</code> o entra a WAPPY Studio y pulsa Reconectar Flow.</li>' : ''}
+          ${failedExtraAccounts
+            .map(
+              (acc) =>
+                `<li><b>Cuenta adicional (${acc.userEmail} · ${acc.apiKeyPrefix}):</b> Inicia sesión en WAPPY con esa cuenta y reconecta con el Conector Automático 1-Clic actualizado (anti-DBSC).</li>`
+            )
+            .join('')}
         </ul>
       </div>
     `
     : '';
 
+  const primaryAccountTag =
+    Array.isArray(accountsSummary) && accountsSummary[0]?.userEmail
+      ? ` &bull; <b>Cuenta Principal:</b> ${accountsSummary[0].userEmail}`
+      : '';
+
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;">
       <p style="margin:0 0 14px 0;font-size:14px;">
-        Reporte unificado de conectividad y pruebas funcionales E2E en tu iMac (<b>Disparador:</b> <code>${trigger}</code> &bull; <b>Fecha:</b> ${nowStr}):
+        Reporte unificado de conectividad y pruebas funcionales E2E en tu iMac (<b>Disparador:</b> <code>${trigger}</code>${primaryAccountTag} &bull; <b>Fecha:</b> ${nowStr}):
       </p>
       <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
         <thead>
@@ -1221,36 +1491,46 @@ async function sendHealthEmail(
           ${renderRow('googleflow', '🎬 Google Flow Studio', initialResults.googleflow, finalResults.googleflow, functionalResults.googleflow)}
         </tbody>
       </table>
+      ${multiAccountBlock}
       ${manualActionBlock}
     </div>
   `;
 
-  const emailRes = await httpJson(`${wappyUrl}/api/mcp-bridge/email/send`, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: {
-      to: targetEmail,
-      subject,
-      html,
-      skipAutoReport: true,
-      adjuntar_informe: false,
-    },
-    timeoutMs: 25000,
-  });
+  const sendCandidates = [
+    { wappyUrl, apiKey },
+    ...(Array.isArray(fallbackCredentials) ? fallbackCredentials : []),
+  ].filter((c) => c && c.wappyUrl && c.apiKey);
 
-  if (emailRes.ok && emailRes.data?.exito && !emailRes.data?.suppressedForPrivacy) {
-    log(`📧 Correo unificado enviado exitosamente a ${targetEmail} (${subject}).`);
-    return true;
-  } else if (emailRes.data?.suppressedForPrivacy) {
-    log(`⚠️ Correo a ${targetEmail} suprimido por el cortafuegos de privacidad del servidor (pendiente desplegar allowlist actualizada en mcpBridge.js).`);
-    return false;
-  } else {
-    log(`❌ Error enviando correo a ${targetEmail}: ${emailRes.data?.error || emailRes.error || `HTTP ${emailRes.status}`}`);
-    return false;
+  let lastEmailRes = null;
+  for (const cand of sendCandidates) {
+    const emailRes = await httpJson(`${cand.wappyUrl}/api/mcp-bridge/email/send`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': cand.apiKey,
+        Authorization: `Bearer ${cand.apiKey}`,
+      },
+      body: {
+        to: targetEmail,
+        subject,
+        html,
+        skipAutoReport: true,
+        adjuntar_informe: false,
+      },
+      timeoutMs: 25000,
+    });
+    lastEmailRes = emailRes;
+    if (emailRes.ok && emailRes.data?.exito && !emailRes.data?.suppressedForPrivacy) {
+      log(`📧 Correo unificado enviado exitosamente a ${targetEmail} (${subject}).`);
+      return true;
+    }
+    if (emailRes.data?.suppressedForPrivacy) {
+      log(`⚠️ Correo a ${targetEmail} suprimido por el cortafuegos de privacidad del servidor (pendiente desplegar allowlist actualizada en mcpBridge.js).`);
+      return false;
+    }
   }
+
+  log(`❌ Error enviando correo a ${targetEmail}: ${lastEmailRes?.data?.error || lastEmailRes?.error || `HTTP ${lastEmailRes?.status || 0}`}`);
+  return false;
 }
 
 /**
@@ -1643,6 +1923,7 @@ function updateWordBitacora({
   initialResults,
   finalResults,
   functionalResults = {},
+  accountsSummary = [],
   hadInitialErrors,
   allHealthyNow,
   requireFunctional = false,
@@ -1714,6 +1995,15 @@ function updateWordBitacora({
       notesList.push(
         `[Flow Imagen E2E: ${functionalResults.googleflow.ok ? `OK (${functionalResults.googleflow.imageUrl})` : `FALLO (${functionalResults.googleflow.detail})`}]`
       );
+    }
+    if (Array.isArray(accountsSummary) && accountsSummary.length > 1) {
+      const compactAccs = accountsSummary
+        .map(
+          (a) =>
+            `${a.userEmail || a.apiKeyPrefix}(NB:${a.notebooklm?.finalOk ? 'OK' : 'FALLO'}/Flow:${a.googleflow?.finalOk ? 'OK' : 'FALLO'}${a.notebooklm?.dbscBound || a.googleflow?.dbscBound ? '/DBSC' : ''})`
+        )
+        .join(' | ');
+      notesList.push(`[Multi-Cuenta: ${compactAccs}]`);
     }
 
     const nowIso = new Date().toISOString();
@@ -1865,6 +2155,18 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
     const agOk = isModuleHealthy('antigravity', finalResults, functionalResults, true);
     const nbOk = isModuleHealthy('notebooklm', finalResults, functionalResults, true);
     const flOk = isModuleHealthy('googleflow', finalResults, functionalResults, true);
+    const accountsSummary = Array.isArray(options.accountsSummary) ? options.accountsSummary : [];
+    const multiAccountLines =
+      accountsSummary.length > 1
+        ? [
+            ``,
+            `### 👥 Resumen Consolidado Multi-Cuenta (${accountsSummary.length} cuentas):`,
+            ...accountsSummary.map(
+              (acc, idx) =>
+                `${idx + 1}. **${acc.userEmail || acc.apiKeyPrefix}** (\`${acc.apiKeyPrefix}\`): NotebookLM ${acc.notebooklm?.finalOk ? '🟢 OK' : '🔴 FALLO'} | Google Flow ${acc.googleflow?.finalOk ? '🟢 OK' : '🔴 FALLO'}${acc.notebooklm?.dbscBound || acc.googleflow?.dbscBound ? ' ⚠️ (DBSC ~1h)' : ''}`
+            ),
+          ]
+        : [];
 
     titulo = `Reporte E2E ${allHealthyNow ? '3/3 OK' : 'Con Alertas'} (Antigravity + NotebookLM + Flow)`;
     promptText = [
@@ -1886,6 +2188,7 @@ async function openAntigravityHealthcheckChatLog(wappyUrl, apiKey, options = {})
       `   - Prueba Funcional E2E: ${functionalResults.googleflow?.detail || 'N/A'}${
         functionalResults.googleflow?.imageUrl ? `\n   - Imagen Generada: ${functionalResults.googleflow.imageUrl}` : ''
       }`,
+      ...multiAccountLines,
       ``,
       `### 📁 Soportes y Notificaciones:`,
       `- **Bitácora Word:** \`${resolveEffectiveDocxPath()}\` (Actualizada)`,
@@ -2054,20 +2357,38 @@ async function main() {
       }
     }
 
-    const { wappyUrl, apiKey } = resolveCredentials();
-    if (!apiKey) {
+    const ownerCreds = resolveOwnerCredentialsList();
+    if (ownerCreds.length === 0 || !ownerCreds[0]?.apiKey) {
       log('❌ No se encontró API Key de WAPPY en ~/.gemini/antigravity/wappy-keys.json.');
       return;
     }
 
+    let primaryIdx = 0;
+    let { wappyUrl, apiKey } = ownerCreds[0];
+
     log(
-      `🔍 Iniciando pruebas de conexión y funcionales E2E (env=${currentEnvName}, trigger=${trigger}${fromAgyAutomation ? ', from-agy-automation=true' : ''}) hacia ${wappyUrl}...`
+      `🔍 Iniciando pruebas de conexión y funcionales E2E (env=${currentEnvName}, trigger=${trigger}${fromAgyAutomation ? ', from-agy-automation=true' : ''}, cuentas_detectadas=${ownerCreds.length}) hacia ${wappyUrl}...`
     );
     const online = await waitForInternetConnection(wappyUrl, 45000);
     if (!online) {
       log('⚠️ Sin conexión a internet tras esperar 45s (el equipo puede estar sin red Wi-Fi).');
       return;
     }
+
+    // Seleccionar la primera clave autorizada del propietario (privacidad estricta)
+    let initAg = await checkAntigravity(wappyUrl, apiKey);
+    while (initAg.abortedForPrivacy && primaryIdx + 1 < ownerCreds.length) {
+      log(`🔒 Omitiendo clave no propietaria (${apiKey.slice(0, 14)}...): ${initAg.detail}`);
+      primaryIdx += 1;
+      wappyUrl = ownerCreds[primaryIdx].wappyUrl;
+      apiKey = ownerCreds[primaryIdx].apiKey;
+      initAg = await checkAntigravity(wappyUrl, apiKey);
+    }
+    if (initAg.abortedForPrivacy) {
+      log(`🔒 ${initAg.detail}`);
+      return;
+    }
+    const additionalOwnerCreds = ownerCreds.slice(primaryIdx + 1);
 
     // Coordinación anti-duplicados Cloud 24/7 <-> Mac en ejecuciones automáticas
     if (!isManualRun) {
@@ -2125,17 +2446,14 @@ async function main() {
     // Si acaba de encender el equipo (boot), dar 15s de cortesía para que Antigravity.app y el daemon Push SSE terminen de iniciar
     if (trigger === 'boot') {
       await new Promise((r) => setTimeout(r, 15000));
+      initAg = await checkAntigravity(wappyUrl, apiKey);
     }
 
-    // ── FASE 1: REVISIÓN DE CONECTIVIDAD Y AUTO-RECONEXIÓN ───────────────────
-    const initAg = await checkAntigravity(wappyUrl, apiKey);
-    if (initAg.abortedForPrivacy) {
-      log(`🔒 ${initAg.detail}`);
-      return;
-    }
+    // ── FASE 1: REVISIÓN DE CONECTIVIDAD Y AUTO-RECONEXIÓN (CUENTA PRINCIPAL) ──
     const userId = initAg.userId || '';
     const initNb = await checkNotebookLM(wappyUrl, apiKey);
     const initFlow = await checkGoogleFlow(wappyUrl, apiKey);
+    const primaryEmail = initNb.email || initFlow.email || initAg.userEmail || '';
 
     if (simulateError) {
       initAg.ok = false;
@@ -2149,7 +2467,7 @@ async function main() {
     };
 
     log(
-      `📊 Estado inicial conectividad -> Antigravity: ${initAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
+      `📊 Estado inicial conectividad (${primaryEmail || apiKey.slice(0, 14)}) -> Antigravity: ${initAg.ok ? 'OK' : 'FALLO'} | NotebookLM: ${initNb.ok ? 'OK' : 'FALLO'} | Google Flow: ${initFlow.ok ? 'OK' : 'FALLO'}`
     );
 
     let hadInitialErrors = !initAg.ok || !initNb.ok || !initFlow.ok;
@@ -2166,7 +2484,10 @@ async function main() {
     }
 
     if (!initNb.ok || !initFlow.ok) {
-      await refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId);
+      await refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId, {
+        expectedEmail: primaryEmail,
+        tryServerFirst: true,
+      });
       if (!initNb.ok) {
         finalResults.notebooklm = await checkNotebookLM(wappyUrl, apiKey);
         log(`🔄 Resultado reconexión NotebookLM: ${finalResults.notebooklm.ok ? 'RECONECTADO' : 'SIGUE CON FALLO'}`);
@@ -2269,7 +2590,10 @@ async function main() {
             .join(' + ')}. Refrescando sesión de Google + sync-from-notebooklm y reintentando 1 vez...`
         );
 
-        await refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId);
+        await refreshGoogleSessionFromLocalChrome(wappyUrl, apiKey, userId, {
+          expectedEmail: primaryEmail,
+          tryServerFirst: true,
+        });
         await httpJson(`${wappyUrl}/api/googleflow/sync-from-notebooklm`, {
           method: 'POST',
           headers: { 'x-api-key': apiKey, Authorization: `Bearer ${apiKey}` },
@@ -2309,10 +2633,55 @@ async function main() {
     const agHealthy = isModuleHealthy('antigravity', finalResults, functionalResults, runInvasiveFunctionalTests);
     const nbHealthy = isModuleHealthy('notebooklm', finalResults, functionalResults, runInvasiveFunctionalTests);
     const flHealthy = isModuleHealthy('googleflow', finalResults, functionalResults, runInvasiveFunctionalTests);
-    const allHealthyNow = agHealthy && nbHealthy && flHealthy;
+
+    // ── FASE 2.B: AUDITORÍA Y AUTO-REPARACIÓN MULTI-CUENTA (TODAS LAS CLAVES DEL PROPIETARIO) ──
+    const primaryAccountReport = {
+      isPrimary: true,
+      apiKeyPrefix: `${apiKey.slice(0, 14)}...`,
+      wappyUrl,
+      userId,
+      userEmail: primaryEmail || initAg.userEmail || `Principal (${apiKey.slice(0, 14)}...)`,
+      antigravity: {
+        initialOk: Boolean(initAg.ok),
+        finalOk: agHealthy,
+        detail: finalResults.antigravity.detail || '',
+      },
+      notebooklm: {
+        initialOk: Boolean(initNb.ok) && !functionalResults.notebooklm?.recoveredAfterFailure,
+        finalOk: nbHealthy,
+        dbscBound: Boolean(finalResults.notebooklm.dbscBound),
+        detail: finalResults.notebooklm.detail || '',
+      },
+      googleflow: {
+        initialOk: Boolean(initFlow.ok) && !functionalResults.googleflow?.recoveredAfterFailure,
+        finalOk: flHealthy,
+        dbscBound: Boolean(finalResults.googleflow.dbscBound),
+        detail: finalResults.googleflow.detail || '',
+      },
+      hadInitialErrors,
+      allHealthyNow: agHealthy && nbHealthy && flHealthy,
+    };
+
+    const additionalAccountReports = [];
+    for (const extraCred of additionalOwnerCreds) {
+      try {
+        const rep = await auditAdditionalOwnerAccount(extraCred);
+        if (rep) {
+          additionalAccountReports.push(rep);
+        }
+      } catch (extraErr) {
+        log(`⚠️ Error auditando cuenta adicional (${extraCred.apiKey.slice(0, 14)}...): ${extraErr.message}`);
+      }
+    }
+
+    const accountsSummary = [primaryAccountReport, ...additionalAccountReports];
+    const additionalAllHealthy = additionalAccountReports.every((r) => r.allHealthyNow);
+    const additionalHadErrors = additionalAccountReports.some((r) => r.hadInitialErrors);
+    hadInitialErrors = hadInitialErrors || additionalHadErrors;
+    const allHealthyNow = agHealthy && nbHealthy && flHealthy && additionalAllHealthy;
 
     log(
-      `🏁 Resultado final honesto -> Antigravity: ${agHealthy ? 'OK' : 'FALLO'} | NotebookLM: ${nbHealthy ? 'OK' : 'FALLO'} | Google Flow: ${flHealthy ? 'OK' : 'FALLO'} | Global 3/3: ${allHealthyNow ? 'OK' : 'ALERTA'}`
+      `🏁 Resultado final honesto (${accountsSummary.length} cuenta(s)) -> Antigravity: ${agHealthy ? 'OK' : 'FALLO'} | NotebookLM: ${nbHealthy ? 'OK' : 'FALLO'} | Google Flow: ${flHealthy ? 'OK' : 'FALLO'}${additionalAccountReports.length > 0 ? ` | Adicionales: ${additionalAllHealthy ? 'OK' : 'ALERTA'}` : ''} | Global: ${allHealthyNow ? 'OK' : 'ALERTA'}`
     );
 
     // ── FASE 3: ACTUALIZAR BITÁCORA WORD EN EL ESCRITORIO Y ENVIAR 1 ÚNICO CORREO A grupowappy@gmail.com ──
@@ -2321,6 +2690,7 @@ async function main() {
       initialResults,
       finalResults,
       functionalResults,
+      accountsSummary,
       hadInitialErrors,
       allHealthyNow,
       requireFunctional: runInvasiveFunctionalTests,
@@ -2379,6 +2749,8 @@ async function main() {
         initialResults,
         finalResults,
         functionalResults,
+        accountsSummary,
+        fallbackCredentials: additionalOwnerCreds,
         hadInitialErrors,
         allHealthyNow,
         requireFunctional: runInvasiveFunctionalTests,
@@ -2401,6 +2773,7 @@ async function main() {
         initialResults,
         finalResults,
         functionalResults,
+        accountsSummary,
         hadInitialErrors,
         allHealthyNow,
         emailSent,
@@ -2431,6 +2804,7 @@ async function main() {
             initialResults,
             finalResults,
             functionalResults,
+            accountsSummary,
           },
           null,
           2

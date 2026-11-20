@@ -272,7 +272,7 @@ class GeminiLiveClient extends EventEmitter {
 - El usuario habla ÚNICA Y EXCLUSIVAMENTE en ESPAÑOL.
 - ESTÁ ESTRICTAMENTE PROHIBIDO transcribir, interpretar o responder en inglés, hindi, devanagari, urdu, árabe o cualquier otro idioma.
 - PROHIBICIÓN ABSOLUTA DE FRASES O CIERRES EN INGLÉS: Nunca digas "all set", "that's all set", "done", "okay", "sure thing", "I've conveyed", "as an AI" ni ninguna coletilla en inglés. CADA PALABRA que emitas por audio debe ser 100% en español.
-- Decodifica todo sonido o habla como español natural. Si hay silencio o ruido de fondo bajo, NO generes transcripciones ni respuestas por tu cuenta.`;
+- REGLA ESTRICTA ANTI-ALUCINACIÓN EN SILENCIO Y RUIDO AMBIENTAL: Decodifica únicamente voz humana clara en español. Si el audio solo contiene silencio, respiración, suspiros, clics, eco o ruido ambiental de fondo, GUARDA SILENCIO ABSOLUTO: NO inventes frases en inglés ni en español (como "For Claude is here" o fragmentos sueltos), NO interrumpas herramientas en curso y NO emitas ninguna respuesta por tu cuenta.`;
 
                                 let base = this.config.systemInstruction
                                     ? `${this.config.systemInstruction}\n\n${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`
@@ -294,15 +294,18 @@ ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.c
                     ],
                 },
                 // Transcripciones de audio según especificación oficial de Google Multimodal Live API
+                // REGLA INQUEBRANTABLE: DEBEN ser objetos vacíos {} (agregar languageCodes provoca Error 1011).
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
                 // VAD del servidor (spec oficial RealtimeInputConfig.AutomaticActivityDetection):
-                // Respuesta ultra-rápida (~550ms de silencio) sincronizada con el detector de fin de voz del cliente.
+                // START_SENSITIVITY_LOW evita que suspiros, respiraciones o ruido ambiente disparen turnos fantasma / barge-in;
+                // prefixPaddingMs=250 preserva consonantes iniciales y silenceDurationMs=650 mantiene fluidez natural en español.
                 realtimeInputConfig: {
                     automaticActivityDetection: {
+                        startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
                         endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
-                        silenceDurationMs: 550,
-                        prefixPaddingMs: 200,
+                        silenceDurationMs: 650,
+                        prefixPaddingMs: 250,
                     },
                 },
                 // Standard Tools support
