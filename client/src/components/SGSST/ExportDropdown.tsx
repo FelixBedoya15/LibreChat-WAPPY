@@ -33,7 +33,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const [dropdownPos, setDropdownPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    isUp: boolean;
+    maxHeight?: number;
+  }>({ top: 0, left: 8, isUp: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToastContext();
@@ -79,7 +85,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const calcPos = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const openUpwards = spaceBelow < 260 && spaceAbove > spaceBelow;
+      const leftOffset = Math.max(8, Math.min(rect.left, window.innerWidth - 264));
+
+      if (openUpwards) {
+        setDropdownPos({
+          top: undefined,
+          bottom: Math.max(8, window.innerHeight - rect.top + 8),
+          left: leftOffset,
+          isUp: true,
+          maxHeight: Math.max(160, Math.min(spaceAbove - 20, 360)),
+        });
+      } else {
+        setDropdownPos({
+          top: rect.bottom + 8,
+          bottom: undefined,
+          left: leftOffset,
+          isUp: false,
+          maxHeight: Math.max(160, Math.min(spaceBelow - 20, 360)),
+        });
+      }
     }
   };
 
@@ -121,7 +148,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             }
             onExportExcel();
           }}
-          className="group flex h-7 min-w-[28px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 px-2 text-green-700 dark:text-green-300 shadow-xs outline-none transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-[32px] sm:px-2.5"
+          className='wappy-expand-btn group relative hover:z-20 flex h-7 min-w-[28px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 px-2 text-green-700 dark:text-green-300 shadow-xs outline-none transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-[32px] sm:px-2.5 after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto'
         >
           <div className="relative flex flex-shrink-0 items-center justify-center">
             <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1138,8 +1165,19 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   const dropdown = isOpen ? (
     <div
       ref={dropdownRef}
-      style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999999 }}
-      className="w-64 overflow-hidden rounded-xl border border-border-medium bg-surface-primary shadow-xl duration-200 animate-in fade-in slide-in-from-top-2"
+      style={{
+        position: 'fixed',
+        ...(dropdownPos.isUp
+          ? { bottom: `${dropdownPos.bottom}px` }
+          : { top: `${dropdownPos.top}px` }),
+        left: `${dropdownPos.left}px`,
+        maxHeight: dropdownPos.maxHeight ? `${dropdownPos.maxHeight}px` : undefined,
+        zIndex: 9999999,
+      }}
+      className={cn(
+        'w-64 overflow-y-auto rounded-xl border border-border-medium bg-surface-primary shadow-xl duration-200 animate-in fade-in',
+        dropdownPos.isUp ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2',
+      )}
     >
       <div className="p-1">
         {exportOptions.map((option) => {
@@ -1199,7 +1237,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           calcPos();
           setIsOpen((o) => !o);
         }}
-        className="group flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 px-2.5 text-green-700 dark:text-green-300 shadow-xs outline-none transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3"
+        className='wappy-expand-btn group relative hover:z-20 flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 px-2.5 text-green-700 dark:text-green-300 shadow-xs outline-none transition-all duration-300 ease-in-out hover:bg-green-500/20 sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3 after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto'
       >
         <div className="relative flex flex-shrink-0 items-center justify-center">
           <Download className="h-4 w-4" />

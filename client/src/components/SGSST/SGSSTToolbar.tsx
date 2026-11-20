@@ -250,7 +250,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
       buttons: exportButtons,
       extra:
         exportContent || onExportExcel || onDownloadTemplate ? (
-          <div>
+          <div className="shrink-0">
             <ExportDropdown
               content={exportContent || ''}
               fileName={exportFileName || 'Documento_SGSST'}
@@ -291,8 +291,8 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
     [allGroups, customSections],
   );
 
-  const toolbarContent = (
-    <div className="flex flex-wrap items-center gap-2">
+  const toolbarItems = (
+    <>
       {allItems.map((group) => (
         <React.Fragment key={group.id}>
           {(group.buttons || []).map((btn, bIdx) => (
@@ -302,13 +302,19 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         </React.Fragment>
       ))}
       {children}
-    </div>
+    </>
   );
 
   return (
     <>
       <span ref={anchorRef} className="hidden" aria-hidden="true" />
-      {portalTarget ? createPortal(toolbarContent, portalTarget) : toolbarContent}
+      {portalTarget ? (
+        createPortal(toolbarItems, portalTarget)
+      ) : (
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin] [&>div]:shrink-0">
+          {toolbarItems}
+        </div>
+      )}
     </>
   );
 };
@@ -385,7 +391,8 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
       title={title}
       aria-label={title || label}
       className={cn(
-        'group flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
+        'wappy-expand-btn group relative hover:z-20 flex h-9 min-w-[36px] shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
+        'after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto',
         getDynamicStyle(),
       )}
     >

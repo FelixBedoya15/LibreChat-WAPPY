@@ -29,10 +29,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const [dropdownPos, setDropdownPos] = useState<{
     top?: number;
     bottom?: number;
-    right?: number;
+    left?: number;
     isUp?: boolean;
     maxHeight?: number;
-  }>({ top: 0, right: 0, isUp: false });
+  }>({ top: 0, left: 8, isUp: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { data: endpointsConfig } = useGetEndpointsQuery();
@@ -94,14 +94,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       const estimatedHeight = 260; // 5 models + header
       const openUpwards = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
 
-      // Ensure right offset doesn't push the 256px wide menu off the left of the screen
-      const rightOffset = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - 270));
+      // Clamp left so the 256px (w-64) menu aligns under the trigger and stays inside the viewport
+      const leftOffset = Math.max(8, Math.min(rect.left, window.innerWidth - 264));
 
       if (openUpwards) {
         setDropdownPos({
           top: undefined,
           bottom: Math.max(8, window.innerHeight - rect.top + 8),
-          right: rightOffset,
+          left: leftOffset,
           isUp: true,
           maxHeight: Math.max(160, Math.min(spaceAbove - 20, 320)),
         });
@@ -109,7 +109,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         setDropdownPos({
           top: rect.bottom + 8,
           bottom: undefined,
-          right: rightOffset,
+          left: leftOffset,
           isUp: false,
           maxHeight: Math.max(160, Math.min(spaceBelow - 20, 320)),
         });
@@ -153,7 +153,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         ...(dropdownPos.isUp
           ? { bottom: `${dropdownPos.bottom}px` }
           : { top: `${dropdownPos.top}px` }),
-        right: `${dropdownPos.right}px`,
+        left: `${dropdownPos.left}px`,
         maxHeight: dropdownPos.maxHeight ? `${dropdownPos.maxHeight}px` : undefined,
         zIndex: 9999999,
       }}
@@ -207,7 +207,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         onClick={openDropdown}
         disabled={disabled}
         className={cn(
-          'group flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
+          'wappy-expand-btn group relative hover:z-20 flex h-9 min-w-[36px] flex-shrink-0 shrink-0 cursor-pointer items-center justify-center rounded-xl border px-2.5 shadow-xs outline-none transition-all duration-300 ease-in-out sm:hover:-rotate-3 sm:hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:min-w-[40px] sm:px-3',
+          'after:content-[""] after:absolute after:inset-0 after:pointer-events-none hover:after:-inset-y-1.5 hover:after:-inset-x-1 hover:after:pointer-events-auto',
           isOpen
             ? 'bg-indigo-500/20 text-indigo-700 border-indigo-500/50 hover:bg-indigo-500/25 dark:text-indigo-300 ring-1 ring-indigo-500/30'
             : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20',

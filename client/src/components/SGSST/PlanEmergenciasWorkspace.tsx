@@ -1136,118 +1136,129 @@ const PlanEmergenciasWorkspace: React.FC = () => {
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-teal-500/10 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/10 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-          <div className="flex items-start gap-4 min-w-0">
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25 shrink-0">
-              <ShieldAlert className="w-7 h-7" />
+        <div className="relative z-10 flex flex-col gap-4">
+          {/* NIVEL 1: Identidad + Descripción a ancho completo */}
+          <div className="flex items-start gap-4 min-w-0 w-full">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 shadow-lg shadow-teal-500/10">
+              <ShieldAlert className="h-7 w-7" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-text-primary">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-green-500 to-cyan-500 bg-clip-text text-transparent">
                   Plan de Emergencias y Contingencias (PPRE)
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  Operativo con IA
-                </span>
                 {company?.companyName && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl text-xs font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
                     <Building2 className="w-3.5 h-3.5" />
                     {company.companyName}
                     {company.nit ? ` · NIT ${company.nit}` : ''}
                   </span>
                 )}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Operativo con IA
+                </span>
               </div>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed max-w-3xl">
+              <p className="text-xs text-text-secondary w-full leading-relaxed">
                 Articulación integral 360° del Sistema Comando de Incidentes (SCI), Diamante de
                 Vulnerabilidad, Plan de Evacuación, MEDEVAC biocéntrico, Procedimientos Operativos
                 Normalizados (PON), Inventario de Equipos y Programa Anual de Simulacros.
               </p>
-              <div className="mt-2.5">
-                <SGSSTLegalBadge
-                  standardCode="5.1.1"
-                  isoClause="Num. 8.2"
-                  label="Est. 5.1.1 Res. 0312 · Art. 2.2.4.6.25 Dec. 1072: CUMPLE"
-                  tooltip="Integra la preparación ante amenazas naturales, tecnológicas y sociales con la protección prioritaria del bioindividuo, la brigada de emergencias, PONs y la cadena de socorro MEDEVAC."
-                  moduleName="Plan de Emergencias y Contingencias (PPRE)"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Barra de Acciones Principales (14-Group Design System) */}
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {/* Grupo 9 (blue): Alimentar desde Ecosistema 360° */}
-            <ExpandableButton
-              onClick={handleSyncEcosystem}
-              disabled={isSyncingEcosystem}
-              variant="blue"
-              icon={
-                isSyncingEcosystem ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )
-              }
-              label={isSyncingEcosystem ? 'Sincronizando...' : 'Alimentar 360° SST'}
-              title="Cruzar automáticamente Vulnerabilidad, Brigada, Compatibilidad FIT, Químicos SGA, PESV, Alturas y Auditoría"
-            />
+          {/* NIVEL 2: Barra de Acciones Principales (14-Group Design System — Riel dedicado anti-salto) */}
+          <div
+            data-sgsst-toolbar-rail
+            className="w-full border-t border-teal-500/15 pt-3.5"
+          >
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]">
+              {/* Grupo 9 (blue): Alimentar desde Ecosistema 360° */}
+              <ExpandableButton
+                onClick={handleSyncEcosystem}
+                disabled={isSyncingEcosystem}
+                variant="blue"
+                icon={
+                  isSyncingEcosystem ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )
+                }
+                label={isSyncingEcosystem ? 'Sincronizando...' : 'Alimentar 360° SST'}
+                title="Cruzar automáticamente Vulnerabilidad, Brigada, Compatibilidad FIT, Químicos SGA, PESV, Alturas y Auditoría"
+              />
 
-            {/* Grupo 6 (purple): Generar PPRE con IA */}
-            <ExpandableButton
-              onClick={handleGenerateAi}
-              disabled={isGeneratingAi}
-              variant="purple"
-              icon={
-                isGeneratingAi ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )
-              }
-              label={isGeneratingAi ? 'Estructurando IA...' : 'Generar PPRE con IA'}
-              title="Generar y enriquecer el Plan de Emergencias completo con Inteligencia Artificial"
-            />
+              {/* Grupo 6 (purple): Generar PPRE con IA */}
+              <ExpandableButton
+                onClick={handleGenerateAi}
+                disabled={isGeneratingAi}
+                variant="purple"
+                icon={
+                  isGeneratingAi ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )
+                }
+                label={isGeneratingAi ? 'Estructurando IA...' : 'Generar PPRE con IA'}
+                title="Generar y enriquecer el Plan de Emergencias completo con Inteligencia Artificial"
+              />
 
-            {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
-            <ExpandableButton
-              onClick={handleLoadDummy}
-              variant="amber"
-              icon={<Flame className="w-4 h-4" />}
-              label="Datos de Prueba (Dummy)"
-              title="Cargar set completo de prueba con MEDEVAC, Amenazas, SCI, PONs, Equipos y Simulacros"
-            />
+              {/* Grupo 8 (amber): Datos de Prueba (Dummy) */}
+              <ExpandableButton
+                onClick={handleLoadDummy}
+                variant="amber"
+                icon={<Flame className="w-4 h-4" />}
+                label="Datos de Prueba (Dummy)"
+                title="Cargar set completo de prueba con MEDEVAC, Amenazas, SCI, PONs, Equipos y Simulacros"
+              />
 
-            {/* Grupo 10 (green): Compilar Documento Maestro PPRE */}
-            <ExpandableButton
-              onClick={handleCompileReport}
-              disabled={isCompilingReport}
-              variant="green"
-              icon={
-                isCompilingReport ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <FileText className="w-4 h-4" />
-                )
-              }
-              label={isCompilingReport ? 'Compilando...' : 'Compilar PPRE Oficial'}
-              title="Generar el Documento Maestro Oficial del Plan de Emergencias en el Editor Vivo"
-            />
+              {/* Grupo 10 (green): Compilar Documento Maestro PPRE */}
+              <ExpandableButton
+                onClick={handleCompileReport}
+                disabled={isCompilingReport}
+                variant="green"
+                icon={
+                  isCompilingReport ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )
+                }
+                label={isCompilingReport ? 'Compilando...' : 'Compilar PPRE Oficial'}
+                title="Generar el Documento Maestro Oficial del Plan de Emergencias en el Editor Vivo"
+              />
 
-            {/* Grupo 3 (teal): Guardar Datos */}
-            <ExpandableButton
-              onClick={handleSaveData}
-              disabled={isSavingData}
-              variant="teal"
-              icon={
-                isSavingData ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )
-              }
-              label={isSavingData ? 'Guardando...' : 'Guardar en Nube'}
-              title="Guardar todos los cambios del Plan de Emergencias en MongoDB"
+              {/* Grupo 3 (teal): Guardar Datos */}
+              <ExpandableButton
+                onClick={handleSaveData}
+                disabled={isSavingData}
+                variant="teal"
+                icon={
+                  isSavingData ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )
+                }
+                label={isSavingData ? 'Guardando...' : 'Guardar en Nube'}
+                title="Guardar todos los cambios del Plan de Emergencias en MongoDB"
+              />
+            </div>
+          </div>
+
+          {/* NIVEL 3: INSIGNIAS / CUMPLIMIENTO LEGAL (Riel dedicado inferior) */}
+          <div
+            data-sgsst-badges-rail
+            className="flex flex-wrap sm:flex-nowrap items-center justify-start gap-2 min-w-0 sm:overflow-x-auto py-2.5 -my-2.5 px-1.5 -mx-1.5 [scrollbar-width:thin]"
+          >
+            <SGSSTLegalBadge
+              standardCode="5.1.1"
+              isoClause="Num. 8.2"
+              label="Est. 5.1.1 Res. 0312 · Art. 2.2.4.6.25 Dec. 1072: CUMPLE"
+              tooltip="Integra la preparación ante amenazas naturales, tecnológicas y sociales con la protección prioritaria del bioindividuo, la brigada de emergencias, PONs y la cadena de socorro MEDEVAC."
+              moduleName="Plan de Emergencias y Contingencias (PPRE)"
             />
           </div>
         </div>
