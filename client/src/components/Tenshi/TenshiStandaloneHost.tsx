@@ -6,6 +6,7 @@ import {
   AssistantsMapContext,
   AgentsMapContext,
 } from '~/Providers';
+import { isTenshiEmbedded } from '~/utils/tenshiEmbed';
 
 const TenshiChat = lazy(() => import('~/components/Tenshi/TenshiChat'));
 
@@ -20,7 +21,7 @@ export default function TenshiStandaloneHost({ children }: { children: React.Rea
   const { isAuthenticated } = useAuthContext();
   const emptyMap = useMemo(() => new Map(), []);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isTenshiEmbedded()) {
     return <>{children}</>;
   }
 

@@ -821,88 +821,108 @@ function enrichTechnicalPrompt(rawPrompt, agent) {
 }
 
 /**
+ * Determina si una ruta corresponde a una pantalla/aplicativo real de WAPPY
+ * (distinta del chat raíz o Modo Hero vacío como '/', '/c' o '/c/new').
+ */
+function isRealWappyRoute(route) {
+    const r = String(route || '').toLowerCase().trim();
+    if (!r) return false;
+    if (r === '/' || r === '/c' || r.startsWith('/c/') || r.startsWith('/c?') || r === '/chat' || r.startsWith('/chat/')) {
+        return false;
+    }
+    return true;
+}
+
+/**
  * Translates application routes and active screen contexts into clear, human-readable
  * modules of the SG-SST platform so Tenshi has crystal-clear grounded context.
  */
-function formatScreenRouteHuman(route, agent, isHeroMode = false) {
-    if (isHeroMode) {
+function formatScreenRouteHuman(route, agent, isHeroMode = false, embeddedBrowserActive = false) {
+    const cleanRoute = String(route || '').trim();
+    const hasEmbeddedWappyRoute = Boolean(embeddedBrowserActive) && isRealWappyRoute(cleanRoute);
+
+    if (isHeroMode && !hasEmbeddedWappyRoute) {
         return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
     }
-    if (!route && !agent) return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
-    const r = (route || '').toLowerCase().trim();
+    if (!cleanRoute && !agent) return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
+    const r = cleanRoute.toLowerCase();
 
-    // Si hay especialista activo en pantalla
-    if (agent && agent.name) {
-        return `Chat activo con Especialista: ${agent.name} (Ruta: ${route || '/c/new'})`;
+    // Si hay especialista activo en pantalla (y no estamos mostrando un módulo WAPPY en el navegador embebido)
+    if (!hasEmbeddedWappyRoute && agent && agent.name) {
+        return `Chat activo con Especialista: ${agent.name} (Ruta: ${cleanRoute || '/c/new'})`;
     }
 
-    if (r.includes('perfil_socio') || r.includes('sociodemografico') || (r.includes('hito2') && !r.includes('perfil_cargo') && !r.includes('condiciones_salud'))) {
-        return 'Módulo: Perfil Sociodemográfico y Nómina de Colaboradores (Hito 2 - Huella Biocéntrica)';
+    let resolvedLabel = '';
+    if (r.includes('perfil_socio') || r.includes('sociodemografico') || r.includes('huella-biocentrica') || (r.includes('hito2') && !r.includes('perfil_cargo') && !r.includes('condiciones_salud'))) {
+        resolvedLabel = 'Módulo: Perfil Sociodemográfico y Nómina de Colaboradores (Hito 2 - Huella Biocéntrica)';
+    } else if (r.includes('perfil_cargo') || r.includes('profesigrama')) {
+        resolvedLabel = 'Módulo: Perfiles de Cargo y Profesiogramas (Hito 2 - Huella Biocéntrica)';
+    } else if (r.includes('condiciones_salud')) {
+        resolvedLabel = 'Módulo: Condiciones de Salud y Evaluaciones Médicas Ocupacionales (Hito 2)';
+    } else if (r.includes('diagnostico') || r.includes('0312')) {
+        resolvedLabel = 'Módulo: Diagnóstico Inicial y Estándares Mínimos Resolución 0312 (Hito 1)';
+    } else if (r.includes('matriz_ipevar') || r.includes('peligros') || r.includes('gtc45')) {
+        resolvedLabel = 'Módulo: Matriz de Riesgos y Peligros IPEVAR / GTC-45 (Hito 1 / Hito 4)';
+    } else if (r.includes('matriz_pesv') || r.includes('vehicles_pesv') || r.includes('pesv')) {
+        resolvedLabel = 'Módulo: Plan Estratégico de Seguridad Vial PESV (Resolución 20223040040595)';
+    } else if (r.includes('matriz_compatibilidad') || r.includes('chemical')) {
+        resolvedLabel = 'Módulo: Matriz de Compatibilidad Química y Sustancias Peligrosas SGA (Hito 5)';
+    } else if (r.includes('animo')) {
+        resolvedLabel = 'Módulo: Termómetro Emocional y Monitoreo de Clima Laboral (Hito 4)';
+    } else if (r.includes('investigacion_atel') || r.includes('atel')) {
+        resolvedLabel = 'Módulo: Investigación de Incidentes y Accidentes de Trabajo ATEL (Hito 7)';
+    } else if (r.includes('estadisticas')) {
+        resolvedLabel = 'Módulo: Indicadores y Estadísticas de Siniestralidad y Ausentismo (Hito 7)';
+    } else if (r.includes('/tareas') || r.includes('automatizaciones')) {
+        resolvedLabel = 'Módulo: Tareas (tareas programadas de agentes IA, antes Automatizaciones IA)';
+    } else if (r.includes('control_acpm') || r.includes('/control')) {
+        resolvedLabel = 'Módulo: Centro de Control de Acciones Correctivas y Preventivas ACPM (Kanban)';
+    } else if (r.includes('copasst')) {
+        resolvedLabel = 'Módulo: Comité Paritario de Seguridad y Salud en el Trabajo (COPASST - Hito 3)';
+    } else if (r.includes('cocolab')) {
+        resolvedLabel = 'Módulo: Comité de Convivencia Laboral (COCOLAB - Hito 3)';
+    } else if (r.includes('academia') || r.includes('cursos')) {
+        resolvedLabel = 'Módulo: Escuela WAPPY / Academia y Cursos de Capacitación (Hito 6)';
+    } else if (r.includes('marketplace') || r.includes('tienda')) {
+        resolvedLabel = 'Módulo: Marketplace / Tienda Oficial WAPPY SST';
+    } else if (r.includes('aplicaciones')) {
+        resolvedLabel = 'Módulo: Catálogo de Aplicaciones WAPPY';
+    } else if (r.includes('wappystudio')) {
+        resolvedLabel = 'Módulo: Wappy Studio (Producción Creativa y Audiovisual)';
+    } else if (r.includes('predictivo')) {
+        resolvedLabel = 'Módulo: Inteligencia Artificial y Oráculo Predictivo (Hito 8)';
+    } else if (r.includes('/sgsst')) {
+        resolvedLabel = 'Módulo: Sistema de Gestión SG-SST (Dashboard de Hitos)';
     }
-    if (r.includes('perfil_cargo') || r.includes('profesigrama')) {
-        return 'Módulo: Perfiles de Cargo y Profesiogramas (Hito 2 - Huella Biocéntrica)';
+
+    if (hasEmbeddedWappyRoute) {
+        return resolvedLabel
+            ? `Navegador WAPPY en Tenshi: ${cleanRoute} (${resolvedLabel})`
+            : `Navegador WAPPY en Tenshi: ${cleanRoute}`;
     }
-    if (r.includes('condiciones_salud')) {
-        return 'Módulo: Condiciones de Salud y Evaluaciones Médicas Ocupacionales (Hito 2)';
+
+    if (resolvedLabel) {
+        return resolvedLabel;
     }
-    if (r.includes('diagnostico') || r.includes('0312')) {
-        return 'Módulo: Diagnóstico Inicial y Estándares Mínimos Resolución 0312 (Hito 1)';
-    }
-    if (r.includes('matriz_ipevar') || r.includes('peligros') || r.includes('gtc45')) {
-        return 'Módulo: Matriz de Riesgos y Peligros IPEVAR / GTC-45 (Hito 1 / Hito 4)';
-    }
-    if (r.includes('matriz_pesv') || r.includes('vehicles_pesv') || r.includes('pesv')) {
-        return 'Módulo: Plan Estratégico de Seguridad Vial PESV (Resolución 20223040040595)';
-    }
-    if (r.includes('matriz_compatibilidad') || r.includes('chemical')) {
-        return 'Módulo: Matriz de Compatibilidad Química y Sustancias Peligrosas SGA (Hito 5)';
-    }
-    if (r.includes('animo')) {
-        return 'Módulo: Termómetro Emocional y Monitoreo de Clima Laboral (Hito 4)';
-    }
-    if (r.includes('investigacion_atel') || r.includes('atel')) {
-        return 'Módulo: Investigación de Incidentes y Accidentes de Trabajo ATEL (Hito 7)';
-    }
-    if (r.includes('estadisticas')) {
-        return 'Módulo: Indicadores y Estadísticas de Siniestralidad y Ausentismo (Hito 7)';
-    }
-    if (r.includes('/tareas') || r.includes('automatizaciones')) {
-        return 'Módulo: Tareas (tareas programadas de agentes IA, antes Automatizaciones IA)';
-    }
-    if (r.includes('control_acpm') || r.includes('/control')) {
-        return 'Módulo: Centro de Control de Acciones Correctivas y Preventivas ACPM (Kanban)';
-    }
-    if (r.includes('copasst')) {
-        return 'Módulo: Comité Paritario de Seguridad y Salud en el Trabajo (COPASST - Hito 3)';
-    }
-    if (r.includes('cocolab')) {
-        return 'Módulo: Comité de Convivencia Laboral (COCOLAB - Hito 3)';
-    }
-    if (r.includes('academia') || r.includes('cursos')) {
-        return 'Módulo: Escuela WAPPY / Academia y Cursos de Capacitación (Hito 6)';
-    }
-    if (r.includes('predictivo')) {
-        return 'Módulo: Inteligencia Artificial y Oráculo Predictivo (Hito 8)';
-    }
-    if (r.includes('/sgsst')) {
-        return 'Módulo: Sistema de Gestión SG-SST (Dashboard de Hitos)';
-    }
+
     if (r.startsWith('/c/') || r === '/' || r === '/c' || r.includes('/c/') || r.includes('/chat')) {
         return 'Modo Hero de Tenshi (Asistente Principal con Chat y Canvas Integrado)';
     }
-    return `Pantalla actual: ${route}`;
+    return `Pantalla actual: ${cleanRoute}`;
 }
 
 /**
  * Determina de forma determinista si una solicitud de informe/reporte debe redirigirse
  * al editor nativo de un aplicativo Somos SST (/sgsst) en lugar de generar un entregable en Canvas.
  * NUNCA redirige por palabras genéricas aisladas como "módulo" o "pantalla", ni cuando el usuario
- * solicita entregables Canvas/HTML/Word/Excel/interactivos o se encuentra en Modo Hero (/c/new).
+ * solicita entregables Canvas/HTML/Word/Excel/interactivos o se encuentra en Modo Hero (/c/new)
+ * sin el Navegador WAPPY integrado activo sobre /sgsst.
  */
-function shouldRedirectReportToSgsstApp(reqLower, toolArgs = {}, activeScreenRoute = '', isHeroMode = false) {
+function shouldRedirectReportToSgsstApp(reqLower, toolArgs = {}, activeScreenRoute = '', isHeroMode = false, embeddedBrowserActive = false) {
     const text = String(reqLower || '').toLowerCase();
     const route = String(activeScreenRoute || '').toLowerCase().trim();
-    const isOnSgsstApp = !Boolean(isHeroMode) && route.startsWith('/sgsst');
+    const hasLiveScreen = !Boolean(isHeroMode) || (Boolean(embeddedBrowserActive) && isRealWappyRoute(route));
+    const isOnSgsstApp = hasLiveScreen && route.startsWith('/sgsst');
 
     const mentionsExplicitAppButtonOrEditor = /\b(bot[oó]n\s+(?:de\s+)?generar(?:\s+con)?\s+ia|editor\s+del\s+aplicativo)\b/i.test(text);
 
@@ -1018,8 +1038,9 @@ class VoiceSession {
         this.geminiClient = null;
         this.isActive = false;
         this.isHeroMode = Boolean(config.isHeroMode);
+        this.embeddedBrowserActive = Boolean(config.embeddedBrowserActive);
         this.activeScreenRoute = config.route || '';
-        this.activeScreenAgent = !this.isHeroMode && (config.agentId || config.agentName)
+        this.activeScreenAgent = (!this.isHeroMode || this.embeddedBrowserActive) && (config.agentId || config.agentName)
             ? { id: config.agentId, name: config.agentName || '' }
             : null;
 
@@ -1074,17 +1095,17 @@ class VoiceSession {
                     functionDeclarations: [
                         {
                             name: "wappy_navegar",
-                            description: "Navega de inmediato a cualquier módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.",
+                            description: "Abre y navega de inmediato a cualquier módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST directamente dentro del Navegador WAPPY integrado en Tenshi (pestaña 🌐 Wappy), manteniendo la sesión de voz activa y permitiéndote leer ('leer_pantalla'), operar ('operar_interfaz_visual') o diligenciar ('wappy_diligenciar_formulario') esa pantalla inmediatamente. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección, aplicativo o hito.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     modulo: {
                                         type: "string",
-                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'contexto_organizacion' (DOFA y partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'oportunidades_sst', 'vulnerabilidad', 'plan_emergencias', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'oraculo_predictivo', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'peligros', 'metodo_owas', 'estudio_puesto', 'animo', 'compras_sst', 'contratistas_proveedores', 'gestion_cambio', 'analisis_trabajo_seguro', 'permiso_alturas', 'heights_lifecycle', 'epp_delivery', 'chemical_registry', 'vehicles_pesv', 'equipos_emergencia', 'comunicaciones_sst', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'simulacros_emergencia', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes' (/planes planes de suscripción), 'academia' (/academia?tab=cursos), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'control' (/sgsst/control Centro de Control / Kanban de actividades ACPM), 'tareas' (/tareas: sección 'Tareas' debajo de Centro de Control; tareas programadas de agentes IA, antes 'Automatizaciones'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                                        description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'contexto_organizacion' (DOFA y partes interesadas), 'diagnostico' (0312), 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'participacion_ipevar', 'matriz_peligros' (/sgsst?hito=hito1&module=matriz_peligros), 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'oportunidades_sst', 'vulnerabilidad', 'plan_emergencias', 'perfil_cargo', 'perfil_socio', 'huella_biocentrica' (/huella-biocentrica), 'condiciones_salud', 'oraculo_predictivo', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'peligros', 'metodo_owas', 'estudio_puesto', 'animo', 'compras_sst', 'contratistas_proveedores', 'gestion_cambio', 'analisis_trabajo_seguro', 'permiso_alturas', 'heights_lifecycle', 'epp_delivery', 'chemical_registry', 'vehicles_pesv', 'equipos_emergencia', 'comunicaciones_sst', 'capacitaciones', 'ruta_aprendizaje', 'reporte_actos', 'simulacros_emergencia', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'control' (/sgsst/control Centro de Control / Kanban de actividades ACPM), 'academia' (/academia o /academia?tab=cursos), 'tareas' (/tareas: sección 'Tareas' debajo de Centro de Control; tareas programadas de agentes IA, antes 'Automatizaciones'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'marketplace' (/marketplace o /tienda tienda productos SST), 'tienda', 'aplicaciones' (/aplicaciones catálogo de aplicaciones WAPPY), 'wappystudio' (/wappystudio Wappy Studio), 'planes' (/planes planes de suscripción), 'training_admin', 'rutas' (/academia?tab=rutas), 'ruta_admin', 'blog' (/academia?tab=blog), 'blog_admin', 'clases_en_vivo' (/academia?tab=meet clases en vivo de la academia), 'events_meet', 'events_meet_admin', 'marketplace_admin', 'agents' (/agents catálogo agentes IA), 'animo_dashboard', 'empresas' (/sgsst?modal=empresas donde van las empresas registradas), 'empresas_registradas', 'configuracion' (sección de configuración y ajustes del usuario), 'settings', 'live' (/c/new), 'chat_sst', 'regresar' (para volver al chat desde planes/términos/privacidad/about), 'volver', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy' (/privacy política de privacidad), 'terms' (/terms términos de servicio), 'about' (/about acerca de nosotros). Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
                                     },
                                     ruta: {
                                         type: "string",
-                                        description: "Ruta URL interna exacta (opcional si se especifica modulo). Ejemplos: '/sgsst?hito=hito8&module=predictivo', '/sgsst?hito=hito1&module=diagnostico', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=copasst', '/sgsst?hito=hito4&module=peligros', '/sgsst?hito=hito5&module=vehicles_pesv', '/sgsst?hito=hito6&module=capacitaciones', '/sgsst?hito=hito7&module=investigacion_atel', '/planes', '/academia?tab=cursos', '/academia?tab=meet', '/academia?tab=blog', '/training/admin', '/ruta-aprendizaje/admin', '/blog', '/blog/admin', '/events-meet', '/marketplace', '/tienda', '/marketplace/admin', '/agents', '/sgsst/control', '/sgsst/animo', '/auditoria', '/c/new', '/chat-sst', '/hoja-de-ruta', '/contactanos', '/comunidad', '/matriz', '/embajadores', '/embajadores/dashboard', '/tenshi/admin', '/privacy', '/terms', '/about'."
+                                        description: "Ruta URL interna exacta a abrir en el Navegador WAPPY integrado en Tenshi (opcional si se especifica modulo). Ejemplos clave: '/sgsst/control' (Centro de Control), '/sgsst?hito=hito1&module=matriz_peligros' (Matriz de Peligros), '/academia', '/tareas', '/marketplace', '/aplicaciones', '/huella-biocentrica', '/wappystudio', '/sgsst?hito=hito8&module=predictivo', '/sgsst?hito=hito1&module=diagnostico', '/sgsst?hito=hito2&module=perfil_cargo', '/sgsst?hito=hito3&module=copasst', '/sgsst?hito=hito4&module=peligros', '/sgsst?hito=hito5&module=vehicles_pesv', '/sgsst?hito=hito6&module=capacitaciones', '/sgsst?hito=hito7&module=investigacion_atel', '/planes', '/academia?tab=cursos', '/academia?tab=meet', '/academia?tab=blog', '/training/admin', '/ruta-aprendizaje/admin', '/blog', '/blog/admin', '/events-meet', '/tienda', '/marketplace/admin', '/agents', '/sgsst/animo', '/auditoria', '/c/new', '/chat-sst', '/hoja-de-ruta', '/contactanos', '/comunidad', '/matriz', '/embajadores', '/embajadores/dashboard', '/tenshi/admin', '/privacy', '/terms', '/about'."
                                     }
                                 },
                                 required: ["modulo"]
@@ -2302,13 +2323,14 @@ class VoiceSession {
                         },
                         {
                             name: "wappy_activar_herramienta_agente",
-                            description: "Activa y abre de inmediato en una pestaña dedicada junto a Canvas dentro de Tenshi cualquiera de las 12 herramientas especializadas con panel de los agentes de WAPPY: 'canvas', 'editor_live' (Editor en Vivo / documentos Word), 'editor_rit' (Editor de Reglamento Interno de Trabajo), 'matriz_ipevar' (Matriz GTC-45 IPEVR), 'matriz_pesv' (Matriz PESV), 'matriz_compatibilidad' (Matriz de Compatibilidad Química SGA), 'consultar_analitica_psicosocial' (Analítica Psicosocial y Clima/Ánimo), 'consultar_analitica_actos_condiciones' (Analítica de Actos y Condiciones Inseguras), 'gestor_automatizaciones' (Gestor de Automatizaciones y Tareas), 'wappy_investigar_trabajador_360' (Investigación OSINT 360° de trabajador), 'blog_editor' (Editor de Blog) y 'generar_imagen_sst' (Generador de Imágenes SST). Invócala SIEMPRE que el usuario pida activar, abrir o traer en pantalla una de estas herramientas.",
+                            description: "Activa y abre de inmediato en una pestaña dedicada junto a Canvas dentro de Tenshi cualquiera de las 13 herramientas especializadas con panel de los agentes de WAPPY: 'navegador_wappy' (Navegador WAPPY integrado 🌐 Wappy para abrir y operar cualquier ruta de WAPPY dentro de Tenshi sin cortar la voz), 'canvas', 'editor_live' (Editor en Vivo / documentos Word), 'editor_rit' (Editor de Reglamento Interno de Trabajo), 'matriz_ipevar' (Matriz GTC-45 IPEVR), 'matriz_pesv' (Matriz PESV), 'matriz_compatibilidad' (Matriz de Compatibilidad Química SGA), 'consultar_analitica_psicosocial' (Analítica Psicosocial y Clima/Ánimo), 'consultar_analitica_actos_condiciones' (Analítica de Actos y Condiciones Inseguras), 'gestor_automatizaciones' (Gestor de Automatizaciones y Tareas), 'wappy_investigar_trabajador_360' (Investigación OSINT 360° de trabajador), 'blog_editor' (Editor de Blog) y 'generar_imagen_sst' (Generador de Imágenes SST). Invócala SIEMPRE que el usuario pida activar, abrir o traer en pantalla una de estas herramientas.",
                             parameters: {
                                 type: "object",
                                 properties: {
                                     herramienta: {
                                         type: "string",
                                         enum: [
+                                            "navegador_wappy",
                                             "canvas",
                                             "editor_live",
                                             "editor_rit",
@@ -2322,14 +2344,15 @@ class VoiceSession {
                                             "blog_editor",
                                             "generar_imagen_sst"
                                         ],
-                                        description: "ID canónico exacto de la herramienta con panel a abrir en pestaña junto a Canvas dentro de Tenshi: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor', 'generar_imagen_sst'."
+                                        description: "ID canónico exacto de la herramienta con panel a abrir en pestaña junto a Canvas dentro de Tenshi: 'navegador_wappy', 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor', 'generar_imagen_sst'."
                                     },
                                     parametros: {
                                         type: "object",
-                                        description: "Parámetros o argumentos específicos para la herramienta.",
+                                        description: "Parámetros o argumentos específicos para la herramienta (por ejemplo, ruta interna opcional para 'navegador_wappy').",
                                         properties: {
                                             accion: { type: "string", description: "Acción a realizar en la herramienta" },
-                                            datos: { type: "string", description: "Datos, contenido o configuración" }
+                                            datos: { type: "string", description: "Datos, contenido o configuración" },
+                                            ruta: { type: "string", description: "Ruta interna opcional de WAPPY para abrir en 'navegador_wappy' (ej. '/sgsst/control', '/sgsst?hito=hito1&module=matriz_peligros', '/academia', '/tareas')." }
                                         }
                                     }
                                 },
@@ -2898,7 +2921,7 @@ class VoiceSession {
 [AGENDA PERSONAL, KANBAN, MÓDULOS Y PÁGINAS INSTITUCIONALES]:
 - AGENDA PERSONAL ("¿qué tengo hoy/mañana?", "mis reuniones", "revisa mi agenda"): PRIORIZA SIEMPRE 'google_calendar' (action: 'list_events' con timeMin en hora Colombia) sobre el cronograma SST; indica si no hay eventos y menciona pendientes SST si aplica. Para "tareas del cronograma SST", usa 'wappy_mcp_sst' o 'somos_sst'.
 - CENTRO DE CONTROL / KANBAN (/sgsst/control): PROHIBIDO listar tareas como lista plana; diferencia SIEMPRE las 4 etapas: 1) 'todo' (Por hacer), 2) 'due_soon' (Próximas a vencer), 3) 'overdue' (Vencidas), 4) 'done' (Completadas).
-- NAVEGACIÓN ('wappy_navegar'): Marketplace/Tienda ('marketplace' -> /marketplace, consulta con 'wappy_consultar_marketplace' y consultarPedidos: true); Academia ('academia' -> /academia?tab=cursos, abrir curso con \`wappy_abrir_curso\`); Clases en Vivo/Meet ('clases_en_vivo' o 'events_meet' -> /academia?tab=meet); Blog ('blog' -> /blog, \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`); Empresas registradas ('empresas' o 'empresas_registradas'); Configuración ('configuracion' o 'settings'); Páginas institucionales donde puedes usar 'leer_pantalla': /planes ('planes'), /terms ('terms'), /privacy ('privacy'), /about ('about'); Regresar ('regresar', 'volver', 'chat_sst' o 'sgsst').
+- NAVEGACIÓN EN NAVEGADOR WAPPY INTEGRADO ('wappy_navegar'): Abre cualquier ruta de WAPPY directamente dentro del **Navegador WAPPY integrado en Tenshi (pestaña 🌐 Wappy)** manteniendo la voz activa para leer (\`leer_pantalla\`), operar (\`operar_interfaz_visual\`) o diligenciar (\`wappy_diligenciar_formulario\`) esa pantalla de inmediato sin salir de Tenshi. Rutas clave: Centro de Control (\`/sgsst/control\`), Matriz de Peligros (\`/sgsst?hito=hito1&module=matriz_peligros\`), Academia (\`/academia\` o \`/academia?tab=cursos\`, abrir curso con \`wappy_abrir_curso\`), Clases en Vivo/Meet (\`clases_en_vivo\`/\`events_meet\` -> \`/academia?tab=meet\`), Tareas/Automatizaciones (\`/tareas\`), Marketplace/Tienda (\`marketplace\` -> \`/marketplace\`, consulta con \`wappy_consultar_marketplace\` y \`consultarPedidos: true\`), Aplicaciones (\`/aplicaciones\`), Huella Biocéntrica (\`/huella-biocentrica\`), Wappy Studio (\`/wappystudio\`), Blog (\`/blog\`, \`wappy_consultar_blog\`/\`wappy_abrir_articulo_blog\`/\`wappy_leer_articulo_blog\`), Empresas registradas (\`empresas\` -> \`/sgsst?modal=empresas\`), Configuración (\`configuracion\`/\`settings\`), Páginas institucionales (\`/planes\`, \`/terms\`, \`/privacy\`, \`/about\`) y Regresar (\`regresar\`, \`volver\`, \`chat_sst\` o \`sgsst\`).
 
 [CORRELACIÓN TEMPORAL Y CONTINUIDAD]:
 - El hilo conductor lo marca el ÚLTIMO mensaje ([HILO CONDUCTOR ACTIVO Y VIGENTE]) y la pantalla abierta ahora. PROHIBIDO regresar a temas concluidos del pasado salvo solicitud explícita del usuario.
@@ -2915,7 +2938,7 @@ class VoiceSession {
 
 [DECISIÓN DETERMINISTA DE INFORMES, CANVAS, CLICS Y ESPECIALISTAS]:
 Clasifica cualquier pedido de informe/acción en estos 4 casos exactos:
-1. MÓDULO APLICATIVO EN PANTALLA (/sgsst?...) ("haz el informe del aplicativo/responsable/política/objetivos", "dale clic en generar IA/análisis", "dale clic tú", "regenera el informe"):
+1. MÓDULO APLICATIVO EN PANTALLA (/sgsst?..., en pantalla completa o abierto en el Navegador WAPPY integrado en Tenshi) ("haz el informe del aplicativo/responsable/política/objetivos", "dale clic en generar IA/análisis", "dale clic tú", "regenera el informe"):
    - Invoca DE INMEDIATO 'operar_interfaz_visual' ({ accion: 'click', detalle: 'Generar IA', texto: 'Generar IA' }) o 'wappy_generar_analisis_aplicativo'. Di solo "Generando el informe con IA en tu pantalla..." y espera resultado. PROHIBIDO usar 'canvas_tool', 'wappy_crear_informe' o 'generar_informe_inspeccion_camara'.
    - Si el usuario confronta ("no le has dado clic", "es mentiras"), discúlpate brevemente e invoca 'operar_interfaz_visual' al instante sin inventar datos viejos.
    - Para llenar/escribir campos en formularios: invoca 'operar_interfaz_visual' ({ accion: 'escribir', detalle: '<campo>', texto: '<contenido>' }) o 'wappy_diligenciar_formulario' y confirma oralmente.
@@ -2946,7 +2969,7 @@ Clasifica cualquier pedido de informe/acción en estos 4 casos exactos:
 3. **APIS EXTERNAS, QR, ANALÍTICA, OFIMÁTICA Y MULTIMEDIA**: \`wappy_consultar_quimico_pubchem\`, \`wappy_consultar_clima_viento\` (alturas Res. 4272: >30 km/h o ráfagas >40 km/h suspenden), \`wappy_geocodificar_emergencias\` (query corta '<tipo> <barrio> <ciudad>', lee \`resumenVoz\` real y recuerda reportar ARL), \`wappy_generar_qr\`, \`wappy_consultar_analitica_psicosocial\`, \`wappy_consultar_analitica_actos_condiciones\`, \`wappy_gestionar_agenda\`, \`google_calendar\`, \`google_gmail\` (\`batch_trash_emails\`/\`trash_email\`), \`google_sheets/docs/slides\`, \`onedrive\`, \`editor_rit\`, \`somos_sst\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`, \`notebooklm_*\`, \`wappy_consultar_rehabilitacion_medlineplus\`, \`google_flow_*\`.
 4. **DRIVE IMPORT**: Perfil sociodemográfico/salud desde Drive -> \`wappy_importar_sociodemografico_drive\`. Matrices Hito 1 (gtc45, pesv, compatibilidad, vulnerabilidad, diagnostico, responsable; matriz legal en construcción) -> \`wappy_importar_hito1_drive\`.
 5. **TAREAS / FLUJOS ('gestor_automatizaciones')**: Para los 16 Flujos Tenshi globales usa \`accion: 'ejecutar_tenshi'\` (\`automatizacion_id\`/\`nombre\`, \`instruccion_usuario\` literal, \`esperar_resultado: true\`). Para preguntas sobre nodos de \`/tareas\` (ReTHUS/ADRES CAPTCHA vs APIs, conexiones, puertos, casillas, Operativo vs En Construcción, diseño), usa \`accion: 'consultar_documentacion_nodos'\` con \`busqueda_nodo\` y recuerda el botón "Guía de Nodos" junto a "Flujos Preestablecidos" en \`/tareas\`. En tareas de empresa pasa el nombre exacto SIN inventar códigos; usa \`accion: 'crear'\` (DAG con \`disparadores\`, \`comando_tenshi\`, \`hitos_fuente\`, \`herramientas_ia\`, \`extractores\`, \`salidas\`, \`incluir_condicion_if\`, \`condicion_if\`, \`modelo_ia\`, \`crear_como_flujo_tenshi\`) solo para flujos nuevos; "desactiva/pausa/apaga" -> \`desactivar\`/\`desactivar_todas\` (NUNCA \`eliminar\`).
-6. **ACTIVAR PANELES EN PESTAÑA JUNTO A CANVAS ('wappy_activar_herramienta_agente')**: Invoca de inmediato con el ID canónico exacto en \`herramienta\`: \`canvas\`, \`editor_live\`, \`editor_rit\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`, \`consultar_analitica_psicosocial\`, \`consultar_analitica_actos_condiciones\`, \`gestor_automatizaciones\`, \`wappy_investigar_trabajador_360\`, \`blog_editor\` o \`generar_imagen_sst\`.
+6. **ACTIVAR PANELES EN PESTAÑA JUNTO A CANVAS ('wappy_activar_herramienta_agente')**: Invoca de inmediato con el ID canónico exacto en \`herramienta\`: \`navegador_wappy\` (pestaña 🌐 Wappy para navegar cualquier ruta de WAPPY dentro de Tenshi manteniendo la voz activa), \`canvas\`, \`editor_live\`, \`editor_rit\`, \`matriz_ipevar\`, \`matriz_pesv\`, \`matriz_compatibilidad\`, \`consultar_analitica_psicosocial\`, \`consultar_analitica_actos_condiciones\`, \`gestor_automatizaciones\`, \`wappy_investigar_trabajador_360\`, \`blog_editor\` o \`generar_imagen_sst\`.
 
 [METODOLOGÍAS SST]:
 1. **ATEL (Res. 1401/2007)**: 15 días equipo investigador + ARL; 10 días graves/mortales; Árbol de causas, Ishikawa 6M, 5 Porqués, ILCI.
@@ -3416,16 +3439,24 @@ Clasifica cualquier pedido de informe/acción en estos 4 casos exactos:
 
                     // Inyectar contexto inmediato de pantalla y módulo activo
                     const currentRoute = this.activeScreenRoute || '/c/new';
-                    const isOnSgsstApp = !this.isHeroMode && currentRoute.startsWith('/sgsst');
+                    const isEmbeddedWappyActive = Boolean(this.embeddedBrowserActive) && isRealWappyRoute(currentRoute);
+                    const isLiveScreenActive = !this.isHeroMode || isEmbeddedWappyActive;
+                    const isOnSgsstApp = isLiveScreenActive && currentRoute.startsWith('/sgsst');
                     const humanScreen = formatScreenRouteHuman(
                         currentRoute,
-                        this.isHeroMode ? null : this.activeScreenAgent,
-                        this.isHeroMode
+                        this.isHeroMode && !isEmbeddedWappyActive ? null : this.activeScreenAgent,
+                        this.isHeroMode,
+                        this.embeddedBrowserActive
                     );
                     if (isOnSgsstApp) {
                         companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
-- Módulo en pantalla: ${humanScreen} (Ruta: ${currentRoute}).
-- FOCO DE TRABAJO INMEDIATO: El usuario tiene este módulo abierto en su pantalla ahora mismo. Cualquier petición de acción, clic en botones, generación de análisis o informe con IA, o consulta sobre datos debe entenderse y ejecutarse EXCLUSIVAMENTE sobre este módulo visible (${humanScreen}). ESTÁ TOTALMENTE PROHIBIDO desviar la conversación hacia módulos o temas tratados en el pasado.`;
+- Módulo en pantalla: ${humanScreen} (Ruta: ${currentRoute}${isEmbeddedWappyActive ? ', abierto en Navegador WAPPY integrado en Tenshi' : ''}).
+- FOCO DE TRABAJO INMEDIATO: El usuario tiene este módulo abierto en su pantalla ahora mismo${isEmbeddedWappyActive ? ' dentro de la pestaña 🌐 Wappy (Navegador WAPPY integrado en Tenshi)' : ''}. Cualquier petición de acción, clic en botones, generación de análisis o informe con IA, lectura (\`leer_pantalla\`) o diligenciamiento (\`operar_interfaz_visual\` / \`wappy_diligenciar_formulario\`) debe entenderse y ejecutarse EXCLUSIVAMENTE sobre este módulo visible (${humanScreen}). ESTÁ TOTALMENTE PROHIBIDO desviar la conversación hacia módulos o temas tratados en el pasado.`;
+                    } else if (isEmbeddedWappyActive) {
+                        companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
+- Pantalla activa: ${humanScreen} (Ruta: ${currentRoute}, abierto en Navegador WAPPY integrado en Tenshi).
+- FOCO DE TRABAJO INMEDIATO: El usuario tiene esta pantalla de WAPPY abierta en vivo dentro de la pestaña 🌐 Wappy (Navegador WAPPY integrado en Tenshi). Puedes leer su contenido con \`leer_pantalla\`, operar botones/campos con \`operar_interfaz_visual\` o navegar a otra ruta con \`wappy_navegar\` manteniendo la voz activa.
+- ENTREGABLES CANVAS: Cualquier solicitud de informe descargable, Word, Excel, HTML interactivo o presentación DEBE resolverse invocando \`canvas_tool\` (o \`wappy_crear_informe\`).`;
                     } else {
                         companyAndMemoryPrompt += `\n\n[PANTALLA Y MÓDULO VISIBLE EN ESTE MOMENTO]:
 - Pantalla activa: ${humanScreen} (Ruta: ${currentRoute}${this.isHeroMode ? ', Modo Hero de Tenshi ACTIVO' : ''}).
@@ -5134,11 +5165,12 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             reqLower,
                             fc.args,
                             this.activeScreenRoute,
-                            this.isHeroMode
+                            this.isHeroMode,
+                            this.embeddedBrowserActive
                         );
 
                         if (isAppReport) {
-                            logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode})`);
+                            logger.info(`[VoiceSession] canvas_tool redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode}, embeddedBrowserActive=${this.embeddedBrowserActive})`);
                             let app = 'actual';
                             if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
                             else if (/objetivo/i.test(reqLower)) app = 'objetivos';
@@ -5149,9 +5181,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             else if (/emergencia|vulnerab/i.test(reqLower)) app = 'vulnerabilidad';
                             else if (/responsable/i.test(reqLower)) app = 'responsable';
 
-                            const isOnSgsstAppNow = !this.isHeroMode && String(this.activeScreenRoute || '').startsWith('/sgsst');
+                            const isOnSgsstAppNow = (!this.isHeroMode || this.embeddedBrowserActive) && String(this.activeScreenRoute || '').startsWith('/sgsst');
 
-                            // Disparar click real en "Generar IA" únicamente si estamos realmente dentro de /sgsst (sin Modo Hero)
+                            // Disparar click real en "Generar IA" únicamente si estamos realmente dentro de /sgsst (pantalla completa o Navegador WAPPY embebido)
                             if (isOnSgsstAppNow) {
                                 this.sendToClient({
                                     type: 'wappy_action',
@@ -5527,11 +5559,12 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             reqLower,
                             fc.args,
                             this.activeScreenRoute,
-                            this.isHeroMode
+                            this.isHeroMode,
+                            this.embeddedBrowserActive
                         );
 
                         if (isAppReport) {
-                            logger.info(`[VoiceSession] wappy_crear_informe redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode})`);
+                            logger.info(`[VoiceSession] wappy_crear_informe redirected to wappy_generar_analisis_aplicativo for app report ("${userRequestText}", route="${this.activeScreenRoute}", isHeroMode=${this.isHeroMode}, embeddedBrowserActive=${this.embeddedBrowserActive})`);
                             let app = fc.args?.modulo || fc.args?.aplicativo || 'responsable';
                             if (/pol[ií]tica/i.test(reqLower)) app = 'politica';
                             else if (/objetivo/i.test(reqLower)) app = 'objetivos';
@@ -6788,7 +6821,8 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                                     rawUserContext.toLowerCase(),
                                     targetArgs,
                                     this.activeScreenRoute,
-                                    this.isHeroMode
+                                    this.isHeroMode,
+                                    this.embeddedBrowserActive
                                 );
                                 if (isAppReport) {
                                     logger.warn(`[VoiceSession] Gemini Live intentó delegar orden de aplicativo a Antigravity ("${rawUserContext}"). Redirigiendo a wappy_generar_analisis_aplicativo.`);
@@ -7085,7 +7119,9 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                             this.geminiClient.sendToolResponse([{
                                 id: fc.id,
                                 name: fc.name,
-                                response: { result: `Navegando de inmediato a la sección ${target} en pantalla.` }
+                                response: {
+                                    result: `Navegando de inmediato a la sección ${target} en pantalla${this.isHeroMode ? ' dentro del Navegador WAPPY integrado en Tenshi (pestaña 🌐 Wappy, manteniendo la voz activa para leer, operar o diligenciar esa pantalla)' : ''}.`
+                                }
                             }]);
                         }
                         continue;
@@ -7119,12 +7155,13 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                         const detalle = fc.args?.detalle || fc.args?.campo || fc.args?.texto || 'elemento';
                         const texto = fc.args?.texto;
                         const isBlockedGenerateAiClick =
+                            !this.embeddedBrowserActive &&
                             (this.isHeroMode || !String(this.activeScreenRoute || '').startsWith('/sgsst')) &&
                             String(accion).toLowerCase() === 'click' &&
                             /generar\s*(con\s*)?ia|generar\s*an[aá]lisis|bot[oó]n\s+de\s+generar/i.test(`${detalle} ${texto || ''}`);
 
                         if (isBlockedGenerateAiClick) {
-                            logger.warn(`[VoiceSession] Bloqueado click ciego "${detalle}" vía operar_interfaz_visual fuera de /sgsst (isHeroMode=${this.isHeroMode}, route="${this.activeScreenRoute || '/c/new'}")`);
+                            logger.warn(`[VoiceSession] Bloqueado click ciego "${detalle}" vía operar_interfaz_visual fuera de /sgsst (isHeroMode=${this.isHeroMode}, embeddedBrowserActive=${this.embeddedBrowserActive}, route="${this.activeScreenRoute || '/c/new'}")`);
                             if (this.geminiClient) {
                                 this.sendGeminiToolResponse([{
                                     id: fc.id,
@@ -8735,6 +8772,11 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     if (typeof data.isHeroMode === 'boolean') {
                         this.isHeroMode = data.isHeroMode;
                     }
+                    if (Object.prototype.hasOwnProperty.call(data, 'embeddedBrowserActive')) {
+                        this.embeddedBrowserActive = Boolean(data.embeddedBrowserActive);
+                    } else if (data.isHeroMode === false) {
+                        this.embeddedBrowserActive = false;
+                    }
                     if (data.conversationId && data.conversationId !== 'new') {
                         this.conversationId = data.conversationId;
                     }
@@ -8749,18 +8791,23 @@ Responde con calidez ejecutiva, criterio técnico integral en SG-SST y recomenda
                     if (typeof data.route === 'string' && data.route.trim()) {
                         this.activeScreenRoute = data.route.trim();
                     }
-                    if (data.isHeroMode === true || this.isHeroMode === true) {
-                        this.activeScreenAgent = null;
-                    } else if (data.agentId || data.agentName) {
-                        this.activeScreenAgent = {
-                            id: data.agentId,
-                            name: data.agentName
-                        };
-                    } else if (data.agentId === null || data.agentName === null) {
+                    if (data.agentId || data.agentName) {
+                        this.activeScreenAgent = (this.isHeroMode && !this.embeddedBrowserActive)
+                            ? null
+                            : {
+                                id: data.agentId,
+                                name: data.agentName
+                            };
+                    } else if (data.isHeroMode === true || this.isHeroMode === true || data.agentId === null || data.agentName === null) {
                         this.activeScreenAgent = null;
                     }
-                    const humanDesc = formatScreenRouteHuman(this.activeScreenRoute, this.activeScreenAgent, this.isHeroMode);
-                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, tenshiConversationId=${this.activeTenshiConversationId}, selectedNotebooks=${this.selectedTenshiNotebooks.length}, isHeroMode=${this.isHeroMode}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
+                    const humanDesc = formatScreenRouteHuman(
+                        this.activeScreenRoute,
+                        this.activeScreenAgent,
+                        this.isHeroMode,
+                        this.embeddedBrowserActive
+                    );
+                    logger.info(`[VoiceSession] Updated screen context: conversationId=${this.conversationId}, tenshiConversationId=${this.activeTenshiConversationId}, selectedNotebooks=${this.selectedTenshiNotebooks.length}, isHeroMode=${this.isHeroMode}, embeddedBrowserActive=${this.embeddedBrowserActive}, activeScreenAgent=${JSON.stringify(this.activeScreenAgent)}, route=${this.activeScreenRoute} (${humanDesc})`);
                 }
                 break;
 
@@ -9481,7 +9528,7 @@ Devuelve ÚNICA Y EXCLUSIVAMENTE el texto corregido en español con puntuación 
                 userRequestText: userPrompt,
                 isVoiceSession: true,
                 screenContext: this.activeScreenRoute || '',
-                agentContext: this.lastSpecialistResponse || (this.isHeroMode ? '' : this.activeScreenAgent?.name) || '',
+                agentContext: this.lastSpecialistResponse || (this.isHeroMode && !this.embeddedBrowserActive ? '' : this.activeScreenAgent?.name) || '',
             }
         };
 
@@ -11326,8 +11373,8 @@ ${workerSubHeaderHtml}
         }
 
         // 2. Failsafe para clics en 'Generar IA' / 'Generar Análisis' / informe del aplicativo si Gemini omitió el tool call
-        // SOLO cuando el usuario está dentro de un formulario /sgsst (NUNCA en Modo Hero ni /c/new ni si pide entregable Canvas/HTML/Word/Excel)
-        const isOnSgsstAppNow = !this.isHeroMode && String(this.activeScreenRoute || '').startsWith('/sgsst');
+        // SOLO cuando el usuario está dentro de un formulario /sgsst (en pantalla completa o en Navegador WAPPY embebido; NUNCA en Modo Hero puro ni /c/new ni si pide entregable Canvas/HTML/Word/Excel)
+        const isOnSgsstAppNow = (!this.isHeroMode || this.embeddedBrowserActive) && String(this.activeScreenRoute || '').startsWith('/sgsst');
         const hasCanvasDeliverableIntent = /\b(html|interactiv[oa]|canvas|word|docx?|excel|xlsx?|presentaci[oó]n|diapositivas|pptx|pdf|descargable|landing|prototipo|tablero|dashboard|calculadora|simulador)\b/i.test(userLower);
         const clickAnalyzeMatch = /(?:dale\s+clic|haz\s+clic|pulsa|presiona|genera|generar|regenera|regenerar|haz|hacer|realiza|realizar)\s+(?:en\s+|el\s+)?(?:bot[oó]n\s+)?(?:de\s+)?(?:generar\s+)?(?:an[aá]lisis|informe|ia|aplicativo|m[oó]dulo)/i.test(userLower) ||
             /\b(informe|an[aá]lisis)\s+(del|de\s+este)\s+(aplicativo|m[oó]dulo|formulario)\b/i.test(userLower) ||

@@ -3,6 +3,8 @@
  * Implementa de manera ligera los conceptos de "Deshidratación de DOM" y "Simulación de Eventos" de Page-Agent.
  */
 
+import { stripTenshiEmbedParam } from '~/utils/tenshiEmbed';
+
 export interface InteractiveElement {
   element: HTMLElement;
   index: number;
@@ -14,8 +16,51 @@ export interface InteractiveElement {
   text: string;
 }
 
+export interface TenshiBrowserContext {
+  doc: Document;
+  win: Window;
+  isEmbeddedFrame: boolean;
+}
+
 // Mapa para rastrear las referencias de elementos activos indexados
 let selectorMap = new Map<number, HTMLElement>();
+
+// Referencia viva al iframe del Navegador WAPPY Integrado dentro de Tenshi (same-origin)
+let embeddedBrowserFrame: HTMLIFrameElement | null = null;
+
+/**
+ * Registra o limpia el iframe activo del Navegador WAPPY integrado en Tenshi.
+ */
+export function setTenshiEmbeddedBrowserFrame(iframe: HTMLIFrameElement | null): void {
+  embeddedBrowserFrame = iframe;
+}
+
+/**
+ * Resuelve el contexto DOM/Window objetivo para leer_pantalla, getDehydratedDOM y operar_interfaz_visual.
+ * Si el Navegador WAPPY embebido está montado, visible y es same-origin accesible, apunta al iframe;
+ * de lo contrario apunta al documento/ventana principal.
+ */
+export function getTenshiEmbeddedBrowserContext(): TenshiBrowserContext {
+  if (embeddedBrowserFrame && embeddedBrowserFrame.isConnected) {
+    try {
+      const rect = embeddedBrowserFrame.getBoundingClientRect();
+      const iframeWin = embeddedBrowserFrame.contentWindow;
+      const iframeDoc = embeddedBrowserFrame.contentDocument || iframeWin?.document;
+      if (
+        iframeWin &&
+        iframeDoc &&
+        iframeDoc.body &&
+        rect.width > 0 &&
+        rect.height > 0
+      ) {
+        return { doc: iframeDoc, win: iframeWin, isEmbeddedFrame: true };
+      }
+    } catch {
+      // Fallback seguro si el iframe no es accesible o está en transición
+    }
+  }
+  return { doc: document, win: window, isEmbeddedFrame: false };
+}
 
 /**
  * Muestra un "Cursor Fantasma / Halo de Co-Browsing" ultraligero (100% CSS transform/opacity, 0% WebGL)
@@ -24,10 +69,14 @@ let selectorMap = new Map<number, HTMLElement>();
 export function triggerTenshiGhostHalo(el: HTMLElement | null, actionLabel = 'Tenshi operando') {
   if (!el || typeof document === 'undefined') return;
   try {
+    const targetDoc = el.ownerDocument || document;
+    const targetWin = targetDoc.defaultView || window;
+    if (!targetDoc.body) return;
+
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
 
-    const halo = document.createElement('div');
+    const halo = targetDoc.createElement('div');
     halo.style.position = 'fixed';
     halo.style.left = `${Math.max(4, rect.left - 6)}px`;
     halo.style.top = `${Math.max(4, rect.top - 6)}px`;
@@ -42,7 +91,7 @@ export function triggerTenshiGhostHalo(el: HTMLElement | null, actionLabel = 'Te
     halo.style.transform = 'scale(0.96)';
     halo.style.opacity = '1';
 
-    const badge = document.createElement('div');
+    const badge = targetDoc.createElement('div');
     badge.textContent = `✨ ${actionLabel}`;
     badge.style.position = 'absolute';
     badge.style.top = '-24px';
@@ -57,9 +106,9 @@ export function triggerTenshiGhostHalo(el: HTMLElement | null, actionLabel = 'Te
     badge.style.boxShadow = '0 4px 10px rgba(13, 148, 136, 0.35)';
     halo.appendChild(badge);
 
-    document.body.appendChild(halo);
+    targetDoc.body.appendChild(halo);
 
-    requestAnimationFrame(() => {
+    targetWin.requestAnimationFrame(() => {
       halo.style.transform = 'scale(1.02)';
     });
 
@@ -81,11 +130,24 @@ export function isTenshiHeroActive(): boolean {
   return typeof document !== 'undefined' && document.documentElement.dataset.tenshiHero === 'true';
 }
 
+function isTargetDocHeroLocked(targetDoc: Document, isEmbeddedFrame: boolean): boolean {
+  if (isEmbeddedFrame) return false;
+  return targetDoc.documentElement?.dataset?.tenshiHero === 'true';
+}
+
 /**
  * Verifica si un elemento es visible en el viewport
  */
 function isElementVisible(el: HTMLElement): boolean {
-  if (isTenshiHeroActive() && !el.closest('#tenshi-mobile-hero-container')) {
+  const ownerDoc = el.ownerDocument || document;
+  const ownerWin = ownerDoc.defaultView || window;
+  const isFrameDoc = ownerDoc !== document;
+
+  if (
+    !isFrameDoc &&
+    ownerDoc.documentElement?.dataset?.tenshiHero === 'true' &&
+    !el.closest('#tenshi-mobile-hero-container')
+  ) {
     return false;
   }
 
@@ -93,7 +155,7 @@ function isElementVisible(el: HTMLElement): boolean {
 
   // Si tiene dimensiones cero, o está oculto por estilos, no es visible
   if (rect.width === 0 || rect.height === 0) return false;
-  const style = window.getComputedStyle(el);
+  const style = ownerWin.getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
 
   // Retornamos true aunque esté fuera del viewport (off-screen) para evitar que la IA
@@ -131,7 +193,8 @@ function isInteractive(el: HTMLElement): boolean {
   }
 
   // Si tiene un cursor de puntero configurado por CSS
-  const style = window.getComputedStyle(el);
+  const ownerWin = el.ownerDocument?.defaultView || window;
+  const style = ownerWin.getComputedStyle(el);
   if (style.cursor === 'pointer') {
     return true;
   }
@@ -185,10 +248,14 @@ function getInputLabel(el: HTMLElement): string {
   // 2. Asociaciones de etiqueta por ID (htmlFor)
   const id = el.getAttribute('id');
   if (id) {
-    const labelEl = document.querySelector(`label[for="${id}"]`);
-    if (labelEl && labelEl.textContent) {
-      return labelEl.textContent.trim().replace(/\s+/g, ' ');
-    }
+    try {
+      const ownerDoc = el.ownerDocument || document;
+      const escapedId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(id) : id.replace(/"/g, '\\"');
+      const labelEl = ownerDoc.querySelector(`label[for="${escapedId}"]`);
+      if (labelEl && labelEl.textContent) {
+        return labelEl.textContent.trim().replace(/\s+/g, ' ');
+      }
+    } catch (_) {}
   }
 
   // 3. Si el input está anidado dentro de una etiqueta label
@@ -229,7 +296,8 @@ function getInputLabel(el: HTMLElement): string {
 export function getDehydratedDOM(): string {
   try {
     selectorMap.clear();
-    if (isTenshiHeroActive()) {
+    const { doc: targetDoc, isEmbeddedFrame } = getTenshiEmbeddedBrowserContext();
+    if (isTargetDocHeroLocked(targetDoc, isEmbeddedFrame)) {
       return '<Modo Hero de Tenshi activo en primer plano (sin controles de aplicativo clásico visibles)>';
     }
     let index = 0;
@@ -279,7 +347,7 @@ export function getDehydratedDOM(): string {
         // Si es un contenedor con texto directo útil, capturar solo el texto directo (no de los descendientes)
         const childNodes = Array.from(htmlEl.childNodes);
         const directTextNodes = childNodes.filter(
-          node => node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim()
+          node => node.nodeType === 3 && node.nodeValue?.trim()
         );
         
         if (directTextNodes.length > 0 && depth < 5) {
@@ -294,7 +362,9 @@ export function getDehydratedDOM(): string {
       Array.from(htmlEl.children).forEach(child => traverse(child, depth + 1));
     }
 
-    traverse(document.body);
+    if (targetDoc.body) {
+      traverse(targetDoc.body);
+    }
     return resultText || '<Pantalla sin elementos interactivos visibles>';
   } catch (err: any) {
     console.error('Error deshidratando el DOM:', err);
@@ -308,11 +378,17 @@ export function getDehydratedDOM(): string {
  */
 export function getVisibleScreenContent(section?: string): string {
   try {
+    const { doc: targetDoc, win: targetWin, isEmbeddedFrame } = getTenshiEmbeddedBrowserContext();
     const lines: string[] = [];
-    const currentUrl = window.location.pathname + window.location.search;
-    lines.push(`[PANTALLA ACTUAL: ${currentUrl}]`);
+    const rawUrl = `${targetWin.location.pathname || '/'}${targetWin.location.search || ''}`;
+    const currentUrl = isEmbeddedFrame ? stripTenshiEmbedParam(rawUrl) : rawUrl;
+    lines.push(
+      isEmbeddedFrame
+        ? `[PANTALLA ACTUAL: ${currentUrl}] (Navegador WAPPY integrado en Tenshi)`
+        : `[PANTALLA ACTUAL: ${currentUrl}]`,
+    );
 
-    // 0. Incluir SIEMPRE primero el propio chat de Tenshi y sus informes generados
+    // 0. Incluir SIEMPRE primero el propio chat de Tenshi y sus informes generados (del window padre)
     const ownChatSummary = (window as any).__TENSHI_OWN_CHAT_SUMMARY__;
     if (ownChatSummary && typeof ownChatSummary === 'string' && ownChatSummary.trim()) {
       lines.push('=== 💬 TU PROPIO CHAT DE TENSHI Y TUS ÚLTIMOS INFORMES GENERADOS ===');
@@ -321,12 +397,12 @@ export function getVisibleScreenContent(section?: string): string {
     }
 
     // 1. Detectar si hay un modal o diálogo activo en primer plano
-    const modalEl = document.querySelector<HTMLElement>(
+    const modalEl = targetDoc.querySelector<HTMLElement>(
       '[role="dialog"], [aria-modal="true"], .modal, .dialog, [data-headlessui-state="open"]'
     );
-    const rootScope: HTMLElement = (modalEl && isElementVisible(modalEl)) ? modalEl : document.body;
+    const rootScope: HTMLElement = (modalEl && isElementVisible(modalEl)) ? modalEl : targetDoc.body;
 
-    if (rootScope !== document.body) {
+    if (rootScope !== targetDoc.body) {
       lines.push('[EN PRIMER PLANO: Ventana emergente / Modal de informe abierta]');
     }
 
@@ -585,9 +661,9 @@ export function getVisibleScreenContent(section?: string): string {
  * Encuentra el contenedor con scroll activo en la pantalla actual
  * (ej. el área principal de contenido de la SPA, modales abiertos o tablas con scroll interno)
  */
-function findActiveScrollContainer(): HTMLElement | null {
+function findActiveScrollContainer(targetDoc: Document, targetWin: Window): HTMLElement | null {
   // 1. Si hay un modal o diálogo en primer plano
-  const modalEl = document.querySelector<HTMLElement>(
+  const modalEl = targetDoc.querySelector<HTMLElement>(
     '[role="dialog"], [aria-modal="true"], .modal, .dialog, [data-headlessui-state="open"]'
   );
   if (modalEl && isElementVisible(modalEl)) {
@@ -616,7 +692,7 @@ function findActiveScrollContainer(): HTMLElement | null {
   ];
 
   for (const sel of candidateSelectors) {
-    const matched = Array.from(document.querySelectorAll<HTMLElement>(sel)).filter(isElementVisible);
+    const matched = Array.from(targetDoc.querySelectorAll<HTMLElement>(sel)).filter(isElementVisible);
     for (const el of matched) {
       if (el.closest('.tenshi-widget-container')) continue;
       if (el.scrollHeight > el.clientHeight + 15) {
@@ -626,10 +702,10 @@ function findActiveScrollContainer(): HTMLElement | null {
   }
 
   // 3. Búsqueda profunda en contenedores visibles con overflow-y auto/scroll
-  const allElements = Array.from(document.querySelectorAll<HTMLElement>('div, section, article')).filter(isElementVisible);
+  const allElements = Array.from(targetDoc.querySelectorAll<HTMLElement>('div, section, article')).filter(isElementVisible);
   for (const el of allElements) {
     if (el.closest('.tenshi-widget-container')) continue;
-    const style = window.getComputedStyle(el);
+    const style = targetWin.getComputedStyle(el);
     if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 25) {
       return el;
     }
@@ -659,9 +735,14 @@ export async function executeGUIAction(
     return { success: true, message: 'Espera de 1.5s completada.' };
   }
 
-  // En Modo Hero de Tenshi el ChatView/workspace clásico está oculto detrás del overlay z-[70]:
+  const { doc: targetDoc, win: targetWin, isEmbeddedFrame } = getTenshiEmbeddedBrowserContext();
+
+  // En Modo Hero de Tenshi sin navegador embebido activo, el ChatView/workspace clásico está oculto detrás del overlay z-[70]:
   // prohibir clics, escritura o scroll fantasma sobre controles inaccesibles debajo del Hero.
-  if (isTenshiHeroActive() && (action === 'click' || action === 'escribir' || action === 'scroll')) {
+  if (
+    isTargetDocHeroLocked(targetDoc, isEmbeddedFrame) &&
+    (action === 'click' || action === 'escribir' || action === 'scroll')
+  ) {
     selectorMap.clear();
     return {
       success: false,
@@ -683,16 +764,18 @@ export async function executeGUIAction(
     // Si se especificó un elemento específico por índice, desplazarlo al centro
     if (index !== undefined && selectorMap.has(index)) {
       const targetEl = selectorMap.get(index)!;
-      targetEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return { success: true, message: `Desplazamiento enfocado en elemento [${index}] (${targetEl.tagName.toLowerCase()}) completado.` };
+      if (targetEl.isConnected) {
+        targetEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true, message: `Desplazamiento enfocado en elemento [${index}] (${targetEl.tagName.toLowerCase()}) completado.` };
+      }
     }
 
-    const scrollAmount = window.innerHeight * 0.6;
+    const scrollAmount = (targetWin.innerHeight || window.innerHeight) * 0.6;
     const delta = direccion === 'arriba' ? -scrollAmount : scrollAmount;
 
     let targetDesc = 'pantalla principal';
-    const container = findActiveScrollContainer();
+    const container = findActiveScrollContainer(targetDoc, targetWin);
     if (container) {
       container.scrollBy({
         top: delta,
@@ -703,8 +786,8 @@ export async function executeGUIAction(
       targetDesc = `contenedor ${tag}${cls}`;
     }
 
-    // Desplazar también window de forma complementaria
-    window.scrollBy({
+    // Desplazar también window objetivo de forma complementaria
+    targetWin.scrollBy({
       top: delta,
       behavior: 'smooth'
     });
@@ -813,12 +896,15 @@ export async function executeGUIAction(
 
       // 1. Si se dio índice explícito y existe en selectorMap
       if (index !== undefined && selectorMap.has(index)) {
-        el = selectorMap.get(index)!;
+        const mappedEl = selectorMap.get(index)!;
+        if (mappedEl.isConnected && mappedEl.ownerDocument === targetDoc) {
+          el = mappedEl;
+        }
       }
 
       // 2. Si no se encontró, buscar en todos los inputs/textareas visibles de la pantalla
       if (!el) {
-        const formFields = Array.from(document.querySelectorAll<HTMLElement>(
+        const formFields = Array.from(targetDoc.querySelectorAll<HTMLElement>(
           'textarea, input:not([type="button"]):not([type="submit"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'
         )).filter(isElementVisible);
 
@@ -833,8 +919,8 @@ export async function executeGUIAction(
         }
 
         // Si aún no se encuentra y el usuario tiene un campo enfocado
-        if (!el && document.activeElement && formFields.includes(document.activeElement as HTMLElement)) {
-          el = document.activeElement as HTMLElement;
+        if (!el && targetDoc.activeElement && formFields.includes(targetDoc.activeElement as HTMLElement)) {
+          el = targetDoc.activeElement as HTMLElement;
         }
 
         // Si aún no se encuentra, usar el primer textarea/input visible vacío
@@ -860,13 +946,14 @@ export async function executeGUIAction(
 
       el.focus();
 
-      // Simular escritura asegurando compatibilidad completa con el rastreador de estado de React 16-19
+      // Simular escritura asegurando compatibilidad cross-realm completa con React 16-19
       const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
+      const elWin = (inputEl.ownerDocument?.defaultView || targetWin) as Window & typeof globalThis;
       const isTextArea = inputEl.tagName.toLowerCase() === 'textarea';
       
       const proto = isTextArea 
-        ? window.HTMLTextAreaElement.prototype 
-        : window.HTMLInputElement.prototype;
+        ? (elWin.HTMLTextAreaElement?.prototype || window.HTMLTextAreaElement.prototype)
+        : (elWin.HTMLInputElement?.prototype || window.HTMLInputElement.prototype);
         
       const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
 
@@ -882,16 +969,20 @@ export async function executeGUIAction(
         inputEl.value = texto;
       }
 
-      // Disparar secuencia completa de eventos de entrada
-      inputEl.dispatchEvent(new Event('focus', { bubbles: true }));
+      const EventCtor = elWin.Event || Event;
+      const InputEventCtor = elWin.InputEvent || InputEvent;
+      const TargetCustomEventCtor = ((targetWin as any).CustomEvent || CustomEvent) as typeof CustomEvent;
+
+      // Disparar secuencia completa de eventos de entrada en el realm propietario del input
+      inputEl.dispatchEvent(new EventCtor('focus', { bubbles: true }));
       try {
-        inputEl.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
-        inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
+        inputEl.dispatchEvent(new InputEventCtor('beforeinput', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
+        inputEl.dispatchEvent(new InputEventCtor('input', { bubbles: true, cancelable: true, data: texto, inputType: 'insertText' }));
       } catch (ieErr) {
         // Fallback para navegadores antiguos
       }
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+      inputEl.dispatchEvent(new EventCtor('input', { bubbles: true }));
+      inputEl.dispatchEvent(new EventCtor('change', { bubbles: true }));
 
       // Invocar directamente el listener de React Props si está disponible
       const reactPropsKey = Object.keys(inputEl).find(k => k.startsWith('__reactProps$'));
@@ -908,8 +999,8 @@ export async function executeGUIAction(
         }
       }
 
-      // Notificar a módulos suscritos sobre la actualización del campo
-      window.dispatchEvent(new CustomEvent('wappy-campo-actualizado', {
+      // Notificar a módulos suscritos sobre la actualización del campo en el window objetivo
+      targetWin.dispatchEvent(new TargetCustomEventCtor('wappy-campo-actualizado', {
         detail: {
           id: inputEl.id,
           name: inputEl.getAttribute('name'),
@@ -935,7 +1026,7 @@ export async function executeGUIAction(
 
     if (index !== undefined && selectorMap.has(index)) {
       const candidateEl = selectorMap.get(index)!;
-      if (isElementVisible(candidateEl)) {
+      if (candidateEl.isConnected && candidateEl.ownerDocument === targetDoc && isElementVisible(candidateEl)) {
         el = candidateEl;
       }
     } else if (rawQuery) {
@@ -945,7 +1036,7 @@ export async function executeGUIAction(
           s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
         const officialAiButtons = Array.from(
-          document.querySelectorAll<HTMLElement>(
+          targetDoc.querySelectorAll<HTMLElement>(
             '#ai-default, [data-action="ai-default"], [data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"]'
           ),
         ).filter((btn) => isElementVisible(btn) && !btn.closest('.tenshi-widget-container'));
@@ -954,7 +1045,7 @@ export async function executeGUIAction(
           el = officialAiButtons[0];
         } else {
           const buttonCandidates = Array.from(
-            document.querySelectorAll<HTMLElement>(
+            targetDoc.querySelectorAll<HTMLElement>(
               'button, [role="button"], input[type="button"], input[type="submit"]'
             ),
           ).filter((btn) => isElementVisible(btn) && !btn.closest('.tenshi-widget-container'));
@@ -984,13 +1075,14 @@ export async function executeGUIAction(
         }
 
         // Disparar eventos globales de análisis únicamente cuando sí existe un botón real de Generar IA en pantalla
-        window.dispatchEvent(new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: 'actual' } }));
-        window.dispatchEvent(new CustomEvent('wappy-generar-analisis-actual', { detail: { aplicativo: 'actual' } }));
+        const TargetCustomEventCtor = ((targetWin as any).CustomEvent || CustomEvent) as typeof CustomEvent;
+        targetWin.dispatchEvent(new TargetCustomEventCtor('wappy-generar-analisis-ia', { detail: { aplicativo: 'actual' } }));
+        targetWin.dispatchEvent(new TargetCustomEventCtor('wappy-generar-analisis-actual', { detail: { aplicativo: 'actual' } }));
       } else {
         // 2. Buscar en selectorMap con matchesInteractiveTarget
         if (!el) {
           for (const [idx, itemEl] of selectorMap.entries()) {
-            if (!isElementVisible(itemEl)) continue;
+            if (!itemEl.isConnected || itemEl.ownerDocument !== targetDoc || !isElementVisible(itemEl)) continue;
             if (matchesInteractiveTarget(itemEl, rawQuery)) {
               el = itemEl;
               targetIndex = idx;
@@ -1001,7 +1093,7 @@ export async function executeGUIAction(
 
         // 3. Buscar en todos los elementos interactivos del DOM visible (incluyendo cursos, blogs, eventos y cards clickeables)
         if (!el) {
-          const candidates = Array.from(document.querySelectorAll<HTMLElement>(
+          const candidates = Array.from(targetDoc.querySelectorAll<HTMLElement>(
             'button, [role="button"], [role="tab"], a, input[type="button"], input[type="submit"], [tabindex="0"], summary, [data-action], [data-clickable], [data-course-id], [data-post-id], [data-event-id], [data-title], [data-tenshi-action], .cursor-pointer'
           )).filter(isElementVisible);
 
@@ -1036,22 +1128,26 @@ export async function executeGUIAction(
       const clientX = coords.left + coords.width / 2;
       const clientY = coords.top + coords.height / 2;
 
-      const pOpts = { bubbles: true, cancelable: true, view: window, clientX, clientY, pointerId: 1, isPrimary: true, pointerType: 'mouse' };
-      const mOpts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+      const elWin = (el.ownerDocument?.defaultView || targetWin) as Window & typeof globalThis;
+      const PointerEventCtor = elWin.PointerEvent || PointerEvent;
+      const MouseEventCtor = elWin.MouseEvent || MouseEvent;
 
-      el.dispatchEvent(new PointerEvent('pointerover', pOpts));
-      el.dispatchEvent(new PointerEvent('pointerenter', { ...pOpts, bubbles: false }));
-      el.dispatchEvent(new MouseEvent('mouseover', mOpts));
-      el.dispatchEvent(new MouseEvent('mouseenter', { ...mOpts, bubbles: false }));
+      const pOpts = { bubbles: true, cancelable: true, view: elWin, clientX, clientY, pointerId: 1, isPrimary: true, pointerType: 'mouse' };
+      const mOpts = { bubbles: true, cancelable: true, view: elWin, clientX, clientY };
+
+      el.dispatchEvent(new PointerEventCtor('pointerover', pOpts));
+      el.dispatchEvent(new PointerEventCtor('pointerenter', { ...pOpts, bubbles: false }));
+      el.dispatchEvent(new MouseEventCtor('mouseover', mOpts));
+      el.dispatchEvent(new MouseEventCtor('mouseenter', { ...mOpts, bubbles: false }));
       
-      el.dispatchEvent(new PointerEvent('pointerdown', pOpts));
-      el.dispatchEvent(new MouseEvent('mousedown', mOpts));
+      el.dispatchEvent(new PointerEventCtor('pointerdown', pOpts));
+      el.dispatchEvent(new MouseEventCtor('mousedown', mOpts));
       
       el.focus();
       
-      el.dispatchEvent(new PointerEvent('pointerup', pOpts));
-      el.dispatchEvent(new MouseEvent('mouseup', mOpts));
-      el.dispatchEvent(new MouseEvent('click', mOpts));
+      el.dispatchEvent(new PointerEventCtor('pointerup', pOpts));
+      el.dispatchEvent(new MouseEventCtor('mouseup', mOpts));
+      el.dispatchEvent(new MouseEventCtor('click', mOpts));
       
       el.click();
 

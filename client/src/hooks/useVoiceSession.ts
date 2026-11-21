@@ -38,6 +38,7 @@ interface UseVoiceSessionOptions {
     actividad?: string;
     route?: string;
     isHeroMode?: boolean;
+    embeddedBrowserActive?: boolean;
     agentName?: string;
     personality?: string;
 }
@@ -1398,6 +1399,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         agentName?: string;
         route?: string;
         isHeroMode?: boolean;
+        embeddedBrowserActive?: boolean;
     }) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({

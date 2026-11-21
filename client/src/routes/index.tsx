@@ -20,6 +20,7 @@ import dashboardRoutes from './Dashboard';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 import { hasActivePlan } from '~/utils/planAccess';
+import { isTenshiEmbedded } from '~/utils/tenshiEmbed';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 // Lazy-loaded heavy routes and secondary dashboards for fast initial bundle load
@@ -211,7 +212,7 @@ const RootIndexRedirect = () => {
       document.referrer.includes('android-app://') ||
       searchParams.get('source') === 'pwa');
 
-  if (isStandalone) {
+  if (isStandalone && !isTenshiEmbedded()) {
     if (isAuthenticated) {
       if (user && !hasActivePlan(user)) {
         return <Navigate to={{ pathname: '/planes', search: location.search }} replace={true} />;
@@ -233,7 +234,7 @@ const AuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
     <ApiErrorWatcher />
-    <RoadmapNotifier />
+    {!isTenshiEmbedded() && <RoadmapNotifier />}
   </AuthContextProvider>
 );
 
@@ -560,6 +561,11 @@ export const router = createBrowserRouter(
     {
       path: 'wappydots.html',
       element: withSuspense(<WappyDotsMobilePage />),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'centro-control',
+      element: <Navigate to="/sgsst/control" replace={true} />,
       errorElement: <RouteErrorBoundary />,
     },
     {

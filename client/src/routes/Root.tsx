@@ -23,11 +23,13 @@ import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
 import { hasActivePlan } from '~/utils/planAccess';
+import { isTenshiEmbedded } from '~/utils/tenshiEmbed';
 import TenshiAvatar from '~/components/Tenshi/TenshiAvatar';
 
 const loadTenshiChatChunk = () => import('~/components/Tenshi/TenshiChat');
 if (
   typeof window !== 'undefined' &&
+  !isTenshiEmbedded() &&
   (window.location.pathname === '/c/new' || window.location.pathname.startsWith('/c/'))
 ) {
   loadTenshiChatChunk().catch(() => {});
@@ -70,6 +72,7 @@ const playStartupSound = () => {
 
 export default function Root() {
   const localize = useLocalize();
+  const isEmbeddedInTenshi = isTenshiEmbedded();
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
   const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
@@ -161,12 +164,12 @@ export default function Root() {
 
   // Attempt to play startup sound once the component is ready and authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isEmbeddedInTenshi) {
       // Many browsers block audio without human interaction,
       // but we'll try our best here.
       playStartupSound();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isEmbeddedInTenshi]);
 
   const handleAcceptTerms = () => {
     setShowTerms(false);
@@ -260,10 +263,14 @@ export default function Root() {
   );
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isPublicRoute(window.location.pathname)) {
+    if (
+      typeof window !== 'undefined' &&
+      !isEmbeddedInTenshi &&
+      !isPublicRoute(window.location.pathname)
+    ) {
       loadTenshiChatChunk().catch(() => {});
     }
-  }, [routePathname, isAuthenticated]);
+  }, [routePathname, isAuthenticated, isEmbeddedInTenshi]);
 
   const isChatHeroEntry =
     (routePathname === '/c/new' || routePathname.startsWith('/c/')) &&
@@ -271,7 +278,8 @@ export default function Root() {
       typeof window !== 'undefined' &&
       (window.location.search.includes('agent_id=') || window.location.search.includes('prompt='))
     );
-  const showTenshiBootCurtain = isAuthenticated && isChatHeroEntry && !tenshiHeroBootDone;
+  const showTenshiBootCurtain =
+    !isEmbeddedInTenshi && isAuthenticated && isChatHeroEntry && !tenshiHeroBootDone;
 
   useEffect(() => {
     if (!showTenshiBootCurtain) return;
@@ -287,7 +295,13 @@ export default function Root() {
     }
     if (isPublicRoute(window.location.pathname)) {
       return (
-        <div className="flex h-screen w-screen bg-surface-primary text-text-primary">
+        <div
+          className={
+            isEmbeddedInTenshi
+              ? 'flex h-[100dvh] w-full bg-surface-primary text-text-primary'
+              : 'flex h-screen w-screen bg-surface-primary text-text-primary'
+          }
+        >
           <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
             <Outlet context={{ navVisible: false, setNavVisible: () => {} } satisfies ContextType} />
           </div>
@@ -314,7 +328,7 @@ export default function Root() {
     return <Navigate to="/planes" replace={true} />;
   }
 
-  if (showTenshiBootCurtain && typeof document !== 'undefined') {
+  if (showTenshiBootCurtain && !isEmbeddedInTenshi && typeof document !== 'undefined') {
     document.documentElement.dataset.tenshiHero = 'true';
   }
 
@@ -325,30 +339,47 @@ export default function Root() {
           <AgentsMapContext.Provider value={agentsMap}>
             {showTenshiBootCurtain && renderThinkingCurtain(true)}
             <PromptGroupsProvider>
-              <Banner onHeightChange={setBannerHeight} />
+              {!isEmbeddedInTenshi && <Banner onHeightChange={setBannerHeight} />}
               <div
                 id="wappy-classic-workspace"
                 aria-hidden={showTenshiBootCurtain || undefined}
                 className={`flex${showTenshiBootCurtain ? ' invisible opacity-0 pointer-events-none select-none' : ''}`}
-                style={{ height: `calc(100dvh - ${bannerHeight}px)` }}
+                style={{
+                  height: isEmbeddedInTenshi ? '100dvh' : `calc(100dvh - ${bannerHeight}px)`,
+                }}
               >
                 <div className={`relative flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
-                  <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
+                  {!isEmbeddedInTenshi && <Nav navVisible={navVisible} setNavVisible={setNavVisible} />}
                   <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
-                    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden pt-[env(safe-area-inset-top,0px)] md:pt-0 pb-[74px] md:pb-0">
-                      <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
+                    <div
+                      className={`relative flex flex-1 flex-col min-h-0 overflow-hidden ${
+                        isEmbeddedInTenshi
+                          ? ''
+                          : 'pt-[env(safe-area-inset-top,0px)] md:pt-0 pb-[74px] md:pb-0'
+                      }`}
+                    >
+                      <Outlet
+                        context={
+                          {
+                            navVisible: isEmbeddedInTenshi ? false : navVisible,
+                            setNavVisible: isEmbeddedInTenshi ? () => {} : setNavVisible,
+                          } satisfies ContextType
+                        }
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-              <div
-                aria-hidden={showTenshiBootCurtain || undefined}
-                className={showTenshiBootCurtain ? 'invisible opacity-0 pointer-events-none' : undefined}
-              >
-                <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
-              </div>
+              {!isEmbeddedInTenshi && (
+                <div
+                  aria-hidden={showTenshiBootCurtain || undefined}
+                  className={showTenshiBootCurtain ? 'invisible opacity-0 pointer-events-none' : undefined}
+                >
+                  <MobileBottomNav navVisible={navVisible} setNavVisible={setNavVisible} />
+                </div>
+              )}
             </PromptGroupsProvider>
-          {config?.interface?.termsOfService?.modalAcceptance === true && (
+          {!isEmbeddedInTenshi && config?.interface?.termsOfService?.modalAcceptance === true && (
             <TermsAndConditionsModal
               open={showTerms}
               onOpenChange={setShowTerms}
@@ -358,7 +389,7 @@ export default function Root() {
               modalContent={localize('com_ui_terms_content')}
             />
           )}
-          {(() => {
+          {!isEmbeddedInTenshi && (() => {
             const isPhoneMissing =
               !user?.phoneNumber ||
               user.phoneNumber.trim() === '' ||
@@ -385,9 +416,11 @@ export default function Root() {
               <RequiredInfoModal />
             ) : null;
           })()}
-          <Suspense fallback={null}>
-            <TenshiChat />
-          </Suspense>
+          {!isEmbeddedInTenshi && (
+            <Suspense fallback={null}>
+              <TenshiChat />
+            </Suspense>
+          )}
           </AgentsMapContext.Provider>
         </AssistantsMapContext.Provider>
       </FileMapContext.Provider>

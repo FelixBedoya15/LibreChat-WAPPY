@@ -40,7 +40,7 @@ export type TenshiPanelToolId =
   | 'wappy_investigar_trabajador_360'
   | 'blog_editor';
 
-export type TenshiHeroTab = 'chat' | 'canvas' | TenshiPanelToolId;
+export type TenshiHeroTab = 'chat' | 'canvas' | 'wappy' | TenshiPanelToolId;
 
 export type TenshiPanelColorGroup =
   | 'blue'
@@ -225,7 +225,9 @@ export function getActivePanelToolsFromEnabled(enabledTools: string[] | null | u
   return TENSHI_PANEL_TOOLS.filter((tool) => enabledSet.has(tool.id));
 }
 
-export function resolveTenshiPanelToolId(raw: string | null | undefined): 'canvas' | TenshiPanelToolId | null {
+export function resolveTenshiPanelToolId(
+  raw: string | null | undefined,
+): 'canvas' | 'wappy' | TenshiPanelToolId | null {
   if (!raw || typeof raw !== 'string') return null;
   const normalized = raw
     .toLowerCase()
@@ -236,6 +238,18 @@ export function resolveTenshiPanelToolId(raw: string | null | undefined): 'canva
   if (!normalized) return null;
 
   if (normalized === 'canvas') return 'canvas';
+  if (
+    normalized === 'wappy' ||
+    normalized === 'navegador_wappy' ||
+    normalized === 'navegador' ||
+    normalized === 'browser' ||
+    normalized.includes('navegador_wappy') ||
+    normalized.includes('navegador wappy') ||
+    normalized.includes('navegador') ||
+    normalized.includes('browser')
+  ) {
+    return 'wappy';
+  }
   if (TENSHI_PANEL_TOOL_ID_SET.has(normalized)) {
     return normalized as TenshiPanelToolId;
   }

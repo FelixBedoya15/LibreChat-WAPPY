@@ -31,6 +31,7 @@ const CORE_ALWAYS_ACTIVE_TOOLS = [
 
 const TENSHI_PANEL_TOOL_IDS = [
   'canvas',
+  'navegador_wappy',
   'editor_live',
   'editor_rit',
   'matriz_ipevar',
@@ -57,7 +58,14 @@ function normalizeTenshiPanelToolId(rawName) {
   const snake = asciiLower
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  if (!snake || snake === 'generar_imagen_sst') {
+  if (
+    !snake ||
+    snake === 'generar_imagen_sst' ||
+    snake === 'web_search' ||
+    snake === 'web_scraper_live' ||
+    snake === 'web_scraper' ||
+    snake === 'file_search'
+  ) {
     return null;
   }
 
@@ -111,6 +119,22 @@ function normalizeTenshiPanelToolId(rawName) {
   }
   if (/\brit\b/.test(spaced) || spaced.includes('reglamento')) {
     return 'editor_rit';
+  }
+  if (
+    /\bnavegador\b/.test(spaced) ||
+    /\bbrowser\b/.test(spaced) ||
+    spaced.includes('explorar wappy') ||
+    spaced.includes('explorar la plataforma') ||
+    spaced.includes('explorar plataforma') ||
+    spaced === 'pestana wappy' ||
+    spaced === 'panel wappy' ||
+    compact === 'navegadorwappy' ||
+    compact === 'navegadordewappy' ||
+    compact === 'wappybrowser' ||
+    compact === 'browserwappy' ||
+    compact === 'explorarwappy'
+  ) {
+    return 'navegador_wappy';
   }
   if (
     spaced.includes('live') ||
@@ -169,6 +193,12 @@ const POPOVER_ENABLED_TOOLS_MAP = {
   forensic_audit: ['forensic_audit'],
   canvas: ['canvas_tool'],
   canvas_tool: ['canvas_tool'],
+  navegador_wappy: [
+    'wappy_navegar',
+    'leer_pantalla',
+    'operar_interfaz_visual',
+    'wappy_diligenciar_formulario',
+  ],
   editor_live: ['editor_live'],
   editor_rit: ['editor_rit'],
   blog_editor: ['blog_editor', 'wappy_consultar_blog', 'wappy_leer_articulo_blog', 'wappy_abrir_articulo_blog'],

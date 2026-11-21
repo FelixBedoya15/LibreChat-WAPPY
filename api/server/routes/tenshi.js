@@ -52,6 +52,7 @@ const {
 
 const TENSHI_PANEL_TOOL_LABELS = {
     canvas: 'Canvas',
+    navegador_wappy: 'Navegador Interno de WAPPY',
     editor_live: 'Editor de Documentos en Vivo',
     editor_rit: 'Editor del Reglamento Interno de Trabajo (RIT)',
     matriz_ipevar: 'Matriz de Peligros IPEVR (GTC-45)',
@@ -69,6 +70,7 @@ const PANEL_OPEN_VERB_REGEX =
     /\b(abre|abrir|ábreme|abreme|activa|activar|actívame|activame|muestra|muéstrame|muestrame|trae|tráeme|traeme|enseña|enséñame|ensename|despliega|pesta[nñ]a|panel)\b/i;
 
 const PANEL_TOPIC_REGEX_MAP = {
+    navegador_wappy: /\b(navegador(\s+interno|\s+de)?(\s+wappy)?|browser(\s+wappy)?|explorar\s+wappy|pesta[nñ]a\s+wappy)\b/i,
     editor_live: /\b(editor|live|liveeditor|documentos?\s+(en\s+)?vivo)\b/i,
     editor_rit: /\b(rit|reglamento(\s+interno)?)\b/i,
     matriz_ipevar: /\b(matriz|gtc[\s-]?45|ipevr|ipevar|peligros)\b/i,
@@ -3694,8 +3696,18 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
    - 'wappy_consultar_blog': Lista todos los artículos publicados en el blog, títulos, etiquetas y resúmenes.
    - 'wappy_leer_articulo_blog': Lee el texto íntegro y exhaustivo de cualquier artículo del blog para responder y enseñar a fondo.
 11. **ACTIVACIÓN VISUAL DE HERRAMIENTAS CON PANEL JUNTO A CANVAS ('wappy_activar_herramienta_agente')**:
-   - TIENES FACULTAD TOTAL para activar, abrir, traer o mostrar en las pestañas deslizables junto a Canvas cualquiera de las herramientas especializadas de WAPPY usando su ID canónico exacto: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual).
-   - REGLA OBLIGATORIA: Cuando el usuario te pida "activar", "abrir", "traer" o "mostrar" cualquiera de estas herramientas en Tenshi (ej. "ábreme la matriz GTC-45", "activa el editor live", "muéstrame la matriz PESV", "trae compatibilidad química", "abre el editor del RIT", "muéstrame analítica psicosocial", "abre actos y condiciones", "abre el gestor de automatizaciones", "abre el investigador 360", "abre el editor de blog", "abre Canvas"), DEBES invocar 'wappy_activar_herramienta_agente' con el ID exacto correspondiente para que se abra de inmediato la pestaña junto a Canvas.
+   - TIENES FACULTAD TOTAL para activar, abrir, traer o mostrar en las pestañas deslizables junto a Canvas cualquiera de las herramientas especializadas de WAPPY usando su ID canónico exacto: 'canvas', 'navegador_wappy', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual).
+   - REGLA OBLIGATORIA: Cuando el usuario te pida "activar", "abrir", "traer" o "mostrar" cualquiera de estas herramientas en Tenshi (ej. "abre el navegador de Wappy", "ábreme la matriz GTC-45", "activa el editor live", "muéstrame la matriz PESV", "trae compatibilidad química", "abre el editor del RIT", "muéstrame analítica psicosocial", "abre actos y condiciones", "abre el gestor de automatizaciones", "abre el investigador 360", "abre el editor de blog", "abre Canvas"), DEBES invocar 'wappy_activar_herramienta_agente' con el ID exacto correspondiente para que se abra de inmediato la pestaña junto a Canvas. En particular, usa \`herramienta: 'navegador_wappy'\` cuando el usuario pida abrir el navegador interno de WAPPY sin indicar una ruta o módulo específico (*"abre el navegador de Wappy"*, *"abre el navegador interno"*).
+11.1. **NAVEGADOR WAPPY INTEGRADO DENTRO DE TENSHI (🌐 Wappy) Y NAVEGACIÓN INTERNA ('wappy_navegar')**:
+   - **NAVEGACIÓN EMBEBIDA SIN SALIR DE TENSHI**: \`wappy_navegar\` abre CUALQUIER ruta, hito o aplicativo de WAPPY **directamente dentro del Navegador WAPPY integrado en Tenshi (pestaña \`🌐 Wappy\`)**, SIN sacar al usuario de Tenshi y SIN cerrar el chat ni la sesión de voz.
+   - **DESTINOS SOPORTADOS DENTRO DE \`🌐 Wappy\`**:
+     * **Todos los Hitos 1 al 8 de Somos SST**: por ejemplo Matriz de Peligros GTC-45 (\`/sgsst?hito=hito1&module=matriz_peligros\`), Diagnóstico Res. 0312 (\`/sgsst?hito=hito1&module=diagnostico\`), Exámenes Médicos / Condiciones de Salud (\`/sgsst?hito=hito2&module=condiciones_salud\`), Perfil Sociodemográfico (\`/sgsst?hito=hito2&module=perfil_socio\`), Comités, Investigación ATEL, Capacitaciones, EPP, Vehículos PESV, Permisos de Alturas, ATS, OWAS, Estudio de Puesto, Auditoría, etc.
+     * **Centro de Control SST (Kanban ACPM)**: la ruta correcta y ÚNICA válida es **\`/sgsst/control\`** (\`modulo: 'control'\` o \`'centro_control'\`). **NUNCA uses \`/centro-control\`** (esa ruta no existe).
+     * **Otros módulos y aplicaciones WAPPY**: \`/tareas\`, \`/academia\`, \`/marketplace\`, \`/aplicaciones\`, \`/huella-biocentrica\`, \`/comunidad\`, \`/wappystudio\`, \`/matrizipvr\`, \`/planes\`, \`/blog\`.
+   - **CUÁNDO USAR \`wappy_navegar\` vs \`wappy_activar_herramienta_agente('navegador_wappy')\`**:
+     * Cuando el usuario pida ir o abrir un destino específico (*"llévame a la matriz de peligros"*, *"llévame a exámenes médicos"*, *"llévame al centro de control"*, *"llévame a la academia"*, *"ve a tareas"*, *"abre el marketplace"*), invoca SIEMPRE **\`wappy_navegar\`** con el \`modulo\` y/o \`ruta\` exactos para cargarlo al instante dentro de \`🌐 Wappy\`.
+     * Cuando el usuario pida abrir el navegador sin destino específico (*"abre el navegador de Wappy"*), invoca **\`wappy_activar_herramienta_agente\`** con \`herramienta: 'navegador_wappy'\`.
+   - **OPERACIÓN VISUAL ACTIVA SOBRE LA PANTALLA EMBEBIDA**: Una vez abierta cualquier pantalla dentro de \`🌐 Wappy\`, las herramientas **\`leer_pantalla\`**, **\`operar_interfaz_visual\`** y **\`wappy_diligenciar_formulario\`** siguen 100% operativas sobre la vista embebida para leer contenido, hacer clics, navegar controles y diligenciar formularios en vivo.
 12. **DELEGACIÓN Y CONEXIÓN BIDIRECCIONAL CON ANTIGRAVITY ('wappy_delegar_orden_antigravity')**:
    - Si el usuario menciona explícitamente a "Antigravity" (ej: "pregúntale a Antigravity...", "conéctate con Antigravity", "que Antigravity cree un documento y me lo mande al chat"):
    - DISTINCIÓN CRÍTICA: Si el usuario solo hace una pregunta o consulta para Antigravity (sin pedir explícitamente crear un documento, informe o aplicativo), invoca 'wappy_delegar_orden_antigravity' con tipo_entregable='respuesta' para que Antigravity responda directamente en el chat sin generar documentos innecesarios.
@@ -3787,8 +3799,8 @@ Eres Tenshi, la IA estrella, guía oficial y orquestadora de WAPPY IA. Administr
             `- Cuando el usuario pregunte por cualquier nodo de \`/tareas\`, por qué un nodo está o no en un flujo (ej. ReTHUS/ADRES con CAPTCHA vs APIs abiertas), cómo se conecta un nodo en el lienzo, desde dónde se usa, qué casillas extrae o pida ejemplos de uso o diseño de flujos, invoca \`gestor_automatizaciones\` con \`accion: "consultar_documentacion_nodos"\` y \`busqueda_nodo\` para consultar la Enciclopedia SmartDown oficial antes de responder, y recuérdale también que en \`/tareas\` cuenta con el botón **"Guía de Nodos"** justo al lado izquierdo de *"Flujos Preestablecidos"*.`;
 
         if (browserState) {
-            systemMessage += `\n\n### 🌐 ESTADO VISUAL DE LA PÁGINA ACTUAL (DEL NAVEGADOR DEL USUARIO)
-Puedes interactuar con la pantalla del usuario (hacer clic, rellenar formularios, escribir texto, hacer scroll) utilizando la herramienta 'operar_interfaz_visual' pasándole el [índice] correspondiente de esta lista:
+            systemMessage += `\n\n### 🌐 ESTADO VISUAL DE LA PÁGINA ACTUAL (DEL NAVEGADOR DEL USUARIO O NAVEGADOR INTEGRADO 🌐 Wappy)
+Puedes interactuar con la pantalla actual del usuario —incluyendo cualquier página o módulo de WAPPY abierto dentro del Navegador Integrado \`🌐 Wappy\`— (leer pantalla con 'leer_pantalla', hacer clic, escribir texto o hacer scroll con 'operar_interfaz_visual', y rellenar formularios con 'wappy_diligenciar_formulario') pasándole el [índice] correspondiente de esta lista:
 ${browserState}
 
 REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
@@ -4291,17 +4303,17 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const wappyNavegarDeclaration = {
                 name: 'wappy_navegar',
-                description: 'Navega de inmediato a cualquier módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o consultar una sección o hito.',
+                description: 'Abre y navega de inmediato a CUALQUIER módulo, hito, pantalla o aplicativo de la plataforma WAPPY y Somos SST directamente dentro del Navegador WAPPY integrado en Tenshi (pestaña 🌐 Wappy), sin cerrar el chat ni la voz y manteniendo leer_pantalla, operar_interfaz_visual y wappy_diligenciar_formulario 100% operativos sobre la pantalla embebida. DEBES invocar esta función siempre que el usuario te pida ir, ver, abrir o llevarlo a cualquier sección o hito (ej. "llévame a la matriz de peligros", "llévame a exámenes médicos", "llévame al centro de control", "llévame a la academia").',
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         modulo: {
                             type: 'STRING',
-                            description: "Nombre clave del módulo, hito o aplicativo. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial', 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud', 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'planes', 'academia', 'training_admin', 'rutas', 'ruta_admin', 'blog', 'blog_admin', 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'agents' (/agents catálogo especialistas IA), 'control' (Kanban ACPM), 'tareas' (/tareas: Tareas programadas de agentes IA, antes 'Automatizaciones'; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'animo_dashboard', 'live' (/c/new), 'chat_sst', 'roadmap', 'contactanos', 'comunidad', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'. Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
+                            description: "Nombre clave del módulo, hito o aplicativo a abrir dentro de 🌐 Wappy. Hitos 1 al 8: 'diagnostico' (0312), 'participacion_ipevar', 'matriz_ipevar_oficial' o 'matriz_peligros' (/sgsst?hito=hito1&module=matriz_peligros), 'matriz_pesv_oficial', 'matriz_compatibilidad_oficial', 'vulnerabilidad', 'plan_emergencias', 'responsable', 'politica', 'objetivos', 'legal', 'rhs', 'rit', 'perfil_cargo', 'perfil_socio', 'condiciones_salud' (Exámenes Médicos / Condiciones de Salud), 'copasst', 'cocolab', 'comite_pesv', 'brigada_emergencias', 'animo', 'metodo_owas', 'estudio_puesto', 'peligros', 'permiso_alturas', 'analisis_trabajo_seguro', 'epp_delivery', 'vehicles_pesv', 'heights_lifecycle', 'chemical_registry', 'equipos_emergencia', 'reporte_actos', 'capacitaciones', 'simulacros_emergencia', 'ruta_aprendizaje', 'app_builder', 'estadisticas', 'investigacion_atel', 'control_acpm', 'auditoria', 'alta_direccion', 'investigacion_profunda', 'predictivo'. Aplicativos y Dashboards: 'sgsst', 'control' o 'centro_control' (ruta EXACTA: '/sgsst/control' — Centro de Control SST / Kanban ACPM; NUNCA '/centro-control'), 'tareas' (/tareas: Tareas y Automatizaciones IA; alias 'automatizaciones'), 'historial_tareas' (/tareas?tab=historial), 'academia' (/academia), 'training_admin', 'rutas', 'ruta_admin', 'blog' (/blog), 'blog_admin', 'events_meet', 'events_meet_admin', 'marketplace' (/marketplace tienda productos SST), 'marketplace_admin', 'aplicaciones' (/aplicaciones), 'huella_biocentrica' (/huella-biocentrica), 'comunidad' (/comunidad), 'wappystudio' (/wappystudio), 'matrizipvr' (/matrizipvr), 'planes' (/planes), 'agents' (/agents catálogo especialistas IA), 'animo_dashboard', 'live' (/c/new), 'chat_sst', 'roadmap', 'contactanos', 'matriz', 'embajadores', 'embajadores_dashboard', 'tenshi_admin', 'search', 'privacy', 'terms', 'about'. Portales públicos: 'public_reportar', 'public_animo', 'public_estudio_puesto', 'public_ipevar', 'public_alta_direccion', 'public_atel', 'public_colaborador', 'public_comites', 'public_convivencia', 'public_votaciones', 'public_inspecciones', 'public_brigadistas'."
                         },
                         ruta: {
                             type: 'STRING',
-                            description: 'Ruta URL interna exacta (opcional).'
+                            description: 'Ruta URL interna exacta de WAPPY (opcional) que se abrirá dentro de 🌐 Wappy. Ejemplos: "/sgsst?hito=hito1&module=matriz_peligros", "/sgsst?hito=hito2&module=condiciones_salud", "/sgsst/control" (Centro de Control SST — NUNCA "/centro-control"), "/tareas", "/academia", "/marketplace", "/aplicaciones", "/huella-biocentrica", "/comunidad", "/wappystudio", "/matrizipvr", "/planes", "/blog".'
                         }
                     },
                     required: ['modulo']
@@ -5078,13 +5090,14 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
 
             const wappyActivarHerramientaAgenteDeclaration = {
                 name: 'wappy_activar_herramienta_agente',
-                description: "Activa y abre de inmediato el panel visual como pestaña deslizable junto a Canvas de cualquiera de las herramientas especializadas de WAPPY: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual). DEBES invocarla siempre que el usuario pida activar, abrir, traer o mostrar cualquiera de estas herramientas en Tenshi pasando el ID exacto en 'herramienta'.",
+                description: "Activa y abre de inmediato el panel visual como pestaña deslizable junto a Canvas de cualquiera de las herramientas especializadas de WAPPY: 'canvas', 'navegador_wappy' (Navegador Interno de WAPPY 🌐 Wappy para abrirlo sin destino específico, ej. 'abre el navegador de Wappy'), 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' (y 'generar_imagen_sst' para generación visual). DEBES invocarla siempre que el usuario pida activar, abrir, traer o mostrar cualquiera de estas herramientas en Tenshi pasando el ID exacto en 'herramienta'. Si el usuario indica una ruta o módulo específico de WAPPY ('llévame a...'), usa 'wappy_navegar'.",
                 parameters: {
                     type: 'OBJECT',
                     properties: {
                         herramienta: {
                             type: 'STRING',
-                            description: "ID exacto de la herramienta especializada a abrir en el panel junto a Canvas: 'canvas', 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' o 'generar_imagen_sst'."
+                            enum: [...TENSHI_PANEL_TOOL_IDS, 'generar_imagen_sst'],
+                            description: "ID exacto de la herramienta especializada a abrir en el panel junto a Canvas: 'canvas', 'navegador_wappy' (Navegador Interno de WAPPY 🌐 Wappy), 'editor_live', 'editor_rit', 'matriz_ipevar', 'matriz_pesv', 'matriz_compatibilidad', 'consultar_analitica_psicosocial', 'consultar_analitica_actos_condiciones', 'gestor_automatizaciones', 'wappy_investigar_trabajador_360', 'blog_editor' o 'generar_imagen_sst'."
                         },
                         parametros: {
                             type: 'OBJECT',
@@ -6022,7 +6035,9 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                     ? `¡Listo! Activo el **${label}** para ti.`
                                     : effectiveTool === 'canvas'
                                       ? '¡Listo! Te abro **Canvas** en tu espacio de trabajo interactivo.'
-                                      : `¡Listo! Te abro **${label}** en la pestaña junto a Canvas.`;
+                                      : effectiveTool === 'navegador_wappy'
+                                        ? '¡Listo! Te abro el **Navegador Interno de WAPPY (🌐 Wappy)** aquí mismo dentro de Tenshi sin salir de nuestra conversación.'
+                                        : `¡Listo! Te abro **${label}** en la pestaña junto a Canvas.`;
                             const guiPayload = {
                                 name: 'wappy_activar_herramienta_agente',
                                 args: {
@@ -6910,24 +6925,44 @@ REGLAS EXTRAS PARA OPERAR LA INTERFAZ:
                                         toolOutput = JSON.stringify({ success: true, memorias: list || 'No hay memorias registradas aún.' });
                                     }
                                 } else if (call.name === 'leer_pantalla') {
-                                    if (browserState && browserState.length > 30) {
-                                        toolOutput = JSON.stringify({ success: true, contenido_pantalla: browserState });
+                                    const cleanBrowserState = typeof browserState === 'string' ? browserState.trim() : '';
+                                    if (cleanBrowserState.length > 30) {
+                                        toolOutput = JSON.stringify({ success: true, contenido_pantalla: cleanBrowserState });
                                     } else {
                                         toolOutput = JSON.stringify({ success: true, message: 'La pantalla actual no contiene texto o elementos adicionales visibles.' });
                                     }
                                 } else if (call.name === 'wappy_diligenciar_formulario') {
+                                    const formArgs = call.args && typeof call.args === 'object' ? call.args : {};
+                                    const formModulo = typeof formArgs.modulo === 'string' ? formArgs.modulo.trim() : '';
                                     requestedGuiAction = {
                                         name: 'wappy_diligenciar_formulario',
-                                        args: call.args
+                                        args: formArgs,
+                                        message: formModulo
+                                            ? `¡Listo! Estoy diligenciando el formulario **${formModulo.replace(/_/g, ' ')}** directamente en pantalla.`
+                                            : '¡Listo! Estoy diligenciando el formulario directamente en pantalla.',
                                     };
                                     break;
                                 } else if (call.name === 'wappy_navegar') {
+                                    const rawNavModulo = typeof call.args?.modulo === 'string' ? call.args.modulo.trim() : '';
+                                    const rawNavRuta = typeof call.args?.ruta === 'string' ? call.args.ruta.trim() : '';
+                                    const safeNavRuta = /^\/centro[-_]?control\/?$/i.test(rawNavRuta)
+                                        ? '/sgsst/control'
+                                        : rawNavRuta || undefined;
+                                    const safeNavArgs = {
+                                        ...(call.args && typeof call.args === 'object' ? call.args : {}),
+                                        ...(rawNavModulo ? { modulo: rawNavModulo } : {}),
+                                        ...(safeNavRuta ? { ruta: safeNavRuta } : {}),
+                                    };
+                                    const navDisplayName = rawNavModulo
+                                        ? rawNavModulo.replace(/_/g, ' ')
+                                        : safeNavRuta || 'WAPPY';
                                     requestedGuiAction = {
                                         name: 'wappy_navegar',
                                         accion: 'navegar',
-                                        modulo: call.args?.modulo,
-                                        ruta: call.args?.ruta,
-                                        args: call.args
+                                        modulo: rawNavModulo || undefined,
+                                        ruta: safeNavRuta,
+                                        args: safeNavArgs,
+                                        message: `¡De una! Te abro **${navDisplayName}** directamente en el **Navegador WAPPY (🌐 Wappy)** sin salir de nuestra conversación.`,
                                     };
                                     break;
                                 } else if (call.name === 'wappy_abrir_curso') {

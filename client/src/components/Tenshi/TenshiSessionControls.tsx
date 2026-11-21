@@ -134,6 +134,7 @@ export const LIGHTWEIGHT_TENSHI_TOOLS: string[] = [
   'web_search',
   'somos_sst',
   'canvas',
+  'navegador_wappy',
   'consultar_agente_especializado',
   'gestor_automatizaciones',
 ];
@@ -257,6 +258,11 @@ const TENSHI_TOOL_CATEGORIES: TenshiToolCategory[] = [
     id: 'platform',
     title: 'Orquestación & Plataforma',
     tools: [
+      {
+        id: 'navegador_wappy',
+        label: 'Navegador Wappy',
+        icon: <Globe className="h-4 w-4 text-sky-600 dark:text-sky-400" />,
+      },
       {
         id: 'consultar_agente_especializado',
         label: 'Consultar Especialista / Paralelo',
@@ -1349,7 +1355,10 @@ export default function TenshiSessionControls({
         : [...prev.enabledTools, toolId];
       return { ...prev, enabledTools: nextTools };
     });
-    if (!wasEnabled && (toolId === 'canvas' || isTenshiPanelTool(toolId))) {
+    if (
+      !wasEnabled &&
+      (toolId === 'canvas' || toolId === 'navegador_wappy' || isTenshiPanelTool(toolId))
+    ) {
       onToolPanelActivated?.(toolId);
     }
   };
@@ -1656,9 +1665,14 @@ export default function TenshiSessionControls({
                       <div className="space-y-0.5">
                         {cat.tools.map((tool) => {
                           const isChecked = prefs.enabledTools.includes(tool.id);
-                          const hasPanel = tool.id === 'canvas' || isTenshiPanelTool(tool.id);
+                          const hasPanel =
+                            tool.id === 'canvas' ||
+                            tool.id === 'navegador_wappy' ||
+                            isTenshiPanelTool(tool.id);
                           const panelMeta = getTenshiPanelToolMeta(tool.id);
-                          const isCurrentPanel = activePanelTab === tool.id;
+                          const isCurrentPanel =
+                            activePanelTab === tool.id ||
+                            (tool.id === 'navegador_wappy' && activePanelTab === 'wappy');
                           return (
                             <ToolRow
                               key={tool.id}
@@ -1682,7 +1696,9 @@ export default function TenshiSessionControls({
                                       'inline-flex shrink-0 items-center gap-0.5 rounded-xl border px-1.5 py-0.5 text-[10px] font-semibold transition-all active:scale-95 cursor-pointer whitespace-nowrap',
                                       panelMeta
                                         ? panelMeta.openPillClass
-                                        : 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20',
+                                        : tool.id === 'navegador_wappy'
+                                          ? 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20'
+                                          : 'border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20',
                                       isCurrentPanel && 'ring-1 ring-current',
                                     )}
                                   >

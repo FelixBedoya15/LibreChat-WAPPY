@@ -50,6 +50,7 @@ import {
   Music,
   ChevronLeft,
   ChevronRight,
+  Globe,
 } from 'lucide-react';
 import { ExpandableButton } from '~/components/Common/ExpandableButton';
 import * as XLSX from 'xlsx';
@@ -99,6 +100,12 @@ import TenshiEmbeddedToolHost, {
   type TenshiHeroTab,
   type TenshiPanelToolId,
 } from './TenshiToolPanels';
+import TenshiWappyBrowser, { type TenshiWappyBrowserHandle } from './TenshiWappyBrowser';
+import {
+  isTenshiEmbedded,
+  stripTenshiEmbedParam,
+  formatWappyBrowserTitle,
+} from '~/utils/tenshiEmbed';
 import {
   loadTasksVision,
   loadClassicPoseScripts,
@@ -1353,6 +1360,7 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   estandares_minimos: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
   evaluacion_inicial: { route: '/sgsst?hito=hito1&module=diagnostico', sgsstModule: 'diagnostico' },
   participacion_ipevar: { route: '/sgsst?hito=hito1&module=participacion_ipevar', sgsstModule: 'participacion_ipevar' },
+  matriz_peligros: { route: '/sgsst?hito=hito1&module=matriz_ipevar_oficial', sgsstModule: 'matriz_ipevar_oficial' },
   matriz_ipevar_oficial: { route: '/sgsst?hito=hito1&module=matriz_ipevar_oficial', sgsstModule: 'matriz_ipevar_oficial' },
   matriz_pesv_oficial: { route: '/sgsst?hito=hito1&module=matriz_pesv_oficial', sgsstModule: 'matriz_pesv_oficial' },
   matriz_compatibilidad_oficial: { route: '/sgsst?hito=hito1&module=matriz_compatibilidad_oficial', sgsstModule: 'matriz_compatibilidad_oficial' },
@@ -1516,6 +1524,11 @@ export const WAPPY_NAV_MAP: Record<string, { route: string; sgsstModule?: string
   sgsst: { route: '/sgsst' },
   somos_sst: { route: '/sgsst' },
   hitos: { route: '/sgsst' },
+  huella_biocentrica: { route: '/huella-biocentrica' },
+  huella: { route: '/huella-biocentrica' },
+  aplicaciones: { route: '/aplicaciones' },
+  wappy_apps: { route: '/aplicaciones' },
+  apps: { route: '/apps' },
 
   // ─── MÓDULOS Y APLICATIVOS GENERALES DE WAPPY ───
   planes: { route: '/planes' },
@@ -1756,6 +1769,13 @@ const TENSHI_ACTIVITIES = [
 ];
 
 export default function TenshiChat() {
+  if (isTenshiEmbedded()) {
+    return null;
+  }
+  return <TenshiChatInner />;
+}
+
+function TenshiChatInner() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, token, user } = useAuthContext();
@@ -1785,10 +1805,24 @@ export default function TenshiChat() {
   }));
 
   const [isHeroChatOpen, setIsHeroChatOpen] = useState(false);
+  const isHeroChatOpenRef = useRef<boolean>(isHeroChatOpen);
+  isHeroChatOpenRef.current = isHeroChatOpen;
   const [heroPanelTab, setHeroPanelTab] = useState<TenshiHeroTab>('chat');
+  const heroPanelTabRef = useRef<TenshiHeroTab>(heroPanelTab);
+  heroPanelTabRef.current = heroPanelTab;
   const [heroCanvasConvoId, setHeroCanvasConvoId] = useState<string | null>(null);
   const [hasOpenedHeroCanvas, setHasOpenedHeroCanvas] = useState(false);
   const [heroCanvasHasContent, setHeroCanvasHasContent] = useState(false);
+  // Navegador WAPPY Integrado dentro de Tenshi (`🌐 Wappy`)
+  const [wappyBrowserUrl, setWappyBrowserUrl] = useState<string>('/sgsst');
+  const wappyBrowserUrlRef = useRef<string>(wappyBrowserUrl);
+  wappyBrowserUrlRef.current = wappyBrowserUrl;
+  const [wappyBrowserLabel, setWappyBrowserLabel] = useState<string>('Wappy');
+  const [hasOpenedWappyBrowser, setHasOpenedWappyBrowser] = useState<boolean>(false);
+  const hasOpenedWappyBrowserRef = useRef<boolean>(hasOpenedWappyBrowser);
+  hasOpenedWappyBrowserRef.current = hasOpenedWappyBrowser;
+  const [isWappyBrowserFullscreen, setIsWappyBrowserFullscreen] = useState<boolean>(false);
+  const wappyBrowserRef = useRef<TenshiWappyBrowserHandle | null>(null);
   const heroLeftPanelRef = useRef<HTMLDivElement | null>(null);
   const heroAmbientGridRef = useRef<HTMLDivElement | null>(null);
   const heroTabRailRef = useRef<HTMLDivElement | null>(null);
@@ -1847,7 +1881,55 @@ export default function TenshiChat() {
     if (heroPanelTab === 'canvas' && !hasOpenedHeroCanvas) {
       setHasOpenedHeroCanvas(true);
     }
-  }, [heroPanelTab, hasOpenedHeroCanvas]);
+    if (heroPanelTab === 'wappy' && !hasOpenedWappyBrowser) {
+      setHasOpenedWappyBrowser(true);
+    }
+    if (heroPanelTab !== 'wappy' && isWappyBrowserFullscreen) {
+      setIsWappyBrowserFullscreen(false);
+    }
+  }, [heroPanelTab, hasOpenedHeroCanvas, hasOpenedWappyBrowser, isWappyBrowserFullscreen]);
+
+  // Restaurar pantalla completa del Navegador WAPPY al presionar Escape o cerrar panel Hero
+  useEffect(() => {
+    if (!isWappyBrowserFullscreen) return;
+    if (!isHeroChatOpen || !isMobileHeroMode) {
+      setIsWappyBrowserFullscreen(false);
+      return;
+    }
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setIsWappyBrowserFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [isWappyBrowserFullscreen, isHeroChatOpen, isMobileHeroMode]);
+
+  // Propagar eventos de cambio/actualización de empresa y recarga SG-SST del window padre al iframe embebido
+  useEffect(() => {
+    if (!hasOpenedWappyBrowser) return;
+    const forwardedEvents = [
+      'wappy-empresa-cambiada',
+      'wappy-company-changed',
+      'wappy-empresa-actualizada',
+      'wappy-reload-sgsst-data',
+      'ipevar-official-updated',
+      'pesv-official-updated',
+      'sgsst-diagnostic-updated',
+      'wappy-automatizaciones-updated',
+      'wappy-refresh-calendar',
+      'wappy-refresh-kanban',
+    ];
+    const forwardToFrame = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      wappyBrowserRef.current?.dispatchToFrame(e.type, detail);
+    };
+    forwardedEvents.forEach((evtName) => window.addEventListener(evtName, forwardToFrame));
+    return () => {
+      forwardedEvents.forEach((evtName) => window.removeEventListener(evtName, forwardToFrame));
+    };
+  }, [hasOpenedWappyBrowser]);
 
   const exitHeroModeToWorkspace = useCallback(() => {
     blurElementInside(heroLeftPanelRef.current);
@@ -1855,6 +1937,7 @@ export default function TenshiChat() {
     hasExitedHeroInMountRef.current = true;
     setIsMobileHeroMode(false);
     setIsHeroChatOpen(false);
+    setIsWappyBrowserFullscreen(false);
     setHeroPanelTab('chat');
     setCanvasMaximized(false);
     if (typeof window !== 'undefined') {
@@ -2153,7 +2236,12 @@ export default function TenshiChat() {
     heroCanvasHasContent ||
     Boolean(streamingCanvas?.content) ||
     heroPanelTab === 'canvas';
-  const totalVisibleHeroTabs = 1 + (showHeroCanvasTab ? 1 : 0) + activePanelToolMetas.length;
+  const showHeroWappyTab =
+    sessionPrefs.enabledTools.includes('navegador_wappy') ||
+    hasOpenedWappyBrowser ||
+    heroPanelTab === 'wappy';
+  const totalVisibleHeroTabs =
+    1 + (showHeroCanvasTab ? 1 : 0) + (showHeroWappyTab ? 1 : 0) + activePanelToolMetas.length;
 
   const updateHeroTabScrollIndicators = useCallback(() => {
     const el = heroTabRailRef.current;
@@ -2218,6 +2306,7 @@ export default function TenshiChat() {
   }, [
     activePanelToolMetas.length,
     showHeroCanvasTab,
+    showHeroWappyTab,
     isHeroChatOpen,
     isMobileHeroMode,
     heroPanelTab,
@@ -2232,8 +2321,17 @@ export default function TenshiChat() {
     }
   }, [heroPanelTab, isHeroChatOpen, scrollHeroTabIntoView]);
 
+  // Detectar si el usuario desactivó explícitamente el toggle `navegador_wappy` estando en la pestaña `'wappy'`
+  const prevNavegadorEnabledRef = useRef<boolean>(
+    sessionPrefs.enabledTools.includes('navegador_wappy'),
+  );
+
   // Si el usuario desactiva en ⚙️ Herramientas el toggle de la pestaña abierta, regresar a Chat
   useEffect(() => {
+    const isNavegadorEnabled = sessionPrefs.enabledTools.includes('navegador_wappy');
+    const wasNavegadorEnabled = prevNavegadorEnabledRef.current;
+    prevNavegadorEnabledRef.current = isNavegadorEnabled;
+
     if (heroPanelTab === 'chat') return;
     if (heroPanelTab === 'canvas') {
       if (
@@ -2245,16 +2343,88 @@ export default function TenshiChat() {
       }
       return;
     }
+    if (heroPanelTab === 'wappy') {
+      // Solo regresar a Chat si el usuario desactivó explícitamente el toggle estando en 'wappy'
+      if (wasNavegadorEnabled && !isNavegadorEnabled) {
+        setIsWappyBrowserFullscreen(false);
+        setHeroPanelTab('chat');
+      }
+      return;
+    }
     if (!sessionPrefs.enabledTools.includes(heroPanelTab)) {
       setHeroPanelTab('chat');
     }
   }, [heroPanelTab, sessionPrefs.enabledTools, heroCanvasHasContent, streamingCanvas?.content]);
 
-  // Helper único para abrir cualquier herramienta con panel (o Canvas) dentro de Tenshi
+  // Helper único para abrir/navegar el Navegador WAPPY Integrado dentro de Tenshi (`🌐 Wappy`)
+  const openWappyBrowserInTenshi = useCallback(
+    (targetRoute?: string, sgsstModule?: string) => {
+      const cleanTarget = stripTenshiEmbedParam(
+        targetRoute || wappyBrowserUrlRef.current || '/sgsst',
+      );
+      const withoutHash = cleanTarget.split('#')[0];
+      const qIdx = withoutHash.indexOf('?');
+      const pathPart = qIdx === -1 ? withoutHash : withoutHash.slice(0, qIdx);
+      const searchPart = qIdx === -1 ? '' : withoutHash.slice(qIdx);
+      const titleInfo = formatWappyBrowserTitle(pathPart, searchPart);
+
+      try {
+        tenshiAudio.playBlip();
+      } catch (_) {}
+
+      setSessionPrefs((prev) => {
+        if (prev.enabledTools.includes('navegador_wappy')) return prev;
+        return {
+          ...prev,
+          enabledTools: [...prev.enabledTools, 'navegador_wappy'],
+        };
+      });
+
+      setWappyBrowserUrl(cleanTarget);
+      wappyBrowserUrlRef.current = cleanTarget;
+      setWappyBrowserLabel(titleInfo.shortLabel);
+      setHasOpenedWappyBrowser(true);
+      hasOpenedWappyBrowserRef.current = true;
+
+      if (!isMobileHeroModeRef.current) {
+        hasExitedHeroInMountRef.current = false;
+        if (typeof window !== 'undefined') {
+          safeRemoveItem('tenshi_mobile_hero_minimized', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_hero_exited', window.sessionStorage);
+          safeRemoveItem('tenshi_mobile_just_logged_in', window.sessionStorage);
+          safeSetItem('tenshi_mobile_hero_forced', 'true', window.sessionStorage);
+        }
+        setIsMobileHeroMode(true);
+        setIsOpen(false);
+      }
+
+      blurElementInside(heroAmbientGridRef.current);
+      setHeroPanelTab('wappy');
+      heroPanelTabRef.current = 'wappy';
+      setIsHeroChatOpen(true);
+      isHeroChatOpenRef.current = true;
+      scrollHeroTabIntoView('wappy');
+
+      if (wappyBrowserRef.current) {
+        wappyBrowserRef.current.navigateTo(cleanTarget, sgsstModule);
+      }
+    },
+    [blurElementInside, scrollHeroTabIntoView],
+  );
+
+  const openWappyBrowserInTenshiRef = useRef(openWappyBrowserInTenshi);
+  openWappyBrowserInTenshiRef.current = openWappyBrowserInTenshi;
+
+  // Helper único para abrir cualquier herramienta con panel (Canvas o Navegador Wappy) dentro de Tenshi
   const openToolTabInTenshi = useCallback(
-    (rawToolName: string): 'canvas' | TenshiPanelToolId | null => {
+    (rawToolName: string): 'canvas' | 'wappy' | TenshiPanelToolId | null => {
       const resolved = resolveTenshiPanelToolId(rawToolName);
       if (!resolved) return null;
+
+      if (resolved === 'wappy') {
+        openWappyBrowserInTenshiRef.current();
+        return 'wappy';
+      }
 
       try {
         tenshiAudio.playBlip();
@@ -2301,6 +2471,10 @@ export default function TenshiChat() {
     (toolId: string) => {
       if (toolId === 'canvas') {
         setHasOpenedHeroCanvas(true);
+      }
+      if (toolId === 'navegador_wappy') {
+        scrollHeroTabIntoView('wappy');
+        return;
       }
       scrollHeroTabIntoView(toolId);
     },
@@ -3886,13 +4060,17 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const triggerVoiceReportRef = useRef<(() => boolean) | null>(null);
   const requestTechnicalReportRef = useRef<(() => void) | null>(null);
 
+  const isEmbeddedWappyVisible =
+    isMobileHeroMode && isHeroChatOpen && heroPanelTab === 'wappy' && hasOpenedWappyBrowser;
+
   const sessionOptions = useMemo(
     () => ({
       mode: 'tenshi_voice',
       initialVoice: activeAvatarProfile?.voice || 'Puck',
       voice: activeAvatarProfile?.voice || 'Puck',
-      route: `${location.pathname}${location.search}`,
-      isHeroMode: isMobileHeroMode,
+      route: isEmbeddedWappyVisible ? wappyBrowserUrl : `${location.pathname}${location.search}`,
+      isHeroMode: isEmbeddedWappyVisible ? false : isMobileHeroMode,
+      embeddedBrowserActive: isEmbeddedWappyVisible,
       companyId: localStorage.getItem('wappy_active_company_id') || undefined,
       personality: personalityMode,
       onAudioReceived: (audioData: string) => {
@@ -4046,6 +4224,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               } else if (isCompanyModal) {
                 navigate(targetRoute);
                 window.dispatchEvent(new CustomEvent('open-company-info'));
+              } else if (isMobileHeroModeRef.current) {
+                openWappyBrowserInTenshiRef.current(targetRoute, targetSgsstModule);
               } else {
                 navigate(targetRoute);
                 if (targetSgsstModule) {
@@ -4061,14 +4241,22 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             tenshiAudio.playBlip();
             const targetRoute = action.args?.ruta || (action as any).result?.ruta || '/academia?tab=cursos';
             setTimeout(() => {
-              navigate(targetRoute);
+              if (isMobileHeroModeRef.current) {
+                openWappyBrowserInTenshiRef.current(targetRoute);
+              } else {
+                navigate(targetRoute);
+              }
             }, 450);
             resultMsg = `Curso abierto con éxito en pantalla: ${targetRoute}`;
           } else if (action.name === 'wappy_abrir_articulo_blog') {
             tenshiAudio.playBlip();
             const targetRoute = action.args?.ruta || (action as any).result?.ruta || '/academia?tab=blog';
             setTimeout(() => {
-              navigate(targetRoute);
+              if (isMobileHeroModeRef.current) {
+                openWappyBrowserInTenshiRef.current(targetRoute);
+              } else {
+                navigate(targetRoute);
+              }
             }, 450);
             resultMsg = `Artículo del Blog abierto con éxito en pantalla: ${targetRoute}`;
           } else if (action.name === 'wappy_iniciar_estudio_ergonomico_vivo') {
@@ -4416,21 +4604,38 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawModulo = (action.args?.modulo || 'investigacion_atel').toLowerCase().trim();
             const campos = action.args?.campos || {};
             const accion = action.args?.accion || 'llenar';
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, '');
+            const destRoute = targetRoute || `/sgsst?hito=hito7&module=${rawModulo}`;
 
-            // Si no estamos en el módulo correspondiente, navegar hacia él
-            if (!window.location.pathname.includes('/sgsst') || !window.location.search.includes(rawModulo)) {
-              const { targetRoute } = resolveWappyDestination(rawModulo, '');
-              navigate(targetRoute || `/sgsst?hito=hito7&module=${rawModulo}`);
+            if (isMobileHeroModeRef.current) {
+              const currentFrameUrl = wappyBrowserUrlRef.current || '';
+              const needsFrameNav =
+                !hasOpenedWappyBrowserRef.current ||
+                !currentFrameUrl.includes('/sgsst') ||
+                !currentFrameUrl.includes(targetSgsstModule || rawModulo);
+              openWappyBrowserInTenshiRef.current(destRoute, targetSgsstModule);
+              setTimeout(() => {
+                wappyBrowserRef.current?.dispatchToFrame('wappy-diligenciar-formulario', {
+                  modulo: rawModulo,
+                  campos,
+                  accion,
+                });
+              }, needsFrameNav ? 950 : 350);
+            } else {
+              // Si no estamos en el módulo correspondiente, navegar hacia él
+              if (!window.location.pathname.includes('/sgsst') || !window.location.search.includes(rawModulo)) {
+                navigate(destRoute);
+              }
+
+              // Emitir evento para que el componente del formulario capture los datos
+              setTimeout(() => {
+                window.dispatchEvent(
+                  new CustomEvent('wappy-diligenciar-formulario', {
+                    detail: { modulo: rawModulo, campos, accion }
+                  })
+                );
+              }, 350);
             }
-
-            // Emitir evento para que el componente del formulario capture los datos
-            setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent('wappy-diligenciar-formulario', {
-                  detail: { modulo: rawModulo, campos, accion }
-                })
-              );
-            }, 350);
 
             resultMsg = `Formulario ${rawModulo} diligenciado exitosamente con los datos provistos`;
           } else if (action.name === 'leer_pantalla') {
@@ -4581,28 +4786,54 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawApp = (action.args?.aplicativo || action.args?.modulo || '').toLowerCase().trim();
             const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawApp, '');
 
-            // Si no estamos en la página del aplicativo, navegar
-            if (targetRoute && (!window.location.pathname.includes('/sgsst') || (targetSgsstModule && !window.location.search.includes(targetSgsstModule)))) {
-              navigate(targetRoute);
-            }
-
-            if (targetSgsstModule) {
-              window.dispatchEvent(
-                new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
-              );
-            }
-
-            // Disparar el evento de análisis IA para el aplicativo y accionar el botón de generación
-            setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: rawApp || targetSgsstModule } })
-              );
-
-              const btn = document.querySelector<HTMLElement>('[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]');
-              if (btn && !btn.hasAttribute('disabled')) {
-                btn.click();
+            if (isMobileHeroModeRef.current) {
+              const currentFrameUrl = wappyBrowserUrlRef.current || '';
+              const needsFrameNav =
+                !hasOpenedWappyBrowserRef.current ||
+                !currentFrameUrl.includes('/sgsst') ||
+                (targetSgsstModule ? !currentFrameUrl.includes(targetSgsstModule) : false);
+              if (targetRoute) {
+                openWappyBrowserInTenshiRef.current(targetRoute, targetSgsstModule);
+              } else {
+                openWappyBrowserInTenshiRef.current();
               }
-            }, 550);
+
+              setTimeout(() => {
+                wappyBrowserRef.current?.dispatchToFrame('wappy-generar-analisis-ia', {
+                  aplicativo: rawApp || targetSgsstModule,
+                });
+                const frameDoc = wappyBrowserRef.current?.getContentWindow()?.document;
+                const btn = frameDoc?.querySelector<HTMLElement>(
+                  '[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]',
+                );
+                if (btn && !btn.hasAttribute('disabled')) {
+                  btn.click();
+                }
+              }, needsFrameNav ? 1050 : 550);
+            } else {
+              // Si no estamos en la página del aplicativo, navegar
+              if (targetRoute && (!window.location.pathname.includes('/sgsst') || (targetSgsstModule && !window.location.search.includes(targetSgsstModule)))) {
+                navigate(targetRoute);
+              }
+
+              if (targetSgsstModule) {
+                window.dispatchEvent(
+                  new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } })
+                );
+              }
+
+              // Disparar el evento de análisis IA para el aplicativo y accionar el botón de generación
+              setTimeout(() => {
+                window.dispatchEvent(
+                  new CustomEvent('wappy-generar-analisis-ia', { detail: { aplicativo: rawApp || targetSgsstModule } })
+                );
+
+                const btn = document.querySelector<HTMLElement>('[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]');
+                if (btn && !btn.hasAttribute('disabled')) {
+                  btn.click();
+                }
+              }, 550);
+            }
 
             resultMsg = `Generación de Análisis IA ejecutada directamente en el editor del aplicativo "${rawApp || 'SGSST'}".`;
           } else if (action.name === 'wappy_crear_informe') {
@@ -5461,7 +5692,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice, openCanvasInTenshi, isMobileHeroMode]
+    [navigate, handleAudioReceived, clearAudioQueue, isBiomechanicsActive, personalityMode, activeAvatarProfile?.voice, openCanvasInTenshi, isMobileHeroMode, isEmbeddedWappyVisible, wappyBrowserUrl]
   );
 
   const {
@@ -5492,7 +5723,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
   const sendScreenContextRef = useRef<((data: any) => void) | null>(null);
   sendScreenContextRef.current = sendScreenContext;
 
-  // Sincronizar el contexto visual de la pantalla, multi-chat Tenshi, cuadernos NotebookLM y estado Hero Mode con la sesión de voz
+  // Sincronizar el contexto visual de la pantalla, multi-chat Tenshi, cuadernos NotebookLM, navegador embebido y estado Hero Mode con la sesión de voz
   useEffect(() => {
     if (isVoiceActive && sendScreenContextRef.current) {
       const effectiveAgentId = conversation?.agent_id || activeConsultationAgentIdRef.current;
@@ -5503,8 +5734,9 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         selectedTenshiNotebooks: sessionPrefs.selectedNotebooks,
         agentId: effectiveAgentId,
         agentName: activeAgent?.name || activeConsultationAgentNameRef.current || conversation?.title,
-        route: `${location.pathname}${location.search}`,
-        isHeroMode: isMobileHeroMode,
+        route: isEmbeddedWappyVisible ? wappyBrowserUrl : `${location.pathname}${location.search}`,
+        isHeroMode: isEmbeddedWappyVisible ? false : isMobileHeroMode,
+        embeddedBrowserActive: isEmbeddedWappyVisible,
       });
     }
   }, [
@@ -5512,6 +5744,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
     isVoiceConnected,
     voiceStatus,
     isMobileHeroMode,
+    isEmbeddedWappyVisible,
+    wappyBrowserUrl,
     activeConversationId,
     sessionPrefs.selectedNotebooks,
     conversation?.conversationId,
@@ -7836,7 +8070,14 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
         currentPath.startsWith('/contactanos') ||
         currentPath.startsWith('/comunidad');
       
-      const shouldCaptureDOM = isLoopFeedback || isUiActionQuery || isInformationalOrSgsstPage;
+      const isEmbeddedWappyActive =
+        isMobileHeroModeRef.current &&
+        isHeroChatOpenRef.current &&
+        heroPanelTabRef.current === 'wappy' &&
+        hasOpenedWappyBrowserRef.current;
+
+      const shouldCaptureDOM =
+        isLoopFeedback || isUiActionQuery || isInformationalOrSgsstPage || isEmbeddedWappyActive;
       
       let domState = '';
       if (shouldCaptureDOM) {
@@ -8143,6 +8384,8 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             } else if (isCompanyModal) {
               navigate(targetRoute);
               window.dispatchEvent(new CustomEvent('open-company-info'));
+            } else if (isMobileHeroModeRef.current) {
+              openWappyBrowserInTenshiRef.current(targetRoute, targetSgsstModule);
             } else {
               navigate(targetRoute);
               if (targetSgsstModule) {
@@ -8178,7 +8421,11 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawRuta = action.ruta || action.args?.ruta || '/academia?tab=cursos';
             tenshiAudio.playBlip();
             setTenshiStatus(`Abriendo curso...`);
-            navigate(rawRuta);
+            if (isMobileHeroModeRef.current) {
+              openWappyBrowserInTenshiRef.current(rawRuta);
+            } else {
+              navigate(rawRuta);
+            }
             lastResult = { success: true, message: `Curso abierto con éxito: ${rawRuta}` };
             setTenshiStatus('');
             index++;
@@ -8193,8 +8440,156 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
             const rawRuta = action.ruta || action.args?.ruta || '/academia?tab=blog';
             tenshiAudio.playBlip();
             setTenshiStatus(`Abriendo artículo de blog...`);
-            navigate(rawRuta);
+            if (isMobileHeroModeRef.current) {
+              openWappyBrowserInTenshiRef.current(rawRuta);
+            } else {
+              navigate(rawRuta);
+            }
             lastResult = { success: true, message: `Artículo de blog abierto con éxito: ${rawRuta}` };
+            setTenshiStatus('');
+            index++;
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_diligenciar_formulario' ||
+            action.accion === 'diligenciar_formulario' ||
+            action.action === 'wappy_diligenciar_formulario'
+          ) {
+            const rawModulo = String(
+              action.args?.modulo || action.modulo || 'investigacion_atel',
+            )
+              .toLowerCase()
+              .trim();
+            const campos = action.args?.campos || action.campos || {};
+            const accionForm = action.args?.accion || action.accion_formulario || 'llenar';
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawModulo, '');
+            const destRoute = targetRoute || `/sgsst?hito=hito7&module=${rawModulo}`;
+
+            setTenshiStatus(`Diligenciando formulario ${rawModulo}...`);
+            setGuiSteps((prev) => [
+              ...prev,
+              { action: 'FORMULARIO', details: `Diligenciar ${rawModulo}`, status: 'pending' },
+            ]);
+
+            if (isMobileHeroModeRef.current) {
+              const currentFrameUrl = wappyBrowserUrlRef.current || '';
+              const needsFrameNav =
+                !hasOpenedWappyBrowserRef.current ||
+                !currentFrameUrl.includes('/sgsst') ||
+                !currentFrameUrl.includes(targetSgsstModule || rawModulo);
+              openWappyBrowserInTenshiRef.current(destRoute, targetSgsstModule);
+              await new Promise((resolve) => setTimeout(resolve, needsFrameNav ? 950 : 350));
+              wappyBrowserRef.current?.dispatchToFrame('wappy-diligenciar-formulario', {
+                modulo: rawModulo,
+                campos,
+                accion: accionForm,
+              });
+            } else {
+              if (
+                !window.location.pathname.includes('/sgsst') ||
+                !window.location.search.includes(rawModulo)
+              ) {
+                navigate(destRoute);
+              }
+              await new Promise((resolve) => setTimeout(resolve, 350));
+              window.dispatchEvent(
+                new CustomEvent('wappy-diligenciar-formulario', {
+                  detail: { modulo: rawModulo, campos, accion: accionForm },
+                }),
+              );
+            }
+
+            lastResult = {
+              success: true,
+              message: `Formulario ${rawModulo} diligenciado exitosamente con los datos provistos.`,
+            };
+            setGuiSteps((prev) => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[updated.length - 1].status = 'success';
+              }
+              return updated;
+            });
+            cumulativeMessages.push({
+              role: 'user',
+              content: `[RESULTADO_GUI] Formulario ${rawModulo} diligenciado exitosamente.`,
+            });
+            setTenshiStatus('');
+            index++;
+            continue;
+          }
+
+          if (
+            action.name === 'wappy_generar_analisis_aplicativo' ||
+            action.accion === 'generar_analisis_aplicativo' ||
+            action.action === 'wappy_generar_analisis_aplicativo'
+          ) {
+            const rawApp = String(
+              action.args?.aplicativo || action.args?.modulo || action.aplicativo || action.modulo || '',
+            )
+              .toLowerCase()
+              .trim();
+            const { targetRoute, targetSgsstModule } = resolveWappyDestination(rawApp, '');
+            setTenshiStatus(`Ejecutando análisis IA en ${rawApp || 'SGSST'}...`);
+
+            if (isMobileHeroModeRef.current) {
+              const currentFrameUrl = wappyBrowserUrlRef.current || '';
+              const needsFrameNav =
+                !hasOpenedWappyBrowserRef.current ||
+                !currentFrameUrl.includes('/sgsst') ||
+                (targetSgsstModule ? !currentFrameUrl.includes(targetSgsstModule) : false);
+              if (targetRoute) {
+                openWappyBrowserInTenshiRef.current(targetRoute, targetSgsstModule);
+              } else {
+                openWappyBrowserInTenshiRef.current();
+              }
+              await new Promise((resolve) => setTimeout(resolve, needsFrameNav ? 1050 : 550));
+              wappyBrowserRef.current?.dispatchToFrame('wappy-generar-analisis-ia', {
+                aplicativo: rawApp || targetSgsstModule,
+              });
+              const frameDoc = wappyBrowserRef.current?.getContentWindow()?.document;
+              const btn = frameDoc?.querySelector<HTMLElement>(
+                '[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]',
+              );
+              if (btn && !btn.hasAttribute('disabled')) {
+                btn.click();
+              }
+            } else {
+              if (
+                targetRoute &&
+                (!window.location.pathname.includes('/sgsst') ||
+                  (targetSgsstModule && !window.location.search.includes(targetSgsstModule)))
+              ) {
+                navigate(targetRoute);
+              }
+              if (targetSgsstModule) {
+                window.dispatchEvent(
+                  new CustomEvent('navigate-sgsst', { detail: { module: targetSgsstModule } }),
+                );
+              }
+              await new Promise((resolve) => setTimeout(resolve, 550));
+              window.dispatchEvent(
+                new CustomEvent('wappy-generar-analisis-ia', {
+                  detail: { aplicativo: rawApp || targetSgsstModule },
+                }),
+              );
+              const btn = document.querySelector<HTMLElement>(
+                '[data-action="generar-analisis-ia"], [id="btn-generar-responsable-ia"], [data-action="ai-default"], button[title*="Generar con IA"]',
+              );
+              if (btn && !btn.hasAttribute('disabled')) {
+                btn.click();
+              }
+            }
+
+            lastResult = {
+              success: true,
+              message: `Análisis IA iniciado en el aplicativo "${rawApp || 'SGSST'}".`,
+            };
+            cumulativeMessages.push({
+              role: 'user',
+              content: `[RESULTADO_GUI] Generación de análisis IA disparada en ${rawApp || 'SGSST'}.`,
+            });
             setTenshiStatus('');
             index++;
             continue;
@@ -9517,7 +9912,12 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
       {isMobileHeroMode ? (
         <div
           id="tenshi-mobile-hero-container"
-          className="fixed inset-0 w-screen z-[70] flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden opacity-100"
+          className={cn(
+            'fixed inset-0 w-screen flex flex-col bg-slate-100 dark:bg-zinc-950 bg-gradient-to-b from-slate-50 via-teal-50 to-slate-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 text-slate-800 dark:text-zinc-100 overflow-hidden opacity-100',
+            isWappyBrowserFullscreen && heroPanelTab === 'wappy' && isHeroChatOpen
+              ? 'z-[99999]'
+              : 'z-[70]',
+          )}
           style={{
             paddingBottom: isDesktopPanoramic
               ? '0px'
@@ -10305,7 +10705,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
               </div>
             </div>
 
-            {/* 4. Panel de Chat y Canvas Integrado: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
+            {/* 4. Panel de Chat, Canvas y Navegador WAPPY Integrado: En Celular sube sobre la pantalla; en PC Panorámico se despliega con transición coreografiada a la izquierda mientras Suri se desliza a la derecha */}
             {(isDesktopPanoramic || isHeroChatOpen) && (
               <div
                 ref={heroLeftPanelRef}
@@ -10316,30 +10716,49 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 onDrop={heroPanelTab === 'chat' ? handleComposerDrop : undefined}
                 onPaste={heroPanelTab === 'chat' ? handleComposerPaste : undefined}
                 style={
-                  isDesktopPanoramic
+                  isWappyBrowserFullscreen && heroPanelTab === 'wappy' && isHeroChatOpen
                     ? {
-                        position: 'absolute',
-                        left: 'clamp(20px, 2.8vw, 48px)',
-                        top: '10px',
-                        bottom: `${pcStageMetrics.bottomNavReserve}px`,
-                        width: 'calc(50% - clamp(24px, 3vw, 52px))',
-                        transform: isHeroChatOpen
-                          ? 'translateX(0px) scale(1)'
-                          : 'translateX(-44px) scale(0.97)',
-                        opacity: isHeroChatOpen ? 1 : 0,
-                        visibility: isHeroChatOpen ? 'visible' : 'hidden',
-                        pointerEvents: isHeroChatOpen ? 'auto' : 'none',
-                        transition: isHeroChatOpen
-                          ? 'transform 560ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s'
-                          : 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease, visibility 0s linear 500ms',
+                        position: 'fixed',
+                        inset: 0,
+                        left: 0,
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100dvw',
+                        height: '100dvh',
+                        zIndex: 99999,
+                        transform: 'none',
+                        opacity: 1,
+                        visibility: 'visible',
+                        pointerEvents: 'auto',
+                        borderRadius: 0,
                       }
-                    : undefined
+                    : isDesktopPanoramic
+                      ? {
+                          position: 'absolute',
+                          left: 'clamp(20px, 2.8vw, 48px)',
+                          top: '10px',
+                          bottom: `${pcStageMetrics.bottomNavReserve}px`,
+                          width: 'calc(50% - clamp(24px, 3vw, 52px))',
+                          transform: isHeroChatOpen
+                            ? 'translateX(0px) scale(1)'
+                            : 'translateX(-44px) scale(0.97)',
+                          opacity: isHeroChatOpen ? 1 : 0,
+                          visibility: isHeroChatOpen ? 'visible' : 'hidden',
+                          pointerEvents: isHeroChatOpen ? 'auto' : 'none',
+                          transition: isHeroChatOpen
+                            ? 'transform 560ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s'
+                            : 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease, visibility 0s linear 500ms',
+                        }
+                      : undefined
                 }
                 className={cn(
                   'flex flex-col backdrop-blur-2xl shadow-2xl overflow-hidden',
-                  isDesktopPanoramic
-                    ? 'z-[26] bg-white/92 dark:bg-zinc-900/92 rounded-3xl border border-slate-200/85 dark:border-zinc-800/90'
-                    : 'absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300'
+                  isWappyBrowserFullscreen && heroPanelTab === 'wappy' && isHeroChatOpen
+                    ? 'fixed inset-0 z-[99999] rounded-none border-0 bg-surface-primary dark:bg-zinc-950'
+                    : isDesktopPanoramic
+                      ? 'z-[26] bg-white/92 dark:bg-zinc-900/92 rounded-3xl border border-slate-200/85 dark:border-zinc-800/90'
+                      : 'absolute inset-0 z-50 md:relative md:inset-auto md:z-20 md:order-1 md:w-[54%] lg:w-[52%] xl:w-[50%] md:h-full bg-white/95 dark:bg-zinc-950/95 md:bg-white/90 dark:md:bg-zinc-900/90 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-200/80 dark:border-zinc-800/90 animate-in slide-in-from-bottom md:slide-in-from-left-8 fade-in duration-300',
                 )}
               >
               {heroPanelTab === 'chat' && renderDragDropOverlay()}
@@ -10418,6 +10837,37 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                                 title="Documento cargado en Canvas"
                               />
                             )}
+                          </button>
+                        )}
+
+                        {showHeroWappyTab && (
+                          <button
+                            ref={(el) => {
+                              heroTabButtonRefs.current.wappy = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            aria-selected={heroPanelTab === 'wappy'}
+                            title={`Navegador WAPPY integrado (${wappyBrowserUrl})`}
+                            onClick={() => {
+                              tenshiAudio.playBlip();
+                              setHasOpenedWappyBrowser(true);
+                              setHeroPanelTab('wappy');
+                            }}
+                            className={cn(
+                              'inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border',
+                              heroPanelTab === 'wappy'
+                                ? 'bg-sky-500/15 border-sky-500/45 text-sky-700 dark:text-sky-300 shadow-2xs'
+                                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:bg-slate-100/80 dark:hover:bg-zinc-700/60 hover:text-slate-800 dark:hover:text-zinc-200',
+                            )}
+                          >
+                            <Globe
+                              className={cn(
+                                'w-3.5 h-3.5 shrink-0',
+                                heroPanelTab !== 'wappy' && 'text-sky-600 dark:text-sky-400',
+                              )}
+                            />
+                            <span className="truncate max-w-[120px]">{wappyBrowserLabel}</span>
                           </button>
                         )}
 
@@ -10530,6 +10980,7 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                       onClick={() => {
                         tenshiAudio.playBlip();
                         blurElementInside(heroLeftPanelRef.current);
+                        setIsWappyBrowserFullscreen(false);
                         setIsHeroChatOpen(false);
                         setCanvasMaximized(false);
                       }}
@@ -11348,8 +11799,41 @@ DIRECTIVA OBLIGATORIA DE SÍNTESIS TÉCNICA ORAL PARA TENSHI:
                 </div>
               )}
 
+              {/* Cuerpo Navegador WAPPY Integrado (persistente al alternar Chat <-> Wappy sin recargar iframe) */}
+              {hasOpenedWappyBrowser && (
+                <div
+                  className={cn(
+                    'flex-1 min-h-0 w-full overflow-hidden',
+                    heroPanelTab === 'wappy' ? 'flex flex-col' : 'hidden',
+                  )}
+                >
+                  <TenshiWappyBrowser
+                    ref={wappyBrowserRef}
+                    initialUrl={wappyBrowserUrl}
+                    isVisible={isMobileHeroMode && isHeroChatOpen && heroPanelTab === 'wappy'}
+                    isFullscreen={isWappyBrowserFullscreen}
+                    onToggleFullscreen={() => setIsWappyBrowserFullscreen((prev) => !prev)}
+                    onOpenOutside={(cleanUrl) => {
+                      const target = stripTenshiEmbedParam(cleanUrl || wappyBrowserUrlRef.current);
+                      setIsWappyBrowserFullscreen(false);
+                      exitHeroModeToWorkspace();
+                      navigate(target);
+                    }}
+                    onBackToChat={() => {
+                      setIsWappyBrowserFullscreen(false);
+                      setHeroPanelTab('chat');
+                    }}
+                    onUrlChange={(cleanUrl, titleInfo) => {
+                      setWappyBrowserUrl(cleanUrl);
+                      wappyBrowserUrlRef.current = cleanUrl;
+                      setWappyBrowserLabel(titleInfo.shortLabel || 'Wappy');
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Cuerpo de Herramienta con Panel Integrado (1 solo panel extra montado a la vez) */}
-              {heroPanelTab !== 'chat' && heroPanelTab !== 'canvas' && (
+              {heroPanelTab !== 'chat' && heroPanelTab !== 'canvas' && heroPanelTab !== 'wappy' && (
                 <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden">
                   <TenshiEmbeddedToolHost
                     toolId={heroPanelTab}
